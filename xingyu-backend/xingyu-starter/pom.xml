@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>top.pxczxn</groupId>
+        <artifactId>xingyu-backend</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>xingyu-starter</artifactId>
+    <packaging>jar</packaging>
+    <name>Xingyu Starter</name>
+    <description>启动模块 - 主启动类和全局配置</description>
+
+    <properties>
+        <start-class>top.pxczxn.xingyu.XingyuHubApplication</start-class>
+    </properties>
+
+    <dependencies>
+        <!-- 后台接口层 -->
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-admin-api</artifactId>
+        </dependency>
+
+        <!-- 社区接口层 -->
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-community-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-platform</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
+                <configuration>
+                    <!-- Sa-Token 使用 JVM 级静态状态；集成测试类必须隔离运行。 -->
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <configuration>
+                    <mainClass>${start-class}</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,123 @@
+# ============================================================
+# 原则：只提交项目源码 + 正式插图；其余忽略
+#
+# 插图 vs 原型图：只按路径判断（不看内容、不看代码是否引用）
+#
+# 插图路径（提交）：
+#   **/public/images/**  **/public/brand/**  **/src/assets/**  **/static/**
+# 原型路径（忽略）：
+#   **/.prototype-review/**  **/prototype-assets/**  **/prototype-specs/**
+# ============================================================
+
+
+# 依赖（凭 lock / pom 恢复）
+node_modules/
+.mvn/
+.gradle/
+
+# 构建产物（凭源码重新生成）
+target/
+dist/
+build/
+out/
+.next/
+.vinext/
+.wrangler/
+.turbo/
+*.class
+*.war
+*.tsbuildinfo
+*.hprof
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# 缓存与测试输出
+.cache/
+coverage/
+playwright-report/
+test-results/
+.eslintcache
+work/
+outputs/
+
+# 运行时与临时文件
+.run/
+runtime/
+logs/
+uploads/
+tmp/
+temp/
+*.log
+*.pid
+*.tmp
+
+# 本地环境与密钥
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+application-secret.yml
+
+# 本地数据库文件
+*.db
+*.sqlite
+*.sqlite3
+database/data/
+database/backup/
+*.sql.gz
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# AI / Agent 产出
+.agents/
+.agent/
+.codex/
+.claude/
+.cursor/
+.reasonix/
+.workbuddy/
+.ai/
+ai-notes/
+ai-output/
+rollout-*.jsonl
+.codex-*.png
+
+# 原型路径（忽略；与 public/images/、public/brand/ 插图路径无关）
+.prototype-review/
+prototype/
+prototypes/
+prototype-specs/
+prototype-assets/
+mockup/
+wireframe/
+figma/
+design/
+
+# 开发资料（非项目源码）
+docs/
+doc/
+*.md
+!/README.md
+
+# 个人 QA / AI 分析脚本
+qa/
+tools/
+
+# 项目专属生成目录
+mars-admin/
+xingyu-backend/xingyu-starter/src/main/resources/static/
+xingyu-uniapp/unpackage/
+
+# 操作系统
+.DS_Store
+Thumbs.db
+Desktop.ini

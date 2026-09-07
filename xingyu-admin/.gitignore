@@ -1,0 +1,29 @@
+# Node
+node_modules/
+dist/
+dist-verify/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Maven
+target/
+**/target/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads
+uploads/
+
+# Env
+.env
+.env.local
+.env.*.local

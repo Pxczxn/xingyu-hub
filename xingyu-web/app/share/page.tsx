@@ -1,0 +1,5 @@
+"use client";
+import Link from "next/link";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageHero } from "@/components/community/page-primitives";
+export default function SharePage(){return <AppShell><main className="xy-page"><PageHero eyebrow="分享" title="分享星语内容" description="把值得阅读的故事、专题和讨论分享给朋友。"/><section className="xy-panel mx-auto max-w-2xl text-center"><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-2xl">✦</div><h2 className="mt-5 text-xl font-semibold text-foreground">准备好发现下一篇好内容了吗？</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">打开发现页，选择一篇文章或专题，使用页面上的分享按钮生成专属链接。</p><Link href="/discover" className="mt-6 inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">去发现内容</Link></section></main></AppShell>}

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>top.pxczxn</groupId>
+        <artifactId>xingyu-api</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>xingyu-admin-api</artifactId>
+    <packaging>jar</packaging>
+    <name>Xingyu Admin API</name>
+    <description>后台管理接口层 - Admin控制器</description>
+
+    <dependencies>
+        <!-- 认证模块 -->
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-auth</artifactId>
+        </dependency>
+        <!-- 业务模块 -->
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-system</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-crypto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-file</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-gen</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-pay</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-sms</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-job</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-community</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-wechat</artifactId>
+        </dependency>
+
+        <!-- WebSocket基础设施 -->
+        <dependency>
+            <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-websocket</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+    </dependencies>
+</project>
