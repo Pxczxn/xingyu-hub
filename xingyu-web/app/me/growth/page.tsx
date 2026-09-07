@@ -102,7 +102,7 @@ export default function GrowthPage() {
           </ul>
         </section>
 
-        <Link href="/me/insights" className="text-sm text-accent hover:underline">查看创作数据</Link>
+        <Link href="/studio/analytics" className="text-sm text-accent hover:underline">查看创作数据</Link>
       </main>
     </AppShell>
   );

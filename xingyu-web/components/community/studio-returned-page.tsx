@@ -66,7 +66,7 @@ export function StudioReturnedPage() {
               {submissions.map((item) => (
                 <li key={item.id}>
                   <Link
-                    href={`/studio/articles/${item.articleId}/edit`}
+                    href={`/studio/content/${item.articleId}/edit`}
                     className="group flex flex-col gap-3 rounded-2xl border border-[#e5e8ef] bg-white/65 p-4 text-sm transition-all hover:-translate-y-0.5 hover:border-[#e0b27d] hover:bg-white hover:shadow-[0_10px_24px_rgba(58,70,108,.08)] sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">

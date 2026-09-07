@@ -79,7 +79,7 @@ export function StudioArticleListPage({ title, description, statusFilter, mode =
       <Card className="mt-5 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><CardTitle>{mode === "trash" ? "回收站" : "文章列表"}</CardTitle><CardDescription className="mt-1">{mode === "trash" ? "可恢复已删除的内容" : "选择内容继续编辑或查看审核状态"}</CardDescription></div>
-          {mode === "articles" && <Button asChild className="rounded-full"><Link href="/studio/articles/new"><Plus className="mr-1.5 h-4 w-4" />新建文章</Link></Button>}
+          {mode === "articles" && <Button asChild className="rounded-full"><Link href="/studio/content/new"><Plus className="mr-1.5 h-4 w-4" />新建文章</Link></Button>}
         </div>
 
         {loading ? (
@@ -117,7 +117,7 @@ export function StudioArticleListPage({ title, description, statusFilter, mode =
             {articles.map((article) => (
               <li key={article.id}>
                 <Link
-                  href={`/studio/articles/${article.id}/edit`}
+                  href={`/studio/content/${article.id}/edit`}
                   className="group flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#e5e8ef] bg-white/65 px-4 py-3.5 text-sm transition-all hover:-translate-y-0.5 hover:border-[#dcb17c] hover:bg-white hover:shadow-[0_10px_24px_rgba(58,70,108,.08)]"
                 >
                   <span className="min-w-0"><span className="block truncate font-medium text-[#253861]">{article.title || "无标题"}</span><span className="mt-1 block text-xs text-[#8a93a5]">最后编辑于 {new Date(article.updatedAt).toLocaleDateString("zh-CN")}</span></span>

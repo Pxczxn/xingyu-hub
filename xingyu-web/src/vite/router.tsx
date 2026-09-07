@@ -2,12 +2,14 @@ import {
   createContext,
   lazy,
   Suspense,
+  useEffect,
   type ComponentType,
   type LazyExoticComponent,
   type ReactNode,
   useContext,
   useSyncExternalStore,
 } from "react";
+import { resolveRedirect } from "./redirects";
 
 type PageModule = { default: ComponentType };
 type RouteMatch = { component: LazyExoticComponent<ComponentType>; params: Record<string, string> } | null;
@@ -82,9 +84,23 @@ export function useViteNavigation() {
   return useContext(NavigationContext);
 }
 
+function RedirectHandler({ target }: { target: string }) {
+  useEffect(() => {
+    navigate(target, true);
+  }, [target]);
+  return <main className="xy-page" aria-busy="true" />;
+}
+
 export function ViteAppRouter() {
   const location = useSyncExternalStore(subscribe, readLocation, () => "/");
   const currentUrl = new URL(location, window.location.origin);
+  const redirectTarget = resolveRedirect(currentUrl.pathname);
+  if (redirectTarget) {
+    const merged = redirectTarget.includes("?")
+      ? redirectTarget
+      : `${redirectTarget}${currentUrl.search}`;
+    return <RedirectHandler target={merged} />;
+  }
   const match = matchRoute(currentUrl.pathname);
 
   if (!match) {

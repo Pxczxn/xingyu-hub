@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { DEFAULT_AVATAR_URL } from "@/lib/paths";
 
 type AvatarProps = React.HTMLAttributes<HTMLDivElement> & {
   src?: string | null;
@@ -15,8 +16,14 @@ const sizeClasses = {
 };
 
 export function Avatar({ className, src, alt, fallback, size = "md", ...props }: AvatarProps) {
-  const [error, setError] = React.useState(false);
+  const [useDefault, setUseDefault] = React.useState(!src);
+  const [defaultFailed, setDefaultFailed] = React.useState(false);
   const initials = fallback?.slice(0, 2).toUpperCase() ?? "?";
+
+  React.useEffect(() => {
+    setUseDefault(!src);
+    setDefaultFailed(false);
+  }, [src]);
 
   return (
     <div
@@ -27,16 +34,24 @@ export function Avatar({ className, src, alt, fallback, size = "md", ...props }:
       )}
       {...props}
     >
-      {src && !error ? (
-        // eslint-disable-next-line @next/next/no-img-element
+      {useDefault ? (
+        defaultFailed ? (
+          <span>{initials}</span>
+        ) : (
+          <img
+            src={DEFAULT_AVATAR_URL}
+            alt={alt ?? fallback ?? "avatar"}
+            className="h-full w-full object-cover"
+            onError={() => setDefaultFailed(true)}
+          />
+        )
+      ) : (
         <img
-          src={src}
+          src={src!}
           alt={alt ?? fallback ?? "avatar"}
           className="h-full w-full object-cover"
-          onError={() => setError(true)}
+          onError={() => setUseDefault(true)}
         />
-      ) : (
-        <span>{initials}</span>
       )}
     </div>
   );

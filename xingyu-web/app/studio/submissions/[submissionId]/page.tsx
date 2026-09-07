@@ -22,7 +22,7 @@ export default function ReviewSubmissionDetailPage() {
   const submittedAt = submission?.submittedAt ? formatDateTime(submission.submittedAt) : "提交时间暂未提供";
 
   if (loading) return <AppShell><main className="xy-review-loading">正在加载审核详情…</main></AppShell>;
-  if (error || !submission) return <AppShell><main className="xy-review-error"><Alert variant="destructive">{error || "投稿不存在或无权查看"}</Alert><Link href="/studio/reviewing">返回审核列表</Link></main></AppShell>;
+  if (error || !submission) return <AppShell><main className="xy-review-error"><Alert variant="destructive">{error || "投稿不存在或无权查看"}</Alert><Link href="/studio/content?tab=reviewing">返回审核列表</Link></main></AppShell>;
 
   return <AppShell><main className="xy-review-detail">
     <div className="xy-review-crumb">创作中心 <ChevronRight/> <span>审核详情</span></div>
@@ -34,7 +34,7 @@ export default function ReviewSubmissionDetailPage() {
     </section>
     <aside className="xy-review-detail-side">
       <section className="xy-review-feedback"><h2><Sparkles/> 审核反馈</h2><article><header><Image src="/prototype-assets/review-detail/reviewer-avatar.png" alt="" aria-hidden="true" width={42} height={42}/><span><b>审核信息</b><small>审核时间以接口返回为准</small></span></header><p>{submission.decisionComment || "审核意见暂未提供。"}</p></article></section>
-      <section className="xy-review-next"><h2><Sparkles/> 接下来你可以</h2><ActionItem icon={<Star/>} title="查看作品" text="预览你的已发布内容" href={`/articles/${submission.articleId}`}/><ActionItem icon={<PenLine/>} title="继续创作" text="开启新的创作之旅" href="/studio/articles/new"/><ActionItem icon={<Award/>} title="创作中心" text="管理你的全部作品" href="/studio"/></section>
+      <section className="xy-review-next"><h2><Sparkles/> 接下来你可以</h2><ActionItem icon={<Star/>} title="查看作品" text="预览你的已发布内容" href={`/articles/${submission.articleId}`}/><ActionItem icon={<PenLine/>} title="继续创作" text="开启新的创作之旅" href="/studio/content/new"/><ActionItem icon={<Award/>} title="创作中心" text="管理你的全部作品" href="/studio"/></section>
       <section className="xy-review-standards"><header><h2><FileCheck2/> 审核标准参考</h2><Link href="/guide">查看完整标准 <ChevronRight/></Link></header><p><span>内容价值</span><span>原创性</span><span>表达规范</span><span>社区友善</span></p></section>
     </aside>
   </main></AppShell>;

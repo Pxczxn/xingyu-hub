@@ -2,7 +2,7 @@ package top.pxczxn.xingyu.web.controller;
 
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.community.dto.FollowUserView;
-import top.pxczxn.xingyu.community.dto.PublicUserView;
+import top.pxczxn.xingyu.community.dto.UserDetailView;
 import top.pxczxn.xingyu.community.dto.SpaceWorksView;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunitySession;
@@ -29,7 +29,7 @@ import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import java.util.List;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping({"/u", "/users"})
 @RequiredArgsConstructor
 public class CommunityUserController {
 
@@ -47,11 +47,11 @@ public class CommunityUserController {
     }
 
     @GetMapping("/{username}")
-    public PublicUserView publicProfile(
+    public UserDetailView userDetail(
             @PathVariable String username,
             @RequestHeader(value = "satoken", required = false) String token) {
         CommunityUser viewer = resolveViewer(token);
-        return profileService.getPublicProfile(username, viewer);
+        return profileService.getUserDetail(username, viewer);
     }
 
     @GetMapping("/{username}/works")
@@ -72,13 +72,13 @@ public class CommunityUserController {
 
     @PostMapping("/{username}/follow")
     public ResponseEntity<Void> follow(@PathVariable String username) {
-        socialService.followCreator(CommunityAuthContext.requireUser(), resolveUserId(username));
+        socialService.followUser(CommunityAuthContext.requireUser(), resolveUserId(username));
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{username}/follow")
     public ResponseEntity<Void> unfollow(@PathVariable String username) {
-        socialService.unfollowCreator(CommunityAuthContext.requireUser(), resolveUserId(username));
+        socialService.unfollowUser(CommunityAuthContext.requireUser(), resolveUserId(username));
         return ResponseEntity.noContent().build();
     }
 

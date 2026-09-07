@@ -13,7 +13,7 @@ import top.pxczxn.xingyu.community.entity.Moment;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
 import top.pxczxn.xingyu.community.entity.Series;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
-import top.pxczxn.xingyu.community.mapper.CreatorFollowMapper;
+import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.FeaturedContentMapper;
 import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
@@ -38,7 +38,7 @@ public class RecommendationService {
     private final ClientSettingsService clientSettingsService;
     private final FeaturedContentMapper featuredContentMapper;
     private final SearchDocumentMapper searchDocumentMapper;
-    private final CreatorFollowMapper creatorFollowMapper;
+    private final UserFollowMapper userFollowMapper;
     private final ArticleMapper articleMapper;
     private final SeriesMapper seriesMapper;
     private final MomentMapper momentMapper;
@@ -129,13 +129,13 @@ public class RecommendationService {
     }
 
     private List<ContentCardView> followBasedCards(CommunityUser user, int limit) {
-        List<String> creatorIds = creatorFollowMapper.listCreatorIdsByFollower(user.getId());
-        if (creatorIds.isEmpty()) {
+        List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(user.getId());
+        if (followeeIds.isEmpty()) {
             return List.of();
         }
         List<SearchDocument> documents = new ArrayList<>();
-        for (String creatorId : creatorIds) {
-            for (Article article : articleMapper.listByOwnerId(creatorId)) {
+        for (String followeeId : followeeIds) {
+            for (Article article : articleMapper.listByOwnerId(followeeId)) {
                 if (!ArticleStateSupport.isActiveLifecycle(article) || !ArticleStateSupport.isPublished(article)) {
                     continue;
                 }
@@ -144,7 +144,7 @@ public class RecommendationService {
                     documents.add(document);
                 }
             }
-            for (Series series : seriesMapper.listByOwnerId(creatorId)) {
+            for (Series series : seriesMapper.listByOwnerId(followeeId)) {
                 if (!"ACTIVE".equals(series.getStatus())) {
                     continue;
                 }
@@ -153,7 +153,7 @@ public class RecommendationService {
                     documents.add(document);
                 }
             }
-            for (Moment moment : momentMapper.listByAuthorId(creatorId, 3)) {
+            for (Moment moment : momentMapper.listByAuthorId(followeeId, 3)) {
                 SearchDocument document = searchDocumentMapper.findByObject("MOMENT", moment.getId());
                 if (document != null && document.getRemovedAt() == null) {
                     documents.add(document);

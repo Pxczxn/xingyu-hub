@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api-client";
 import { communityApi } from "@/lib/community-api";
 import { getStoredRecentAuth } from "@/lib/recent-auth";
 
-const settingsNav = [["个人资料", UserRound, "/settings/account"], ["账号安全", ShieldCheck, "/settings/security"], ["登录与密码", LockKeyhole, "/settings/security/re-authenticate"], ["消息通知", Mail, "/settings/notifications"], ["隐私设置", ShieldCheck, "/settings/privacy"], ["登录设备", Clock3, "/settings/security/sessions"]];
+const settingsNav = [["公开资料", UserRound, "/settings/profile"], ["账号安全", ShieldCheck, "/settings/security"], ["重新验证", LockKeyhole, "/settings/security/re-authenticate"], ["通知设置", Mail, "/settings/notifications"], ["主页隐私", ShieldCheck, "/settings/privacy/profile"], ["设备与会话", Clock3, "/settings/security/sessions"]];
 
 export default function ChangeEmailPage() {
   const router = useRouter(); const [newEmail,setNewEmail]=useState(""); const [password,setPassword]=useState(""); const [error,setError]=useState<string|null>(null); const [success,setSuccess]=useState<string|null>(null); const [submitting,setSubmitting]=useState(false); const [me,setMe]=useState<{email:string;emailVerified:boolean}|null>(null);

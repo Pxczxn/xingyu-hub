@@ -16,6 +16,10 @@ export type UserPreferences = {
   reduceMotion: boolean;
 };
 
+export type AppearanceTheme = "LIGHT" | "DARK" | "STARRY";
+
+const APPEARANCE_KEY = "xingyu.appearanceTheme";
+
 const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
   mentions: true,
   comments: true,
@@ -66,6 +70,18 @@ export function saveUserPreferences(prefs: UserPreferences) {
   void communityApi.updateClientSettings({ preferences: prefs }).catch(() => undefined);
 }
 
+export function getAppearanceTheme(): AppearanceTheme {
+  return readJson<AppearanceTheme>(APPEARANCE_KEY, "LIGHT");
+}
+
+export function saveAppearanceTheme(theme: AppearanceTheme) {
+  writeJson(APPEARANCE_KEY, theme);
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.theme = theme.toLowerCase();
+  }
+  void communityApi.updateClientSettings({ appearance: { theme } }).catch(() => undefined);
+}
+
 export function getSearchHistory(): string[] {
   return readJson<string[]>(SEARCH_HISTORY_KEY, []);
 }
@@ -105,6 +121,13 @@ export async function hydrateClientSettingsFromServer() {
     }
     if (remote.searchHistory) {
       writeJson(SEARCH_HISTORY_KEY, remote.searchHistory);
+    }
+    if (remote.appearance?.theme) {
+      const theme = remote.appearance.theme as AppearanceTheme;
+      writeJson(APPEARANCE_KEY, theme);
+      if (typeof document !== "undefined") {
+        document.documentElement.dataset.theme = theme.toLowerCase();
+      }
     }
   } catch {
     // 未登录或网络失败时保留本机缓存

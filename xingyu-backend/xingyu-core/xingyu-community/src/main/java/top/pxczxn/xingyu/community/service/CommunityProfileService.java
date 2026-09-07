@@ -11,15 +11,20 @@ import top.pxczxn.xingyu.common.contract.access.Visibility;
 import top.pxczxn.xingyu.common.contract.ObjectId;
 import top.pxczxn.xingyu.community.dto.ProfileView;
 import top.pxczxn.xingyu.community.dto.PublicUserView;
+import top.pxczxn.xingyu.community.dto.UserDetailView;
+import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityCreationSpace;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.UsernameHistory;
+import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityCreationSpaceMapper;
+import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
-import top.pxczxn.xingyu.community.mapper.CreatorFollowMapper;
+import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.ReservedWordMapper;
 import top.pxczxn.xingyu.community.mapper.UsernameHistoryMapper;
+import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,9 +46,11 @@ public class CommunityProfileService {
 
     private final CommunityProfileMapper profileMapper;
     private final CommunityCreationSpaceMapper spaceMapper;
+    private final ArticleMapper articleMapper;
+    private final SeriesMapper seriesMapper;
     private final UsernameHistoryMapper usernameHistoryMapper;
     private final ReservedWordMapper reservedWordMapper;
-    private final CreatorFollowMapper creatorFollowMapper;
+    private final UserFollowMapper userFollowMapper;
 
     public ProfileView getProfile(CommunityUser user) {
         CommunityProfile profile = requireProfile(user.getId());
@@ -96,6 +103,37 @@ public class CommunityProfileService {
         return toView(profile, user.getId());
     }
 
+    public UserDetailView getUserDetail(String rawUsername, CommunityUser viewer) {
+        PublicUserView profile = getPublicProfile(rawUsername, viewer);
+        CommunityProfile entity = resolveProfile(normalizeUsername(rawUsername));
+        if (entity == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        CommunityCreationSpace space = spaceMapper.findByUserId(entity.getUserId());
+        long articleCount = articleMapper.listByOwnerId(entity.getUserId()).stream()
+                .filter(ArticleStateSupport::isActiveLifecycle)
+                .filter(ArticleStateSupport::isPublished)
+                .count();
+        long seriesCount = seriesMapper.listByOwnerId(entity.getUserId()).stream()
+                .filter(series -> "ACTIVE".equals(series.getStatus()))
+                .count();
+        return UserDetailView.builder()
+                .username(profile.getUsername())
+                .displayName(profile.getDisplayName())
+                .bio(profile.getBio())
+                .websiteUrl(profile.getWebsiteUrl())
+                .visibility(profile.getVisibility())
+                .owner(profile.isOwner())
+                .following(profile.isFollowing())
+                .followerCount(profile.getFollowerCount())
+                .followingCount(profile.getFollowingCount())
+                .spaceSlug(space == null ? null : space.getSlug())
+                .spaceDisplayName(space == null ? null : space.getDisplayName())
+                .articleCount(articleCount)
+                .seriesCount(seriesCount)
+                .build();
+    }
+
     public PublicUserView getPublicProfile(String rawUsername, CommunityUser viewer) {
         String username = normalizeUsername(rawUsername);
         CommunityProfile profile = resolveProfile(username);
@@ -132,9 +170,9 @@ public class CommunityProfileService {
                 .owner(isOwner)
                 .following(viewer != null
                         && !isOwner
-                        && creatorFollowMapper.findByFollowerAndCreator(viewer.getId(), profile.getUserId()) != null)
-                .followerCount(creatorFollowMapper.countFollowers(profile.getUserId()))
-                .followingCount(creatorFollowMapper.countFollowing(profile.getUserId()))
+                        && userFollowMapper.findByFollowerAndFollowee(viewer.getId(), profile.getUserId()) != null)
+                .followerCount(userFollowMapper.countFollowers(profile.getUserId()))
+                .followingCount(userFollowMapper.countFollowing(profile.getUserId()))
                 .build();
     }
 
@@ -206,8 +244,8 @@ public class CommunityProfileService {
                 .followersVisibility(profile.getFollowersVisibility() == null ? "PRIVATE" : profile.getFollowersVisibility())
                 .lockVersion(profile.getLockVersion() == null ? 0L : profile.getLockVersion())
                 .usernameChangedAt(profile.getUsernameChangedAt() == null ? null : profile.getUsernameChangedAt().toString())
-                .followerCount(creatorFollowMapper.countFollowers(userId))
-                .followingCount(creatorFollowMapper.countFollowing(userId))
+                .followerCount(userFollowMapper.countFollowers(userId))
+                .followingCount(userFollowMapper.countFollowing(userId))
                 .build();
     }
 

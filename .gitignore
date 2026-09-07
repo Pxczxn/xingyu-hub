@@ -91,6 +91,11 @@ ai-output/
 rollout-*.jsonl
 .codex-*.png
 
+# 页面分析临时脚本与产出（个人 AI 流程，非项目资产）
+analyze-pages.py
+page-analysis.json
+page-summaries.txt
+
 # 原型路径（忽略；与 public/images/、public/brand/ 插图路径无关）
 .prototype-review/
 prototype/

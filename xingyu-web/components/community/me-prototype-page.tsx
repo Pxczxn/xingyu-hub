@@ -33,7 +33,7 @@ const hubSections: { title: string; icon: typeof Star; links: HubLink[] }[] = [
     icon: PenLine,
     links: [
       { href: "/studio", label: "创作控制台", description: "文章、动态与系列" },
-      { href: "/me/insights", label: "创作数据", description: "阅读、互动与粉丝" },
+      { href: "/studio/analytics", label: "创作数据", description: "阅读、互动与粉丝" },
       { href: "/me/growth", label: "成长记录", description: "徽章与待办任务" },
       { href: "/me/badges", label: "我的徽章", description: "社区荣誉与成就" },
     ],
@@ -92,7 +92,7 @@ export function MePrototypePage({ profile, insights }: MePrototypePageProps) {
     <main className="xy-me-page">
       <section className="xy-me-hero">
         <div className="xy-me-hero-cover" aria-hidden="true">
-          <img src="/prototype-assets/profile/profile-space.png" alt="" />
+          <img src="/prototype-assets/profile/profile-cover.png" alt="" />
         </div>
         <div className="xy-me-hero-body">
           <div className="xy-me-avatar">
@@ -114,7 +114,7 @@ export function MePrototypePage({ profile, insights }: MePrototypePageProps) {
                 <Link href="/settings/profile">编辑资料</Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full border-[#e7ded3] bg-white/80">
-                <Link href={`/users/${profile.username}`}>查看公开主页</Link>
+                <Link href={`/u/${profile.username}`}>查看公开主页</Link>
               </Button>
             </div>
           </div>

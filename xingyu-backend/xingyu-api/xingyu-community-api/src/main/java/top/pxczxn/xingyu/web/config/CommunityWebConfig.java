@@ -37,6 +37,7 @@ public class CommunityWebConfig implements WebMvcConfigurer {
                         "/api/v1/follows/**",
                         "/api/v1/comments",
                         "/api/v1/comments/**",
+                        "/api/v1/u/*/follow",
                         "/api/v1/users/*/follow");
     }
 }

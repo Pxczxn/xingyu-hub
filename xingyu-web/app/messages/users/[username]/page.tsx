@@ -33,7 +33,7 @@ export default function MessageUserPage() {
         <div className="flex flex-wrap gap-3">
           <FollowButton username={profile.username!} initialFollowing={profile.following} />
           <Link href={`/messages/new?user=${profile.username}`} className="text-sm text-accent hover:underline">发私信</Link>
-          <Link href={`/users/${profile.username}`} className="text-sm text-accent hover:underline">查看主页</Link>
+          <Link href={`/u/${profile.username}`} className="text-sm text-accent hover:underline">查看主页</Link>
         </div>
         <p className="text-sm text-muted-foreground">粉丝 {profile.followerCount ?? 0} · 关注 {profile.followingCount ?? 0}</p>
       </main>

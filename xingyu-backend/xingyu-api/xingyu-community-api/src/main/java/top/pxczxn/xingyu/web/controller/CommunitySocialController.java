@@ -69,6 +69,19 @@ public class CommunitySocialController {
                         CommunityAuthContext.requireUser(), objectType.toUpperCase(), objectId));
     }
 
+    @PostMapping("/follows/users/{userId}")
+    public ResponseEntity<Void> followUser(@PathVariable String userId) {
+        socialService.followUser(CommunityAuthContext.requireUser(), userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/follows/users/{userId}")
+    public ResponseEntity<Void> unfollowUser(@PathVariable String userId) {
+        socialService.unfollowUser(CommunityAuthContext.requireUser(), userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** @deprecated use /follows/users/{userId} */
     @PostMapping("/follows/creators/{creatorId}")
     public ResponseEntity<Void> followCreator(@PathVariable String creatorId) {
         socialService.followCreator(CommunityAuthContext.requireUser(), creatorId);

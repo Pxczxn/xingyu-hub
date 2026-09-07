@@ -2,6 +2,26 @@ import { ApiError, apiRequest, apiUpload, getStoredToken } from "@/lib/api-clien
 
 export type PageResult<T> = { items: T[]; nextCursor?: string | null; total?: number };
 
+export type DiscoverNavTab = { key: string; label: string; defaultSelected?: boolean };
+export type DiscoverNav = { typeTabs: DiscoverNavTab[]; sortTabs: DiscoverNavTab[] };
+
+export const DEFAULT_DISCOVER_NAV: DiscoverNav = {
+  typeTabs: [
+    { key: "all", label: "全部", defaultSelected: true },
+    { key: "article", label: "文章" },
+    { key: "series", label: "系列" },
+    { key: "creator", label: "创作者" },
+    { key: "topic", label: "话题" },
+    { key: "moment", label: "动态" },
+  ],
+  sortTabs: [
+    { key: "latest", label: "最新" },
+    { key: "featured", label: "精选", defaultSelected: true },
+    { key: "hot", label: "近期热门" },
+    { key: "interest", label: "兴趣相关" },
+  ],
+};
+
 export type PublicConfig = {
   registration: {
     enabled: boolean;
@@ -91,6 +111,10 @@ export type ProfileDetail = {
   followingCount?: number;
   owner?: boolean;
   following?: boolean;
+  spaceSlug?: string | null;
+  spaceDisplayName?: string | null;
+  articleCount?: number;
+  seriesCount?: number;
 };
 
 export type ArticleDetail = {
@@ -558,6 +582,25 @@ function toPage<T>(items: T[], total?: number): PageResult<T> {
 }
 
 /** 社区 API 统一入口，路径与后端 xingyu-community-api 对齐。 */
+export type FeedItem = {
+  id: string;
+  type: string;
+  title?: string | null;
+  summary?: string | null;
+  authorId?: string | null;
+  createdAt?: string | null;
+};
+
+function feedItemToContentSummary(item: FeedItem): ContentSummary {
+  return {
+    id: item.id,
+    objectType: item.type,
+    title: item.title ?? "未命名内容",
+    summary: item.summary ?? undefined,
+    updatedAt: item.createdAt ?? undefined,
+  };
+}
+
 export const communityApi = {
   // 首页与发现
   getGuestHome: async () => {
@@ -574,6 +617,13 @@ export const communityApi = {
 
   getDiscover: (input: CursorInput = {}) =>
     apiRequest<PageResult<ContentSummary>>(`/api/v1/discover${query(input)}`),
+
+  getDiscoverNav: () => apiRequest<DiscoverNav>("/api/v1/discover/nav"),
+
+  getFeed: async (type = "recommended", page = 0, size = 20) => {
+    const items = await apiRequest<FeedItem[]>(`/api/v1/feed${query({ type, page, size })}`);
+    return items.map(feedItemToContentSummary);
+  },
 
   search: async (q: string, type?: string, limit = 20): Promise<PageResult<ContentSummary>> => {
     const hits = await apiRequest<SearchHit[]>(
@@ -799,10 +849,10 @@ export const communityApi = {
 
   // 用户与空间
   getProfile: (username: string) =>
-    apiRequest<ProfileDetail>(`/api/v1/users/${encodeURIComponent(username)}`),
+    apiRequest<ProfileDetail>(`/api/v1/u/${encodeURIComponent(username)}`),
 
   getSuggestedUsers: (limit = 10) =>
-    apiRequest<FollowUser[]>(`/api/v1/users/suggested${query({ limit })}`),
+    apiRequest<FollowUser[]>(`/api/v1/u/suggested${query({ limit })}`),
 
   getMyProfile: () => {
     if (!getStoredToken()) {
@@ -837,7 +887,7 @@ export const communityApi = {
 
   getUserWorks: (username: string, category?: string) =>
     apiRequest<SpaceWorks>(
-      `/api/v1/users/${encodeURIComponent(username)}/works${category ? query({ category }) : ""}`
+      `/api/v1/u/${encodeURIComponent(username)}/works${category ? query({ category }) : ""}`
     ),
 
   getSpaceWorks: (spaceSlug: string, category?: string) =>
@@ -846,10 +896,10 @@ export const communityApi = {
     ),
 
   followUser: (username: string) =>
-    apiRequest<void>(`/api/v1/users/${encodeURIComponent(username)}/follow`, { method: "POST" }),
+    apiRequest<void>(`/api/v1/u/${encodeURIComponent(username)}/follow`, { method: "POST" }),
 
   unfollowUser: (username: string) =>
-    apiRequest<void>(`/api/v1/users/${encodeURIComponent(username)}/follow`, { method: "DELETE" }),
+    apiRequest<void>(`/api/v1/u/${encodeURIComponent(username)}/follow`, { method: "DELETE" }),
 
   // 互动
   like: (objectType: string, objectId: string) =>

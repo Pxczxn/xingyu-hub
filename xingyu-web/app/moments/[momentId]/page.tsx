@@ -109,7 +109,7 @@ export default function MomentDetailPage() {
             <div className="xy-moment-author">
               <span>长</span>
               <div>
-                <Link href={`/users/${author}`}>
+                <Link href={`/u/${author}`}>
                   {data.authorUsername || "作者信息暂未提供"}
                 </Link>
                 <p>作者资料暂未提供</p>

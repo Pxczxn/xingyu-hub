@@ -9,7 +9,7 @@ import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.CommentMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.ContentLikeMapper;
-import top.pxczxn.xingyu.community.mapper.CreatorFollowMapper;
+import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +21,7 @@ import java.util.List;
 public class MeEngagementService {
 
     private final ArticleMapper articleMapper;
-    private final CreatorFollowMapper creatorFollowMapper;
+    private final UserFollowMapper userFollowMapper;
     private final CommentMapper commentMapper;
     private final ContentLikeMapper likeMapper;
     private final CommunityProfileMapper profileMapper;
@@ -34,8 +34,8 @@ public class MeEngagementService {
         return new InsightsView(
                 published,
                 drafts,
-                creatorFollowMapper.countFollowers(user.getId()),
-                creatorFollowMapper.countFollowing(user.getId()),
+                userFollowMapper.countFollowers(user.getId()),
+                userFollowMapper.countFollowing(user.getId()),
                 commentMapper.countByAuthorId(user.getId()),
                 likeMapper.countByUserId(user.getId()));
     }
@@ -44,7 +44,7 @@ public class MeEngagementService {
         List<Article> articles = articleMapper.listByOwnerId(user.getId());
         long articleCount = articles.size();
         boolean onboardingDone = onboardingService.get(user).isCompleted();
-        long followers = creatorFollowMapper.countFollowers(user.getId());
+        long followers = userFollowMapper.countFollowers(user.getId());
         CommunityProfile profile = profileMapper.findByUserId(user.getId());
         boolean hasBio = profile != null && profile.getBio() != null && !profile.getBio().isBlank();
 

@@ -77,7 +77,7 @@ function AcceptInviteContent() {
         </CardDescription>
         <div className="mt-4 flex flex-wrap gap-2">
           {invite.inviterUsername && (
-            <Button variant="accent" size="sm" onClick={() => router.push(`/users/${invite.inviterUsername}/works`)}>
+            <Button variant="accent" size="sm" onClick={() => router.push(`/u/${invite.inviterUsername}/works`)}>
               前往创作空间
             </Button>
           )}
@@ -105,7 +105,7 @@ function AcceptInviteContent() {
         </Button>
         {invite.inviterUsername && (
           <Button variant="outline" asChild>
-            <Link href={`/users/${invite.inviterUsername}/works`}>先查看空间</Link>
+            <Link href={`/u/${invite.inviterUsername}/works`}>先查看空间</Link>
           </Button>
         )}
       </div>

@@ -192,7 +192,7 @@ function SpaceContent() {
             <header>
               <h2>最新作品</h2>
               <Link
-                href={`/users/${encodeURIComponent(space?.username || spaceSlug)}/works`}
+                href={`/u/${encodeURIComponent(space?.username || spaceSlug)}/works`}
               >
                 查看全部 ›
               </Link>
@@ -250,7 +250,7 @@ function SpaceContent() {
               ) : null}
             </div>
             <Link
-              href={`/users/${encodeURIComponent(space?.username || spaceSlug)}/works/settings/categories`}
+              href={`/u/${encodeURIComponent(space?.username || spaceSlug)}/works/settings/categories`}
             >
               查看全部分类 ›
             </Link>
@@ -260,7 +260,7 @@ function SpaceContent() {
           <header>
             <h2>系列作品</h2>
             <Link
-              href={`/users/${encodeURIComponent(space?.username || spaceSlug)}/works`}
+              href={`/u/${encodeURIComponent(space?.username || spaceSlug)}/works`}
             >
               查看全部系列 ›
             </Link>

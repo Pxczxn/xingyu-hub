@@ -241,7 +241,7 @@ export function CommentThread({
     return (
       <article className={cn("border-b border-border pb-5", nested && "ml-6 border-l pl-4")} key={comment.id}>
         <div className="flex items-center justify-between gap-3">
-          <Link href={`/users/${comment.author}`} className="text-sm font-medium hover:text-[rgb(var(--violet))]">
+          <Link href={`/u/${comment.author}`} className="text-sm font-medium hover:text-[rgb(var(--violet))]">
             {comment.author}
           </Link>
           <time className="text-xs text-muted-foreground">{comment.createdAt}</time>

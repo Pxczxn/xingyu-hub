@@ -340,7 +340,7 @@ export default function TopicDetailPage() {
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {creatorItems.slice(0, 5).map((creator, index) => (
                 <article key={creator.username} className="xy-home-source-panel flex items-center gap-3 px-3 py-2">
-                  <Link href={`/users/${creator.username}`} className="flex min-w-0 flex-1 items-center gap-3">
+                  <Link href={`/u/${creator.username}`} className="flex min-w-0 flex-1 items-center gap-3">
                   <span
                     className={`grid h-10 w-10 place-items-center rounded-full ${index % 2 ? "bg-[#6e75bb]" : "bg-[#17295a]"} text-sm text-white`}
                   >

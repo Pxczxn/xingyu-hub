@@ -13,7 +13,7 @@ import top.pxczxn.xingyu.community.entity.Comment;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.ContentLike;
-import top.pxczxn.xingyu.community.entity.CreatorFollow;
+import top.pxczxn.xingyu.community.entity.UserFollow;
 import top.pxczxn.xingyu.community.entity.Topic;
 import top.pxczxn.xingyu.community.entity.TopicFollow;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
@@ -21,7 +21,7 @@ import top.pxczxn.xingyu.community.mapper.CommentMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityUserMapper;
 import top.pxczxn.xingyu.community.mapper.ContentLikeMapper;
-import top.pxczxn.xingyu.community.mapper.CreatorFollowMapper;
+import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.TopicFollowMapper;
 import top.pxczxn.xingyu.community.mapper.TopicMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
@@ -41,7 +41,7 @@ import java.util.Objects;
 public class SocialService {
 
     private final ContentLikeMapper likeMapper;
-    private final CreatorFollowMapper creatorFollowMapper;
+    private final UserFollowMapper userFollowMapper;
     private final TopicFollowMapper topicFollowMapper;
     private final CommentMapper commentMapper;
     private final CommunityUserMapper userMapper;
@@ -80,27 +80,39 @@ public class SocialService {
     }
 
     @Transactional
-    public void followCreator(CommunityUser user, String creatorId) {
-        if (user.getId().equals(creatorId)) {
-            throw new FieldContractException("creatorId", "不能关注自己");
+    public void followUser(CommunityUser user, String followeeId) {
+        if (user.getId().equals(followeeId)) {
+            throw new FieldContractException("followeeId", "不能关注自己");
         }
-        if (userMapper.selectById(creatorId) == null) {
+        if (userMapper.selectById(followeeId) == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        if (creatorFollowMapper.findByFollowerAndCreator(user.getId(), creatorId) != null) {
+        if (userFollowMapper.findByFollowerAndFollowee(user.getId(), followeeId) != null) {
             return;
         }
-        CreatorFollow follow = new CreatorFollow();
+        UserFollow follow = new UserFollow();
         follow.setId(TokenSupport.newId());
         follow.setFollowerId(user.getId());
-        follow.setCreatorId(creatorId);
+        follow.setFolloweeId(followeeId);
         follow.setCreatedAt(Instant.now());
-        creatorFollowMapper.insert(follow);
+        userFollowMapper.insert(follow);
     }
 
     @Transactional
+    public void unfollowUser(CommunityUser user, String followeeId) {
+        userFollowMapper.deleteByFollowerAndFollowee(user.getId(), followeeId);
+    }
+
+    /** @deprecated use {@link #followUser} */
+    @Transactional
+    public void followCreator(CommunityUser user, String creatorId) {
+        followUser(user, creatorId);
+    }
+
+    /** @deprecated use {@link #unfollowUser} */
+    @Transactional
     public void unfollowCreator(CommunityUser user, String creatorId) {
-        creatorFollowMapper.deleteByFollowerAndCreator(user.getId(), creatorId);
+        unfollowUser(user, creatorId);
     }
 
     @Transactional
@@ -208,10 +220,10 @@ public class SocialService {
         if (limit <= 0) {
             limit = 20;
         }
-        List<String> creatorIds = creatorFollowMapper.listCreatorIdsByFollower(user.getId());
-        List<FollowUserView> items = creatorIds.stream()
+        List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(user.getId());
+        List<FollowUserView> items = followeeIds.stream()
                 .limit(limit)
-                .map(creatorId -> toFollowUserView(user.getId(), creatorId, true))
+                .map(followeeId -> toFollowUserView(user.getId(), followeeId, true))
                 .filter(Objects::nonNull)
                 .toList();
         return PageResultView.<FollowUserView>builder()
@@ -225,7 +237,7 @@ public class SocialService {
         if (limit <= 0) {
             limit = 20;
         }
-        List<String> followerIds = creatorFollowMapper.listFollowerIdsByCreator(user.getId(), limit);
+        List<String> followerIds = userFollowMapper.listFollowerIdsByFollowee(user.getId(), limit);
         List<FollowUserView> items = followerIds.stream()
                 .map(followerId -> toFollowUserView(followerId, user.getId(), false))
                 .filter(Objects::nonNull)
@@ -233,7 +245,7 @@ public class SocialService {
         return PageResultView.<FollowUserView>builder()
                 .items(items)
                 .nextCursor(null)
-                .total(creatorFollowMapper.countFollowers(user.getId()))
+                .total(userFollowMapper.countFollowers(user.getId()))
                 .build();
     }
 
@@ -255,13 +267,13 @@ public class SocialService {
                 .toList();
     }
 
-    private FollowUserView toFollowUserView(String followerId, String creatorId, boolean followingList) {
-        String targetUserId = followingList ? creatorId : followerId;
+    private FollowUserView toFollowUserView(String followerId, String followeeId, boolean followingList) {
+        String targetUserId = followingList ? followeeId : followerId;
         CommunityProfile profile = profileMapper.findByUserId(targetUserId);
         if (profile == null) {
             return null;
         }
-        CreatorFollow follow = creatorFollowMapper.findByFollowerAndCreator(followerId, creatorId);
+        UserFollow follow = userFollowMapper.findByFollowerAndFollowee(followerId, followeeId);
         return FollowUserView.builder()
                 .userId(targetUserId)
                 .username(profile.getUsername())

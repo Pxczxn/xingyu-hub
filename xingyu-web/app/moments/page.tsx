@@ -57,7 +57,7 @@ export default function MomentsPage() {
               </time>
               <div className="xy-feed-card">
                 <header>
-                  <Link href={moment.authorUsername ? `/users/${moment.authorUsername}` : "/users"}>
+                  <Link href={moment.authorUsername ? `/u/${moment.authorUsername}` : "/users"}>
                     <Image
                       src="/prototype-assets/moments-feed/avatar.png"
                       alt=""

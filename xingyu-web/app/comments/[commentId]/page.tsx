@@ -43,7 +43,7 @@ export default function CommentDetailPage() {
       <PageHero variant="compact" eyebrow="评论" title="评论详情" />
       <Card>
         <CardDescription>
-          <Link href={`/users/${author}`} className="hover:text-accent">@{author}</Link>
+          <Link href={`/u/${author}`} className="hover:text-accent">@{author}</Link>
           <span className="mx-2">·</span>
           <time>{formatDateTime(comment.createdAt)}</time>
         </CardDescription>

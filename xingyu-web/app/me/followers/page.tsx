@@ -33,7 +33,7 @@ function FollowerCard({ user, followed, pending, onFollow }: { user: FollowUser;
       <span className="pointer-events-none absolute -right-10 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full border border-[#f4e5d2] opacity-80" aria-hidden="true" />
       <FollowerAvatar user={user} />
       <div className="relative min-w-0">
-        <Link href={`/users/${user.username}`} className="inline-flex items-center gap-2 text-[1.25rem] font-semibold tracking-[-0.02em] text-[#1b2d52] hover:text-[rgb(var(--violet))]">
+        <Link href={`/u/${user.username}`} className="inline-flex items-center gap-2 text-[1.25rem] font-semibold tracking-[-0.02em] text-[#1b2d52] hover:text-[rgb(var(--violet))]">
           <span className="truncate">{displayName(user)}</span><Sparkles className="h-4 w-4 shrink-0 text-[#e1a04a]" aria-label="关注者" />
         </Link>
         <p className="mt-1 truncate text-[0.93rem] text-[#7b8495]">@{user.username}</p>
@@ -41,14 +41,14 @@ function FollowerCard({ user, followed, pending, onFollow }: { user: FollowUser;
       </div>
       <div className="relative flex items-center gap-3 sm:self-center">
         <Button type="button" variant={followed ? "outline" : "accent"} size="sm" disabled={pending} onClick={() => onFollow(user)} className={followed ? "h-10 rounded-full border-[#e3e1e6] bg-[#f7f7f9] px-5 text-[0.94rem] text-[#6d7789] hover:bg-[#eeeeF2]" : "h-10 rounded-full px-5 text-[0.94rem]"}>{followed ? "已关注" : "关注"}</Button>
-        <Link href={`/users/${user.username}`} aria-label={`查看 ${displayName(user)} 的主页`} className="grid h-9 w-9 place-items-center rounded-full text-[#79849a] hover:bg-[#f4f1eb] hover:text-[#34415e]"><MoreHorizontal className="h-5 w-5" /></Link>
+        <Link href={`/u/${user.username}`} aria-label={`查看 ${displayName(user)} 的主页`} className="grid h-9 w-9 place-items-center rounded-full text-[#79849a] hover:bg-[#f4f1eb] hover:text-[#34415e]"><MoreHorizontal className="h-5 w-5" /></Link>
       </div>
     </li>
   );
 }
 
 function SuggestionRow({ user, followed, pending, onFollow }: { user: FollowUser; followed: boolean; pending: boolean; onFollow: (user: FollowUser) => void }) {
-  return <li className="flex items-center gap-3 border-b border-[#e9e2d9] py-4 last:border-0"><FollowerAvatar user={user} size="small"/><div className="min-w-0 flex-1"><Link href={`/users/${user.username}`} className="block truncate text-[0.98rem] font-semibold text-[#26375b] hover:text-[rgb(var(--violet))]">{displayName(user)}</Link><p className="mt-1 truncate text-[0.84rem] text-[#7b8495]">@{user.username}</p></div><Button type="button" variant={followed ? "outline" : "accent"} size="sm" disabled={pending} onClick={() => onFollow(user)} className={followed ? "h-9 shrink-0 rounded-full border-[#e3e1e6] bg-[#f7f7f9] px-4 text-[#6d7789]" : "h-9 shrink-0 rounded-full px-4"}>{followed ? "已关注" : "关注"}</Button></li>;
+  return <li className="flex items-center gap-3 border-b border-[#e9e2d9] py-4 last:border-0"><FollowerAvatar user={user} size="small"/><div className="min-w-0 flex-1"><Link href={`/u/${user.username}`} className="block truncate text-[0.98rem] font-semibold text-[#26375b] hover:text-[rgb(var(--violet))]">{displayName(user)}</Link><p className="mt-1 truncate text-[0.84rem] text-[#7b8495]">@{user.username}</p></div><Button type="button" variant={followed ? "outline" : "accent"} size="sm" disabled={pending} onClick={() => onFollow(user)} className={followed ? "h-9 shrink-0 rounded-full border-[#e3e1e6] bg-[#f7f7f9] px-4 text-[#6d7789]" : "h-9 shrink-0 rounded-full px-4"}>{followed ? "已关注" : "关注"}</Button></li>;
 }
 
 export default function FollowersPage() {

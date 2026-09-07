@@ -11,7 +11,7 @@ import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.UserBlock;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
-import top.pxczxn.xingyu.community.mapper.CreatorFollowMapper;
+import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.UserBlockMapper;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 
@@ -24,7 +24,7 @@ public class UserBlockService {
 
     private final UserBlockMapper userBlockMapper;
     private final CommunityProfileMapper profileMapper;
-    private final CreatorFollowMapper creatorFollowMapper;
+    private final UserFollowMapper userFollowMapper;
 
     public boolean isBlockedEitherWay(String userId, String otherUserId) {
         if (userId == null || otherUserId == null || userId.equals(otherUserId)) {
@@ -68,8 +68,8 @@ public class UserBlockService {
         block.setBlockedId(target.getUserId());
         block.setCreatedAt(Instant.now());
         userBlockMapper.insert(block);
-        creatorFollowMapper.deleteByFollowerAndCreator(user.getId(), target.getUserId());
-        creatorFollowMapper.deleteByFollowerAndCreator(target.getUserId(), user.getId());
+        userFollowMapper.deleteByFollowerAndFollowee(user.getId(), target.getUserId());
+        userFollowMapper.deleteByFollowerAndFollowee(target.getUserId(), user.getId());
     }
 
     @Transactional

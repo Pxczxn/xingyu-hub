@@ -90,7 +90,11 @@ function HomePageContent() {
           return;
         }
         setProfileName(profile.displayName || profile.username || null);
-        const home = await communityApi.getHome();
+        const [home, followingFeed, recommendedFeed] = await Promise.all([
+          communityApi.getHome(),
+          communityApi.getFeed("following", 0, 10).catch(() => []),
+          communityApi.getFeed("recommended", 0, 12).catch(() => []),
+        ]);
         const insights = await communityApi.getMyInsights().catch(() => null);
         const readingCount = home.continueReading.length;
         const metaParts = [
@@ -98,7 +102,14 @@ function HomePageContent() {
           readingCount ? `继续阅读 ${readingCount} 篇` : null,
         ].filter(Boolean);
         setGreetingMeta(metaParts.length ? metaParts.join(" · ") : "继续你的阅读与创作旅程");
-        setContent({ ...home, draftArticles: home.draftArticles ?? [], pendingActions: home.pendingActions ?? [], isGuest: false });
+        setContent({
+          ...home,
+          followUpdates: followingFeed.length ? followingFeed : home.followUpdates,
+          recommendations: recommendedFeed.length ? recommendedFeed : home.recommendations,
+          draftArticles: home.draftArticles ?? [],
+          pendingActions: home.pendingActions ?? [],
+          isGuest: false,
+        });
       } catch {
         const guest = await communityApi.getGuestHome();
         setContent({

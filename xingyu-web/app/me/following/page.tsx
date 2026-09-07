@@ -54,7 +54,7 @@ function CreatorRow({ user, onUnfollow, pending }: { user: FollowUser; onUnfollo
       <div className="flex min-w-0 items-center gap-5">
         <CreatorAvatar user={user} />
         <div className="min-w-0">
-          <Link href={`/users/${user.username}`} className="inline-flex max-w-full items-center gap-1.5 text-[1.06rem] font-semibold text-[#1e3159] hover:text-[rgb(var(--violet))]">
+          <Link href={`/u/${user.username}`} className="inline-flex max-w-full items-center gap-1.5 text-[1.06rem] font-semibold text-[#1e3159] hover:text-[rgb(var(--violet))]">
             <span className="truncate">{user.displayName || user.username}</span>
             <BadgeCheck className="h-4 w-4 shrink-0 text-[#d49745]" aria-label="已关注创作者" />
           </Link>
@@ -85,7 +85,7 @@ function SuggestedCreator({ user, onFollow, pending }: { user: FollowUser; onFol
     <li className="flex items-center gap-3 border-b border-[#e7e0d7] py-5 last:border-0">
       <CreatorAvatar user={user} tone="dawn" />
       <div className="min-w-0 flex-1">
-        <Link href={`/users/${user.username}`} className="block truncate text-[0.98rem] font-semibold text-[#26375b] hover:text-[rgb(var(--violet))]">
+        <Link href={`/u/${user.username}`} className="block truncate text-[0.98rem] font-semibold text-[#26375b] hover:text-[rgb(var(--violet))]">
           {user.displayName || user.username}
         </Link>
         <p className="mt-1 truncate text-[0.84rem] text-[#7b8495]">@{user.username}</p>

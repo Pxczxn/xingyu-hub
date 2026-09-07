@@ -18,7 +18,8 @@ import { communityApi } from "@/lib/community-api";
 import { getPublicConfig } from "@/lib/public-config";
 import { setStoredToken } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import { GlobalSearch, MobileTabBar, UserMenu } from "@/components/community/app-controls";
+import { GlobalSearch, MobileTabBar, UserMenuItems } from "@/components/community/app-controls";
+import { isValidUsername } from "@/lib/paths";
 import { HeaderFloatIconButton } from "@/components/community/floating-panel/header-float-icon-button";
 import { MessageFloatTrigger } from "@/components/community/floating-panel/message-float";
 import { NotificationFloatTrigger } from "@/components/community/floating-panel/notification-float";
@@ -39,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const openMessages = searchParams.get("openMessages") === "1";
-  const [me, setMe] = useState<{ username: string; displayName?: string | null } | null>(null);
+  const [me, setMe] = useState<{ username?: string; displayName?: string | null } | null>(null);
   const [registrationOpen, setRegistrationOpen] = useState(true);
 
   useEffect(() => {
@@ -53,9 +54,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     communityApi
       .tryGetMyProfile()
-      .then((profile) =>
-        setMe(profile ? { username: profile.username, displayName: profile.displayName } : null)
-      )
+      .then((profile) => {
+        if (!profile) {
+          setMe(null);
+          return;
+        }
+        const username = isValidUsername(profile.username) ? profile.username.trim() : undefined;
+        setMe({ username, displayName: profile.displayName });
+      })
       .catch(() => setMe(null));
   }, [pathname]);
 
@@ -78,7 +84,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push("/login");
   }
 
-  const avatarHref = me ? `/users/${me.username}` : "/login";
   const avatarLabel = me?.displayName || me?.username || "登录";
 
   return (
@@ -142,25 +147,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             />
 
-            <Link
-              href={avatarHref}
-              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={me ? "个人主页" : "登录"}
-            >
-              <Avatar fallback={avatarLabel} size="sm" />
-            </Link>
-
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="hidden rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex"
-                aria-label="账户菜单"
+                className="group inline-flex items-center gap-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={me ? "账户菜单" : "登录或注册"}
               >
-                <ChevronDown className="h-4 w-4" />
+                <Avatar fallback={avatarLabel} size="md" className="h-10 w-10" />
+                <ChevronDown
+                  className="hidden h-3.5 w-3.5 rotate-90 transition-transform duration-200 group-aria-expanded:rotate-0 sm:block"
+                  aria-hidden="true"
+                />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {me ? (
                   <>
-                    <UserMenu username={me.username} onNavigate={router.push} />
+                    <UserMenuItems username={me.username} onNavigate={router.push} />
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => void handleLogout()}>退出登录</DropdownMenuItem>
                   </>

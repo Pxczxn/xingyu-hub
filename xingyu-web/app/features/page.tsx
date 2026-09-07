@@ -166,7 +166,7 @@ export default function FeaturedCollectionPage() {
                       <p>来自星语社区的公开推荐作者。</p>
                       <small>{user.followedAt ? "已被收录至推荐" : "作者信息待补充"}</small>
                     </div>
-                    <Link className="xy-feature-follow" href={`/users/${user.username}`}>查看</Link>
+                    <Link className="xy-feature-follow" href={`/u/${user.username}`}>查看</Link>
                   </article>
                 )) : <p className="xy-feature-empty">暂无可展示的推荐作者。</p>}
               </div>

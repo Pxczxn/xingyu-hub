@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import {
   contentHref,
   type ContentSummary,
+  type DiscoverNav,
   type FollowUser,
   type SeriesSummary,
   type TopicSummary,
@@ -24,15 +25,16 @@ import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type DiscoverPrototypePageProps = {
+  nav: DiscoverNav;
+  typeKey: string;
+  sortKey: string;
+  onFilterChange: (typeKey: string, sortKey: string) => void;
   articles: ContentSummary[];
   more: ContentSummary[];
   series: SeriesSummary[];
   topics: TopicSummary[];
   creators: FollowUser[];
 };
-
-const TYPE_TABS = ["全部", "文章", "系列", "创作者", "话题", "动态"] as const;
-const SORT_TABS = ["最新", "精选", "近期热门", "兴趣相关"] as const;
 
 const articleImages = [
   "/prototype-assets/discover/article-thumb-ai.png",
@@ -86,15 +88,16 @@ function FeaturedEmpty() {
 }
 
 export function DiscoverPrototypePage({
+  nav,
+  typeKey,
+  sortKey,
+  onFilterChange,
   articles,
   more,
   series,
   topics,
   creators,
 }: DiscoverPrototypePageProps) {
-  const [typeTab, setTypeTab] = useState<(typeof TYPE_TABS)[number]>("全部");
-  const [sortTab, setSortTab] = useState<(typeof SORT_TABS)[number]>("精选");
-
   const primary = articles[0];
   const secondary = articles.slice(1, 3);
   const latest = articles.slice(3, 7);
@@ -102,6 +105,9 @@ export function DiscoverPrototypePage({
   const visibleCreators = useMemo(() => creators.slice(0, 6), [creators]);
   const visibleSeries = useMemo(() => series.slice(0, 3), [series]);
   const asideTopics = useMemo(() => topics.slice(0, 3), [topics]);
+  const showSeriesPanel = typeKey === "all" || typeKey === "series";
+  const showTopicsPanel = typeKey === "all" || typeKey === "topic";
+  const showCreatorsPanel = typeKey === "all" || typeKey === "creator";
 
   return (
     <main className="xy-discover-page">
@@ -126,31 +132,31 @@ export function DiscoverPrototypePage({
 
       <div className="xy-discover-toolbar" role="toolbar" aria-label="发现页筛选">
           <div className="xy-discover-type-tabs" role="tablist" aria-label="内容类型">
-            {TYPE_TABS.map((label) => (
+            {nav.typeTabs.map((tab) => (
               <button
-                key={label}
+                key={tab.key}
                 type="button"
                 role="tab"
-                aria-selected={typeTab === label}
-                className={cn(typeTab === label && "is-active")}
-                onClick={() => setTypeTab(label)}
+                aria-selected={typeKey === tab.key}
+                className={cn(typeKey === tab.key && "is-active")}
+                onClick={() => onFilterChange(tab.key, sortKey)}
               >
-                {label}
+                {tab.label}
               </button>
             ))}
           </div>
           <div className="xy-discover-sort-row">
             <div className="xy-discover-sort-tabs" role="tablist" aria-label="排序方式">
-              {SORT_TABS.map((label) => (
+              {nav.sortTabs.map((tab) => (
                 <button
-                  key={label}
+                  key={tab.key}
                   type="button"
                   role="tab"
-                  aria-selected={sortTab === label}
-                  className={cn(sortTab === label && "is-active")}
-                  onClick={() => setSortTab(label)}
+                  aria-selected={sortKey === tab.key}
+                  className={cn(sortKey === tab.key && "is-active")}
+                  onClick={() => onFilterChange(typeKey, tab.key)}
                 >
-                  {label}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -212,60 +218,64 @@ export function DiscoverPrototypePage({
           </section>
 
           <aside className="xy-discover-aside">
-            <section className="xy-discover-panel">
-              <SectionHead title="热门系列" href="/series" />
-              {visibleSeries.length > 0 ? (
-                <ul className="xy-discover-series-list">
-                  {visibleSeries.map((item, index) => (
-                    <li key={item.id}>
-                      <Link href={`/series/${item.id}`} className="xy-discover-series-row">
-                        <span
-                          className="xy-discover-series-mark"
-                          style={{ background: seriesColors[index % seriesColors.length] }}
-                        >
-                          <BookOpen className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <strong>{item.title}</strong>
-                          <small>
-                            {item.chapterCount !== undefined ? `共 ${item.chapterCount} 篇` : "连载中"}
-                          </small>
-                        </span>
-                        <span className="xy-discover-series-action">订阅</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="xy-discover-inline-empty">暂无系列推荐</p>
-              )}
-            </section>
+            {showSeriesPanel ? (
+              <section className="xy-discover-panel">
+                <SectionHead title="热门系列" href="/series" />
+                {visibleSeries.length > 0 ? (
+                  <ul className="xy-discover-series-list">
+                    {visibleSeries.map((item, index) => (
+                      <li key={item.id}>
+                        <Link href={`/series/${item.id}`} className="xy-discover-series-row">
+                          <span
+                            className="xy-discover-series-mark"
+                            style={{ background: seriesColors[index % seriesColors.length] }}
+                          >
+                            <BookOpen className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <strong>{item.title}</strong>
+                            <small>
+                              {item.chapterCount !== undefined ? `共 ${item.chapterCount} 篇` : "连载中"}
+                            </small>
+                          </span>
+                          <span className="xy-discover-series-action">订阅</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="xy-discover-inline-empty">暂无系列推荐</p>
+                )}
+              </section>
+            ) : null}
 
-            <section className="xy-discover-panel xy-discover-panel-compact">
-              <SectionHead title="话题探索" href="/topics" action="全部话题" />
-              {asideTopics.length > 0 ? (
-                <ul className="xy-discover-topic-list">
-                  {asideTopics.map((topic, index) => (
-                    <li key={topic.id}>
-                      <Link href={`/topics/${topic.slug}`} className="xy-discover-topic-chip">
-                        <span
-                          className="xy-discover-topic-icon"
-                          style={{ background: topicColors[index % topicColors.length] }}
-                        >
-                          <Hash className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <strong># {topic.name}</strong>
-                          <small>{count(topic.contentCount)} 讨论</small>
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="xy-discover-inline-empty">暂无话题</p>
-              )}
-            </section>
+            {showTopicsPanel ? (
+              <section className="xy-discover-panel xy-discover-panel-compact">
+                <SectionHead title="话题探索" href="/topics" action="全部话题" />
+                {asideTopics.length > 0 ? (
+                  <ul className="xy-discover-topic-list">
+                    {asideTopics.map((topic, index) => (
+                      <li key={topic.id}>
+                        <Link href={`/topics/${topic.slug}`} className="xy-discover-topic-chip">
+                          <span
+                            className="xy-discover-topic-icon"
+                            style={{ background: topicColors[index % topicColors.length] }}
+                          >
+                            <Hash className="h-3.5 w-3.5" aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <strong># {topic.name}</strong>
+                            <small>{count(topic.contentCount)} 讨论</small>
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="xy-discover-inline-empty">暂无话题</p>
+                )}
+              </section>
+            ) : null}
           </aside>
       </div>
 
@@ -316,7 +326,7 @@ export function DiscoverPrototypePage({
           ) : null}
         </div>
 
-        {visibleCreators.length > 0 ? (
+        {showCreatorsPanel && visibleCreators.length > 0 ? (
           <section className="xy-discover-panel xy-discover-creators">
             <SectionHead title="推荐创作者" href="/search?type=USER" />
             <div className="xy-discover-creator-track">
@@ -329,7 +339,7 @@ export function DiscoverPrototypePage({
                     {(creator.displayName || creator.username).slice(0, 1)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <Link href={`/users/${creator.username}`} className="xy-discover-creator-name">
+                    <Link href={`/u/${creator.username}`} className="xy-discover-creator-name">
                       {creator.displayName || creator.username}
                     </Link>
                     <span className="xy-discover-creator-role">

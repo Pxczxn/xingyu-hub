@@ -12,7 +12,7 @@ import top.pxczxn.xingyu.community.entity.Moment;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
 import top.pxczxn.xingyu.community.entity.Series;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
-import top.pxczxn.xingyu.community.mapper.CreatorFollowMapper;
+import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.NotificationMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
@@ -31,7 +31,7 @@ public class HomeService {
 
     private final NotificationMapper notificationMapper;
     private final SearchDocumentMapper searchDocumentMapper;
-    private final CreatorFollowMapper creatorFollowMapper;
+    private final UserFollowMapper userFollowMapper;
     private final ArticleMapper articleMapper;
     private final WorkingDraftMapper draftMapper;
     private final SeriesMapper seriesMapper;
@@ -96,13 +96,13 @@ public class HomeService {
     }
 
     private List<SearchResultView> followingUpdatesFor(CommunityUser user) {
-        List<String> creatorIds = creatorFollowMapper.listCreatorIdsByFollower(user.getId());
-        if (creatorIds.isEmpty()) {
+        List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(user.getId());
+        if (followeeIds.isEmpty()) {
             return List.of();
         }
         List<SearchDocument> documents = new ArrayList<>();
-        for (String creatorId : creatorIds) {
-            for (Article article : articleMapper.listByOwnerId(creatorId)) {
+        for (String followeeId : followeeIds) {
+            for (Article article : articleMapper.listByOwnerId(followeeId)) {
                 if (!ArticleStateSupport.isActiveLifecycle(article) || !ArticleStateSupport.isPublished(article)) {
                     continue;
                 }
@@ -111,7 +111,7 @@ public class HomeService {
                     documents.add(document);
                 }
             }
-            for (Series series : seriesMapper.listByOwnerId(creatorId)) {
+            for (Series series : seriesMapper.listByOwnerId(followeeId)) {
                 if (!"ACTIVE".equals(series.getStatus())) {
                     continue;
                 }
@@ -120,7 +120,7 @@ public class HomeService {
                     documents.add(document);
                 }
             }
-            for (Moment moment : momentMapper.listByAuthorId(creatorId, 5)) {
+            for (Moment moment : momentMapper.listByAuthorId(followeeId, 5)) {
                 SearchDocument document = searchDocumentMapper.findByObject("MOMENT", moment.getId());
                 if (document != null && document.getRemovedAt() == null) {
                     documents.add(document);
