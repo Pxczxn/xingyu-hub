@@ -1,57 +1,32 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState } from "@/components/community/empty-state";
 import { DiscoverPrototypePage } from "@/components/community/discover-prototype-page";
 import {
   communityApi,
-  DEFAULT_DISCOVER_NAV,
+  DEFAULT_EXPLORE_NAV,
   type ContentSummary,
-  type DiscoverNav,
+  type ExploreNav,
   type FollowUser,
+  type GalaxySummary,
   type SeriesSummary,
   type TopicCreatorSummary,
   type TopicSummary,
 } from "@/lib/community-api";
 
 type DiscoverData = {
-  articles: ContentSummary[];
-  more: ContentSummary[];
+  feed: ContentSummary[];
   series: SeriesSummary[];
   topics: TopicSummary[];
   creators: FollowUser[];
+  galaxies: GalaxySummary[];
 };
 
 function isArticle(item: ContentSummary) {
   return !item.objectType || item.objectType === "ARTICLE";
-}
-
-function sortKeyToFeedType(sort: string) {
-  switch (sort) {
-    case "latest":
-      return "latest";
-    case "hot":
-      return "hot";
-    case "interest":
-      return "recommended";
-    default:
-      return "recommended";
-  }
-}
-
-function filterByType(items: ContentSummary[], type: string) {
-  switch (type) {
-    case "article":
-      return items.filter(isArticle);
-    case "moment":
-      return items.filter((item) => item.objectType === "MOMENT");
-    case "series":
-      return items.filter((item) => item.objectType === "SERIES");
-    default:
-      return items;
-  }
 }
 
 function pickDefaultTab<T extends { key: string; defaultSelected?: boolean }>(tabs: T[], fallbackKey: string) {
@@ -92,34 +67,32 @@ async function loadCreators(topics: TopicSummary[]): Promise<FollowUser[]> {
   return creators;
 }
 
-async function loadDiscoverData(typeKey: string, sortKey: string): Promise<DiscoverData> {
-  const feedType = sortKeyToFeedType(sortKey);
-  const [feedItems, series, topicsResult] = await Promise.allSettled([
-    communityApi.getFeed(feedType, 0, 20),
+async function loadDiscoverData(domainKey: string, sortKey: string): Promise<DiscoverData> {
+  const [feedResult, series, topicsResult, galaxiesResult] = await Promise.allSettled([
+    communityApi.getExploreFeed(domainKey, sortKey, 20),
     communityApi.listSeries(8),
     communityApi.getTopics(),
+    communityApi.getGalaxies(),
   ]);
 
   const topics = topicsResult.status === "fulfilled" ? topicsResult.value : [];
   const creators = await loadCreators(topics).catch(() => []);
-  const items = feedItems.status === "fulfilled" ? filterByType(feedItems.value, typeKey) : [];
-  const articles = items.filter(isArticle);
-  const more = items.filter((item) => !isArticle(item));
 
   return {
-    articles,
-    more,
+    feed: feedResult.status === "fulfilled" ? feedResult.value : [],
     series: series.status === "fulfilled" ? series.value : [],
     topics,
     creators,
+    galaxies: galaxiesResult.status === "fulfilled" ? galaxiesResult.value : [],
   };
 }
 
 function DiscoverPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [nav, setNav] = useState<DiscoverNav>(DEFAULT_DISCOVER_NAV);
-  const typeKey = searchParams.get("type") ?? pickDefaultTab(nav.typeTabs, "all");
+  const [nav, setNav] = useState<ExploreNav>(DEFAULT_EXPLORE_NAV);
+  const domainKey =
+    searchParams.get("domain") ?? (nav.mode === "user" ? "all" : pickDefaultTab(nav.domainTabs, "tech"));
   const sortKey = searchParams.get("sort") ?? pickDefaultTab(nav.sortTabs, "featured");
   const [data, setData] = useState<DiscoverData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -127,24 +100,24 @@ function DiscoverPageContent() {
 
   useEffect(() => {
     communityApi
-      .getDiscoverNav()
+      .getExploreNav()
       .then(setNav)
-      .catch(() => setNav(DEFAULT_DISCOVER_NAV));
+      .catch(() => setNav(DEFAULT_EXPLORE_NAV));
   }, []);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    loadDiscoverData(typeKey, sortKey)
+    loadDiscoverData(domainKey, sortKey)
       .then(setData)
       .catch(() => setError("加载失败"))
       .finally(() => setLoading(false));
-  }, [typeKey, sortKey]);
+  }, [domainKey, sortKey]);
 
   const handleFilterChange = useCallback(
-    (nextType: string, nextSort: string) => {
+    (nextDomain: string, nextSort: string) => {
       const params = new URLSearchParams(searchParams.toString());
-      params.set("type", nextType);
+      params.set("domain", nextDomain);
       params.set("sort", nextSort);
       const query = params.toString();
       router.replace(query ? `/discover?${query}` : "/discover", { scroll: false });
@@ -152,18 +125,8 @@ function DiscoverPageContent() {
     [router, searchParams]
   );
 
-  const hasContent = useMemo(
-    () =>
-      Boolean(
-        data &&
-          (data.articles.length > 0 ||
-            data.more.length > 0 ||
-            data.series.length > 0 ||
-            data.topics.length > 0 ||
-            data.creators.length > 0)
-      ),
-    [data]
-  );
+  const articles = (data?.feed ?? []).filter(isArticle);
+  const more = (data?.feed ?? []).filter((item) => !isArticle(item));
 
   return (
     <AppShell>
@@ -188,14 +151,15 @@ function DiscoverPageContent() {
         ) : (
           <DiscoverPrototypePage
             nav={nav}
-            typeKey={typeKey}
+            domainKey={domainKey}
             sortKey={sortKey}
             onFilterChange={handleFilterChange}
-            articles={hasContent ? data!.articles : []}
-            more={data?.more ?? []}
+            articles={articles}
+            more={more}
             series={data?.series ?? []}
             topics={data?.topics ?? []}
             creators={data?.creators ?? []}
+            galaxies={data?.galaxies ?? []}
           />
         )}
       </main>

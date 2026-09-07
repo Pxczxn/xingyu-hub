@@ -3,16 +3,35 @@ import { ApiError, apiRequest, apiUpload, getStoredToken } from "@/lib/api-clien
 export type PageResult<T> = { items: T[]; nextCursor?: string | null; total?: number };
 
 export type DiscoverNavTab = { key: string; label: string; defaultSelected?: boolean };
-export type DiscoverNav = { typeTabs: DiscoverNavTab[]; sortTabs: DiscoverNavTab[] };
 
-export const DEFAULT_DISCOVER_NAV: DiscoverNav = {
-  typeTabs: [
-    { key: "all", label: "全部", defaultSelected: true },
-    { key: "article", label: "文章" },
-    { key: "series", label: "系列" },
-    { key: "creator", label: "创作者" },
-    { key: "topic", label: "话题" },
-    { key: "moment", label: "动态" },
+export type ExploreNavTab = DiscoverNavTab & {
+  description?: string;
+  personal?: boolean;
+};
+
+export type ExploreNav = {
+  mode: "guest" | "user";
+  sectionTitle: string;
+  feedHint: string;
+  canManage: boolean;
+  domainTabs: ExploreNavTab[];
+  sortTabs: DiscoverNavTab[];
+};
+
+/** @deprecated 使用 ExploreNav */
+export type DiscoverNav = ExploreNav;
+
+export const DEFAULT_EXPLORE_NAV: ExploreNav = {
+  mode: "guest",
+  sectionTitle: "热门星域",
+  feedHint: "从官方领域星图开始探索社区内容",
+  canManage: false,
+  domainTabs: [
+    { key: "tech", label: "技术", defaultSelected: true },
+    { key: "design", label: "设计" },
+    { key: "create", label: "创作" },
+    { key: "science", label: "科学" },
+    { key: "learn", label: "学习" },
   ],
   sortTabs: [
     { key: "latest", label: "最新" },
@@ -20,6 +39,25 @@ export const DEFAULT_DISCOVER_NAV: DiscoverNav = {
     { key: "hot", label: "近期热门" },
     { key: "interest", label: "兴趣相关" },
   ],
+};
+
+export const DEFAULT_DISCOVER_NAV = DEFAULT_EXPLORE_NAV;
+
+export type ExploreDomain = {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  parentId?: string | null;
+  domainType?: string;
+  personal?: boolean;
+  children?: ExploreDomain[];
+};
+
+export type UserExplore = {
+  domains: ExploreDomain[];
+  customLabels: string[];
 };
 
 export type PublicConfig = {
@@ -618,7 +656,30 @@ export const communityApi = {
   getDiscover: (input: CursorInput = {}) =>
     apiRequest<PageResult<ContentSummary>>(`/api/v1/discover${query(input)}`),
 
-  getDiscoverNav: () => apiRequest<DiscoverNav>("/api/v1/discover/nav"),
+  getDiscoverNav: () => apiRequest<ExploreNav>("/api/v1/discover/nav"),
+
+  getExploreMap: () => apiRequest<ExploreDomain[]>("/api/v1/explore/map"),
+
+  getExploreNav: () => apiRequest<ExploreNav>("/api/v1/explore/nav"),
+
+  getExploreFeed: async (domain = "tech", sort = "featured", limit = 20) => {
+    const items = await apiRequest<ContentSummary[]>(
+      `/api/v1/explore/feed${query({ domain, sort, limit })}`
+    );
+    return items.map((item) => ({
+      ...item,
+      title: item.title ?? "未命名内容",
+      objectType: item.objectType ?? "ARTICLE",
+    }));
+  },
+
+  getMyExplore: () => apiRequest<UserExplore>("/api/v1/explore/me"),
+
+  updateMyExplore: (payload: { domainIds?: string[]; customLabels?: string[] }) =>
+    apiRequest<UserExplore>("/api/v1/explore/me", { method: "PUT", body: payload }),
+
+  applyExploreDomain: (payload: { name: string; description: string }) =>
+    apiRequest<void>("/api/v1/explore/domain-applications", { method: "POST", body: payload }),
 
   getFeed: async (type = "recommended", page = 0, size = 20) => {
     const items = await apiRequest<FeedItem[]>(`/api/v1/feed${query({ type, page, size })}`);

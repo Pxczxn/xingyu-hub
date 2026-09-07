@@ -31,7 +31,7 @@ export const REDIRECT_RULES: RedirectRule[] = [
   { from: "/users/:username", to: "/u/:username", permanent: true },
   { from: "/users/:username/works", to: "/u/:username", permanent: true },
   { from: "/users/:username/works/settings/categories", to: "/studio/settings", permanent: true },
-  { from: "/hot", to: "/discover?sort=hot", permanent: true },
+  { from: "/hot", to: "/discover?domain=tech&sort=hot", permanent: true },
   { from: "/me/profile", to: "/settings/profile", permanent: true },
   { from: "/me/insights", to: "/studio/analytics", permanent: true },
   { from: "/studio/published", to: "/studio/content?tab=published", permanent: true },

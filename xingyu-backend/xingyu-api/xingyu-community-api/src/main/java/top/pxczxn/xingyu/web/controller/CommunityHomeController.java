@@ -4,13 +4,13 @@ import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.community.dto.MeHomeView;
 import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.ContentCardView;
-import top.pxczxn.xingyu.community.dto.DiscoverNavView;
+import top.pxczxn.xingyu.community.dto.ExploreNavView;
 import top.pxczxn.xingyu.community.dto.HomeCompositionView;
 import top.pxczxn.xingyu.community.entity.CommunitySession;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.mapper.CommunityUserMapper;
 import top.pxczxn.xingyu.community.service.CommunityAccountService;
-import top.pxczxn.xingyu.community.service.DiscoverService;
+import top.pxczxn.xingyu.community.service.ExplorationService;
 import top.pxczxn.xingyu.community.service.HomeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CommunityHomeController {
 
     private final HomeService homeService;
-    private final DiscoverService discoverService;
+    private final ExplorationService explorationService;
     private final CommunityAccountService accountService;
     private final CommunityUserMapper userMapper;
 
@@ -38,8 +38,8 @@ public class CommunityHomeController {
     }
 
     @GetMapping("/discover/nav")
-    public DiscoverNavView discoverNav() {
-        return discoverService.nav();
+    public ExploreNavView discoverNav(@RequestHeader(value = "satoken", required = false) String token) {
+        return explorationService.composeNav(resolveViewer(token));
     }
 
     @GetMapping("/discover")
