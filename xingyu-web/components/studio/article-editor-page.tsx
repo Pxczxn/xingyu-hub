@@ -1,16 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  Check,
-  Eye,
-  Loader2,
-  Trash2,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Eye, Loader2 } from "lucide-react";
+import { ArticleEditorBody } from "@/components/studio/article-editor-body";
+import { ArticleEditorOutline } from "@/components/studio/article-editor-outline";
+import { ArticleEditorSettings } from "@/components/studio/article-editor-settings";
 import {
   ConflictModal,
   PreviewModal,
@@ -19,16 +15,19 @@ import {
   SubmitModal,
 } from "@/components/studio/studio-modals";
 import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
+import { inferBodyMode, type ArticleBodyMode } from "@/lib/article-body-convert";
+import { ensureCanonicalMarkdownBody, isHtmlPollutedBody } from "@/lib/article-body-markdown";
+import type { ArticleEditorBodyController } from "@/components/studio/article-editor-body-controller";
+import { extractEditorOutline } from "@/lib/article-markdown";
 import {
   communityApi,
   type ArticleDraft,
   type CreationCategory,
   type TopicSummary,
 } from "@/lib/community-api";
+import { resolveArticleIdFromPath } from "@/lib/paths";
 
 type SaveState = "saved" | "saving" | "error" | "idle";
 
@@ -46,9 +45,19 @@ function fromDatetimeLocalValue(value: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function formatSavedTime(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function localBackupKey(articleId: string) {
+  return `xingyu-draft-backup:${articleId}`;
+}
+
 export default function ArticleEditorPage() {
   const params = useParams<{ articleId: string }>();
-  const articleId = params.articleId;
+  const pathname = usePathname();
+  const articleId = params.articleId ?? resolveArticleIdFromPath(pathname) ?? "";
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get("action");
@@ -64,46 +73,74 @@ export default function ArticleEditorPage() {
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
+  const [bodyMode, setBodyMode] = useState<ArticleBodyMode>("MARKDOWN");
   const [visibility, setVisibility] = useState("PUBLIC");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [topicIds, setTopicIds] = useState<string[]>([]);
   const [scheduledPublishAt, setScheduledPublishAt] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeOutline, setActiveOutline] = useState(0);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bodyControllerRef = useRef<ArticleEditorBodyController | null>(null);
   const lockVersion = useRef(0);
+  const pendingRecoverySave = useRef(false);
   const latestPayload = useRef({
     title,
     summary,
     body,
+    bodyMode,
     visibility,
     categoryId,
     topicIds,
     scheduledPublishAt,
   });
 
+  const outline = useMemo(() => extractEditorOutline(body), [body]);
+
   useEffect(() => {
     latestPayload.current = {
       title,
       summary,
       body,
+      bodyMode,
       visibility,
       categoryId,
       topicIds,
       scheduledPublishAt,
     };
-  }, [
-    title,
-    summary,
-    body,
-    visibility,
-    categoryId,
-    topicIds,
-    scheduledPublishAt,
-  ]);
+  }, [title, summary, body, bodyMode, visibility, categoryId, topicIds, scheduledPublishAt]);
 
   useEffect(() => {
+    const backup = {
+      title,
+      summary,
+      body,
+      bodyMode,
+      visibility,
+      categoryId,
+      topicIds,
+      scheduledPublishAt,
+      savedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(localBackupKey(articleId), JSON.stringify(backup));
+    } catch {
+      // ignore quota errors
+    }
+  }, [articleId, title, summary, body, bodyMode, visibility, categoryId, topicIds, scheduledPublishAt]);
+
+  useEffect(() => {
+    if (!articleId) {
+      setError("文章地址无效");
+      return;
+    }
+
     Promise.all([
       communityApi.getArticleDraft(articleId),
       communityApi.listCategories().catch(() => []),
@@ -115,13 +152,18 @@ export default function ArticleEditorPage() {
         setTopics(topicList);
         setTitle(data.title ?? "");
         setSummary(data.summary ?? "");
-        setBody(data.body ?? "");
+        const rawBody = data.body ?? "";
+        const canonicalBody = ensureCanonicalMarkdownBody(rawBody);
+        setBody(canonicalBody);
+        pendingRecoverySave.current = isHtmlPollutedBody(rawBody);
+        setBodyMode(inferBodyMode(canonicalBody, data.bodyMode));
         setVisibility(data.visibility ?? "PUBLIC");
         setCategoryId(data.categoryId);
         setTopicIds(data.topicIds ?? []);
         setScheduledPublishAt(toDatetimeLocalValue(data.scheduledPublishAt));
         lockVersion.current = data.lockVersion;
         setSaveState("saved");
+        setLastSavedAt(data.updatedAt ? new Date(data.updatedAt) : new Date());
       })
       .catch((err) => {
         if (err instanceof ApiError && err.problem.status === 404) {
@@ -144,19 +186,35 @@ export default function ArticleEditorPage() {
     setPreviewOpen(false);
     setPublishOpen(false);
     setSubmitOpen(false);
+    setSubmitError(null);
     setConflictOpen(false);
     setRecoveryOpen(false);
     router.replace(`/studio/content/${articleId}`);
   };
 
+  const resolveBodyForSave = useCallback(() => {
+    const payload = latestPayload.current;
+    const liveBody =
+      payload.bodyMode === "RICH_TEXT" && bodyControllerRef.current?.getMarkdown
+        ? bodyControllerRef.current.getMarkdown()
+        : payload.body;
+    return ensureCanonicalMarkdownBody(liveBody);
+  }, []);
+
   const saveDraft = useCallback(async () => {
     const payload = latestPayload.current;
+    const bodyToSave = resolveBodyForSave();
+    if (bodyToSave !== payload.body) {
+      setBody(bodyToSave);
+      latestPayload.current = { ...payload, body: bodyToSave };
+    }
     setSaveState("saving");
     try {
       const updated = await communityApi.saveArticleDraft(articleId, {
         title: payload.title,
-        body: payload.body,
+        body: bodyToSave,
         summary: payload.summary,
+        bodyMode: payload.bodyMode,
         visibility: payload.visibility,
         categoryId: payload.categoryId,
         topicIds: payload.topicIds,
@@ -165,10 +223,78 @@ export default function ArticleEditorPage() {
       });
       lockVersion.current = updated.lockVersion;
       setSaveState("saved");
+      setLastSavedAt(new Date());
+      return true;
     } catch {
       setSaveState("error");
+      return false;
     }
-  }, [articleId]);
+  }, [articleId, resolveBodyForSave]);
+
+  useEffect(() => {
+    if (!draft || !pendingRecoverySave.current) return;
+    pendingRecoverySave.current = false;
+    void saveDraft();
+  }, [draft, saveDraft]);
+
+  const flushSaveDraft = useCallback(async () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    return saveDraft();
+  }, [saveDraft]);
+
+  const visibilityLabel =
+    visibility === "PUBLIC"
+      ? "公开（所有人可见）"
+      : visibility === "UNLISTED"
+        ? "不公开收录"
+        : "私密";
+
+  function validateForSubmit(): string | null {
+    const payload = latestPayload.current;
+    if (!payload.title.trim()) return "提交审核前必须填写标题";
+    if (!payload.body.trim()) return "提交审核前必须填写正文";
+    if (!payload.visibility) return "提交审核前必须设置可见范围";
+    return null;
+  }
+
+  async function handleSubmitReview() {
+    const validationError = validateForSubmit();
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const saved = await flushSaveDraft();
+      if (!saved) {
+        setSubmitError("草稿保存失败，请稍后重试");
+        return;
+      }
+
+      const result = await communityApi.submitArticle(articleId);
+      setSubmitOpen(false);
+      setSubmitError(null);
+      router.push(`/studio/submissions/${result.submissionId}`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.problem.status === 409) {
+          setConflictOpen(true);
+          setSubmitOpen(false);
+        } else {
+          setSubmitError(err.problem.detail || "提交失败，请稍后重试");
+        }
+      } else {
+        setSubmitError("提交失败，请稍后重试");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   const scheduleSave = useCallback(() => {
     setSaveState("saving");
@@ -206,6 +332,60 @@ export default function ArticleEditorPage() {
     }
   }
 
+  const scrollToOutlineItem = useCallback(
+    (lineIndex: number) => {
+      if (bodyMode === "RICH_TEXT") {
+        const headings = document.querySelectorAll(
+          ".xy-editor-milkdown .ProseMirror h1, .xy-editor-milkdown .ProseMirror h2, .xy-editor-milkdown .ProseMirror h3",
+        );
+        const target = headings[lineIndex] as HTMLElement | undefined;
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+
+      const textarea = document.querySelector<HTMLTextAreaElement>(".xy-editor-body-input");
+      if (!textarea) return;
+      const lines = body.split("\n");
+      let charIndex = 0;
+      for (let i = 0; i < lineIndex; i += 1) {
+        charIndex += lines[i].length + 1;
+      }
+      textarea.focus();
+      textarea.setSelectionRange(charIndex, charIndex);
+      const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 28;
+      textarea.scrollTop = Math.max(0, lineIndex * lineHeight - textarea.clientHeight / 3);
+    },
+    [body, bodyMode],
+  );
+
+  useEffect(() => {
+    if (!outline.length || bodyMode !== "MARKDOWN") {
+      setActiveOutline(0);
+      return;
+    }
+    const textarea = document.querySelector<HTMLTextAreaElement>(".xy-editor-body-input");
+    if (!textarea) return;
+
+    const updateActive = () => {
+      const caretLine = textarea.value.slice(0, textarea.selectionStart).split("\n").length - 1;
+      let nextActive = 0;
+      outline.forEach((item, index) => {
+        if (item.lineIndex <= caretLine) nextActive = index;
+      });
+      setActiveOutline(nextActive);
+    };
+
+    textarea.addEventListener("keyup", updateActive);
+    textarea.addEventListener("click", updateActive);
+    textarea.addEventListener("scroll", updateActive);
+    updateActive();
+    return () => {
+      textarea.removeEventListener("keyup", updateActive);
+      textarea.removeEventListener("click", updateActive);
+      textarea.removeEventListener("scroll", updateActive);
+    };
+  }, [outline, bodyMode]);
+
   if (error) {
     return (
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
@@ -227,164 +407,186 @@ export default function ArticleEditorPage() {
 
   return (
     <div className="xy-editor-page">
-      <header className="xy-editor-top">
-        <Link href="/studio/content">
-          <ArrowLeft /> 返回列表
+      <header className="xy-editor-toolbar">
+        <Link href="/studio/content" className="xy-editor-toolbar__back">
+          <ArrowLeft className="h-4 w-4" />
+          返回
         </Link>
-        <b>文章编辑中： {title || "无标题"}</b>
-        <span>
-          保存状态：
-          <SaveIndicator state={saveState} />
-        </span>
-        <div>
-          <Button variant="outline" type="button" onClick={() => setPreviewOpen(true)}><Eye />预览</Button>
-          <Button type="button" onClick={() => setSubmitOpen(true)}>提交审核</Button>
+
+        <input
+          className="xy-editor-toolbar__title"
+          value={title}
+          onChange={(e) => handleFieldChange(setTitle, e.target.value)}
+          placeholder="输入文章标题"
+          aria-label="文章标题"
+        />
+
+        <div className="xy-editor-toolbar__actions">
+          <ToolbarSaveStatus state={saveState} lastSavedAt={lastSavedAt} />
+          <Button
+            variant="outline"
+            type="button"
+            className="cursor-pointer"
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye className="h-4 w-4" />
+            预览
+          </Button>
+          <Button
+            type="button"
+            className="cursor-pointer"
+            onClick={() => {
+              setSubmitError(null);
+              setSubmitOpen(true);
+            }}
+          >
+            提交审核
+          </Button>
         </div>
       </header>
-      <PreviewModal open={previewOpen} articleId={articleId} onClose={closeModal} />
+
+      <PreviewModal
+        open={previewOpen}
+        onClose={closeModal}
+        articleTitle={title}
+        summary={summary}
+        body={body}
+      />
       <PublishModal open={publishOpen} onClose={closeModal} actions={<Button onClick={closeModal}>知道了</Button>} />
-      <SubmitModal open={submitOpen} onClose={closeModal} actions={<Button onClick={closeModal}>知道了</Button>} />
+      <SubmitModal
+        open={submitOpen}
+        onClose={closeModal}
+        articleTitle={title}
+        visibilityLabel={visibilityLabel}
+        submitting={submitting}
+        error={submitError}
+        onConfirm={() => void handleSubmitReview()}
+      />
       <ConflictModal open={conflictOpen} onClose={closeModal} />
       <RecoveryModal open={recoveryOpen} onClose={closeModal} />
-      <main className="xy-editor-layout">
-        <section className="xy-editor-canvas">
-          <input
-            value={title}
-            onChange={(e) => handleFieldChange(setTitle, e.target.value)}
-            placeholder="输入文章标题"
-          />
-          <textarea
-            value={summary}
-            onChange={(e) => handleFieldChange(setSummary, e.target.value)}
-            placeholder="记录我在持续写作三年后的心得与方法…"
-          />
-          <div className="xy-editor-writing">
-            <textarea
-              className="xy-editor-body"
-              value={body}
-              onChange={(e) => handleFieldChange(setBody, e.target.value)}
-              placeholder="开始写作…"
-            />
-            <Image
-              src="/prototype-assets/article-editor/inline-image.png"
-              alt="文中插图"
-              width={416}
-              height={246}
-            />
-          </div>
-          <div className="xy-editor-status">
-            ☁ 草稿会自动保存　　上传状态由当前操作实时显示
-          </div>
-        </section>
-        <aside className="xy-editor-side">
-          <h2>发布设置</h2>
-          <section>
-            <Label>封面图</Label>
-            <div className="xy-editor-cover">
-              <Image
-                src="/prototype-assets/article-editor/cover-preview.png"
-                alt="封面图预览"
-                width={117}
-                height={72}
-              />
-              <span>
-                当前封面<small>尺寸信息暂未提供</small>
-              </span>
-              <Button variant="outline" size="sm" disabled title="封面上传接口暂未提供">
-                更换图片
-              </Button>
-            </div>
-          </section>
-          <section>
-            <Label>话题（可选）</Label>
-            <div className="xy-editor-topics">
-              {topics.length ? (
-                topics.map((t) => (
-                  <button
-                    type="button"
-                    onClick={() => toggleTopic(t.id)}
-                    className={topicIds.includes(t.id) ? "active" : ""}
-                    key={t.id}
-                  >
-                    # {t.name} ×
-                  </button>
-                ))
-              ) : (
-                <span>暂无已选择话题</span>
-              )}
-            </div>
-          </section>
-          <section>
-            <Label htmlFor="category">个人分类 *</Label>
-            <select
-              id="category"
-              value={categoryId ?? ""}
-              onChange={(e) => {
-                setCategoryId(e.target.value || null);
-                scheduleSave();
-              }}
-            >
-              <option value="">未分类</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </section>
-          <section>
-            <Label htmlFor="visibility">可见范围 *</Label>
-            <select
-              id="visibility"
-              value={visibility}
-              onChange={(e) => handleFieldChange(setVisibility, e.target.value)}
-            >
-              <option value="PUBLIC">公开（所有人可见）</option>
-              <option value="UNLISTED">不公开收录</option>
-              <option value="PRIVATE">私密</option>
-            </select>
-          </section>
-          <section>
-            <Label htmlFor="scheduled">定时发布</Label>
+
+      <div className="xy-editor-shell">
+        <ArticleEditorOutline
+          items={outline}
+          activeIndex={activeOutline}
+          onSelect={(item, index) => {
+            setActiveOutline(index);
+            scrollToOutlineItem(item.lineIndex);
+          }}
+        />
+
+        <main className="xy-editor-main">
+          {uploadError ? (
+            <Alert variant="destructive" className="xy-editor-upload-alert">
+              {uploadError}
+            </Alert>
+          ) : null}
+
+          <div className="xy-editor-canvas">
             <input
-              id="scheduled"
-              type="datetime-local"
-              value={scheduledPublishAt}
-              onChange={(e) => {
-                setScheduledPublishAt(e.target.value);
+              className="xy-editor-title-input"
+              value={title}
+              onChange={(e) => handleFieldChange(setTitle, e.target.value)}
+              placeholder="输入文章标题"
+              aria-label="文章标题"
+            />
+
+            <ArticleEditorBody
+              bodyMode={bodyMode}
+              value={body}
+              onChange={(value) =>
+                handleFieldChange(setBody, ensureCanonicalMarkdownBody(value))
+              }
+              onModeChange={(mode, nextBody) => {
+                const canonicalBody = ensureCanonicalMarkdownBody(nextBody);
+                setBodyMode(mode);
+                setBody(canonicalBody);
+                latestPayload.current = {
+                  ...latestPayload.current,
+                  bodyMode: mode,
+                  body: canonicalBody,
+                };
                 scheduleSave();
               }}
+              onControllerChange={(controller) => {
+                bodyControllerRef.current = controller;
+              }}
+              onUploadError={setUploadError}
             />
-          </section>
-          <Button variant="outline" onClick={() => void handleTrash()}>
-            <Trash2 />
-            删除草稿
-          </Button>
-        </aside>
-      </main>
+          </div>
+
+          <SaveBubble state={saveState} lastSavedAt={lastSavedAt} />
+        </main>
+
+        <ArticleEditorSettings
+          categories={categories}
+          topics={topics}
+          categoryId={categoryId}
+          topicIds={topicIds}
+          visibility={visibility}
+          scheduledPublishAt={scheduledPublishAt}
+          onCategoryChange={(id) => {
+            setCategoryId(id);
+            scheduleSave();
+          }}
+          onToggleTopic={toggleTopic}
+          onVisibilityChange={(value) => handleFieldChange(setVisibility, value)}
+          onScheduleChange={(value) => {
+            setScheduledPublishAt(value);
+            scheduleSave();
+          }}
+          onTrash={() => void handleTrash()}
+        />
+      </div>
     </div>
   );
 }
 
-function SaveIndicator({ state }: { state: SaveState }) {
+function ToolbarSaveStatus({
+  state,
+  lastSavedAt,
+}: {
+  state: SaveState;
+  lastSavedAt: Date | null;
+}) {
   if (state === "saving") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        保存中…
-      </span>
-    );
-  }
-  if (state === "saved") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-accent">
-        <Check className="h-4 w-4" />
-        已保存
+      <span className="xy-editor-toolbar__status">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        正在保存…
       </span>
     );
   }
   if (state === "error") {
-    return <span className="text-sm text-red-600">保存失败</span>;
+    return <span className="xy-editor-toolbar__status is-error">保存失败</span>;
+  }
+  if (state === "saved" && lastSavedAt) {
+    return (
+      <span className="xy-editor-toolbar__status is-saved">
+        已保存 {formatSavedTime(lastSavedAt)}
+      </span>
+    );
   }
   return null;
+}
+
+function SaveBubble({
+  state,
+  lastSavedAt,
+}: {
+  state: SaveState;
+  lastSavedAt: Date | null;
+}) {
+  let message = "";
+  if (state === "saving") message = "正在保存…";
+  else if (state === "error") message = "本地已保护，云端未保存";
+  else if (state === "saved" && lastSavedAt) message = `已保存 ${formatSavedTime(lastSavedAt)}`;
+  else return null;
+
+  return (
+    <div className="xy-editor-save-bubble" aria-live="polite">
+      {state === "saving" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+      {message}
+    </div>
+  );
 }

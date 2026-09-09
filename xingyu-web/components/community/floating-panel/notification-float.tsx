@@ -1,18 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, Heart, MessageCircle, Megaphone, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/community/empty-state";
 import { communityApi, type NotificationSummary } from "@/lib/community-api";
+import { hasStoredSession } from "@/lib/api-client";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   FloatingCard,
   FloatingCardBody,
-  FloatingCardFooter,
   FloatingCardHeader,
   FloatingTabs,
   HoverFloatRoot,
@@ -109,6 +108,14 @@ function NotificationPanelContent({
   const [tab, setTab] = useState<NotificationTab>("all");
 
   useEffect(() => {
+    if (!hasStoredSession()) {
+      setNotifications([]);
+      setNeedsLogin(true);
+      onUnreadChange?.(0);
+      setLoading(false);
+      return;
+    }
+
     communityApi
       .getNotifications()
       .then((items) => {
@@ -148,7 +155,13 @@ function NotificationPanelContent({
         });
       }
     }
-    if (item.targetRoute) router.push(item.targetRoute);
+    if (item.targetRoute) {
+      router.push(item.targetRoute);
+      return;
+    }
+    if (item.category.toUpperCase().includes("FOLLOW")) {
+      router.push("/me/followers");
+    }
   }
 
   async function handleMarkAllRead() {
@@ -167,7 +180,7 @@ function NotificationPanelContent({
   if (loading) {
     return (
       <FloatingCard width={400} className="h-[30rem]">
-        <FloatingCardHeader title="互动消息" description="加载中…" />
+        <FloatingCardHeader title="通知" description="加载中…" />
         <FloatingCardBody className="px-4 py-6">
           <p className="text-sm text-muted-foreground">正在获取通知…</p>
         </FloatingCardBody>
@@ -178,7 +191,7 @@ function NotificationPanelContent({
   if (needsLogin) {
     return (
       <FloatingCard width={400} className="h-[24rem]">
-        <FloatingCardHeader title="互动消息" />
+        <FloatingCardHeader title="通知" />
         <FloatingCardBody className="flex items-center justify-center px-4">
           <EmptyState compact title="登录后查看通知" description="社区互动与系统提醒需要登录" actionLabel="去登录" actionHref="/login" className="border-0 bg-[#f5f3ef]" />
         </FloatingCardBody>
@@ -189,8 +202,8 @@ function NotificationPanelContent({
   return (
     <FloatingCard width={400} className="max-h-[32rem]">
       <FloatingCardHeader
-        title="互动消息"
-        description={unreadCount > 0 ? `${unreadCount} 条未读` : "点赞、评论、关注与系统通知"}
+        title="通知"
+        description={unreadCount > 0 ? `${unreadCount} 条未读` : undefined}
         actions={
           unreadCount > 0 ? (
             <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={markingAll} onClick={() => void handleMarkAllRead()}>
@@ -229,11 +242,6 @@ function NotificationPanelContent({
           </ul>
         )}
       </FloatingCardBody>
-      <FloatingCardFooter>
-        <Link href="/notifications" className="text-xs text-muted-foreground transition-colors hover:text-[rgb(var(--violet))]">
-          在通知中心查看全部 →
-        </Link>
-      </FloatingCardFooter>
     </FloatingCard>
   );
 }
@@ -247,10 +255,21 @@ export function NotificationFloatTrigger({
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    communityApi
-      .getNotifications()
-      .then((items) => setUnreadCount(items.filter((item) => !item.read).length))
-      .catch(() => setUnreadCount(0));
+    function refreshUnread() {
+      if (!hasStoredSession()) {
+        setUnreadCount(0);
+        return;
+      }
+
+      communityApi
+        .getNotifications()
+        .then((items) => setUnreadCount(items.filter((item) => !item.read).length))
+        .catch(() => setUnreadCount(0));
+    }
+
+    refreshUnread();
+    const intervalId = window.setInterval(refreshUnread, 60_000);
+    return () => window.clearInterval(intervalId);
   }, [open]);
 
   return (
@@ -259,7 +278,7 @@ export function NotificationFloatTrigger({
       onEnter={handleEnter}
       onLeave={handleLeave}
       trigger={trigger({ unreadCount, open })}
-      panel={open ? <NotificationPanelContent onUnreadChange={setUnreadCount} /> : null}
+      panel={<NotificationPanelContent onUnreadChange={setUnreadCount} />}
     />
   );
 }

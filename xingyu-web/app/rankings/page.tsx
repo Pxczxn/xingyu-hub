@@ -33,7 +33,7 @@ const NAV = [
   [Compass, "发现", "/discover"],
   [UsersRound, "星系", "/galaxies"],
   [PenLine, "创作", "/studio"],
-  [MessageCircle, "消息", "/messages"],
+  [MessageCircle, "消息", "/?openMessages=1"],
   [Bookmark, "书架", "/me/bookshelf"],
   [Trophy, "全站榜单", "/rankings"],
 ] as const;

@@ -18,11 +18,15 @@ import top.pxczxn.xingyu.community.mapper.CreationSpaceCategoryMapper;
 import top.pxczxn.xingyu.community.mapper.FormalRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.PublishedRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.UsernameHistoryMapper;
+import top.pxczxn.xingyu.community.support.ArticleCoverSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -35,19 +39,26 @@ public class CreationSpaceService {
     private final PublishedRevisionMapper publishedRevisionMapper;
     private final FormalRevisionMapper formalRevisionMapper;
     private final ArticleMapper articleMapper;
+    private final EngagementMetricsService engagementMetricsService;
 
     public SpaceWorksView getPublicWorks(String rawUsername, CommunityUser viewer, String categorySlug, int limit) {
         CommunityProfile profile = resolveProfile(rawUsername);
         if (profile == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        boolean isOwner = viewer != null && viewer.getId().equals(profile.getUserId());
         CommunityCreationSpace space = spaceMapper.findByUserId(profile.getUserId());
         if (space == null) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
-        }
-        boolean isOwner = viewer != null && viewer.getId().equals(profile.getUserId());
-        if ("PRIVATE".equals(profile.getVisibility()) && !isOwner) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
+            return SpaceWorksView.builder()
+                    .username(profile.getUsername())
+                    .spaceSlug(profile.getUsername())
+                    .displayName(profile.getDisplayName())
+                    .description(null)
+                    .owner(isOwner)
+                    .categories(List.of())
+                    .works(List.of())
+                    .nextCursor(null)
+                    .build();
         }
 
         List<CreationSpaceCategory> categories = categoryMapper.listBySpaceId(space.getId()).stream()
@@ -63,7 +74,7 @@ public class CreationSpaceService {
                 .toList();
 
         List<SpaceWorksView.WorkSummary> works = listPublishedWorks(
-                space.getId(), categorySlug, isOwner, limit);
+                space, categorySlug, isOwner, limit);
 
         return SpaceWorksView.builder()
                 .username(profile.getUsername())
@@ -84,9 +95,6 @@ public class CreationSpaceService {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
         boolean isOwner = viewer != null && viewer.getId().equals(space.getUserId());
-        if ("PRIVATE".equals(profile.getVisibility()) && !isOwner) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
-        }
 
         List<SpaceWorksView.CategorySummary> categories = categoryMapper.listBySpaceId(space.getId()).stream()
                 .filter(c -> isOwner || "ACTIVE".equals(c.getStatus()))
@@ -114,9 +122,6 @@ public class CreationSpaceService {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
         boolean isOwner = viewer != null && viewer.getId().equals(space.getUserId());
-        if ("PRIVATE".equals(profile.getVisibility()) && !isOwner) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
-        }
 
         List<CreationSpaceCategory> categories = categoryMapper.listBySpaceId(space.getId()).stream()
                 .filter(c -> isOwner || "ACTIVE".equals(c.getStatus()))
@@ -131,7 +136,7 @@ public class CreationSpaceService {
                 .toList();
 
         List<SpaceWorksView.WorkSummary> works = listPublishedWorks(
-                space.getId(), categorySlug, isOwner, limit);
+                space, categorySlug, isOwner, limit);
 
         return SpaceWorksView.builder()
                 .username(profile.getUsername())
@@ -188,7 +193,8 @@ public class CreationSpaceService {
     }
 
     private List<SpaceWorksView.WorkSummary> listPublishedWorks(
-            String spaceId, String categorySlug, boolean isOwner, int limit) {
+            CommunityCreationSpace space, String categorySlug, boolean isOwner, int limit) {
+        String spaceId = space.getId();
         String categoryId = null;
         if (categorySlug != null && !categorySlug.isBlank()) {
             CreationSpaceCategory category = categoryMapper.findBySpaceIdAndSlug(spaceId, categorySlug);
@@ -204,7 +210,8 @@ public class CreationSpaceService {
         } catch (Exception ex) {
             return List.of();
         }
-        List<SpaceWorksView.WorkSummary> works = new java.util.ArrayList<>();
+
+        List<WorkDraft> drafts = new ArrayList<>();
         for (PublishedRevision revisionPointer : published) {
             Article article = articleMapper.selectById(revisionPointer.getArticleId());
             if (article == null) {
@@ -227,12 +234,58 @@ public class CreationSpaceService {
                     resolvedCategorySlug = category.getSlug();
                 }
             }
+            drafts.add(new WorkDraft(
+                    article.getId(),
+                    revision.getTitle(),
+                    revision.getSummary(),
+                    ArticleCoverSupport.extractCoverUrl(revision.getBody()),
+                    revisionPointer.getPublishedAt(),
+                    resolvedCategorySlug));
+        }
+
+        if (drafts.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> articleIds = drafts.stream().map(WorkDraft::articleId).toList();
+        Map<String, Long> likeCounts = engagementMetricsService.likeCounts("ARTICLE", articleIds);
+        Map<String, Long> bookmarkCounts = engagementMetricsService.bookmarkCounts("ARTICLE", articleIds);
+
+        String pinnedArticleId = space.getPinnedArticleId();
+        if (pinnedArticleId == null || pinnedArticleId.isBlank()) {
+            pinnedArticleId = drafts.get(0).articleId();
+        }
+
+        List<SpaceWorksView.WorkSummary> works = new ArrayList<>();
+        for (WorkDraft draft : drafts) {
+            boolean pinned = pinnedArticleId.equals(draft.articleId());
             works.add(SpaceWorksView.WorkSummary.builder()
-                    .id(article.getId())
-                    .title(revision.getTitle())
-                    .categorySlug(resolvedCategorySlug)
+                    .id(draft.articleId())
+                    .title(draft.title())
+                    .categorySlug(draft.categorySlug())
+                    .summary(draft.summary())
+                    .coverUrl(draft.coverUrl())
+                    .publishedAt(draft.publishedAt())
+                    .viewCount(0L)
+                    .likeCount(likeCounts.getOrDefault(draft.articleId(), 0L))
+                    .bookmarkCount(bookmarkCounts.getOrDefault(draft.articleId(), 0L))
+                    .pinned(pinned)
                     .build());
         }
+
+        works.sort(Comparator.comparing((SpaceWorksView.WorkSummary work) -> !work.isPinned())
+                .thenComparing(
+                        work -> work.getPublishedAt() == null ? java.time.Instant.EPOCH : work.getPublishedAt(),
+                        Comparator.reverseOrder()));
+
         return works;
     }
+
+    private record WorkDraft(
+            String articleId,
+            String title,
+            String summary,
+            String coverUrl,
+            java.time.Instant publishedAt,
+            String categorySlug) {}
 }

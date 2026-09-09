@@ -48,6 +48,27 @@ function writeJson(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function normalizeSearchHistory(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function readJsonArray(key: string, fallback: string[] = []): string[] {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return fallback;
+    return normalizeSearchHistory(parsed);
+  } catch {
+    return fallback;
+  }
+}
+
 export function getNotificationPrefs(): NotificationPrefs {
   return readJson(NOTIFICATION_KEY, DEFAULT_NOTIFICATIONS);
 }
@@ -83,7 +104,7 @@ export function saveAppearanceTheme(theme: AppearanceTheme) {
 }
 
 export function getSearchHistory(): string[] {
-  return readJson<string[]>(SEARCH_HISTORY_KEY, []);
+  return readJsonArray(SEARCH_HISTORY_KEY, []);
 }
 
 export function addSearchHistory(query: string, limit = 20) {
@@ -120,7 +141,7 @@ export async function hydrateClientSettingsFromServer() {
       }
     }
     if (remote.searchHistory) {
-      writeJson(SEARCH_HISTORY_KEY, remote.searchHistory);
+      writeJson(SEARCH_HISTORY_KEY, normalizeSearchHistory(remote.searchHistory));
     }
     if (remote.appearance?.theme) {
       const theme = remote.appearance.theme as AppearanceTheme;

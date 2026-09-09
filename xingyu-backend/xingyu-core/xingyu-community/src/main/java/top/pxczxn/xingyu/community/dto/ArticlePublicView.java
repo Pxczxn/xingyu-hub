@@ -18,6 +18,8 @@ public class ArticlePublicView {
     String visibility;
     String spaceSlug;
     String ownerUsername;
+    String ownerAvatar;
+    String ownerDisplayName;
     String categorySlug;
     List<String> topicSlugs;
     Instant publishedAt;

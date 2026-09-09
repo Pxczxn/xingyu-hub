@@ -289,23 +289,26 @@ export function DiscoverPrototypePage({
 
       <div className="xy-discover-toolbar" role="toolbar" aria-label="探索导航">
         <div className="xy-discover-toolbar-main">
-          {nav.mode === "user" ? (
-            <button
-              type="button"
-              className={cn("xy-discover-toolbar-label", domainKey === "all" && "is-active")}
-              onClick={() => onFilterChange("all", sortKey)}
-              aria-pressed={domainKey === "all"}
-            >
-              <span className="xy-discover-toolbar-label-mark" aria-hidden="true" />
-              <span className="xy-discover-toolbar-label-text">{nav.sectionTitle}</span>
-            </button>
-          ) : (
+          {nav.mode !== "user" ? (
             <div className="xy-discover-toolbar-label">
               <span className="xy-discover-toolbar-label-mark" aria-hidden="true" />
               <span className="xy-discover-toolbar-label-text">{nav.sectionTitle}</span>
             </div>
-          )}
+          ) : null}
           <div className="xy-discover-type-tabs" role="tablist" aria-label={nav.sectionTitle}>
+            {nav.mode === "user" ? (
+              <button
+                key="all"
+                type="button"
+                role="tab"
+                aria-selected={domainKey === "all"}
+                title="汇总你已选探索方向的内容"
+                className={cn(domainKey === "all" && "is-active")}
+                onClick={() => onFilterChange("all", sortKey)}
+              >
+                全部
+              </button>
+            ) : null}
             {nav.domainTabs.map((tab) => (
               <button
                 key={tab.key}

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, ChevronRight, CircleCheck, FileText, PenLine, Sparkles, Trash2, XCircle } from "lucide-react";
+import { BookOpen, ChevronRight, CircleCheck, Clock3, FileText, PenLine, Sparkles, Trash2, XCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ const TABS = [
   ["all", "全部内容", BookOpen],
   ["published", "已发布", CircleCheck],
   ["drafts", "草稿", FileText],
-  ["reviewing", "审核中", CircleCheck],
+  ["reviewing", "审核中", Clock3],
   ["returned", "被退回", XCircle],
   ["trash", "回收站", Trash2],
 ] as const;
@@ -75,43 +75,80 @@ export default function ContentManagementPage() {
       <main className="xy-content-management">
         {error && <Alert variant="destructive">{error}</Alert>}
         <section className="xy-content-panel">
-          <h1><Sparkles /> 内容管理</h1>
+          <div className="xy-content-panel-head">
+            <h1><Sparkles aria-hidden="true" /> 内容管理</h1>
+            <Button className="xy-content-create-inline" disabled={creating} onClick={() => void create()}>
+              <PenLine aria-hidden="true" />
+              {creating ? "创建中…" : "新建文章"}
+            </Button>
+          </div>
           <nav aria-label="内容状态筛选">
             {TABS.map(([value, label, Icon]) => (
               <Link
                 key={value}
                 href={value === "all" ? "/studio/content" : `/studio/content?tab=${value}`}
-                className={tab === value ? "active" : ""}
+                className={tab === value ? "active" : undefined}
+                aria-current={tab === value ? "page" : undefined}
               >
-                <Icon />
+                <Icon aria-hidden="true" />
                 {label}
               </Link>
             ))}
           </nav>
           <div className="xy-content-table">
-            <header><span>文章</span><span>最新编辑时间</span><span>状态</span><span>阅读</span><span>点赞</span><span>评论</span><span>操作</span></header>
-            {loading ? <p>正在加载内容…</p> : visible.length ? visible.map((article, index) => {
-              const state = article.status;
-              return (
-                <article key={article.id}>
-                  <Link href={`/studio/content/${article.id}`}>
-                    <Image src={`/prototype-assets/content-management/content-${(index % 5) + 1}.png`} alt="" aria-hidden="true" width={107} height={68} />
-                    <span><b>{article.title || "未命名文章"}</b><small>{article.summary || "文章摘要暂未提供"}</small></span>
-                  </Link>
-                  <time>{article.updatedAt ? new Date(article.updatedAt).toLocaleString("zh-CN") : "更新时间暂未提供"}</time>
-                  <em className={state.toLowerCase()}>{labels[state] || state}</em>
-                  <span>暂未提供</span><span>暂未提供</span><span>暂未提供</span>
-                  <Button variant="outline" size="sm" asChild><Link href={`/studio/content/${article.id}`}>编辑</Link></Button>
-                </article>
-              );
-            }) : <p>暂无符合条件的内容</p>}
+            <header>
+              <span>文章</span>
+              <span>最新编辑时间</span>
+              <span>状态</span>
+              <span>操作</span>
+            </header>
+            {loading ? (
+              <p className="xy-content-status">正在加载内容…</p>
+            ) : visible.length ? (
+              visible.map((article, index) => {
+                const state = article.status;
+                return (
+                  <article key={article.id}>
+                    <Link className="xy-content-row-main" href={`/studio/content/${article.id}`}>
+                      <Image
+                        src={`/prototype-assets/content-management/content-${(index % 5) + 1}.png`}
+                        alt=""
+                        aria-hidden="true"
+                        width={107}
+                        height={68}
+                      />
+                      <span>
+                        <b>{article.title || "未命名文章"}</b>
+                        <small>{article.summary || "文章摘要暂未提供"}</small>
+                      </span>
+                    </Link>
+                    <div className="xy-content-row-meta">
+                      <time className="xy-content-row-time">
+                        {article.updatedAt ? new Date(article.updatedAt).toLocaleString("zh-CN") : "更新时间暂未提供"}
+                      </time>
+                      <em className={`xy-content-row-status ${state.toLowerCase()}`}>{labels[state] || state}</em>
+                      <div className="xy-content-row-action">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/studio/content/${article.id}`}>编辑</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <p className="xy-content-status">暂无符合条件的内容</p>
+            )}
           </div>
           <footer><span>共 {items.length} 篇内容</span></footer>
         </section>
         <aside className="xy-content-side">
-          <Button className="xy-content-create" disabled={creating} onClick={() => void create()}><PenLine />{creating ? "创建中…" : "新建文章"}</Button>
+          <Button className="xy-content-create" variant="outline" disabled={creating} onClick={() => void create()}>
+            <PenLine aria-hidden="true" />
+            {creating ? "创建中…" : "新建文章"}
+          </Button>
           <section className="xy-content-summary">
-            <header><h2>创作总览</h2><Link href="/studio/analytics">查看数据 <ChevronRight /></Link></header>
+            <header><h2>创作总览</h2><Link href="/studio/analytics">查看数据 <ChevronRight aria-hidden="true" /></Link></header>
             <div>
               <Metric value={counters.published} label="已发布" />
               <Metric value={counters.draft} label="草稿" />
@@ -119,7 +156,7 @@ export default function ContentManagementPage() {
               <Metric value={counters.returned} label="被退回" />
             </div>
           </section>
-          <section className="xy-content-data"><h2>创作设置</h2><p><Link href="/studio/settings" className="text-accent hover:underline">管理分类与素材</Link></p></section>
+          <section className="xy-content-data"><h2>创作设置</h2><p><Link href="/studio/settings">管理分类与素材</Link></p></section>
         </aside>
       </main>
     </AppShell>

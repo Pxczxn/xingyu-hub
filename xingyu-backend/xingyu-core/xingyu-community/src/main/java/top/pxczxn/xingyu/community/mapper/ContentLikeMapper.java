@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.ContentLike;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 
 @Mapper
 public interface ContentLikeMapper extends BaseMapper<ContentLike> {
@@ -39,4 +41,17 @@ public interface ContentLikeMapper extends BaseMapper<ContentLike> {
 
     @Select("SELECT COUNT(*) FROM content_like WHERE user_id = #{userId}")
     long countByUserId(String userId);
+
+    @Select("""
+            <script>
+            SELECT object_id AS objectId, COUNT(*) AS count
+            FROM content_like
+            WHERE object_type = #{objectType}
+              AND object_id IN
+              <foreach collection='objectIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            GROUP BY object_id
+            </script>
+            """)
+    List<ObjectCountRow> countByObjectIds(
+            @Param("objectType") String objectType, @Param("objectIds") List<String> objectIds);
 }

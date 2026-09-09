@@ -89,7 +89,7 @@ public class FeedService {
     }
 
     private List<FeedItemDTO> getHotFeed(int size) {
-        return searchDocumentMapper.listActive(size * 2).stream()
+        return searchDocumentMapper.listActiveByHot(size * 2).stream()
                 .filter(doc -> doc.getRemovedAt() == null)
                 .filter(doc -> "ARTICLE".equals(doc.getObjectType()) || "MOMENT".equals(doc.getObjectType()))
                 .limit(size)

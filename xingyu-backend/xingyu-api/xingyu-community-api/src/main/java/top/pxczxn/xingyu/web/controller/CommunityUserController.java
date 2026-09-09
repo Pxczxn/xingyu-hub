@@ -3,6 +3,7 @@ package top.pxczxn.xingyu.web.controller;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.community.dto.FollowUserView;
 import top.pxczxn.xingyu.community.dto.UserDetailView;
+import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.SpaceWorksView;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunitySession;
@@ -80,6 +81,22 @@ public class CommunityUserController {
     public ResponseEntity<Void> unfollow(@PathVariable String username) {
         socialService.unfollowUser(CommunityAuthContext.requireUser(), resolveUserId(username));
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{username}/followers")
+    public PageResultView<FollowUserView> followers(
+            @PathVariable String username,
+            @RequestHeader(value = "satoken", required = false) String token,
+            @RequestParam(value = "limit", defaultValue = "50") int limit) {
+        return socialService.listFollowersForUser(resolveUserId(username), resolveViewer(token), limit);
+    }
+
+    @GetMapping("/{username}/following")
+    public PageResultView<FollowUserView> following(
+            @PathVariable String username,
+            @RequestHeader(value = "satoken", required = false) String token,
+            @RequestParam(value = "limit", defaultValue = "50") int limit) {
+        return socialService.listFollowingForUser(resolveUserId(username), resolveViewer(token), limit);
     }
 
     private String resolveUserId(String username) {

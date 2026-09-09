@@ -15,7 +15,19 @@ export class ApiError extends Error {
 }
 
 const TOKEN_KEY = "xingyu-satoken";
+export const AUTH_CHANGED_EVENT = "xingyu-auth-changed";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
+function notifyAuthChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
+}
+
+function extractTokenFromBody(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+  const token = (data as { token?: unknown }).token;
+  return typeof token === "string" && token.trim() ? token.trim() : null;
+}
 
 function resolveApiUrl(path: string) {
   return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
@@ -34,6 +46,7 @@ export function setStoredToken(token: string | null) {
   if (typeof window === "undefined") return;
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
+  notifyAuthChanged();
 }
 
 type RequestOptions = {
@@ -68,8 +81,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const data = await response.json().catch(() => null);
+  const bodyToken = extractTokenFromBody(data);
+  if (bodyToken) setStoredToken(bodyToken);
+
   if (!response.ok) {
-    if (response.status === 401) setStoredToken(null);
+    if (response.status === 401 && token) setStoredToken(null);
     throw new ApiError(
       (data as ProblemDetails) ?? {
         type: "about:blank",
@@ -107,8 +123,11 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
   }
 
   const data = await response.json().catch(() => null);
+  const bodyToken = extractTokenFromBody(data);
+  if (bodyToken) setStoredToken(bodyToken);
+
   if (!response.ok) {
-    if (response.status === 401) setStoredToken(null);
+    if (response.status === 401 && token) setStoredToken(null);
     throw new ApiError(
       (data as ProblemDetails) ?? {
         type: "about:blank",

@@ -25,6 +25,7 @@ import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.ReservedWordMapper;
 import top.pxczxn.xingyu.community.mapper.UsernameHistoryMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
+import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -120,6 +121,7 @@ public class CommunityProfileService {
         return UserDetailView.builder()
                 .username(profile.getUsername())
                 .displayName(profile.getDisplayName())
+                .avatar(ProfileSettingsSupport.resolveAvatar(entity))
                 .bio(profile.getBio())
                 .websiteUrl(profile.getWebsiteUrl())
                 .visibility(profile.getVisibility())
@@ -127,6 +129,7 @@ public class CommunityProfileService {
                 .following(profile.isFollowing())
                 .followerCount(profile.getFollowerCount())
                 .followingCount(profile.getFollowingCount())
+                .canViewFollowLists(canViewFollowLists(entity, profile.isOwner()))
                 .spaceSlug(space == null ? null : space.getSlug())
                 .spaceDisplayName(space == null ? null : space.getDisplayName())
                 .articleCount(articleCount)
@@ -145,25 +148,28 @@ public class CommunityProfileService {
         owner.setStatus("ACTIVE");
 
         boolean isOwner = viewer != null && viewer.getId().equals(profile.getUserId());
-        Visibility visibility = Visibility.valueOf(profile.getVisibility());
-        var decision = AccessPolicy.evaluate(
-                ResourceAccess.builder()
-                        .exists(true)
-                        .ownerId(ObjectId.of(profile.getUserId()))
-                        .visibility(visibility)
-                        .ownerActive(true)
-                        .resourceActive(true)
-                        .build(),
-                isOwner
-                        ? AccessorContext.authenticated(ObjectId.of(viewer.getId()))
-                        : AccessorContext.anonymous());
-        if (!decision.isAllowed()) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
+        if (!isOwner) {
+            Visibility visibility = Visibility.valueOf(profile.getVisibility());
+            if (visibility != Visibility.PRIVATE) {
+                var decision = AccessPolicy.evaluate(
+                        ResourceAccess.builder()
+                                .exists(true)
+                                .ownerId(ObjectId.of(profile.getUserId()))
+                                .visibility(visibility)
+                                .ownerActive(true)
+                                .resourceActive(true)
+                                .build(),
+                        AccessorContext.anonymous());
+                if (!decision.isAllowed()) {
+                    throw new ContractException(ErrorCode.NOT_FOUND);
+                }
+            }
         }
 
         return PublicUserView.builder()
                 .username(profile.getUsername())
                 .displayName(profile.getDisplayName())
+                .avatar(ProfileSettingsSupport.resolveAvatar(profile))
                 .bio(profile.getBio())
                 .websiteUrl(sanitizePublicUrl(profile.getWebsiteUrl()))
                 .visibility(profile.getVisibility())
@@ -238,6 +244,7 @@ public class CommunityProfileService {
         return ProfileView.builder()
                 .username(profile.getUsername())
                 .displayName(profile.getDisplayName())
+                .avatar(ProfileSettingsSupport.resolveAvatar(profile))
                 .bio(profile.getBio())
                 .websiteUrl(profile.getWebsiteUrl())
                 .visibility(profile.getVisibility())
@@ -298,5 +305,13 @@ public class CommunityProfileService {
         }
         String value = raw.toString().trim();
         return value.isEmpty() ? null : value;
+    }
+
+    private static boolean canViewFollowLists(CommunityProfile profile, boolean isOwner) {
+        if (isOwner) {
+            return true;
+        }
+        String visibility = profile.getFollowersVisibility();
+        return visibility == null || "PUBLIC".equalsIgnoreCase(visibility);
     }
 }

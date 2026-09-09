@@ -8,6 +8,7 @@ import lombok.Value;
 public class UserDetailView {
     String username;
     String displayName;
+    String avatar;
     String bio;
     String websiteUrl;
     String visibility;
@@ -15,6 +16,7 @@ public class UserDetailView {
     boolean following;
     long followerCount;
     long followingCount;
+    boolean canViewFollowLists;
     String spaceSlug;
     String spaceDisplayName;
     long articleCount;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,18 +11,34 @@ import { Label } from "@/components/ui/label";
 import { communityApi } from "@/lib/community-api";
 
 export default function NewMessagePage() {
+  return (
+    <Suspense fallback={<main className="p-8 text-sm text-muted-foreground">加载中…</main>}>
+      <NewMessageContent />
+    </Suspense>
+  );
+}
+
+function NewMessageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent) {
+  useEffect(() => {
+    const preset = searchParams.get("user")?.trim();
+    if (preset) {
+      setUsername(preset);
+    }
+  }, [searchParams]);
+
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
       const conversation = await communityApi.openDirectConversation(username.trim());
-      router.push(`/messages/direct/${conversation.id}`);
+      router.push(`/messages/${conversation.id}`);
     } catch {
       setError("无法发起会话，请确认用户名正确且已登录");
       setSubmitting(false);

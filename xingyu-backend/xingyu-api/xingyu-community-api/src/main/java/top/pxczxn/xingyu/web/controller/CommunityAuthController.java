@@ -47,10 +47,11 @@ public class CommunityAuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Void> login(
+    public Map<String, String> login(
             @RequestBody Map<String, Object> body,
             @RequestHeader(value = "User-Agent", required = false) String userAgent,
-            jakarta.servlet.http.HttpServletRequest request) {
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response) {
         String login = body.get("login") != null ? body.get("login").toString() : null;
         String password = body.get("password") != null ? body.get("password").toString() : null;
         boolean rememberMe = Boolean.TRUE.equals(body.get("rememberMe"));
@@ -58,7 +59,8 @@ public class CommunityAuthController {
         String code = body.get("code") != null ? body.get("code").toString() : null;
         String token = accountService.login(
                 login, password, rememberMe, uuid, code, userAgent, hashIp(request.getRemoteAddr()));
-        return ResponseEntity.ok().header("satoken", token).build();
+        response.setHeader("satoken", token);
+        return Map.of("token", token);
     }
 
     @PostMapping("/logout")

@@ -117,6 +117,13 @@ doc/
 qa/
 tools/
 
+# 根目录开发脚本（/ 锚定仓库根；xingyu-admin/scripts/ 由 package.json 引用，不受影响）
+/scripts/
+!/scripts/ci-apply-migrations.sh
+
+# 页面布局规格（开发资料）
+ui+layout/
+
 # 项目专属生成目录
 mars-admin/
 xingyu-backend/xingyu-starter/src/main/resources/static/

@@ -8,6 +8,7 @@ import lombok.Value;
 public class PublicUserView {
     String username;
     String displayName;
+    String avatar;
     String bio;
     String websiteUrl;
     String visibility;

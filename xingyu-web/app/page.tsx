@@ -1,10 +1,18 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomePrototypePage } from "@/components/community/home-prototype-page";
-import { communityApi, type ContentSummary, type PendingAction } from "@/lib/community-api";
+import { HomePage } from "@/components/community/home-page";
+import {
+  communityApi,
+  type ContentSummary,
+  type GalaxySummary,
+  type PendingAction,
+  type SeriesSummary,
+} from "@/lib/community-api";
+import { useTimeGreeting } from "@/lib/use-time-greeting";
+import { AUTH_CHANGED_EVENT } from "@/lib/api-client";
 
 type HomeContent = {
   continueReading: ContentSummary[];
@@ -15,7 +23,7 @@ type HomeContent = {
   isGuest: boolean;
 };
 
-export default function HomePage() {
+export default function HomePageRoute() {
   return (
     <Suspense fallback={<HomeFallback />}>
       <HomePageContent />
@@ -36,6 +44,7 @@ function HomeFallback() {
 function HomePageContent() {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
+  const timeGreeting = useTimeGreeting();
   const [content, setContent] = useState<HomeContent>({
     continueReading: [],
     followUpdates: [],
@@ -46,106 +55,121 @@ function HomePageContent() {
   });
   const [topics, setTopics] = useState<Awaited<ReturnType<typeof communityApi.getTopics>>>([]);
   const [announcements, setAnnouncements] = useState<Awaited<ReturnType<typeof communityApi.getAnnouncements>>>([]);
+  const [galaxies, setGalaxies] = useState<GalaxySummary[]>([]);
+  const [series, setSeries] = useState<SeriesSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileName, setProfileName] = useState<string | null>(null);
-  const [greetingMeta, setGreetingMeta] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      const [topicList, announcementList] = await Promise.all([
-        communityApi.getTopics(),
-        communityApi.getAnnouncements(3),
-      ]);
-      setTopics(topicList);
-      setAnnouncements(announcementList);
+  const load = useCallback(async () => {
+    const [topicList, announcementList] = await Promise.all([
+      communityApi.getTopics(),
+      communityApi.getAnnouncements(3),
+    ]);
+    setTopics(topicList);
+    setAnnouncements(announcementList);
 
-      if (mode === "guest") {
-        const guest = await communityApi.getGuestHome();
-        setContent({
-          continueReading: [],
-          followUpdates: guest.followingUpdates,
-          recommendations: guest.discoveries,
-          draftArticles: [],
-          pendingActions: [],
-          isGuest: true,
-        });
-        setProfileName(null);
-        setGreetingMeta(null);
-        return;
-      }
-
-      try {
-        const profile = await communityApi.tryGetMyProfile();
-        if (!profile) {
-          const guest = await communityApi.getGuestHome();
-          setContent({
-            continueReading: [],
-            followUpdates: guest.followingUpdates,
-            recommendations: guest.discoveries,
-            draftArticles: [],
-            pendingActions: [],
-            isGuest: true,
-          });
-          setProfileName(null);
-          return;
-        }
-        setProfileName(profile.displayName || profile.username || null);
-        const [home, followingFeed, recommendedFeed] = await Promise.all([
-          communityApi.getHome(),
-          communityApi.getFeed("following", 0, 10).catch(() => []),
-          communityApi.getFeed("recommended", 0, 12).catch(() => []),
-        ]);
-        const insights = await communityApi.getMyInsights().catch(() => null);
-        const readingCount = home.continueReading.length;
-        const metaParts = [
-          insights?.articleCount ? `已发布 ${insights.articleCount} 篇内容` : null,
-          readingCount ? `继续阅读 ${readingCount} 篇` : null,
-        ].filter(Boolean);
-        setGreetingMeta(metaParts.length ? metaParts.join(" · ") : "继续你的阅读与创作旅程");
-        setContent({
-          ...home,
-          followUpdates: followingFeed.length ? followingFeed : home.followUpdates,
-          recommendations: recommendedFeed.length ? recommendedFeed : home.recommendations,
-          draftArticles: home.draftArticles ?? [],
-          pendingActions: home.pendingActions ?? [],
-          isGuest: false,
-        });
-      } catch {
-        const guest = await communityApi.getGuestHome();
-        setContent({
-          continueReading: [],
-          followUpdates: guest.followingUpdates,
-          recommendations: guest.discoveries,
-          draftArticles: [],
-          pendingActions: [],
-          isGuest: true,
-        });
-        setProfileName(null);
-        setGreetingMeta(null);
-      }
+    if (mode === "guest") {
+      const guest = await communityApi.getGuestHome();
+      setContent({
+        continueReading: [],
+        followUpdates: guest.followingUpdates,
+        recommendations: guest.discoveries,
+        draftArticles: [],
+        pendingActions: [],
+        isGuest: true,
+      });
+      setProfileName(null);
+      setGalaxies([]);
+      setSeries([]);
+      return;
     }
 
-    load().finally(() => setLoading(false));
+    try {
+      const profile = await communityApi.tryGetMyProfile();
+      if (!profile) {
+        const guest = await communityApi.getGuestHome();
+        setContent({
+          continueReading: [],
+          followUpdates: guest.followingUpdates,
+          recommendations: guest.discoveries,
+          draftArticles: [],
+          pendingActions: [],
+          isGuest: true,
+        });
+        setProfileName(null);
+        setGalaxies([]);
+        setSeries([]);
+        return;
+      }
+      setProfileName(profile.displayName || profile.username || null);
+      const [home, followingFeed, recommendedFeed, myGalaxies, mySeries] = await Promise.all([
+        communityApi.getHome(),
+        communityApi.getFeed("following", 0, 10).catch(() => []),
+        communityApi.getFeed("recommended", 0, 12).catch(() => []),
+        communityApi.getMyGalaxies().catch(() => []),
+        communityApi.listMySeries().catch(() => []),
+      ]);
+      setGalaxies(myGalaxies);
+      setSeries(mySeries);
+      setContent({
+        ...home,
+        followUpdates: followingFeed.length ? followingFeed : home.followUpdates,
+        recommendations: recommendedFeed.length ? recommendedFeed : home.recommendations,
+        draftArticles: home.draftArticles ?? [],
+        pendingActions: home.pendingActions ?? [],
+        isGuest: false,
+      });
+    } catch {
+      const guest = await communityApi.getGuestHome();
+      setContent({
+        continueReading: [],
+        followUpdates: guest.followingUpdates,
+        recommendations: guest.discoveries,
+        draftArticles: [],
+        pendingActions: [],
+        isGuest: true,
+      });
+      setProfileName(null);
+      setGalaxies([]);
+      setSeries([]);
+    }
   }, [mode]);
 
-  const greeting = content.isGuest
+  useEffect(() => {
+    void load().finally(() => setLoading(false));
+  }, [load]);
+
+  useEffect(() => {
+    function handleAuthChanged() {
+      setLoading(true);
+      void load().finally(() => setLoading(false));
+    }
+
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
+  }, [load]);
+
+  const greetingLead = content.isGuest
     ? "欢迎来到星语社区"
     : profileName
-      ? `晚上好，${profileName}`
+      ? timeGreeting
       : "欢迎来到星语社区";
+  const showUsernameChip = !content.isGuest && Boolean(profileName);
 
   return (
     <AppShell>
-      <HomePrototypePage
+      <HomePage
         isGuest={content.isGuest}
         loading={loading}
-        greeting={greeting}
-        greetingMeta={greetingMeta}
+        greetingLead={greetingLead}
+        showUsernameChip={showUsernameChip}
         continueReading={content.continueReading}
         followUpdates={content.followUpdates}
         recommendations={content.recommendations}
         topics={topics}
         announcements={announcements}
+        galaxies={galaxies}
+        series={series}
       />
     </AppShell>
   );

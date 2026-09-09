@@ -23,6 +23,14 @@ export default defineConfig(({ mode }) => {
         "/api/v1": {
           target: env.VITE_API_TARGET ?? "http://127.0.0.1:7779",
           changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyRes", (proxyRes) => {
+              const token = proxyRes.headers["satoken"];
+              if (token) {
+                proxyRes.headers["access-control-expose-headers"] = "satoken";
+              }
+            });
+          },
         },
       },
     },

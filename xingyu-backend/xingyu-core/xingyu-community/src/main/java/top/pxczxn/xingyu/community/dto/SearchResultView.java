@@ -10,4 +10,6 @@ public class SearchResultView {
     String objectId;
     String title;
     String summary;
+    String avatar;
+    String updatedAt;
 }

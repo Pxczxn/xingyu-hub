@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { AtSign, Bell, Check, Heart, Mail, MessageCircle } from "lucide-react";
 import { SettingsLayout } from "@/components/settings/settings-layout";
@@ -88,14 +87,8 @@ export default function NotificationSettingsPage() {
             留在恰当的时候
           </h2>
           <p className="mt-5 text-sm leading-7 text-slate-500">
-            互动、关注和系统消息都会在通知中心保留记录。
+            在这里控制哪些互动会通过顶部通知提醒你。
           </p>
-          <Link
-            href="/notifications"
-            className="mt-6 inline-flex h-11 items-center rounded-full border border-[#e5d7c7] bg-white px-5 text-sm font-medium text-[#26375d] transition-colors hover:border-[#e88739] hover:text-[#d97827]"
-          >
-            查看通知中心
-          </Link>
         </>
       }
     >

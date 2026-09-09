@@ -3,9 +3,11 @@ package top.pxczxn.xingyu.community.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.CollectionEntry;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 
 @Mapper
 public interface CollectionEntryMapper extends BaseMapper<CollectionEntry> {
@@ -29,4 +31,23 @@ public interface CollectionEntryMapper extends BaseMapper<CollectionEntry> {
             LIMIT 1
             """)
     CollectionEntry findByOwnerAndObject(String ownerId, String objectType, String objectId);
+
+    @Select("""
+            SELECT COUNT(*) FROM collection_entry
+            WHERE object_type = #{objectType} AND object_id = #{objectId}
+            """)
+    long countByObject(@Param("objectType") String objectType, @Param("objectId") String objectId);
+
+    @Select("""
+            <script>
+            SELECT object_id AS objectId, COUNT(*) AS count
+            FROM collection_entry
+            WHERE object_type = #{objectType}
+              AND object_id IN
+              <foreach collection='objectIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            GROUP BY object_id
+            </script>
+            """)
+    List<ObjectCountRow> countByObjectIds(
+            @Param("objectType") String objectType, @Param("objectIds") List<String> objectIds);
 }

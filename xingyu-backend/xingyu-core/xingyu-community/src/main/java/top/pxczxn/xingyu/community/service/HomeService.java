@@ -41,7 +41,7 @@ public class HomeService {
 
     public HomeCompositionView compose(CommunityUser user) {
         long unread = user == null ? 0L : notificationMapper.countUnread(user.getId());
-        List<SearchResultView> discoveries = toSearchViews(searchDocumentMapper.listActive(10));
+        List<SearchResultView> discoveries = toSearchViews(searchDocumentMapper.listActiveByHot(10));
         List<SearchResultView> followingUpdates = new ArrayList<>();
         if (user != null) {
             followingUpdates = followingUpdatesFor(user);

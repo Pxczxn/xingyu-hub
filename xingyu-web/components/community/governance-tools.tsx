@@ -16,7 +16,78 @@ export function ModerationCaseCard({ caseId, title, status, summary, onOpen }: {
   return <article className="xy-panel-interactive p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs text-muted-foreground">案件 {caseId}</p><h3 className="mt-1 font-medium">{title}</h3></div><span className={cn("rounded-full px-2 py-1 text-xs font-medium", tone)}>{status}</span></div><p className="mt-3 text-sm leading-6 text-muted-foreground">{summary}</p><Button variant="ghost" size="sm" className="mt-3" onClick={onOpen}>查看处理进度</Button></article>;
 }
 
-export function ConfirmDialog({ open, title, description, confirmLabel = "确认", destructive = false, onCancel, onConfirm }: { open: boolean; title: string; description: string; confirmLabel?: string; destructive?: boolean; onCancel: () => void; onConfirm: () => void }) {
+export function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmLabel = "确认",
+  destructive = false,
+  confirmDisabled = false,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  destructive?: boolean;
+  confirmDisabled?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
   if (!open) return null;
-  return <div className="fixed inset-0 z-[70] grid place-items-center bg-[rgb(var(--navy)/.38)] p-4" role="presentation"><section className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><AlertTriangle className={cn("h-5 w-5", destructive ? "text-destructive" : "text-[rgb(var(--accent))]")} /><h2 id="confirm-title" className="font-semibold">{title}</h2></div><p className="mt-3 text-sm leading-6 text-muted-foreground">{description}</p></div><Button variant="ghost" size="icon" onClick={onCancel} aria-label="关闭确认框"><X className="h-4 w-4" /></Button></div><div className="mt-6 flex justify-end gap-2"><Button variant="outline" onClick={onCancel}>取消</Button><Button onClick={onConfirm} className={destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}><CheckCircle2 className="mr-1.5 h-4 w-4" />{confirmLabel}</Button></div></section></div>;
+
+  const ConfirmIcon = destructive ? X : CheckCircle2;
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] grid place-items-center bg-[rgb(var(--navy)/.38)] p-4"
+      role="presentation"
+    >
+      <section
+        className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle
+                className={cn("h-5 w-5", destructive ? "text-red-600" : "text-[rgb(var(--accent))]")}
+              />
+              <h2 id="confirm-title" className="font-semibold">{title}</h2>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{description}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCancel}
+            disabled={confirmDisabled}
+            aria-label="关闭确认框"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" onClick={onCancel} disabled={confirmDisabled}>
+            取消
+          </Button>
+          <Button
+            variant={destructive ? "outline" : "default"}
+            onClick={onConfirm}
+            disabled={confirmDisabled}
+            className={cn(
+              destructive &&
+                "border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700 hover:text-white"
+            )}
+          >
+            <ConfirmIcon className="mr-1.5 h-4 w-4" />
+            {confirmLabel}
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
 }

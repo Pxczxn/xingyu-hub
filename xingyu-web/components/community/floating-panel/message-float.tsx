@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Plus, Search, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, MessageSquare, Plus, Search, Users, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/community/empty-state";
 import { Input } from "@/components/ui/input";
 import { communityApi, type ConversationSummary } from "@/lib/community-api";
+import { hasStoredSession } from "@/lib/api-client";
 import { formatRelativeTime } from "@/lib/format";
+import { subscribeMessagePanel, type MessagePanelOpenRequest } from "@/lib/message-panel";
 import { cn } from "@/lib/utils";
-import { FloatingCard, FloatingCardBody, FloatingCardHeader, FloatingTabs } from "./floating-card";
+import { FloatingCard, FloatingCardBody, FloatingCardHeader, FloatingTabs, HoverFloatRoot } from "./floating-card";
 import { FloatingChatThread } from "./floating-chat-thread";
 import { useHoverOpen } from "./use-hover-open";
+import { useFloatPanelPresence } from "./use-float-panel-presence";
 
 type MessageTab = "all" | "direct" | "group";
 
@@ -134,8 +137,85 @@ function MessageListCard({
   }, [conversations, tab]);
 
   const filtered = useMemo(
-    () => tabFiltered.filter((item) => matchesConversation(item, searchQuery)),
-    [tabFiltered, searchQuery]
+    () => tabFiltered.filter((item) => matchesConversation(item, showCreateGroup ? "" : searchQuery)),
+    [tabFiltered, searchQuery, showCreateGroup]
+  );
+
+  const headerActions = (
+    <form
+      className="flex min-w-0 items-center gap-1.5"
+      onSubmit={(event) => {
+        if (showCreateGroup) void onCreateGroup(event);
+        else event.preventDefault();
+      }}
+    >
+      <div className={cn("xy-message-float-input-wrap relative min-w-0", showCreateGroup && "is-create")}>
+        <Search
+          className={cn(
+            "xy-message-float-input-icon pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground",
+            showCreateGroup && "is-hidden"
+          )}
+          aria-hidden={showCreateGroup}
+        />
+        <Input
+          value={showCreateGroup ? groupTitle : searchQuery}
+          onChange={(event) => {
+            if (showCreateGroup) onGroupTitleChange(event.target.value);
+            else onSearchChange(event.target.value);
+          }}
+          placeholder={showCreateGroup ? "输入群名称" : "搜索联系人或消息"}
+          aria-label={showCreateGroup ? "群名称" : "搜索联系人或消息"}
+          className={cn(
+            "xy-message-float-input h-8 rounded-full border-[#e8e4dc] bg-[#f5f3ef] text-xs",
+            showCreateGroup ? "is-create pl-3 pr-9" : "pl-8 pr-3"
+          )}
+          autoFocus={showCreateGroup}
+        />
+        <button
+          type="submit"
+          className={cn(
+            "xy-message-float-input-confirm absolute right-1 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-[rgb(var(--violet))] text-white disabled:cursor-not-allowed disabled:opacity-45",
+            !showCreateGroup && "is-hidden"
+          )}
+          aria-label="创建群聊"
+          aria-hidden={!showCreateGroup}
+          tabIndex={showCreateGroup ? 0 : -1}
+          disabled={!showCreateGroup || creatingGroup || !groupTitle.trim()}
+        >
+          {creatingGroup ? (
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="h-8 w-8 shrink-0 rounded-full transition-colors duration-200"
+        aria-label={showCreateGroup ? "取消创建群聊" : "创建群聊"}
+        aria-expanded={showCreateGroup}
+        onClick={showCreateGroup ? onCancelCreateGroup : onToggleCreateGroup}
+      >
+        <span className="relative grid h-4 w-4 place-items-center">
+          <Plus
+            className={cn(
+              "xy-message-float-toggle-icon absolute h-4 w-4",
+              showCreateGroup && "is-hidden"
+            )}
+            aria-hidden={showCreateGroup}
+          />
+          <X
+            className={cn(
+              "xy-message-float-toggle-icon absolute h-4 w-4",
+              !showCreateGroup && "is-hidden"
+            )}
+            aria-hidden={!showCreateGroup}
+          />
+        </span>
+      </Button>
+    </form>
   );
 
   if (loading) {
@@ -165,7 +245,10 @@ function MessageListCard({
       <FloatingCardHeader
         title="消息"
         description={totalUnread > 0 ? `${totalUnread} 条未读` : "私信与群聊"}
+        actions={headerActions}
       />
+
+      {createError ? <p className="border-b border-[#ece8e1] bg-[#fffdf9] px-4 pb-2 text-xs text-destructive">{createError}</p> : null}
 
       <FloatingTabs
         value={tab}
@@ -176,53 +259,6 @@ function MessageListCard({
           { id: "group", label: "群聊", count: groupUnread },
         ]}
       />
-
-      <div className="space-y-2 border-b border-[#ece8e1] bg-[#fffdf9] px-3 py-2.5">
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="搜索联系人或消息"
-              aria-label="搜索联系人或消息"
-              className="h-9 rounded-full border-[#e8e4dc] bg-[#f5f3ef] pl-8 text-sm"
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 shrink-0 rounded-full"
-            aria-label="创建群聊"
-            aria-expanded={showCreateGroup}
-            onClick={onToggleCreateGroup}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {showCreateGroup ? (
-          <form className="flex items-center gap-2" onSubmit={(e) => void onCreateGroup(e)}>
-            <Input
-              value={groupTitle}
-              onChange={(e) => onGroupTitleChange(e.target.value)}
-              placeholder="输入群名称"
-              aria-label="群名称"
-              className="h-8 flex-1 text-sm"
-              autoFocus
-            />
-            <Button type="submit" size="sm" className="h-8 shrink-0 px-3" disabled={creatingGroup || !groupTitle.trim()}>
-              {creatingGroup ? "创建中…" : "创建"}
-            </Button>
-            <Button type="button" variant="ghost" size="sm" className="h-8 shrink-0 px-2" onClick={onCancelCreateGroup}>
-              取消
-            </Button>
-          </form>
-        ) : null}
-
-        {createError ? <p className="text-xs text-destructive">{createError}</p> : null}
-      </div>
 
       <FloatingCardBody className="px-1.5 py-1.5">
         {filtered.length === 0 ? (
@@ -258,11 +294,15 @@ function MessagePanelContent({
   onSelectConversation,
   onUnreadChange,
   compact,
+  pendingDirectUsername,
+  onPendingDirectHandled,
 }: {
   activeConversation: ConversationSummary | null;
   onSelectConversation: (conversation: ConversationSummary | null) => void;
   onUnreadChange?: (count: number) => void;
   compact?: boolean;
+  pendingDirectUsername?: string | null;
+  onPendingDirectHandled?: () => void;
 }) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -291,6 +331,33 @@ function MessagePanelContent({
   useEffect(() => {
     loadConversations().finally(() => setLoading(false));
   }, [onUnreadChange]);
+
+  useEffect(() => {
+    const username = pendingDirectUsername?.trim();
+    if (!username) return;
+
+    let cancelled = false;
+    setTab("direct");
+    setCreateError(null);
+
+    void communityApi
+      .openDirectConversation(username)
+      .then(async (conversation) => {
+        if (cancelled) return;
+        await loadConversations();
+        onSelectConversation(conversation);
+        onPendingDirectHandled?.();
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCreateError("无法发起私信，请确认已登录且对方可接收消息");
+        onPendingDirectHandled?.();
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingDirectUsername, onSelectConversation, onPendingDirectHandled]);
 
   async function handleCreateGroup(event: React.FormEvent) {
     event.preventDefault();
@@ -361,15 +428,55 @@ export function MessageFloatTrigger({
   defaultOpen?: boolean;
 }) {
   const { open, handleEnter, handleLeave, keepOpen } = useHoverOpen();
+  const [pinnedOpen, setPinnedOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeConversation, setActiveConversation] = useState<ConversationSummary | null>(null);
+  const [pendingDirectUsername, setPendingDirectUsername] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(defaultOpen);
+  const { render: mobileRender, visible: mobileVisible } = useFloatPanelPresence(mobileOpen);
   const [compact, setCompact] = useState(false);
 
   const isDesktop = () => window.matchMedia("(min-width: 1024px)").matches;
-  const panelOpen = isDesktop() ? open : mobileOpen;
+  const panelOpen = isDesktop() ? open || pinnedOpen : mobileOpen;
+
+  const openPanel = useCallback(
+    (request: MessagePanelOpenRequest = {}) => {
+      setPinnedOpen(true);
+      keepOpen();
+      setMobileOpen(true);
+      if (request.username) {
+        setPendingDirectUsername(request.username);
+      } else if (request.conversationId) {
+        void communityApi
+          .getConversations()
+          .then((items) => {
+            const conversation = items.find((item) => item.id === request.conversationId);
+            if (conversation) setActiveConversation(conversation);
+          })
+          .catch(() => undefined);
+      }
+    },
+    [keepOpen]
+  );
 
   useEffect(() => {
+    return subscribeMessagePanel((request) => {
+      openPanel(request);
+    });
+  }, [openPanel]);
+
+  useEffect(() => {
+    if (defaultOpen) {
+      openPanel();
+    }
+  }, [defaultOpen, openPanel]);
+
+  useEffect(() => {
+    if (!hasStoredSession()) {
+      setUnreadCount(0);
+      return;
+    }
+
     communityApi
       .getConversations()
       .then((items) => setUnreadCount(items.reduce((sum, item) => sum + (item.unreadCount ?? 0), 0)))
@@ -377,11 +484,10 @@ export function MessageFloatTrigger({
   }, [panelOpen]);
 
   useEffect(() => {
-    if (defaultOpen) setMobileOpen(true);
-  }, [defaultOpen]);
-
-  useEffect(() => {
-    if (!panelOpen) setActiveConversation(null);
+    if (!panelOpen) {
+      setActiveConversation(null);
+      setPinnedOpen(false);
+    }
   }, [panelOpen]);
 
   useEffect(() => {
@@ -393,58 +499,82 @@ export function MessageFloatTrigger({
     return () => window.removeEventListener("resize", updateCompact);
   }, []);
 
-  function handleMobileToggle() {
-    if (!isDesktop()) {
-      setMobileOpen((prev) => !prev);
+  function handleDesktopEnter() {
+    handleEnter();
+  }
+
+  function handleDesktopLeave() {
+    if (!pinnedOpen) {
+      handleLeave();
     }
   }
 
+  function handleMobileToggle() {
+    if (!isDesktop()) {
+      setMobileOpen((prev) => {
+        const next = !prev;
+        if (!next) setPinnedOpen(false);
+        return next;
+      });
+    }
+  }
+
+  function handleSelectConversation(conversation: ConversationSummary | null) {
+    setActiveConversation(conversation);
+    keepOpen();
+  }
+
+  const panelProps = {
+    activeConversation,
+    onSelectConversation: handleSelectConversation,
+    onUnreadChange: setUnreadCount,
+    pendingDirectUsername,
+    onPendingDirectHandled: () => setPendingDirectUsername(null),
+  };
+
   return (
     <>
-      <div
-        className="relative hidden lg:block"
-        onMouseEnter={handleEnter}
-        onMouseLeave={() => {
-          handleLeave();
-          if (!open) setActiveConversation(null);
-        }}
-      >
-        {trigger({ unreadCount, open })}
-        {open ? (
-          <div className="absolute right-0 top-full z-50" role="dialog" aria-modal="false">
-            <div className="xy-float-hover-bridge" aria-hidden="true" />
-            <div className="xy-float-panel-wrap">
-              <MessagePanelContent
-                activeConversation={activeConversation}
-                onSelectConversation={(conversation) => {
-                  setActiveConversation(conversation);
-                  keepOpen();
-                }}
-                onUnreadChange={setUnreadCount}
-                compact={compact}
-              />
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <HoverFloatRoot
+        open={open || pinnedOpen}
+        onEnter={handleDesktopEnter}
+        onLeave={handleDesktopLeave}
+        trigger={trigger({ unreadCount, open: open || pinnedOpen })}
+        panel={
+          <MessagePanelContent
+            {...panelProps}
+            compact={compact}
+          />
+        }
+      />
 
       <div className="lg:hidden">
         <div onClick={handleMobileToggle}>{trigger({ unreadCount, open: mobileOpen })}</div>
-        {mobileOpen ? (
+        {mobileRender ? (
           <>
             <button
               type="button"
-              className="fixed inset-0 z-40 bg-black/12"
+              className={cn(
+                "xy-float-backdrop fixed inset-0 z-40 bg-black/12",
+                mobileVisible && "is-visible"
+              )}
               aria-label="关闭消息面板"
-              onClick={() => setMobileOpen(false)}
+              onClick={() => {
+                setMobileOpen(false);
+                setPinnedOpen(false);
+              }}
             />
-            <div className="fixed inset-x-3 top-[4.25rem] z-50 sm:inset-x-auto sm:right-4 sm:left-auto" role="dialog" aria-modal="false">
-              <MessagePanelContent
-                activeConversation={activeConversation}
-                onSelectConversation={setActiveConversation}
-                onUnreadChange={setUnreadCount}
-                compact
-              />
+            <div
+              className="fixed inset-x-3 top-[4.25rem] z-50 sm:inset-x-auto sm:right-4 sm:left-auto"
+              role="dialog"
+              aria-modal="false"
+              aria-hidden={!mobileVisible}
+            >
+              <div className={cn("xy-float-panel-wrap", mobileVisible && "is-visible")}>
+                <MessagePanelContent
+                  {...panelProps}
+                  compact
+                />
+              </div>
             </div>
           </>
         ) : null}

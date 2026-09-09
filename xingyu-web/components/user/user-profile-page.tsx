@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  FileText,
   FolderHeart,
   Layers,
   Link2,
   Lock,
+  Plus,
   Send,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -16,7 +16,13 @@ import { FollowButton } from "@/components/community/engagement";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
-import { DEFAULT_AVATAR_URL, isValidUsername, resolveUsernameFromPath, userProfilePath } from "@/lib/paths";
+import {
+  DEFAULT_AVATAR_URL,
+  isValidUsername,
+  resolveProfileWorkCover,
+  resolveUsernameFromPath,
+  userProfilePath,
+} from "@/lib/paths";
 import {
   communityApi,
   type CollectionSummary,
@@ -26,6 +32,13 @@ import {
   type SeriesSummary,
   type SpaceWorks,
 } from "@/lib/community-api";
+import { requestOpenMessagePanel } from "@/lib/message-panel";
+import { ProfileSocialDialog, type ProfileSocialTab } from "@/components/user/profile-social-dialog";
+import {
+  ProfileWorksSection,
+  ProfileWorksViewToggle,
+  useProfileWorksViewMode,
+} from "@/components/user/profile-works-section";
 
 type ContentTab = "works" | "series" | "moments" | "collections";
 
@@ -61,15 +74,45 @@ function ProfileAvatar({ avatar, display }: { avatar?: string | null; display: s
   return <img src={avatar || DEFAULT_AVATAR_URL} alt={`${display} 的头像`} />;
 }
 
-function WorkVisual({ index }: { index: number }) {
+function TimelineWorkVisual({ index }: { index: number }) {
   return (
-    <span aria-hidden="true" className={`xy-profile-visual xy-profile-visual--${index % 3}`}>
-      <FileText />
+    <span aria-hidden="true" className="xy-profile-visual xy-profile-visual--cover">
+      <img src={resolveProfileWorkCover(index)} alt="" />
     </span>
   );
 }
 
-function StatItem({ label, value }: { label: string; value: string | number }) {
+function StatItem({
+  label,
+  value,
+  interactive = false,
+  onClick,
+  href,
+}: {
+  label: string;
+  value: string | number;
+  interactive?: boolean;
+  onClick?: () => void;
+  href?: string;
+}) {
+  if (href) {
+    return (
+      <Link href={href} className="xy-profile-stat xy-profile-stat--interactive">
+        <b>{value}</b>
+        <span>{label}</span>
+      </Link>
+    );
+  }
+
+  if (interactive && onClick) {
+    return (
+      <button type="button" className="xy-profile-stat xy-profile-stat--interactive" onClick={onClick}>
+        <b>{value}</b>
+        <span>{label}</span>
+      </button>
+    );
+  }
+
   return (
     <div className="xy-profile-stat">
       <b>{value}</b>
@@ -109,7 +152,7 @@ function buildTimelineGroups(
 }
 
 function formatLikeMetric(count: number | undefined): string {
-  if (typeof count !== "number" || count <= 0) return "—";
+  if (typeof count !== "number" || Number.isNaN(count) || count < 0) return "0";
   return count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
 }
 
@@ -142,6 +185,9 @@ export function UserProfilePageContent() {
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [tabLoading, setTabLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [socialDialogOpen, setSocialDialogOpen] = useState(false);
+  const [socialDialogTab, setSocialDialogTab] = useState<ProfileSocialTab>("followers");
+  const worksView = useProfileWorksViewMode(Boolean(user?.owner));
 
   useEffect(() => {
     setActiveTab("works");
@@ -259,23 +305,24 @@ export function UserProfilePageContent() {
   const categoryBadge = resolveCategoryBadge(categories);
   const creationCount = user.articleCount ?? insights?.articleCount ?? works.length;
   const likeMetric = formatLikeMetric(insights?.likeCount);
+  const followerCount = typeof user.followerCount === "number" ? user.followerCount : 0;
+  const followingCount = typeof user.followingCount === "number" ? user.followingCount : 0;
+  const canViewFollowLists = user.canViewFollowLists ?? user.owner ?? true;
+
+  function openSocialDialog(tab: ProfileSocialTab) {
+    if (!canViewFollowLists) return;
+    setSocialDialogTab(tab);
+    setSocialDialogOpen(true);
+  }
 
   const renderTabContent = () => {
     if (activeTab === "works") {
-      return works.length ? (
-        <div className="xy-profile-content-grid">
-          {works.map((work, index) => (
-            <Link href={`/articles/${encodeURIComponent(work.id)}`} key={work.id} className="xy-profile-work-card">
-              <WorkVisual index={index} />
-              <div className="xy-profile-work-card__body">
-                <b>{work.title}</b>
-                <p>{work.categorySlug || "公开作品"}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <EmptySection>还没有公开作品。</EmptySection>
+      return (
+        <ProfileWorksSection
+          works={works}
+          viewMode={worksView.viewMode}
+          visible={worksView.visible}
+        />
       );
     }
 
@@ -333,7 +380,7 @@ export function UserProfilePageContent() {
                 {group.items.map((item, index) => (
                   <li key={item.id}>
                     <Link href={`/articles/${encodeURIComponent(item.id)}`} className="xy-profile-timeline__item">
-                      <WorkVisual index={index} />
+                      <TimelineWorkVisual index={index} />
                       <div>
                         <small>{item.kind}</small>
                         <b>{item.title}</b>
@@ -397,13 +444,15 @@ export function UserProfilePageContent() {
               <FollowButton
                 username={user.username}
                 initialFollowing={user.following}
-                className="xy-profile-action-btn xy-profile-action-btn--primary"
+                profile
               />
-              <Button variant="outline" asChild className="xy-profile-action-btn">
-                <Link href={`/messages/u/${encodeURIComponent(user.username)}`}>
-                  <Send className="mr-1.5 h-3.5 w-3.5" />
-                  私信
-                </Link>
+              <Button
+                variant="outline"
+                className="xy-profile-action-btn"
+                onClick={() => requestOpenMessagePanel({ username: user.username })}
+              >
+                <Send className="mr-1.5 h-3.5 w-3.5" />
+                私信
               </Button>
             </div>
           ) : null}
@@ -442,35 +491,86 @@ export function UserProfilePageContent() {
                 </div>
               </div>
 
+              {user.owner ? (
+                <div className="xy-profile-owner-actions">
+                  <Button variant="outline" className="xy-profile-action-btn" asChild>
+                    <Link href="/settings/profile">编辑资料</Link>
+                  </Button>
+                  <Button className="xy-profile-action-btn xy-profile-action-btn--primary" asChild>
+                    <Link href="/studio/content">
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      发布作品
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
+
               <section className="xy-profile-banner__stats" aria-label="数据概览">
-                <StatItem label="创作" value={creationCount} />
-                <StatItem label="粉丝" value={user.followerCount ?? "—"} />
-                <StatItem label="关注" value={user.followingCount ?? "—"} />
-                <StatItem label="获赞" value={likeMetric} />
+                <StatItem
+                  label="创作"
+                  value={creationCount}
+                  interactive
+                  onClick={() => setActiveTab("works")}
+                />
+                <StatItem
+                  label="粉丝"
+                  value={followerCount}
+                  interactive={canViewFollowLists}
+                  onClick={() => openSocialDialog("followers")}
+                />
+                <StatItem
+                  label="关注"
+                  value={followingCount}
+                  interactive={canViewFollowLists}
+                  onClick={() => openSocialDialog("following")}
+                />
+                <StatItem
+                  label="获赞"
+                  value={likeMetric}
+                  interactive={user.owner}
+                  href={user.owner ? "/me/growth" : undefined}
+                />
               </section>
             </div>
           </div>
         </header>
 
-        <nav className="xy-profile-tabs" aria-label="内容导航">
-          {tabs.map((tab) =>
-            tab.active ? (
-              <b key={tab.key} aria-current="page">
-                {tab.label}
-                {tab.ownerOnly && !user.owner ? <Lock className="xy-profile-tabs__lock" aria-hidden="true" /> : null}
-              </b>
-            ) : (
-              <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}>
-                {tab.label}
-                {tab.ownerOnly && !user.owner ? <Lock className="xy-profile-tabs__lock" aria-hidden="true" /> : null}
-              </button>
-            )
-          )}
-        </nav>
+        <div className="xy-profile-tabs-bar">
+          <nav className="xy-profile-tabs" aria-label="内容导航">
+            {tabs.map((tab) =>
+              tab.active ? (
+                <b key={tab.key} aria-current="page">
+                  {tab.label}
+                  {tab.ownerOnly && !user.owner ? <Lock className="xy-profile-tabs__lock" aria-hidden="true" /> : null}
+                </b>
+              ) : (
+                <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}>
+                  {tab.label}
+                  {tab.ownerOnly && !user.owner ? <Lock className="xy-profile-tabs__lock" aria-hidden="true" /> : null}
+                </button>
+              )
+            )}
+          </nav>
+          <div className="xy-profile-tabs-bar__actions">
+            {activeTab === "works" && worksView.isDesktop ? (
+              <ProfileWorksViewToggle mode={worksView.viewMode} onChange={worksView.changeViewMode} />
+            ) : null}
+          </div>
+        </div>
 
         <section className="xy-profile-content" aria-label={`${tabs.find((tab) => tab.active)?.label ?? "内容"}列表`}>
           {renderTabContent()}
         </section>
+
+        <ProfileSocialDialog
+          open={socialDialogOpen}
+          onClose={() => setSocialDialogOpen(false)}
+          username={user.username}
+          activeTab={socialDialogTab}
+          onTabChange={setSocialDialogTab}
+          followerCount={followerCount}
+          followingCount={followingCount}
+        />
       </main>
     </AppShell>
   );

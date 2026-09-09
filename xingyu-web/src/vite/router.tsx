@@ -39,6 +39,15 @@ export function navigate(href: string, replace = false) {
   window.dispatchEvent(new Event(navigationEvent));
 }
 
+function normalizeModulePath(modulePath: string) {
+  const normalized = modulePath.replace(/\\/g, "/");
+  const appIndex = normalized.indexOf("/app/");
+  if (appIndex >= 0) {
+    return `.${normalized.slice(appIndex)}`;
+  }
+  return normalized.replace(/^(\.\.\/)+app/, "./app");
+}
+
 function routeFromModulePath(modulePath: string) {
   const pagePath = modulePath.replace(/^\.\/app/, "").replace(/\/page\.tsx$/, "") || "/";
   const names: string[] = [];
@@ -60,7 +69,7 @@ function routeFromModulePath(modulePath: string) {
 const pageModules = import.meta.glob<PageModule>("../../app/**/page.tsx");
 const routes = Object.entries(pageModules)
   .map(([modulePath, load]) => ({
-    ...routeFromModulePath(modulePath.replace(/^(\.\.\/)+app/, "./app")),
+    ...routeFromModulePath(normalizeModulePath(modulePath)),
     component: lazy(load),
   }))
   .sort((left, right) => right.specificity - left.specificity);
@@ -111,7 +120,7 @@ export function ViteAppRouter() {
   return (
     <NavigationContext.Provider value={{ pathname: currentUrl.pathname, searchParams: currentUrl.searchParams, params: match.params }}>
       <Suspense fallback={<main className="xy-page" aria-busy="true" />}>
-        <Page />
+        <Page key={currentUrl.pathname} />
       </Suspense>
     </NavigationContext.Provider>
   );

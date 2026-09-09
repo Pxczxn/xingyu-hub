@@ -31,5 +31,12 @@ public class SpaceWorksView {
         String id;
         String title;
         String categorySlug;
+        String summary;
+        String coverUrl;
+        java.time.Instant publishedAt;
+        long viewCount;
+        long likeCount;
+        long bookmarkCount;
+        boolean pinned;
     }
 }

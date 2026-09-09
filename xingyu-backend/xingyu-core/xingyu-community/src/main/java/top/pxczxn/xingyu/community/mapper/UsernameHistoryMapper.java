@@ -8,6 +8,6 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface UsernameHistoryMapper extends BaseMapper<UsernameHistory> {
 
-    @Select("SELECT * FROM username_history WHERE username = #{username} LIMIT 1")
+    @Select("SELECT * FROM username_history WHERE LOWER(username) = LOWER(#{username}) LIMIT 1")
     UsernameHistory findByUsername(String username);
 }

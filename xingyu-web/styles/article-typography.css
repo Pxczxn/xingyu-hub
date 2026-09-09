@@ -1,0 +1,254 @@
+/**
+ * Article typography tokens — shared by read (.xy-article-body), preview, and Milkdown edit surface.
+ * Markdown source mode intentionally does not use these tokens.
+ */
+:root {
+  /* Body */
+  --xy-article-font-size: 1rem;
+  --xy-article-line-height: 1.85;
+  --xy-article-color: #334155;
+  --xy-article-strong-color: #1e293b;
+
+  /* Headings */
+  --xy-article-heading-color: #0f1f45;
+  --xy-article-heading-weight: 700;
+  --xy-article-heading-line-height: 1.4;
+  --xy-article-heading-margin-bottom: 0.75rem;
+  --xy-article-heading-scroll-margin-top: 6rem;
+  --xy-article-h1-size: 1.5rem;
+  --xy-article-h2-size: 1.25rem;
+  --xy-article-h3-size: 1.0625rem;
+  --xy-article-h4-size: 1rem;
+
+  /* Spacing */
+  --xy-article-block-gap: 1.5rem;
+  --xy-article-list-item-gap: 0.5rem;
+  --xy-article-list-indent: 1.35rem;
+
+  /* Links */
+  --xy-article-link-color: #4d5dad;
+  --xy-article-link-hover-color: #3b4a96;
+  --xy-article-link-underline-offset: 2px;
+
+  /* Blockquote */
+  --xy-article-blockquote-color: #5b667a;
+  --xy-article-blockquote-bg: #f3f5fa;
+  --xy-article-blockquote-padding: 1rem 1.1rem;
+  --xy-article-blockquote-radius: 10px;
+  --xy-article-blockquote-font-size: 0.9375rem;
+
+  /* Inline code */
+  --xy-article-code-bg: #f1f5f9;
+  --xy-article-code-padding: 0.1em 0.35em;
+  --xy-article-code-radius: 0.3rem;
+  --xy-article-code-font-size: 0.9em;
+
+  /* Code block */
+  --xy-article-pre-bg: #0f172a;
+  --xy-article-pre-color: #e2e8f0;
+  --xy-article-pre-padding: 0.85rem 1rem;
+  --xy-article-pre-radius: 10px;
+  --xy-article-pre-font-size: 0.875rem;
+  --xy-article-pre-line-height: 1.6;
+
+  /* Horizontal rule */
+  --xy-article-hr-color: #dfe3eb;
+  --xy-article-hr-height: 1px;
+
+  /* Images */
+  --xy-article-image-radius: 12px;
+  --xy-article-image-max-width: 100%;
+  --xy-article-image-margin-block: 0;
+
+  /* Caption (figure / future image descriptions) */
+  --xy-article-caption-color: #64748b;
+  --xy-article-caption-font-size: 0.8125rem;
+  --xy-article-caption-line-height: 1.5;
+  --xy-article-caption-margin-top: 0.5rem;
+
+  /* Task list */
+  --xy-article-task-checkbox-gap: 0.45rem;
+}
+
+/* Shared article typography: read, preview, and Milkdown ProseMirror surface */
+.xy-article-body,
+.xy-editor-milkdown .milkdown .ProseMirror {
+  color: var(--xy-article-color);
+  font-size: var(--xy-article-font-size);
+  line-height: var(--xy-article-line-height);
+}
+
+.xy-article-body > * + *,
+.xy-editor-milkdown .milkdown .ProseMirror > * + * {
+  margin-top: var(--xy-article-block-gap);
+}
+
+.xy-article-body h1,
+.xy-article-body h2,
+.xy-article-body h3,
+.xy-article-body h4,
+.xy-editor-milkdown .milkdown .ProseMirror h1,
+.xy-editor-milkdown .milkdown .ProseMirror h2,
+.xy-editor-milkdown .milkdown .ProseMirror h3,
+.xy-editor-milkdown .milkdown .ProseMirror h4 {
+  margin: 0 0 var(--xy-article-heading-margin-bottom);
+  color: var(--xy-article-heading-color);
+  font-family: inherit;
+  font-weight: var(--xy-article-heading-weight);
+  line-height: var(--xy-article-heading-line-height);
+}
+
+.xy-article-body h1,
+.xy-editor-milkdown .milkdown .ProseMirror h1 {
+  font-size: var(--xy-article-h1-size);
+}
+
+.xy-article-body h2,
+.xy-editor-milkdown .milkdown .ProseMirror h2 {
+  font-size: var(--xy-article-h2-size);
+}
+
+.xy-article-body h3,
+.xy-editor-milkdown .milkdown .ProseMirror h3 {
+  font-size: var(--xy-article-h3-size);
+}
+
+.xy-article-body h4,
+.xy-editor-milkdown .milkdown .ProseMirror h4 {
+  font-size: var(--xy-article-h4-size);
+}
+
+.xy-article-body p,
+.xy-editor-milkdown .milkdown .ProseMirror p {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.xy-article-body strong,
+.xy-editor-milkdown .milkdown .ProseMirror strong {
+  font-weight: var(--xy-article-heading-weight);
+  color: var(--xy-article-strong-color);
+}
+
+.xy-article-body del,
+.xy-editor-milkdown .milkdown .ProseMirror del {
+  text-decoration: line-through;
+}
+
+.xy-article-body a,
+.xy-editor-milkdown .milkdown .ProseMirror a {
+  color: var(--xy-article-link-color);
+  text-decoration: underline;
+  text-underline-offset: var(--xy-article-link-underline-offset);
+}
+
+.xy-article-body a:hover,
+.xy-editor-milkdown .milkdown .ProseMirror a:hover {
+  color: var(--xy-article-link-hover-color);
+}
+
+.xy-article-body blockquote,
+.xy-editor-milkdown .milkdown .ProseMirror blockquote {
+  margin: 0;
+  padding: var(--xy-article-blockquote-padding);
+  border-radius: var(--xy-article-blockquote-radius);
+  background: var(--xy-article-blockquote-bg);
+  color: var(--xy-article-blockquote-color);
+  font-size: var(--xy-article-blockquote-font-size);
+}
+
+.xy-article-body blockquote::before,
+.xy-editor-milkdown .milkdown .ProseMirror blockquote::before {
+  display: none;
+}
+
+.xy-article-body ol,
+.xy-article-body ul,
+.xy-editor-milkdown .milkdown .ProseMirror ol,
+.xy-editor-milkdown .milkdown .ProseMirror ul {
+  margin: 0;
+  padding-left: var(--xy-article-list-indent);
+}
+
+.xy-article-body li + li,
+.xy-editor-milkdown .milkdown .ProseMirror li + li {
+  margin-top: var(--xy-article-list-item-gap);
+}
+
+.xy-article-body ul.contains-task-list,
+.xy-article-body ol.contains-task-list,
+.xy-editor-milkdown .milkdown .ProseMirror ul.contains-task-list,
+.xy-editor-milkdown .milkdown .ProseMirror ol.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.xy-article-body li.task-list-item,
+.xy-editor-milkdown .milkdown .ProseMirror li.task-list-item {
+  list-style: none;
+}
+
+.xy-article-body .task-list-item input[type="checkbox"],
+.xy-editor-milkdown .milkdown .ProseMirror .task-list-item input[type="checkbox"] {
+  margin-right: var(--xy-article-task-checkbox-gap);
+  vertical-align: middle;
+}
+
+.xy-article-body code,
+.xy-editor-milkdown .milkdown .ProseMirror :not(pre) > code {
+  border-radius: var(--xy-article-code-radius);
+  background: var(--xy-article-code-bg);
+  padding: var(--xy-article-code-padding);
+  font-size: var(--xy-article-code-font-size);
+  color: inherit;
+  font-family: inherit;
+}
+
+.xy-article-body pre,
+.xy-editor-milkdown .milkdown .ProseMirror pre {
+  margin: 0;
+  overflow: auto;
+  border-radius: var(--xy-article-pre-radius);
+  background: var(--xy-article-pre-bg);
+  color: var(--xy-article-pre-color);
+  padding: var(--xy-article-pre-padding);
+  font-size: var(--xy-article-pre-font-size);
+  line-height: var(--xy-article-pre-line-height);
+}
+
+.xy-article-body pre code,
+.xy-editor-milkdown .milkdown .ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.xy-article-body hr,
+.xy-editor-milkdown .milkdown .ProseMirror hr {
+  margin: 0;
+  border: 0;
+  height: var(--xy-article-hr-height);
+  background: var(--xy-article-hr-color);
+  padding: 0;
+}
+
+.xy-article-body img,
+.xy-editor-milkdown .milkdown .ProseMirror img {
+  display: block;
+  width: 100%;
+  max-width: var(--xy-article-image-max-width);
+  margin-block: var(--xy-article-image-margin-block);
+  border-radius: var(--xy-article-image-radius);
+}
+
+.xy-article-body figcaption,
+.xy-editor-milkdown .milkdown .ProseMirror figcaption {
+  margin-top: var(--xy-article-caption-margin-top);
+  color: var(--xy-article-caption-color);
+  font-size: var(--xy-article-caption-font-size);
+  line-height: var(--xy-article-caption-line-height);
+  text-align: center;
+}

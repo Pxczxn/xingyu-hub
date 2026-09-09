@@ -63,10 +63,10 @@ public class CommunitySocialController {
     public Map<String, Boolean> bookmarkStatus(
             @RequestParam String objectType,
             @RequestParam String objectId) {
-        return Map.of(
-                "bookmarked",
-                collectionService.isBookmarked(
-                        CommunityAuthContext.requireUser(), objectType.toUpperCase(), objectId));
+        boolean bookmarked = CommunityAuthContext.currentUser()
+                .map(user -> collectionService.isBookmarked(user, objectType.toUpperCase(), objectId))
+                .orElse(false);
+        return Map.of("bookmarked", bookmarked);
     }
 
     @PostMapping("/follows/users/{userId}")

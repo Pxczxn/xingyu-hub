@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Award, Bell, BookOpen, CalendarDays, CheckCircle2, FileText, Home, MessageSquareText, PenLine, ShieldCheck, Sparkles, Star, Trophy, UserRound } from "lucide-react";
+import { Award, BookOpen, CalendarDays, CheckCircle2, FileText, Home, MessageSquareText, PenLine, ShieldCheck, Sparkles, Star, Trophy, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { communityApi, type EventSummary } from "@/lib/community-api";
 
-const RAIL = [[Home, "首页", "/"], [Star, "发现", "/discover"], [MessageSquareText, "话题", "/topics"], [FileText, "系列", "/series"], [Award, "活动", "/events"], [Trophy, "榜单", "/events/starry/rankings"], [PenLine, "创作中心", "/studio"], [Bell, "通知", "/notifications"], [BookOpen, "书架", "/me/bookshelf"]] as const;
+const RAIL = [[Home, "首页", "/"], [Star, "发现", "/discover"], [MessageSquareText, "话题", "/topics"], [FileText, "系列", "/series"], [Award, "活动", "/events"], [Trophy, "榜单", "/events/starry/rankings"], [PenLine, "创作中心", "/studio"], [BookOpen, "书架", "/me/bookshelf"]] as const;
 function formatDate(value?: string) { const date = value ? new Date(value) : null; return date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(date) : "待公布"; }
 
 export default function ActivityRulesPage() {

@@ -16,14 +16,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { communityApi } from "@/lib/community-api";
 import { getPublicConfig } from "@/lib/public-config";
-import { setStoredToken } from "@/lib/api-client";
+import { setStoredToken, hasStoredSession } from "@/lib/api-client";
+import { requestOpenMessagePanel } from "@/lib/message-panel";
 import { cn } from "@/lib/utils";
 import { GlobalSearch, MobileTabBar, UserMenuItems } from "@/components/community/app-controls";
-import { isValidUsername } from "@/lib/paths";
 import { HeaderFloatIconButton } from "@/components/community/floating-panel/header-float-icon-button";
 import { MessageFloatTrigger } from "@/components/community/floating-panel/message-float";
 import { NotificationFloatTrigger } from "@/components/community/floating-panel/notification-float";
 import { SiteFooter } from "@/components/community/site-footer";
+import { CurrentProfileProvider, useCurrentProfile } from "@/components/layout/current-profile-context";
 
 const NAV_ITEMS = [
   { href: '/', label: '首页', icon: Home, tone: 'home' },
@@ -35,12 +36,21 @@ const NAV_ITEMS = [
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <CurrentProfileProvider>
+      <AppShellFrame>{children}</AppShellFrame>
+    </CurrentProfileProvider>
+  );
+}
+
+function AppShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const openMessages = searchParams.get("openMessages") === "1";
-  const [me, setMe] = useState<{ username?: string; displayName?: string | null } | null>(null);
+  const directMessageUser = searchParams.get("dm")?.trim() ?? "";
+  const me = useCurrentProfile();
   const [registrationOpen, setRegistrationOpen] = useState(true);
 
   useEffect(() => {
@@ -52,26 +62,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    communityApi
-      .tryGetMyProfile()
-      .then((profile) => {
-        if (!profile) {
-          setMe(null);
-          return;
-        }
-        const username = isValidUsername(profile.username) ? profile.username.trim() : undefined;
-        setMe({ username, displayName: profile.displayName });
-      })
-      .catch(() => setMe(null));
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!openMessages) return;
+    if (!openMessages && !directMessageUser) return;
+    if (directMessageUser) {
+      requestOpenMessagePanel({ username: directMessageUser });
+    } else {
+      requestOpenMessagePanel();
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.delete("openMessages");
+    params.delete("dm");
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [openMessages, pathname, router, searchParams]);
+  }, [directMessageUser, openMessages, pathname, router, searchParams]);
 
   async function handleLogout() {
     try {
@@ -80,11 +82,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       // ignore
     }
     setStoredToken(null);
-    setMe(null);
     router.push("/login");
   }
 
-  const avatarLabel = me?.displayName || me?.username || "登录";
+  const isLoggedIn = Boolean(me.username) || me.authenticated || hasStoredSession();
+  const avatarLabel = me.displayName || me.username || "登录";
 
   return (
     <div className={cn("xy-app-shell bg-transparent", `xy-nav-${pathname === "/" ? "home" : pathname.split("/")[1] || "home"}`)}>
@@ -132,12 +134,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             />
 
-            <Button asChild variant="ghost" size="icon" className="text-muted-foreground lg:hidden">
-              <Link href="/notifications" aria-label="通知">
-                <Bell className="h-5 w-5" />
-              </Link>
-            </Button>
-
             <MessageFloatTrigger
               defaultOpen={openMessages}
               trigger={({ unreadCount, open }) => (
@@ -150,16 +146,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenu>
               <DropdownMenuTrigger
                 className="group inline-flex items-center gap-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={me ? "账户菜单" : "登录或注册"}
+                aria-label={isLoggedIn ? "账户菜单" : "登录或注册"}
               >
-                <Avatar fallback={avatarLabel} size="md" className="h-10 w-10" />
+                <Avatar src={me.avatar} fallback={avatarLabel} size="md" className="h-10 w-10" />
                 <ChevronDown
                   className="hidden h-3.5 w-3.5 rotate-90 transition-transform duration-200 group-aria-expanded:rotate-0 sm:block"
                   aria-hidden="true"
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {me ? (
+                {isLoggedIn ? (
                   <>
                     <UserMenuItems username={me.username} onNavigate={router.push} />
                     <DropdownMenuSeparator />

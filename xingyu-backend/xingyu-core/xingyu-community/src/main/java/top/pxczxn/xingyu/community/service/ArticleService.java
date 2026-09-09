@@ -31,6 +31,7 @@ import top.pxczxn.xingyu.community.mapper.PublishedRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.TopicMapper;
 import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
+import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
 import top.pxczxn.xingyu.community.support.CommunityEventSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
@@ -82,6 +83,7 @@ public class ArticleService {
         WorkingDraft draft = new WorkingDraft();
         draft.setId(TokenSupport.newId());
         draft.setArticleId(article.getId());
+        draft.setBodyMode("MARKDOWN");
         draft.setVisibility("PRIVATE");
         draft.setLockVersion(0L);
         draft.setCreatedAt(now);
@@ -293,6 +295,8 @@ public class ArticleService {
                 .visibility(revision.getVisibility())
                 .spaceSlug(space.getSlug())
                 .ownerUsername(profile == null ? null : profile.getUsername())
+                .ownerAvatar(profile == null ? null : ProfileSettingsSupport.resolveAvatar(profile))
+                .ownerDisplayName(profile == null ? null : profile.getDisplayName())
                 .categorySlug(categorySlug)
                 .topicSlugs(topicSlugs)
                 .publishedAt(published.getPublishedAt())

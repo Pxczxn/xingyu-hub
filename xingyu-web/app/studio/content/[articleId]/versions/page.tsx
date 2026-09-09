@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Clock3, RotateCcw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { communityApi, type ArticleDraft, type ArticleRevision } from "@/lib/community-api";
+import { resolveArticleIdFromPath } from "@/lib/paths";
 
 function stamp(value?: string) {
   return value
@@ -21,7 +22,9 @@ function stamp(value?: string) {
 }
 
 export default function ArticleVersionsPage() {
-  const { articleId } = useParams<{ articleId: string }>();
+  const params = useParams<{ articleId: string }>();
+  const pathname = usePathname();
+  const articleId = params.articleId ?? resolveArticleIdFromPath(pathname) ?? "";
   const router = useRouter();
   const [revisions, setRevisions] = useState<ArticleRevision[]>([]);
   const [draft, setDraft] = useState<ArticleDraft | null>(null);
@@ -31,6 +34,12 @@ export default function ArticleVersionsPage() {
   const [restoring, setRestoring] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!articleId) {
+      setError("文章地址无效");
+      setLoading(false);
+      return;
+    }
+
     Promise.all([communityApi.getArticleRevisions(articleId), communityApi.getArticleDraft(articleId)])
       .then(([history, current]) => {
         setRevisions(history);

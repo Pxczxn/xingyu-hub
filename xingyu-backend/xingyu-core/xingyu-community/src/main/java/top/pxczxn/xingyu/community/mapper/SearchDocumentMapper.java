@@ -11,21 +11,48 @@ import java.util.List;
 public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
 
     @Select("""
-            SELECT * FROM search_document
-            WHERE removed_at IS NULL
-              AND (title LIKE CONCAT('%', #{query}, '%') OR summary LIKE CONCAT('%', #{query}, '%'))
-            ORDER BY indexed_at DESC
+            SELECT sd.* FROM search_document sd
+            WHERE sd.removed_at IS NULL
+              AND (sd.title LIKE CONCAT('%', #{query}, '%') OR sd.summary LIKE CONCAT('%', #{query}, '%'))
+            ORDER BY sd.indexed_at DESC, sd.object_id DESC
             LIMIT #{limit}
             """)
-    List<SearchDocument> searchActive(String query, int limit);
+    List<SearchDocument> searchActiveByLatest(String query, int limit);
+
+    @Select("""
+            SELECT sd.* FROM search_document sd
+            LEFT JOIN (
+              SELECT object_type, object_id, COUNT(*) AS like_count
+              FROM content_like
+              GROUP BY object_type, object_id
+            ) lc ON lc.object_type = sd.object_type AND lc.object_id = sd.object_id
+            WHERE sd.removed_at IS NULL
+              AND (sd.title LIKE CONCAT('%', #{query}, '%') OR sd.summary LIKE CONCAT('%', #{query}, '%'))
+            ORDER BY COALESCE(lc.like_count, 0) DESC, sd.indexed_at DESC, sd.object_id DESC
+            LIMIT #{limit}
+            """)
+    List<SearchDocument> searchActiveByHot(String query, int limit);
 
     @Select("""
             SELECT * FROM search_document
             WHERE removed_at IS NULL
-            ORDER BY indexed_at DESC
+            ORDER BY indexed_at DESC, object_id DESC
             LIMIT #{limit}
             """)
-    List<SearchDocument> listActive(int limit);
+    List<SearchDocument> listActiveByLatest(int limit);
+
+    @Select("""
+            SELECT sd.* FROM search_document sd
+            LEFT JOIN (
+              SELECT object_type, object_id, COUNT(*) AS like_count
+              FROM content_like
+              GROUP BY object_type, object_id
+            ) lc ON lc.object_type = sd.object_type AND lc.object_id = sd.object_id
+            WHERE sd.removed_at IS NULL
+            ORDER BY COALESCE(lc.like_count, 0) DESC, sd.indexed_at DESC, sd.object_id DESC
+            LIMIT #{limit}
+            """)
+    List<SearchDocument> listActiveByHot(int limit);
 
     @Select("""
             SELECT * FROM search_document

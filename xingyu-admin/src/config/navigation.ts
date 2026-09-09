@@ -65,7 +65,6 @@ export const adminNavigation: NavigationNode[] = [
     children: [
       { label: '基础与安全', key: '/system/config', icon: 'LockClosedOutline' },
       { label: '系统通知', key: '/message/notice', icon: 'MailOutline' },
-      { label: '文件资源', key: '/system/file', icon: 'FolderOpenOutline' },
       { label: '存储配置', key: '/system/config?tab=storage', icon: 'CloudOutline' }
     ]
   },

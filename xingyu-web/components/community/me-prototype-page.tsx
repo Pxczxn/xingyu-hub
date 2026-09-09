@@ -158,7 +158,7 @@ export function MePrototypePage({ profile, insights }: MePrototypePageProps) {
             <div className="xy-me-quick-links">
               <Link href="/studio"><PenLine className="h-4 w-4" />继续创作</Link>
               <Link href="/me/history"><BookMarked className="h-4 w-4" />继续阅读</Link>
-              <Link href="/messages"><MessageCircle className="h-4 w-4" />消息中心</Link>
+              <Link href="/?openMessages=1"><MessageCircle className="h-4 w-4" />消息中心</Link>
               <Link href="/me/growth"><ChartLine className="h-4 w-4" />成长记录</Link>
             </div>
           </section>

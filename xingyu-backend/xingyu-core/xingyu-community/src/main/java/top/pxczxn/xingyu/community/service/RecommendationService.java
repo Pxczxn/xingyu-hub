@@ -76,7 +76,7 @@ public class RecommendationService {
         }
 
         if (items.size() < limit) {
-            for (SearchDocument document : searchDocumentMapper.listActive(limit * 2)) {
+            for (SearchDocument document : searchDocumentMapper.listActiveByHot(limit * 2)) {
                 items.add(toContentCard(document));
                 if (items.size() >= limit) {
                     break;

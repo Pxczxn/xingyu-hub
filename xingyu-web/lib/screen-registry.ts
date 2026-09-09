@@ -50,11 +50,11 @@ export const SCREEN_REGISTRY: ScreenSpec[] = [
   ]),
   ...screens("SOC", "web", [
     ["动态广场", "/moments"], ["动态详情", "/moments/{momentId}"], ["评论详情", "/comments/{commentId}"],
-    ["通知中心", "/notifications"], ["活动广场", "/events"], ["活动详情", "/events/{eventId}"],
+    ["活动广场", "/events"], ["活动详情", "/events/{eventId}"],
     ["活动投稿", "/events/{eventId}/submit"], ["推荐反馈", "/feedback/recommendations"],
   ]),
   ...screens("MSG", "web", [
-    ["统一会话", "/messages/{conversationId}"], ["新建私信", "/messages/new"], ["创建群聊", "/messages/groups/new"],
+    ["统一会话", "/messages/{conversationId}"], ["新建私信", "/messages/new"], ["打开私信", "/messages/u/{username}"], ["创建群聊", "/messages/groups/new"],
     ["消息搜索", "/messages/search"], ["消息收藏", "/messages/saved"],
     ["会话媒体", "/messages/{conversationId}/media"], ["会话文件", "/messages/{conversationId}/files"], ["聊天用户资料", "/messages/users/{username}"], ["聊天空状态", "/messages/empty"],
   ]),

@@ -18,7 +18,9 @@ public class CommunitySearchController {
     @GetMapping("/search")
     public List<SearchResultView> search(
             @RequestParam(value = "q", required = false) String query,
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "sort", defaultValue = "hot") String sort,
             @RequestParam(value = "limit", defaultValue = "20") int limit) {
-        return searchService.search(query, limit);
+        return searchService.search(query, type, sort, limit);
     }
 }

@@ -15,5 +15,6 @@ public class CommunityCreationSpace {
     private String slug;
     private String displayName;
     private String description;
+    private String pinnedArticleId;
     private Instant createdAt;
 }

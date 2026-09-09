@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useFloatPanelPresence } from "./use-float-panel-presence";
 
 export function FloatingCard({
   children,
@@ -35,8 +36,8 @@ export function FloatingCardHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#ece8e1] bg-[#fffdf9] px-4 py-3">
-      <div className="min-w-0">
+    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#ece8e1] bg-[#fffdf9] px-4 py-3">
+      <div className="min-w-0 shrink-0">
         <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">{title}</h2>
         {description ? <p className="mt-0.5 text-xs text-muted-foreground">{description}</p> : null}
       </div>
@@ -103,6 +104,8 @@ export function HoverFloatRoot({
   align?: "right" | "left";
   className?: string;
 }) {
+  const { render, visible } = useFloatPanelPresence(open);
+
   return (
     <div
       className={cn("relative hidden lg:block", className)}
@@ -110,7 +113,7 @@ export function HoverFloatRoot({
       onMouseLeave={onLeave}
     >
       {trigger}
-      {open ? (
+      {render ? (
         <div
           className={cn(
             "absolute top-full z-50",
@@ -118,9 +121,10 @@ export function HoverFloatRoot({
           )}
           role="dialog"
           aria-modal="false"
+          aria-hidden={!visible}
         >
           <div className="xy-float-hover-bridge" aria-hidden="true" />
-          <div className="xy-float-panel-wrap">{panel}</div>
+          <div className={cn("xy-float-panel-wrap", visible && "is-visible")}>{panel}</div>
         </div>
       ) : null}
     </div>

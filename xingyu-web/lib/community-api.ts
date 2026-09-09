@@ -91,6 +91,7 @@ export type ContentSummary = {
   updatedAt?: string;
   readMinutes?: number;
   cover?: string;
+  avatar?: string;
   objectType?: string;
 };
 
@@ -147,6 +148,7 @@ export type ProfileDetail = {
   lockVersion?: number;
   followerCount?: number;
   followingCount?: number;
+  canViewFollowLists?: boolean;
   owner?: boolean;
   following?: boolean;
   spaceSlug?: string | null;
@@ -159,13 +161,18 @@ export type ArticleDetail = {
   id: string;
   title: string;
   summary: string | null;
+  bodyMode?: string;
   body: string;
   slug: string | null;
   visibility: string;
   spaceSlug: string;
   ownerUsername: string;
+  ownerAvatar?: string | null;
+  ownerDisplayName?: string | null;
   publishedAt: string | null;
   owner: boolean;
+  categorySlug?: string | null;
+  topicSlugs?: string[];
 };
 
 export type ArticleSummary = {
@@ -223,7 +230,18 @@ export type SpaceWorks = {
   description?: string | null;
   owner: boolean;
   categories: Array<{ id: string; name: string; slug: string }>;
-  works: Array<{ id: string; title: string; categorySlug?: string | null }>;
+  works: Array<{
+    id: string;
+    title: string;
+    categorySlug?: string | null;
+    summary?: string | null;
+    coverUrl?: string | null;
+    publishedAt?: string | null;
+    viewCount?: number;
+    likeCount?: number;
+    bookmarkCount?: number;
+    pinned?: boolean;
+  }>;
   nextCursor?: string | null;
 };
 
@@ -465,6 +483,8 @@ export type SearchHit = {
   objectId: string;
   title: string;
   summary?: string;
+  avatar?: string;
+  updatedAt?: string;
 };
 
 export type OnboardingState = {
@@ -554,6 +574,7 @@ export type ArticleDraft = {
   articleId: string;
   title: string;
   summary: string;
+  bodyMode?: string;
   body: string;
   visibility: string;
   categoryId: string | null;
@@ -598,6 +619,8 @@ function toContentSummary(hit: SearchHit): ContentSummary {
     objectType: hit.objectType,
     title: hit.title,
     summary: hit.summary,
+    avatar: hit.avatar,
+    updatedAt: hit.updatedAt,
   };
 }
 
@@ -686,9 +709,14 @@ export const communityApi = {
     return items.map(feedItemToContentSummary);
   },
 
-  search: async (q: string, type?: string, limit = 20): Promise<PageResult<ContentSummary>> => {
+  search: async (
+    q: string,
+    type?: string,
+    sort: "hot" | "latest" = "hot",
+    limit = 20
+  ): Promise<PageResult<ContentSummary>> => {
     const hits = await apiRequest<SearchHit[]>(
-      `/api/v1/search${query({ q, type, limit })}`
+      `/api/v1/search${query({ q, type, sort, limit })}`
     );
     return toPage(hits.map(toContentSummary), hits.length);
   },
@@ -782,6 +810,7 @@ export const communityApi = {
       title: string;
       body: string;
       summary?: string;
+      bodyMode?: string;
       visibility?: string;
       categoryId?: string | null;
       topicIds?: string[];
@@ -910,10 +939,10 @@ export const communityApi = {
 
   // 用户与空间
   getProfile: (username: string) =>
-    apiRequest<ProfileDetail>(`/api/v1/u/${encodeURIComponent(username)}`),
+    apiRequest<ProfileDetail>(`/api/v1/users/${encodeURIComponent(username)}`),
 
   getSuggestedUsers: (limit = 10) =>
-    apiRequest<FollowUser[]>(`/api/v1/u/suggested${query({ limit })}`),
+    apiRequest<FollowUser[]>(`/api/v1/users/suggested${query({ limit })}`),
 
   getMyProfile: () => {
     if (!getStoredToken()) {
@@ -948,7 +977,7 @@ export const communityApi = {
 
   getUserWorks: (username: string, category?: string) =>
     apiRequest<SpaceWorks>(
-      `/api/v1/u/${encodeURIComponent(username)}/works${category ? query({ category }) : ""}`
+      `/api/v1/users/${encodeURIComponent(username)}/works${category ? query({ category }) : ""}`
     ),
 
   getSpaceWorks: (spaceSlug: string, category?: string) =>
@@ -957,10 +986,16 @@ export const communityApi = {
     ),
 
   followUser: (username: string) =>
-    apiRequest<void>(`/api/v1/u/${encodeURIComponent(username)}/follow`, { method: "POST" }),
+    apiRequest<void>(`/api/v1/users/${encodeURIComponent(username)}/follow`, { method: "POST" }),
 
   unfollowUser: (username: string) =>
-    apiRequest<void>(`/api/v1/u/${encodeURIComponent(username)}/follow`, { method: "DELETE" }),
+    apiRequest<void>(`/api/v1/users/${encodeURIComponent(username)}/follow`, { method: "DELETE" }),
+
+  getUserFollowers: (username: string, limit = 50) =>
+    apiRequest<PageResult<FollowUser>>(`/api/v1/users/${encodeURIComponent(username)}/followers${query({ limit })}`),
+
+  getUserFollowing: (username: string, limit = 50) =>
+    apiRequest<PageResult<FollowUser>>(`/api/v1/users/${encodeURIComponent(username)}/following${query({ limit })}`),
 
   // 互动
   like: (objectType: string, objectId: string) =>
@@ -1207,7 +1242,7 @@ export const communityApi = {
     }),
 
   login: (payload: { login: string; password: string; rememberMe?: boolean; uuid?: string; code?: string }) =>
-    apiRequest<void>("/api/v1/auth/login", { method: "POST", body: payload }),
+    apiRequest<{ token?: string }>("/api/v1/auth/login", { method: "POST", body: payload }),
 
   register: (payload: Record<string, unknown>, idempotencyKey?: string) =>
     apiRequest<{
@@ -1325,6 +1360,7 @@ export const communityApi = {
 };
 
 export function contentHref(item: Pick<ContentSummary, "id" | "objectType">): string {
+  if (item.objectType === "USER") return `/u/${encodeURIComponent(item.id)}`;
   if (item.objectType === "SERIES") return `/series/${item.id}`;
   if (item.objectType === "MOMENT") return `/moments/${item.id}`;
   return `/articles/${item.id}`;

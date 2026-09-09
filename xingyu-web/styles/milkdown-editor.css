@@ -1,0 +1,120 @@
+/**
+ * Milkdown / Crepe editor chrome and typography overrides.
+ *
+ * Crepe token mapping (--crepe-*): colors, base font size, selection chrome.
+ * Article semantics (--xy-article-*): shared with .xy-article-body via article-typography.css.
+ *
+ * Cannot fully tokenize (Crepe-internal, editor-only):
+ * - .milkdown-code-block CodeMirror surface (partially mapped to --xy-article-pre-*)
+ * - .milkdown-list-item-block label/checkbox chrome
+ * - .milkdown-image-block upload UI, link importer
+ * - placeholder.css ghost text
+ * - link-tooltip.css floating UI
+ */
+
+.xy-editor-milkdown .milkdown {
+  --crepe-color-background: #ffffff;
+  --crepe-color-on-background: var(--xy-article-color);
+  --crepe-color-surface: var(--xy-article-code-bg);
+  --crepe-color-surface-low: #eef2f7;
+  --crepe-color-on-surface: var(--xy-article-strong-color);
+  --crepe-color-on-surface-variant: var(--xy-article-blockquote-color);
+  --crepe-color-outline: #cbd5e1;
+  --crepe-color-primary: var(--xy-article-link-color);
+  --crepe-color-secondary: #e2e8f0;
+  --crepe-color-selected: rgb(59 130 246 / 0.22);
+  --crepe-color-hover: rgb(59 130 246 / 0.08);
+  --crepe-color-inline-code: inherit;
+  --crepe-color-inline-area: var(--xy-article-code-bg);
+  --crepe-base-font-size: var(--xy-article-font-size);
+  --crepe-font-default: inherit;
+  --crepe-font-title: inherit;
+  --crepe-font-code: inherit;
+
+  width: 100%;
+  min-height: 420px;
+  padding: 0.75rem 0.85rem 0.75rem 0.75rem;
+}
+
+.xy-editor-milkdown .milkdown .ProseMirror {
+  min-height: 360px;
+  padding: 0;
+  outline: none;
+  caret-color: var(--xy-article-link-color);
+}
+
+.xy-editor-milkdown .milkdown .ProseMirror ::selection {
+  background: rgb(59 130 246 / 0.22);
+}
+
+.xy-editor-milkdown .milkdown .ProseMirror-selectednode {
+  outline: 2px solid rgb(59 130 246 / 0.35);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.xy-editor-milkdown.is-focused .milkdown .ProseMirror > .xy-editor-block-active {
+  background: linear-gradient(90deg, rgb(59 130 246 / 0.06) 0%, rgb(59 130 246 / 0.02) 100%);
+  border-radius: 8px;
+  box-shadow: inset 3px 0 0 #3b82f6;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.xy-editor-milkdown.is-focused .milkdown .ProseMirror > .xy-editor-block-active:has(li.xy-editor-block-active) {
+  box-shadow: none;
+  background: transparent;
+}
+
+.xy-editor-milkdown.is-focused .milkdown .ProseMirror li.xy-editor-block-active {
+  background: linear-gradient(90deg, rgb(59 130 246 / 0.06) 0%, rgb(59 130 246 / 0.02) 100%);
+  border-radius: 6px;
+  box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+.xy-editor-milkdown.is-focused {
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgb(59 130 246 / 0.18);
+}
+
+.xy-editor-body-input-wrap--rich {
+  min-height: 420px;
+}
+
+.xy-editor-body-input-wrap--rich .xy-editor-milkdown {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Crepe fenced code block (CodeMirror) — align read-surface colors, keep editor chrome */
+.xy-editor-milkdown .milkdown .milkdown-code-block {
+  margin: 0;
+  padding: var(--xy-article-pre-padding);
+  border-radius: var(--xy-article-pre-radius);
+  background: var(--xy-article-pre-bg);
+}
+
+.xy-editor-milkdown .milkdown .milkdown-code-block .cm-editor,
+.xy-editor-milkdown .milkdown .milkdown-code-block .cm-gutters,
+.xy-editor-milkdown .milkdown .milkdown-code-block .cm-panel {
+  background: var(--xy-article-pre-bg);
+  color: var(--xy-article-pre-color);
+}
+
+.xy-editor-milkdown .milkdown .milkdown-code-block .milkdown-code-block-placeholder {
+  color: var(--xy-article-pre-color);
+  font-size: var(--xy-article-pre-font-size);
+  line-height: var(--xy-article-pre-line-height);
+}
+
+/* Crepe HR uses background-clip trick — flatten to article token line */
+.xy-editor-milkdown .milkdown .ProseMirror hr.ProseMirror-selectednode {
+  outline: none;
+  background: var(--xy-article-hr-color);
+  background-clip: border-box;
+  height: var(--xy-article-hr-height);
+  padding: 0;
+}
+
+.xy-editor-milkdown .milkdown .ProseMirror hr.ProseMirror-selectednode::before {
+  display: none;
+}

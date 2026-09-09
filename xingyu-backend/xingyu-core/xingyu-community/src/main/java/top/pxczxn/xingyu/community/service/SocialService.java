@@ -49,6 +49,7 @@ public class SocialService {
     private final TopicMapper topicMapper;
     private final SearchDocumentMapper searchDocumentMapper;
     private final CommunityProperties communityProperties;
+    private final NotificationService notificationService;
 
     @Transactional
     public void like(CommunityUser user, String objectType, String objectId) {
@@ -96,6 +97,7 @@ public class SocialService {
         follow.setFolloweeId(followeeId);
         follow.setCreatedAt(Instant.now());
         userFollowMapper.insert(follow);
+        notificationService.notifyUserFollowed(user, followeeId);
     }
 
     @Transactional
@@ -234,18 +236,41 @@ public class SocialService {
     }
 
     public PageResultView<FollowUserView> listFollowers(CommunityUser user, int limit) {
+        return listFollowersForUser(user.getId(), user, limit);
+    }
+
+    public PageResultView<FollowUserView> listFollowersForUser(String targetUserId, CommunityUser viewer, int limit) {
+        requireFollowListAccess(targetUserId, viewer);
         if (limit <= 0) {
             limit = 20;
         }
-        List<String> followerIds = userFollowMapper.listFollowerIdsByFollowee(user.getId(), limit);
+        List<String> followerIds = userFollowMapper.listFollowerIdsByFollowee(targetUserId, limit);
         List<FollowUserView> items = followerIds.stream()
-                .map(followerId -> toFollowUserView(followerId, user.getId(), false))
+                .map(followerId -> toFollowUserView(followerId, targetUserId, false))
                 .filter(Objects::nonNull)
                 .toList();
         return PageResultView.<FollowUserView>builder()
                 .items(items)
                 .nextCursor(null)
-                .total(userFollowMapper.countFollowers(user.getId()))
+                .total(userFollowMapper.countFollowers(targetUserId))
+                .build();
+    }
+
+    public PageResultView<FollowUserView> listFollowingForUser(String targetUserId, CommunityUser viewer, int limit) {
+        requireFollowListAccess(targetUserId, viewer);
+        if (limit <= 0) {
+            limit = 20;
+        }
+        List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(targetUserId);
+        List<FollowUserView> items = followeeIds.stream()
+                .limit(limit)
+                .map(followeeId -> toFollowUserView(targetUserId, followeeId, true))
+                .filter(Objects::nonNull)
+                .toList();
+        return PageResultView.<FollowUserView>builder()
+                .items(items)
+                .nextCursor(null)
+                .total(userFollowMapper.countFollowing(targetUserId))
                 .build();
     }
 
@@ -362,5 +387,20 @@ public class SocialService {
             return null;
         }
         return value.trim();
+    }
+
+    private void requireFollowListAccess(String targetUserId, CommunityUser viewer) {
+        CommunityProfile profile = profileMapper.findByUserId(targetUserId);
+        if (profile == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        boolean isOwner = viewer != null && viewer.getId().equals(targetUserId);
+        if (isOwner) {
+            return;
+        }
+        String visibility = profile.getFollowersVisibility();
+        if (visibility != null && "PRIVATE".equalsIgnoreCase(visibility)) {
+            throw new ContractException(ErrorCode.AUTH_FORBIDDEN, "关注列表未公开");
+        }
     }
 }
