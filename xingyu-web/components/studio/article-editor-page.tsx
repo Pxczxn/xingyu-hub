@@ -9,7 +9,6 @@ import { ArticleEditorOutline } from "@/components/studio/article-editor-outline
 import { ArticleEditorSettings } from "@/components/studio/article-editor-settings";
 import {
   ConflictModal,
-  PreviewModal,
   PublishModal,
   RecoveryModal,
   SubmitModal,
@@ -28,6 +27,7 @@ import {
   type TopicSummary,
 } from "@/lib/community-api";
 import { resolveArticleIdFromPath } from "@/lib/paths";
+import { cn } from "@/lib/utils";
 
 type SaveState = "saved" | "saving" | "error" | "idle";
 
@@ -61,7 +61,7 @@ export default function ArticleEditorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get("action");
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewEnabled, setPreviewEnabled] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
@@ -72,6 +72,8 @@ export default function ArticleEditorPage() {
   const [topics, setTopics] = useState<TopicSummary[]>([]);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [body, setBody] = useState("");
   const [bodyMode, setBodyMode] = useState<ArticleBodyMode>("MARKDOWN");
   const [visibility, setVisibility] = useState("PUBLIC");
@@ -93,6 +95,7 @@ export default function ArticleEditorPage() {
   const latestPayload = useRef({
     title,
     summary,
+    coverUrl,
     body,
     bodyMode,
     visibility,
@@ -107,6 +110,7 @@ export default function ArticleEditorPage() {
     latestPayload.current = {
       title,
       summary,
+      coverUrl,
       body,
       bodyMode,
       visibility,
@@ -114,12 +118,13 @@ export default function ArticleEditorPage() {
       topicIds,
       scheduledPublishAt,
     };
-  }, [title, summary, body, bodyMode, visibility, categoryId, topicIds, scheduledPublishAt]);
+  }, [title, summary, coverUrl, body, bodyMode, visibility, categoryId, topicIds, scheduledPublishAt]);
 
   useEffect(() => {
     const backup = {
       title,
       summary,
+      coverUrl,
       body,
       bodyMode,
       visibility,
@@ -133,7 +138,7 @@ export default function ArticleEditorPage() {
     } catch {
       // ignore quota errors
     }
-  }, [articleId, title, summary, body, bodyMode, visibility, categoryId, topicIds, scheduledPublishAt]);
+  }, [articleId, title, summary, coverUrl, body, bodyMode, visibility, categoryId, topicIds, scheduledPublishAt]);
 
   useEffect(() => {
     if (!articleId) {
@@ -152,6 +157,7 @@ export default function ArticleEditorPage() {
         setTopics(topicList);
         setTitle(data.title ?? "");
         setSummary(data.summary ?? "");
+        setCoverUrl(data.coverUrl ?? null);
         const rawBody = data.body ?? "";
         const canonicalBody = ensureCanonicalMarkdownBody(rawBody);
         setBody(canonicalBody);
@@ -175,7 +181,7 @@ export default function ArticleEditorPage() {
   }, [articleId]);
 
   useEffect(() => {
-    if (action === "preview") setPreviewOpen(true);
+    if (action === "preview") setPreviewEnabled(true);
     if (action === "publish") setPublishOpen(true);
     if (action === "submit") setSubmitOpen(true);
     if (action === "conflict") setConflictOpen(true);
@@ -183,7 +189,6 @@ export default function ArticleEditorPage() {
   }, [action]);
 
   const closeModal = () => {
-    setPreviewOpen(false);
     setPublishOpen(false);
     setSubmitOpen(false);
     setSubmitError(null);
@@ -194,10 +199,14 @@ export default function ArticleEditorPage() {
 
   const resolveBodyForSave = useCallback(() => {
     const payload = latestPayload.current;
-    const liveBody =
-      payload.bodyMode === "RICH_TEXT" && bodyControllerRef.current?.getMarkdown
-        ? bodyControllerRef.current.getMarkdown()
-        : payload.body;
+    let liveBody = payload.body;
+    if (payload.bodyMode === "RICH_TEXT" && bodyControllerRef.current?.getMarkdown) {
+      try {
+        liveBody = bodyControllerRef.current.getMarkdown();
+      } catch {
+        liveBody = payload.body;
+      }
+    }
     return ensureCanonicalMarkdownBody(liveBody);
   }, []);
 
@@ -214,6 +223,7 @@ export default function ArticleEditorPage() {
         title: payload.title,
         body: bodyToSave,
         summary: payload.summary,
+        coverUrl: payload.coverUrl,
         bodyMode: payload.bodyMode,
         visibility: payload.visibility,
         categoryId: payload.categoryId,
@@ -277,6 +287,10 @@ export default function ArticleEditorPage() {
       }
 
       const result = await communityApi.submitArticle(articleId);
+      if (!result?.submissionId) {
+        setSubmitError("提交成功但未返回审核单号，请到创作中心查看");
+        return;
+      }
       setSubmitOpen(false);
       setSubmitError(null);
       router.push(`/studio/submissions/${result.submissionId}`);
@@ -309,6 +323,29 @@ export default function ArticleEditorPage() {
     value: T,
   ) {
     setter(value);
+    scheduleSave();
+  }
+
+  async function handleCoverSelect(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setUploadError("只能上传图片文件");
+      return;
+    }
+    setCoverUploading(true);
+    setUploadError(null);
+    try {
+      const uploaded = await communityApi.uploadMessageAttachment(file);
+      setCoverUrl(uploaded.url);
+      scheduleSave();
+    } catch {
+      setUploadError("封面上传失败，请稍后重试");
+    } finally {
+      setCoverUploading(false);
+    }
+  }
+
+  function handleCoverRemove() {
+    setCoverUrl(null);
     scheduleSave();
   }
 
@@ -426,11 +463,16 @@ export default function ArticleEditorPage() {
           <Button
             variant="outline"
             type="button"
-            className="cursor-pointer"
-            onClick={() => setPreviewOpen(true)}
+            className={cn(
+              "xy-editor-toolbar__preview-btn cursor-pointer",
+              previewEnabled &&
+                "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
+            )}
+            aria-pressed={previewEnabled}
+            onClick={() => setPreviewEnabled((current) => !current)}
           >
             <Eye className="h-4 w-4" />
-            预览
+            {previewEnabled ? "关闭预览" : "预览"}
           </Button>
           <Button
             type="button"
@@ -445,13 +487,6 @@ export default function ArticleEditorPage() {
         </div>
       </header>
 
-      <PreviewModal
-        open={previewOpen}
-        onClose={closeModal}
-        articleTitle={title}
-        summary={summary}
-        body={body}
-      />
       <PublishModal open={publishOpen} onClose={closeModal} actions={<Button onClick={closeModal}>知道了</Button>} />
       <SubmitModal
         open={submitOpen}
@@ -483,17 +518,14 @@ export default function ArticleEditorPage() {
           ) : null}
 
           <div className="xy-editor-canvas">
-            <input
-              className="xy-editor-title-input"
-              value={title}
-              onChange={(e) => handleFieldChange(setTitle, e.target.value)}
-              placeholder="输入文章标题"
-              aria-label="文章标题"
-            />
-
             <ArticleEditorBody
               bodyMode={bodyMode}
+              title={title}
+              summary={summary}
               value={body}
+              previewEnabled={previewEnabled}
+              onTitleChange={(value) => handleFieldChange(setTitle, value)}
+              onSummaryChange={(value) => handleFieldChange(setSummary, value)}
               onChange={(value) =>
                 handleFieldChange(setBody, ensureCanonicalMarkdownBody(value))
               }
@@ -515,7 +547,6 @@ export default function ArticleEditorPage() {
             />
           </div>
 
-          <SaveBubble state={saveState} lastSavedAt={lastSavedAt} />
         </main>
 
         <ArticleEditorSettings
@@ -525,6 +556,10 @@ export default function ArticleEditorPage() {
           topicIds={topicIds}
           visibility={visibility}
           scheduledPublishAt={scheduledPublishAt}
+          coverUrl={coverUrl}
+          coverUploading={coverUploading}
+          onCoverSelect={(file) => void handleCoverSelect(file)}
+          onCoverRemove={handleCoverRemove}
           onCategoryChange={(id) => {
             setCategoryId(id);
             scheduleSave();
@@ -570,23 +605,3 @@ function ToolbarSaveStatus({
   return null;
 }
 
-function SaveBubble({
-  state,
-  lastSavedAt,
-}: {
-  state: SaveState;
-  lastSavedAt: Date | null;
-}) {
-  let message = "";
-  if (state === "saving") message = "正在保存…";
-  else if (state === "error") message = "本地已保护，云端未保存";
-  else if (state === "saved" && lastSavedAt) message = `已保存 ${formatSavedTime(lastSavedAt)}`;
-  else return null;
-
-  return (
-    <div className="xy-editor-save-bubble" aria-live="polite">
-      {state === "saving" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-      {message}
-    </div>
-  );
-}

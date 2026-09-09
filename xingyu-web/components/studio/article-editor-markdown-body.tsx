@@ -4,23 +4,45 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ArticleEditorBodyController } from "@/components/studio/article-editor-body-controller";
 import type { EditorFormatAction } from "@/components/studio/article-editor-format-bar";
+import { getTextareaCaretAnchor } from "@/lib/article-editor-caret-anchor";
+import {
+  applyMarkdownLink,
+  readMarkdownLinkDraft,
+  removeMarkdownLink,
+} from "@/lib/article-editor-markdown-link";
 import {
   applyMarkdownFormatAction,
   insertAtCursor,
 } from "@/lib/article-editor-markdown-insert";
-import { extractMarkdownImages } from "@/lib/article-markdown";
+import { readMarkdownFormatState } from "@/lib/article-editor-markdown-format-state";
+import {
+  MarkdownFormatHistory,
+  type MarkdownEditorSnapshot,
+} from "@/lib/article-editor-markdown-history";
+import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
+import { ArticleMarkdownBody, extractMarkdownImages } from "@/lib/article-markdown";
 import { communityApi } from "@/lib/community-api";
 
 type ArticleEditorMarkdownBodyProps = {
   value: string;
+  previewEnabled?: boolean;
   onChange: (value: string) => void;
   onUploadError?: (message: string) => void;
   onRegister?: (controller: ArticleEditorBodyController | null) => void;
   onUploadingChange?: (uploading: boolean) => void;
 };
 
+function readSnapshot(textarea: HTMLTextAreaElement): MarkdownEditorSnapshot {
+  return {
+    value: textarea.value,
+    selectionStart: textarea.selectionStart,
+    selectionEnd: textarea.selectionEnd,
+  };
+}
+
 export function ArticleEditorMarkdownBody({
   value,
+  previewEnabled = false,
   onChange,
   onUploadError,
   onRegister,
@@ -28,10 +50,19 @@ export function ArticleEditorMarkdownBody({
 }: ArticleEditorMarkdownBodyProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef(new MarkdownFormatHistory());
+  const formatListenersRef = useRef(new Set<(state: EditorFormatState) => void>());
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const images = useMemo(() => extractMarkdownImages(value), [value]);
   const lineCount = useMemo(() => Math.max(1, value.split("\n").length), [value]);
+
+  const notifyFormatState = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const state = readMarkdownFormatState(readSnapshot(textarea), historyRef.current);
+    formatListenersRef.current.forEach((listener) => listener(state));
+  }, []);
 
   const syncLineNumberScroll = useCallback(() => {
     const textarea = textareaRef.current;
@@ -48,15 +79,17 @@ export function ArticleEditorMarkdownBody({
         if (!textarea) return;
         textarea.focus();
         textarea.setSelectionRange(cursorStart, cursorEnd);
+        notifyFormatState();
       });
     },
-    [onChange],
+    [notifyFormatState, onChange],
   );
 
   const runAction = useCallback(
     (action: (textarea: HTMLTextAreaElement) => { next: string; cursorStart: number; cursorEnd: number }) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
+      historyRef.current.recordBefore(readSnapshot(textarea));
       const result = action(textarea);
       applyChange(result.next, result.cursorStart, result.cursorEnd);
     },
@@ -68,21 +101,26 @@ export function ArticleEditorMarkdownBody({
       const textarea = textareaRef.current;
       if (!textarea) return;
 
-      const selection = {
-        value: textarea.value,
-        selectionStart: textarea.selectionStart,
-        selectionEnd: textarea.selectionEnd,
-      };
+      const snapshot = readSnapshot(textarea);
 
-      if (action === "link") {
-        const url = window.prompt("链接地址", "https://");
-        if (!url) return;
-        const result = applyMarkdownFormatAction(selection, action, { linkUrl: url });
-        if (result) applyChange(result.next, result.cursorStart, result.cursorEnd);
+      if (action === "undo") {
+        const previous = historyRef.current.undo(snapshot);
+        if (previous) {
+          applyChange(previous.value, previous.selectionStart, previous.selectionEnd);
+        }
         return;
       }
 
-      const result = applyMarkdownFormatAction(selection, action);
+      if (action === "redo") {
+        const next = historyRef.current.redo(snapshot);
+        if (next) {
+          applyChange(next.value, next.selectionStart, next.selectionEnd);
+        }
+        return;
+      }
+
+      historyRef.current.recordBefore(snapshot);
+      const result = applyMarkdownFormatAction(snapshot, action);
       if (result) applyChange(result.next, result.cursorStart, result.cursorEnd);
     },
     [applyChange],
@@ -121,17 +159,75 @@ export function ArticleEditorMarkdownBody({
     [onUploadError, onUploadingChange, runAction],
   );
 
+  const readLinkDraft = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return null;
+    return readMarkdownLinkDraft(readSnapshot(textarea));
+  }, []);
+
+  const readCaretAnchor = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return null;
+    return getTextareaCaretAnchor(textarea);
+  }, []);
+
+  const focusEditor = useCallback(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  const applyLink = useCallback(
+    (payload: { text: string; url: string }) => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const snapshot = readSnapshot(textarea);
+      historyRef.current.recordBefore(snapshot);
+      const result = applyMarkdownLink(snapshot, payload);
+      if (result) applyChange(result.next, result.cursorStart, result.cursorEnd);
+    },
+    [applyChange],
+  );
+
+  const removeLink = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const snapshot = readSnapshot(textarea);
+    historyRef.current.recordBefore(snapshot);
+    const result = removeMarkdownLink(snapshot);
+    if (result) applyChange(result.next, result.cursorStart, result.cursorEnd);
+  }, [applyChange]);
+
   useEffect(() => {
     onRegister?.({
       format: handleFormat,
       uploadImage: uploadAndInsert,
+      readLinkDraft,
+      readCaretAnchor,
+      focusEditor,
+      applyLink,
+      removeLink,
+      subscribeFormatState: (listener) => {
+        formatListenersRef.current.add(listener);
+        notifyFormatState();
+        return () => formatListenersRef.current.delete(listener);
+      },
     });
     return () => onRegister?.(null);
-  }, [handleFormat, onRegister, uploadAndInsert]);
+  }, [
+    applyLink,
+    handleFormat,
+    notifyFormatState,
+    onRegister,
+    focusEditor,
+    readCaretAnchor,
+    readLinkDraft,
+    removeLink,
+    uploadAndInsert,
+  ]);
 
   useEffect(() => {
     syncLineNumberScroll();
-  }, [value, lineCount, syncLineNumberScroll]);
+    notifyFormatState();
+  }, [value, lineCount, notifyFormatState, syncLineNumberScroll]);
 
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -142,7 +238,7 @@ export function ArticleEditorMarkdownBody({
 
   return (
     <div
-      className={`xy-editor-body-zone${dragging ? " is-dragging" : ""}`}
+      className={`xy-editor-body-zone${dragging ? " is-dragging" : ""}${previewEnabled ? " is-inline-preview" : ""}`}
       onDragEnter={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -153,27 +249,48 @@ export function ArticleEditorMarkdownBody({
       }}
       onDrop={handleDrop}
     >
-      <div className="xy-editor-body-input-wrap">
+      <div
+        className={`xy-editor-body-input-wrap${previewEnabled ? " is-inline-preview" : ""}`}
+      >
+        {previewEnabled ? (
+          <div
+            className="xy-editor-body-preview-readonly xy-editor-body-surface xy-article-body"
+            aria-label="文章预览"
+          >
+            <ArticleMarkdownBody body={value} />
+          </div>
+        ) : null}
+
         <div
-          ref={lineNumbersRef}
-          className="xy-editor-body-line-numbers"
-          aria-hidden="true"
+          className={`xy-editor-body-source${previewEnabled ? " is-source-hidden" : ""}`}
+          aria-hidden={previewEnabled}
         >
-          {Array.from({ length: lineCount }, (_, index) => (
-            <span key={index + 1}>{index + 1}</span>
-          ))}
+          <div
+            ref={lineNumbersRef}
+            className="xy-editor-body-line-numbers"
+            aria-hidden="true"
+          >
+            {Array.from({ length: lineCount }, (_, index) => (
+              <span key={index + 1}>{index + 1}</span>
+            ))}
+          </div>
+
+          <textarea
+            ref={textareaRef}
+            className="xy-editor-body-surface xy-editor-body-input"
+            value={value}
+            placeholder="开始写作。可用上方工具栏排版，也可以把图片拖进来。"
+            onChange={(event) => onChange(event.target.value)}
+            onSelect={notifyFormatState}
+            onKeyUp={notifyFormatState}
+            onClick={notifyFormatState}
+            onScroll={syncLineNumberScroll}
+            tabIndex={previewEnabled ? -1 : undefined}
+          />
         </div>
-        <textarea
-          ref={textareaRef}
-          className="xy-editor-body-surface xy-editor-body-input"
-          value={value}
-          placeholder="开始写作。可用上方工具栏排版，也可以把图片拖进来。"
-          onChange={(event) => onChange(event.target.value)}
-          onScroll={syncLineNumberScroll}
-        />
       </div>
 
-      {images.length ? (
+      {!previewEnabled && images.length ? (
         <div className="xy-editor-body-images" aria-label="文中图片预览">
           {images.map((image) => (
             <figure key={`${image.lineIndex}-${image.url}`} className="xy-editor-body-image">

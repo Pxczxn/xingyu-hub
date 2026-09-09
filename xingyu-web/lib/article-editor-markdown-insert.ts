@@ -68,10 +68,39 @@ export function insertAtCursor(
   return { next, cursorStart: cursor, cursorEnd: cursor };
 }
 
+const BLOCK_PREFIX_PATTERN =
+  /^(?:#{1,4}\s+|>\s+|-\s\[[xX ]\]\s+|-\s+|\d+\.\s+)/;
+
+function stripBlockPrefix(line: string) {
+  return line.replace(BLOCK_PREFIX_PATTERN, "");
+}
+
+function stripInlineMarkdown(text: string) {
+  return text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/~~([^~]+)~~/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, "$1$2");
+}
+
+function toParagraphLines(selection: MarkdownSelection): MarkdownInsertResult {
+  const { value, selectionStart, selectionEnd } = selection;
+  const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+  const lineEnd = value.indexOf("\n", selectionEnd);
+  const blockEnd = lineEnd === -1 ? value.length : lineEnd;
+  const block = value.slice(lineStart, blockEnd);
+  const nextBlock = block
+    .split("\n")
+    .map((line) => stripBlockPrefix(line))
+    .join("\n");
+  const next = value.slice(0, lineStart) + nextBlock + value.slice(blockEnd);
+  return { next, cursorStart: lineStart, cursorEnd: lineStart + nextBlock.length };
+}
+
 export function applyMarkdownFormatAction(
   selection: MarkdownSelection,
   action: EditorFormatAction,
-  options?: { linkUrl?: string },
 ): MarkdownInsertResult | null {
   const { value, selectionStart, selectionEnd } = selection;
   const selected = value.slice(selectionStart, selectionEnd);
@@ -91,6 +120,8 @@ export function applyMarkdownFormatAction(
       return prefixLines(selection, "### ");
     case "h4":
       return prefixLines(selection, "#### ");
+    case "paragraph":
+      return toParagraphLines(selection);
     case "quote":
       return prefixLines(selection, "> ");
     case "code":
@@ -109,19 +140,17 @@ export function applyMarkdownFormatAction(
     }
     case "hr":
       return insertAtCursor(selection, "\n\n---\n\n");
-    case "link": {
-      const url = options?.linkUrl;
-      if (!url) return null;
-      if (selected) {
-        const snippet = `[${selected}](${url})`;
-        const next = value.slice(0, selectionStart) + snippet + value.slice(selectionEnd);
-        return {
-          next,
-          cursorStart: selectionStart,
-          cursorEnd: selectionStart + snippet.length,
-        };
-      }
-      return insertAtCursor(selection, `[链接文字](${url})`);
+    case "link":
+      return null;
+    case "clearInlineFormat": {
+      if (!selected) return null;
+      const cleared = stripInlineMarkdown(selected);
+      const next = value.slice(0, selectionStart) + cleared + value.slice(selectionEnd);
+      return {
+        next,
+        cursorStart: selectionStart,
+        cursorEnd: selectionStart + cleared.length,
+      };
     }
     default:
       return null;

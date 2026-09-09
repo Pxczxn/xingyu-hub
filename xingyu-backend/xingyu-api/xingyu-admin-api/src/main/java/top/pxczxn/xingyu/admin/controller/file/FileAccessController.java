@@ -34,8 +34,8 @@ public class FileAccessController {
     @GetMapping("/**")
     public ResponseEntity<byte[]> getFile(HttpServletRequest request) {
         // 获取文件路径
-        // 注意：ApiPrefixConfig 给 @RestController 自动加了 /api 前缀
-        // 所以实际请求URI是 /api/files/xxx，需要从 /api/files 之后截取
+        // ApiPrefixConfig 给 admin 包下的控制器加了 /api/v1/admin 前缀
+        // 实际请求 URI 形如 /api/v1/admin/files/xxx
         String requestUri = request.getRequestURI();
         int filesIndex = requestUri.indexOf("/files/");
         String filePath = (filesIndex >= 0) ? requestUri.substring(filesIndex + "/files".length()) : requestUri;

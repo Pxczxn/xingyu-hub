@@ -134,6 +134,9 @@ public class ArticleService {
         if (body.containsKey("summary")) {
             draft.setSummary(trimToNull(body.get("summary")));
         }
+        if (body.containsKey("coverUrl")) {
+            draft.setCoverUrl(trimToNull(body.get("coverUrl")));
+        }
         if (body.containsKey("bodyMode")) {
             draft.setBodyMode(parseBodyMode(body.get("bodyMode")));
         }
@@ -216,6 +219,7 @@ public class ArticleService {
         WorkingDraft draft = requireDraft(articleId);
         draft.setTitle(revision.getTitle());
         draft.setSummary(revision.getSummary());
+        draft.setCoverUrl(revision.getCoverUrl());
         draft.setBodyMode(revision.getBodyMode());
         draft.setBody(revision.getBody());
         draft.setSlug(revision.getSlug());
@@ -338,6 +342,7 @@ public class ArticleService {
                 .articleId(article.getId())
                 .title(draft.getTitle())
                 .summary(draft.getSummary())
+                .coverUrl(draft.getCoverUrl())
                 .bodyMode(draft.getBodyMode())
                 .body(draft.getBody())
                 .slug(draft.getSlug())

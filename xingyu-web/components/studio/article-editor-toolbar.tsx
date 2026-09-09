@@ -1,32 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  Bold,
-  ChevronDown,
-  Code,
-  Heading1,
-  Heading2,
-  Heading3,
-  Heading4,
-  ImagePlus,
-  Italic,
-  Link2,
-  List,
-  ListChecks,
-  ListOrdered,
-  Minus,
-  Quote,
-  Redo2,
-  RemoveFormatting,
-  SquareCode,
-  Strikethrough,
-  Type,
-  Undo2,
-} from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { ArticleBodyMode } from "@/lib/article-body-convert";
+import { ArticleEditorLinkControl } from "@/components/studio/article-editor-link-control";
 import type { EditorFormatAction } from "@/components/studio/article-editor-format-bar";
-import type { EditorBlockType, EditorFormatState } from "@/lib/milkdown-editor-format-state";
+import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
+import {
+  ARTICLE_EDITOR_TOOLBAR_SEGMENTS,
+  getToolbarMenuItems,
+  TOOLBAR_ACTIONS,
+  TOOLBAR_BLOCK_TYPE_OPTIONS,
+  TOOLBAR_HISTORY_ACTIONS,
+  TOOLBAR_INLINE_ACTIONS,
+  type ToolbarActionDefinition,
+  type ToolbarActionKey,
+  type ToolbarMenuSegment,
+} from "@/lib/article-editor-toolbar-schema";
+
+const NARROW_TOOLBAR_QUERY = "(max-width: 768px)";
 
 type ArticleEditorToolbarProps = {
   bodyMode: ArticleBodyMode;
@@ -34,128 +26,72 @@ type ArticleEditorToolbarProps = {
   onModeChange: (mode: ArticleBodyMode) => void;
   onFormat: (action: EditorFormatAction) => void;
   onImageSelect?: (file: File) => void;
+  linkPopoverOpen?: boolean;
+  onLinkOpen?: () => void;
   disabled?: boolean;
 };
 
-type ToolbarAction = {
-  action: EditorFormatAction;
-  title: string;
-  icon: typeof Bold;
-  isActive?: (state: EditorFormatState | null | undefined) => boolean;
-};
+function useNarrowToolbar() {
+  const [narrow, setNarrow] = useState(false);
 
-type BlockTypeOption = {
-  blockType: EditorBlockType;
-  action: EditorFormatAction;
-  label: string;
-  icon: typeof Type;
-};
+  useEffect(() => {
+    const media = window.matchMedia(NARROW_TOOLBAR_QUERY);
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
-const BLOCK_TYPE_OPTIONS: BlockTypeOption[] = [
-  { blockType: "paragraph", action: "paragraph", label: "正文", icon: Type },
-  { blockType: "h1", action: "h1", label: "一级标题", icon: Heading1 },
-  { blockType: "h2", action: "h2", label: "二级标题", icon: Heading2 },
-  { blockType: "h3", action: "h3", label: "三级标题", icon: Heading3 },
-  { blockType: "h4", action: "h4", label: "四级标题", icon: Heading4 },
-  { blockType: "quote", action: "quote", label: "引用", icon: Quote },
-  { blockType: "codeBlock", action: "codeBlock", label: "代码块", icon: SquareCode },
-  { blockType: "hr", action: "hr", label: "分割线", icon: Minus },
-];
+  return narrow;
+}
 
-const INLINE_ACTIONS: ToolbarAction[] = [
-  {
-    action: "bold",
-    title: "加粗",
-    icon: Bold,
-    isActive: (state) => Boolean(state?.bold),
-  },
-  {
-    action: "italic",
-    title: "斜体",
-    icon: Italic,
-    isActive: (state) => Boolean(state?.italic),
-  },
-  {
-    action: "strike",
-    title: "删除线",
-    icon: Strikethrough,
-    isActive: (state) => Boolean(state?.strike),
-  },
-];
-
-const BLOCK_ACTIONS: ToolbarAction[] = [
-  {
-    action: "link",
-    title: "链接",
-    icon: Link2,
-    isActive: (state) => Boolean(state?.link),
-  },
-  {
-    action: "code",
-    title: "行内代码",
-    icon: Code,
-    isActive: (state) => Boolean(state?.code),
-  },
-  {
-    action: "ul",
-    title: "无序列表",
-    icon: List,
-    isActive: (state) => Boolean(state?.ul),
-  },
-  {
-    action: "ol",
-    title: "有序列表",
-    icon: ListOrdered,
-    isActive: (state) => Boolean(state?.ol),
-  },
-  {
-    action: "taskList",
-    title: "任务列表",
-    icon: ListChecks,
-    isActive: (state) => Boolean(state?.taskList),
-  },
-  {
-    action: "codeBlock",
-    title: "代码块",
-    icon: SquareCode,
-    isActive: (state) => state?.blockType === "codeBlock",
-  },
-  {
-    action: "hr",
-    title: "分割线",
-    icon: Minus,
-    isActive: (state) => state?.blockType === "hr",
-  },
-];
-
-const HISTORY_ACTIONS: ToolbarAction[] = [
-  { action: "undo", title: "撤销", icon: Undo2 },
-  { action: "redo", title: "重做", icon: Redo2 },
-];
+function useDismissOnOutside(open: boolean, onClose: () => void, rootRef: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [onClose, open, rootRef]);
+}
 
 function FormatButton({
-  action,
-  title,
-  icon: Icon,
+  item,
   disabled,
-  active,
+  formatState,
   onFormat,
-}: ToolbarAction & {
+}: {
+  item: ToolbarActionDefinition;
   disabled: boolean;
-  active: boolean;
+  formatState?: EditorFormatState | null;
   onFormat: (action: EditorFormatAction) => void;
 }) {
+  const Icon = item.icon;
+  const active = Boolean(item.isActive?.(formatState));
+  const buttonDisabled = item.isDisabled?.(formatState, disabled) ?? disabled;
+
   return (
     <button
       type="button"
-      title={title}
-      disabled={disabled}
+      title={item.title}
+      disabled={buttonDisabled}
       aria-pressed={active}
+      aria-label={item.title}
       className={active ? "is-active cursor-pointer" : "cursor-pointer"}
       onMouseDown={(event) => event.preventDefault()}
-      onClick={() => onFormat(action)}
+      onClick={() => onFormat(item.key as EditorFormatAction)}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="xy-editor-format-bar__icon" aria-hidden="true" />
     </button>
   );
 }
@@ -173,47 +109,31 @@ function BlockTypeDropdown({
   const rootRef = useRef<HTMLDivElement>(null);
   const currentBlockType = formatState?.blockType ?? "paragraph";
   const currentOption =
-    BLOCK_TYPE_OPTIONS.find((option) => option.blockType === currentBlockType) ??
-    BLOCK_TYPE_OPTIONS[0];
+    TOOLBAR_BLOCK_TYPE_OPTIONS.find((option) => option.blockType === currentBlockType) ??
+    TOOLBAR_BLOCK_TYPE_OPTIONS[0];
 
-  useEffect(() => {
-    if (!open) return;
-    function handlePointerDown(event: PointerEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [open]);
+  useDismissOnOutside(open, () => setOpen(false), rootRef);
 
   return (
     <div ref={rootRef} className="xy-editor-format-bar__dropdown">
       <button
         type="button"
-        title="块类型"
+        title={`块类型：${currentOption.label}`}
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="xy-editor-format-bar__block-type-trigger cursor-pointer"
+        aria-label={`块类型：${currentOption.label}`}
+        className={`xy-editor-format-bar__block-type-trigger cursor-pointer${currentBlockType !== "paragraph" ? " is-active" : ""}`}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setOpen((current) => !current)}
       >
-        <currentOption.icon className="h-4 w-4 shrink-0" />
-        <span className="xy-editor-format-bar__block-type-label">{currentOption.label}</span>
-        <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+        <currentOption.icon className="xy-editor-format-bar__icon" aria-hidden="true" />
+        <ChevronDown className="xy-editor-format-bar__chevron" aria-hidden="true" />
       </button>
 
       {open ? (
         <div className="xy-editor-format-dropdown-menu" role="menu" aria-label="块类型">
-          {BLOCK_TYPE_OPTIONS.map(({ blockType, action, label, icon: Icon }) => {
+          {TOOLBAR_BLOCK_TYPE_OPTIONS.map(({ blockType, action, label, icon: Icon }) => {
             const active = currentBlockType === blockType;
             return (
               <button
@@ -228,12 +148,112 @@ function BlockTypeDropdown({
                   setOpen(false);
                 }}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="xy-editor-format-bar__icon" aria-hidden="true" />
                 <span>{label}</span>
               </button>
             );
           })}
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ToolbarMenu({
+  segment,
+  narrow,
+  disabled,
+  formatState,
+  onFormat,
+  onImageSelect,
+  onLinkOpen,
+}: {
+  segment: ToolbarMenuSegment;
+  narrow: boolean;
+  disabled: boolean;
+  formatState?: EditorFormatState | null;
+  onFormat: (action: EditorFormatAction) => void;
+  onImageSelect?: (file: File) => void;
+  onLinkOpen?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const items = getToolbarMenuItems(segment, narrow);
+  const active = items.some((key) => Boolean(TOOLBAR_ACTIONS[key].isActive?.(formatState)));
+  const TriggerIcon = segment.icon;
+
+  useDismissOnOutside(open, () => setOpen(false), rootRef);
+
+  function handleItemClick(key: ToolbarActionKey) {
+    if (key === "imageUpload") {
+      fileInputRef.current?.click();
+      setOpen(false);
+      return;
+    }
+    if (key === "link") {
+      setOpen(false);
+      onLinkOpen?.();
+      return;
+    }
+    onFormat(key);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={rootRef} className="xy-editor-format-bar__dropdown">
+      <button
+        type="button"
+        title={segment.title}
+        disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={segment.title}
+        className={`xy-editor-format-bar__menu-trigger cursor-pointer${active ? " is-active" : ""}`}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <TriggerIcon className="xy-editor-format-bar__icon" aria-hidden="true" />
+        <ChevronDown className="xy-editor-format-bar__chevron" aria-hidden="true" />
+      </button>
+
+      {open ? (
+        <div className="xy-editor-format-dropdown-menu" role="menu" aria-label={segment.title}>
+          {items.map((key) => {
+            const item = TOOLBAR_ACTIONS[key];
+            const itemActive = Boolean(item.isActive?.(formatState));
+            return (
+              <button
+                key={key}
+                type="button"
+                role="menuitem"
+                aria-pressed={itemActive}
+                className={`xy-editor-format-dropdown-menu__item${itemActive ? " is-active" : ""}`}
+                data-xy-link-trigger={key === "link" ? "true" : undefined}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => handleItemClick(key)}
+              >
+                <item.icon className="xy-editor-format-bar__icon" aria-hidden="true" />
+                <span>{item.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {onImageSelect && items.includes("imageUpload") ? (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={disabled}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) onImageSelect(file);
+          }}
+        />
       ) : null}
     </div>
   );
@@ -245,13 +265,21 @@ export function ArticleEditorToolbar({
   onModeChange,
   onFormat,
   onImageSelect,
+  linkPopoverOpen = false,
+  onLinkOpen,
   disabled = false,
 }: ArticleEditorToolbarProps) {
-  const richFormatActive = bodyMode === "RICH_TEXT";
+  const narrow = useNarrowToolbar();
 
   return (
     <div className="xy-editor-toolbar-combined" role="toolbar" aria-label="正文编辑工具">
-      <div className="xy-editor-body-mode" role="tablist" aria-label="正文编辑模式">
+      <div
+        className="xy-editor-body-mode"
+        role="tablist"
+        aria-label="正文编辑模式"
+        data-active={bodyMode}
+      >
+        <span className="xy-editor-body-mode__indicator" aria-hidden="true" />
         <button
           type="button"
           role="tab"
@@ -275,129 +303,93 @@ export function ArticleEditorToolbar({
       <div className="xy-editor-toolbar-combined__divider" aria-hidden="true" />
 
       <div className="xy-editor-format-bar">
-        {richFormatActive ? (
-          <>
-            {HISTORY_ACTIONS.map((item) => (
-              <FormatButton
-                key={item.action}
-                {...item}
-                disabled={disabled}
-                active={false}
-                onFormat={onFormat}
-              />
-            ))}
-            <div className="xy-editor-toolbar-combined__divider" aria-hidden="true" />
-          </>
-        ) : null}
+        {ARTICLE_EDITOR_TOOLBAR_SEGMENTS.map((segment, index) => {
+          if (segment.kind === "link" && narrow) return null;
 
-        {richFormatActive ? (
-          <BlockTypeDropdown
-            disabled={disabled}
-            formatState={formatState}
-            onFormat={onFormat}
-          />
-        ) : null}
+          const segmentNode = (() => {
+            switch (segment.kind) {
+              case "history":
+                return (
+                  <div className="xy-editor-format-bar__group" aria-label="撤销与重做">
+                    {TOOLBAR_HISTORY_ACTIONS.map((item) => (
+                      <FormatButton
+                        key={item.key}
+                        item={item}
+                        disabled={disabled}
+                        formatState={formatState}
+                        onFormat={onFormat}
+                      />
+                    ))}
+                  </div>
+                );
+              case "blockType":
+                return (
+                  <BlockTypeDropdown
+                    disabled={disabled}
+                    formatState={formatState}
+                    onFormat={onFormat}
+                  />
+                );
+              case "inline":
+                return (
+                  <div className="xy-editor-format-bar__group" aria-label="行内格式">
+                    {TOOLBAR_INLINE_ACTIONS.map((item) => (
+                      <FormatButton
+                        key={item.key}
+                        item={item}
+                        disabled={disabled}
+                        formatState={formatState}
+                        onFormat={onFormat}
+                      />
+                    ))}
+                  </div>
+                );
+              case "link":
+                return (
+                  <ArticleEditorLinkControl
+                    disabled={disabled}
+                    formatState={formatState}
+                    linkPopoverOpen={linkPopoverOpen}
+                    onLinkOpen={onLinkOpen}
+                  />
+                );
+              case "menu":
+                return (
+                  <ToolbarMenu
+                    segment={segment}
+                    narrow={narrow}
+                    disabled={disabled}
+                    formatState={formatState}
+                    onFormat={onFormat}
+                    onImageSelect={onImageSelect}
+                    onLinkOpen={onLinkOpen}
+                  />
+                );
+              default:
+                return null;
+            }
+          })();
 
-        {INLINE_ACTIONS.map((item) => (
-          <FormatButton
-            key={item.action}
-            {...item}
-            disabled={disabled}
-            active={richFormatActive && Boolean(item.isActive?.(formatState))}
-            onFormat={onFormat}
-          />
-        ))}
+          if (!segmentNode) return null;
 
-        {richFormatActive ? (
-          <FormatButton
-            action="clearInlineFormat"
-            title="清除行内格式"
-            icon={RemoveFormatting}
-            disabled={disabled}
-            active={false}
-            onFormat={onFormat}
-          />
-        ) : null}
+          const trailingMore = segment.kind === "menu" && segment.id === "more";
 
-        {bodyMode === "MARKDOWN" ? (
-          <>
-            <FormatButton
-              action="h4"
-              title="四级标题"
-              icon={Heading4}
-              disabled={disabled}
-              active={false}
-              onFormat={onFormat}
-            />
-            <FormatButton
-              action="strike"
-              title="删除线"
-              icon={Strikethrough}
-              disabled={disabled}
-              active={false}
-              onFormat={onFormat}
-            />
-            <FormatButton
-              action="quote"
-              title="引用"
-              icon={Quote}
-              disabled={disabled}
-              active={false}
-              onFormat={onFormat}
-            />
-            <FormatButton
-              action="codeBlock"
-              title="代码块"
-              icon={SquareCode}
-              disabled={disabled}
-              active={false}
-              onFormat={onFormat}
-            />
-            <FormatButton
-              action="taskList"
-              title="任务列表"
-              icon={ListChecks}
-              disabled={disabled}
-              active={false}
-              onFormat={onFormat}
-            />
-            <FormatButton
-              action="hr"
-              title="分割线"
-              icon={Minus}
-              disabled={disabled}
-              active={false}
-              onFormat={onFormat}
-            />
-          </>
-        ) : null}
-
-        {BLOCK_ACTIONS.map((item) => (
-          <FormatButton
-            key={item.action}
-            {...item}
-            disabled={disabled}
-            active={richFormatActive && Boolean(item.isActive?.(formatState))}
-            onFormat={onFormat}
-          />
-        ))}
-
-        {onImageSelect ? (
-          <label className="xy-editor-format-bar__upload cursor-pointer" title="插入图片">
-            <ImagePlus className="h-4 w-4" />
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={disabled}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (file) onImageSelect(file);
-              }}
-            />
-          </label>
-        ) : null}
+          return (
+            <div
+              key={`${segment.kind}-${index}`}
+              className={
+                trailingMore
+                  ? "xy-editor-format-bar__segment xy-editor-format-bar__segment--trailing"
+                  : "xy-editor-format-bar__segment"
+              }
+            >
+              {index > 0 ? (
+                <div className="xy-editor-toolbar-combined__divider" aria-hidden="true" />
+              ) : null}
+              {segmentNode}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

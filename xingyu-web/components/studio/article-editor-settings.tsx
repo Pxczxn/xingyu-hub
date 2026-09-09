@@ -1,8 +1,10 @@
 "use client";
 
-import Image from "next/image";
-import { Calendar, ImageIcon, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Calendar, ImageIcon, Loader2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { resolveMediaUrl } from "@/lib/api-client";
 import type { CreationCategory, TopicSummary } from "@/lib/community-api";
 
 type ArticleEditorSettingsProps = {
@@ -12,10 +14,14 @@ type ArticleEditorSettingsProps = {
   topicIds: string[];
   visibility: string;
   scheduledPublishAt: string;
+  coverUrl: string | null;
+  coverUploading?: boolean;
   onCategoryChange: (id: string | null) => void;
   onToggleTopic: (topicId: string) => void;
   onVisibilityChange: (value: string) => void;
   onScheduleChange: (value: string) => void;
+  onCoverSelect: (file: File) => void;
+  onCoverRemove: () => void;
   onTrash: () => void;
 };
 
@@ -25,6 +31,8 @@ const VISIBILITY_OPTIONS = [
   { value: "PRIVATE", label: "私密" },
 ] as const;
 
+const COVER_PLACEHOLDER = "/prototype-assets/article-editor/cover-preview.png";
+
 export function ArticleEditorSettings({
   categories,
   topics,
@@ -32,38 +40,135 @@ export function ArticleEditorSettings({
   topicIds,
   visibility,
   scheduledPublishAt,
+  coverUrl,
+  coverUploading = false,
   onCategoryChange,
   onToggleTopic,
   onVisibilityChange,
   onScheduleChange,
+  onCoverSelect,
+  onCoverRemove,
   onTrash,
 }: ArticleEditorSettingsProps) {
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [coverPreviewOpen, setCoverPreviewOpen] = useState(false);
+  const previewSrc = coverUrl ? resolveMediaUrl(coverUrl) : COVER_PLACEHOLDER;
+
+  useEffect(() => {
+    if (!coverPreviewOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const editorPage = document.querySelector<HTMLElement>(".xy-editor-page");
+    document.body.classList.add("xy-editor-cover-lightbox-open");
+    document.body.style.overflow = "hidden";
+    editorPage?.setAttribute("inert", "");
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setCoverPreviewOpen(false);
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.classList.remove("xy-editor-cover-lightbox-open");
+      document.body.style.overflow = previousOverflow;
+      editorPage?.removeAttribute("inert");
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [coverPreviewOpen]);
+
+  useEffect(() => {
+    if (!coverUrl) setCoverPreviewOpen(false);
+  }, [coverUrl]);
+
+  function handleCoverFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) onCoverSelect(file);
+  }
+
   return (
     <aside className="xy-editor-settings" aria-label="发布设置">
       <section className="xy-editor-settings__card">
         <h2>封面图</h2>
         <div className="xy-editor-settings__cover">
-          <div className="xy-editor-settings__cover-preview">
-            <Image
-              src="/prototype-assets/article-editor/cover-preview.png"
-              alt="封面预览"
-              width={240}
-              height={135}
-            />
-          </div>
-          <p className="xy-editor-settings__hint">上传接口还在接入中，暂时无法更换</p>
+          {coverUrl ? (
+            <div className="xy-editor-settings__cover-preview is-clickable">
+              <button
+                type="button"
+                className="xy-editor-settings__cover-preview-open"
+                aria-label="查看封面大图"
+                disabled={coverUploading}
+                onClick={() => setCoverPreviewOpen(true)}
+              >
+                <img src={previewSrc} alt="文章封面" />
+                <span className="xy-editor-settings__cover-zoom-hint">点击查看大图</span>
+              </button>
+              <button
+                type="button"
+                className="xy-editor-settings__cover-remove"
+                aria-label="移除封面"
+                disabled={coverUploading}
+                onClick={onCoverRemove}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="xy-editor-settings__cover-preview">
+              <img src={previewSrc} alt="封面占位图" />
+            </div>
+          )}
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            aria-hidden="true"
+            tabIndex={-1}
+            onChange={handleCoverFileChange}
+          />
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled
-            className="cursor-not-allowed"
+            className="cursor-pointer"
+            disabled={coverUploading}
+            onClick={() => coverInputRef.current?.click()}
           >
-            <ImageIcon className="h-4 w-4" />
-            更换封面
+            {coverUploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ImageIcon className="h-4 w-4" />
+            )}
+            {coverUploading ? "上传中…" : coverUrl ? "更换封面" : "上传封面"}
           </Button>
         </div>
       </section>
+
+      {coverPreviewOpen && coverUrl && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="xy-editor-cover-lightbox"
+              role="dialog"
+              aria-modal="true"
+              aria-label="封面预览"
+              onClick={() => setCoverPreviewOpen(false)}
+            >
+              <button
+                type="button"
+                className="xy-editor-cover-lightbox__close"
+                aria-label="关闭预览"
+                onClick={() => setCoverPreviewOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <img
+                src={resolveMediaUrl(coverUrl)}
+                alt="文章封面大图"
+                className="xy-editor-cover-lightbox__image"
+                onClick={(event) => event.stopPropagation()}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
 
       <section className="xy-editor-settings__card">
         <h2>话题分类</h2>

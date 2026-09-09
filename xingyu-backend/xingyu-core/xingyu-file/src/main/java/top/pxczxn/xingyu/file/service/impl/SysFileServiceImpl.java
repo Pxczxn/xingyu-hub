@@ -96,6 +96,12 @@ public class SysFileServiceImpl implements SysFileService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SysFile upload(MultipartFile file, String path, Long groupId) {
+        return upload(file, path, groupId, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SysFile upload(MultipartFile file, String path, Long groupId, String createBy) {
         // 验证文件大小
         configHelper.validateFileSize(file.getSize());
 
@@ -128,7 +134,7 @@ public class SysFileServiceImpl implements SysFileService {
             sysFile.setFileSuffix(suffix);
             sysFile.setStorageType(storage.getStorageType());
             sysFile.setGroupId(groupId);
-            sysFile.setCreateBy(StpUtil.getLoginIdAsString());
+            sysFile.setCreateBy(resolveCreateBy(createBy));
             sysFile.setCreateTime(LocalDateTime.now());
 
             fileMapper.insert(sysFile);
@@ -217,6 +223,19 @@ public class SysFileServiceImpl implements SysFileService {
         }
         file.setOriginalName(newName);
         fileMapper.updateById(file);
+    }
+
+    private String resolveCreateBy(String explicitCreateBy) {
+        if (StringUtils.hasText(explicitCreateBy)) {
+            return explicitCreateBy;
+        }
+        try {
+            if (StpUtil.isLogin()) {
+                return StpUtil.getLoginIdAsString();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     /**

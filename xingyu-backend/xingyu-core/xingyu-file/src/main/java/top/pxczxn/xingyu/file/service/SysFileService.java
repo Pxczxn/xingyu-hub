@@ -35,6 +35,11 @@ public interface SysFileService {
     SysFile upload(MultipartFile file, String path, Long groupId);
 
     /**
+     * 上传文件并指定创建者（社区等非 StpUtil 登录场景）
+     */
+    SysFile upload(MultipartFile file, String path, Long groupId, String createBy);
+
+    /**
      * 上传图片
      */
     SysFile uploadImage(MultipartFile file);

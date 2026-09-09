@@ -136,7 +136,8 @@ public class CommunityMessageController {
     @PostMapping("/upload")
     public Map<String, String> uploadMessageAttachment(@RequestParam("file") MultipartFile file) {
         validateCommunityAttachment(file);
-        SysFile uploaded = fileService.upload(file, "community/messages");
+        String uploaderId = CommunityAuthContext.requireUser().getId();
+        SysFile uploaded = fileService.upload(file, "community/messages", null, uploaderId);
         return Map.of(
                 "url", uploaded.getUrl(),
                 "name", uploaded.getOriginalName() == null ? "file" : uploaded.getOriginalName(),

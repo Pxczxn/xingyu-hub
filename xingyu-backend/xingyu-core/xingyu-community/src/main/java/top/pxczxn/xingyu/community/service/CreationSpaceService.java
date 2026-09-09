@@ -238,7 +238,9 @@ public class CreationSpaceService {
                     article.getId(),
                     revision.getTitle(),
                     revision.getSummary(),
-                    ArticleCoverSupport.extractCoverUrl(revision.getBody()),
+                    revision.getCoverUrl() != null && !revision.getCoverUrl().isBlank()
+                            ? revision.getCoverUrl()
+                            : ArticleCoverSupport.extractCoverUrl(revision.getBody()),
                     revisionPointer.getPublishedAt(),
                     resolvedCategorySlug));
         }

@@ -60,6 +60,7 @@ public class ReviewService {
         revision.setRevisionNumber(nextRevision);
         revision.setTitle(draft.getTitle());
         revision.setSummary(draft.getSummary());
+        revision.setCoverUrl(draft.getCoverUrl());
         revision.setBodyMode(draft.getBodyMode());
         revision.setBody(draft.getBody());
         revision.setSlug(draft.getSlug());
@@ -256,6 +257,7 @@ public class ReviewService {
                 .id(submission.getId())
                 .articleId(submission.getArticleId())
                 .title(revision == null ? null : revision.getTitle())
+                .coverUrl(revision == null ? null : revision.getCoverUrl())
                 .status(submission.getStatus())
                 .submittedAt(submission.getSubmittedAt())
                 .decision(decision == null ? null : decision.getDecision())

@@ -33,6 +33,18 @@ function resolveApiUrl(path: string) {
   return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
 }
 
+/** 将后端返回的相对文件 URL 转为浏览器可访问地址 */
+export function resolveMediaUrl(url: string | null | undefined): string {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:") || url.startsWith("blob:")) {
+    return url;
+  }
+  const normalized = url.startsWith("/api/files/")
+    ? url.replace("/api/files/", "/api/v1/admin/files/")
+    : url;
+  return resolveApiUrl(normalized);
+}
+
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);

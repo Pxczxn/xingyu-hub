@@ -91,10 +91,9 @@ public class LocalFileStorage implements FileStorage {
         if (!normalizedPath.startsWith("/")) {
             normalizedPath = "/" + normalizedPath;
         }
-        // 本地存储使用相对路径，由本服务器的 FileAccessController 提供访问
-        // 注意：ApiPrefixConfig 会给所有 @RestController 加上 /api 前缀
-        // 所以 FileAccessController(@RequestMapping("/files")) 实际路径是 /api/files/**
-        return "/api/files" + normalizedPath;
+        // 本地存储使用相对路径，由 FileAccessController 提供访问
+        // ApiPrefixConfig 给 admin 包下的 @RestController 加 /api/v1/admin 前缀
+        return "/api/v1/admin/files" + normalizedPath;
     }
 
     @Override

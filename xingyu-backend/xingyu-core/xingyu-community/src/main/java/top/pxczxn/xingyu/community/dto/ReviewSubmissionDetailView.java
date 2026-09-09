@@ -11,6 +11,7 @@ public class ReviewSubmissionDetailView {
     String id;
     String articleId;
     String title;
+    String coverUrl;
     String status;
     Instant submittedAt;
     String decision;

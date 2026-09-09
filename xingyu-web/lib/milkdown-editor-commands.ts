@@ -20,7 +20,6 @@ import {
   strongSchema,
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
-  toggleLinkCommand,
   toggleStrongCommand,
   wrapInBlockTypeCommand,
   wrapInBlockquoteCommand,
@@ -204,12 +203,8 @@ export function runMilkdownFormatAction(editor: Editor, action: EditorFormatActi
         redo(view.state, view.dispatch);
       });
       return;
-    case "link": {
-      const url = window.prompt("链接地址", "https://");
-      if (!url) return;
-      editor.action(callCommand(toggleLinkCommand.key, { href: url }));
+    case "link":
       return;
-    }
     default:
       return;
   }

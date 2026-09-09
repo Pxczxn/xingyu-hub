@@ -11,6 +11,12 @@ import {
   insertMilkdownImage,
   runMilkdownFormatAction,
 } from "@/lib/milkdown-editor-commands";
+import { readMilkdownCaretAnchor } from "@/lib/milkdown-editor-caret-anchor";
+import {
+  applyMilkdownLink,
+  readMilkdownLinkDraft,
+  removeMilkdownLink,
+} from "@/lib/milkdown-editor-link";
 import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
 import { syncMilkdownEditorUi } from "@/lib/milkdown-editor-format-state";
 import "@milkdown/crepe/theme/common/code-mirror.css";
@@ -26,6 +32,7 @@ import "@/styles/milkdown-editor.css";
 
 type ArticleEditorMilkdownBodyProps = {
   value: string;
+  previewEnabled?: boolean;
   onChange: (value: string) => void;
   onUploadError?: (message: string) => void;
   onRegister?: (controller: ArticleEditorBodyController | null) => void;
@@ -34,15 +41,18 @@ type ArticleEditorMilkdownBodyProps = {
 
 function MilkdownEditorInner({
   value,
+  previewEnabled = false,
   onChange,
   onUploadError,
   onRegister,
   onUploadingChange,
 }: ArticleEditorMilkdownBodyProps) {
   const crepeRef = useRef<Crepe | null>(null);
+  const editorReadyRef = useRef(false);
   const onChangeRef = useRef(onChange);
   const onUploadErrorRef = useRef(onUploadError);
   const onUploadingChangeRef = useRef(onUploadingChange);
+  const valueRef = useRef(value);
   const initialValueRef = useRef(ensureCanonicalMarkdownBody(value));
   const formatListenersRef = useRef(new Set<(state: EditorFormatState) => void>());
   const [dragging, setDragging] = useState(false);
@@ -51,6 +61,17 @@ function MilkdownEditorInner({
   onChangeRef.current = onChange;
   onUploadErrorRef.current = onUploadError;
   onUploadingChangeRef.current = onUploadingChange;
+  valueRef.current = value;
+
+  const readMarkdownSnapshot = useCallback(() => {
+    const fallback = ensureCanonicalMarkdownBody(valueRef.current);
+    if (!editorReadyRef.current || !crepeRef.current) return fallback;
+    try {
+      return ensureCanonicalMarkdownBody(crepeRef.current.getMarkdown());
+    } catch {
+      return fallback;
+    }
+  }, []);
 
   useEditor(
     (root) => {
@@ -98,15 +119,24 @@ function MilkdownEditorInner({
           if (markdown === prevMarkdown) return;
           onChangeRef.current(ensureCanonicalMarkdownBody(markdown));
         });
-        listener.mounted((ctx) => notifyUi(ctx));
-        listener.selectionUpdated((ctx) => notifyUi(ctx));
-        listener.updated((ctx) => notifyUi(ctx));
+        listener.mounted((ctx) => {
+          editorReadyRef.current = true;
+          notifyUi(ctx);
+        });
+        listener.selectionUpdated((ctx) => {
+          if (!editorReadyRef.current) return;
+          notifyUi(ctx);
+        });
+        listener.updated((ctx) => {
+          if (!editorReadyRef.current) return;
+          notifyUi(ctx);
+        });
         listener.focus(() => setEditorFocused(true));
         listener.blur((ctx) => {
           setEditorFocused(false);
           const view = ctx.get(editorViewCtx);
-          view.dom
-            .querySelectorAll(".xy-editor-block-active")
+          view?.dom
+            ?.querySelectorAll(".xy-editor-block-active")
             .forEach((element) => element.classList.remove("xy-editor-block-active"));
         });
       });
@@ -133,9 +163,7 @@ function MilkdownEditorInner({
         const uploaded = await communityApi.uploadMessageAttachment(file);
         const alt = file.name.replace(/\.[^.]+$/, "");
         insertMilkdownImage(editor, uploaded.url, alt);
-        onChangeRef.current(
-          ensureCanonicalMarkdownBody(crepeRef.current?.getMarkdown() ?? ""),
-        );
+        onChangeRef.current(readMarkdownSnapshot());
       } catch {
         onUploadErrorRef.current?.("图片上传失败，请稍后重试");
       } finally {
@@ -143,7 +171,7 @@ function MilkdownEditorInner({
         setDragging(false);
       }
     },
-    [getInstance],
+    [getInstance, readMarkdownSnapshot],
   );
 
   const handleFormat = useCallback(
@@ -155,21 +183,77 @@ function MilkdownEditorInner({
     [getInstance],
   );
 
+  const readLinkDraft = useCallback(() => {
+    const editor = getInstance();
+    if (!editor) return null;
+    return readMilkdownLinkDraft(editor);
+  }, [getInstance]);
+
+  const readCaretAnchor = useCallback(() => {
+    const editor = getInstance();
+    if (!editor) return null;
+    return readMilkdownCaretAnchor(editor);
+  }, [getInstance]);
+
+  const focusEditor = useCallback(() => {
+    const editor = getInstance();
+    if (!editor) return;
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.focus();
+    });
+  }, [getInstance]);
+
+  const applyLink = useCallback(
+    (payload: Parameters<NonNullable<ArticleEditorBodyController["applyLink"]>>[0]) => {
+      const editor = getInstance();
+      if (!editor) return;
+      applyMilkdownLink(editor, payload);
+      onChangeRef.current(readMarkdownSnapshot());
+    },
+    [getInstance, readMarkdownSnapshot],
+  );
+
+  const removeLink = useCallback(() => {
+    const editor = getInstance();
+    if (!editor) return;
+    removeMilkdownLink(editor);
+    onChangeRef.current(readMarkdownSnapshot());
+  }, [getInstance, readMarkdownSnapshot]);
+
   useEffect(() => {
     if (loading) return;
 
     onRegister?.({
       format: handleFormat,
       uploadImage: uploadAndInsert,
-      getMarkdown: () =>
-        ensureCanonicalMarkdownBody(crepeRef.current?.getMarkdown() ?? value),
+      getMarkdown: readMarkdownSnapshot,
+      readLinkDraft,
+      readCaretAnchor,
+      focusEditor,
+      applyLink,
+      removeLink,
       subscribeFormatState: (listener) => {
         formatListenersRef.current.add(listener);
         return () => formatListenersRef.current.delete(listener);
       },
     });
-    return () => onRegister?.(null);
-  }, [handleFormat, loading, onRegister, uploadAndInsert, value]);
+    return () => {
+      editorReadyRef.current = false;
+      onRegister?.(null);
+    };
+  }, [
+    applyLink,
+    handleFormat,
+    loading,
+    onRegister,
+    focusEditor,
+    readCaretAnchor,
+    readLinkDraft,
+    readMarkdownSnapshot,
+    removeLink,
+    uploadAndInsert,
+  ]);
 
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -180,7 +264,7 @@ function MilkdownEditorInner({
 
   return (
     <div
-      className={`xy-editor-body-zone${dragging ? " is-dragging" : ""}`}
+      className={`xy-editor-body-zone${dragging ? " is-dragging" : ""}${previewEnabled ? " is-inline-preview" : ""}`}
       onDragEnter={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -191,8 +275,12 @@ function MilkdownEditorInner({
       }}
       onDrop={handleDrop}
     >
-      <div className="xy-editor-body-input-wrap xy-editor-body-input-wrap--rich">
-        <div className={`xy-editor-milkdown${editorFocused ? " is-focused" : ""}`}>
+      <div
+        className={`xy-editor-body-input-wrap xy-editor-body-input-wrap--rich${previewEnabled ? " is-inline-preview" : ""}`}
+      >
+        <div
+          className={`xy-editor-milkdown${previewEnabled ? " xy-article-body is-preview" : ""}${editorFocused ? " is-focused" : ""}`}
+        >
           <Milkdown />
         </div>
       </div>

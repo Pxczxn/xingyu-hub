@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bookmark, Eye, Heart, LayoutGrid, List, Sparkles } from "lucide-react";
 import { communityApi, type SpaceWorks } from "@/lib/community-api";
-import { hasStoredSession } from "@/lib/api-client";
+import { hasStoredSession, resolveMediaUrl } from "@/lib/api-client";
 import { resolveProfileWorkCover } from "@/lib/paths";
 import { formatPublishDate } from "@/lib/format";
 import {
@@ -84,7 +84,7 @@ function WorkCover({
   coverUrl?: string | null;
   className?: string;
 }) {
-  const src = coverUrl || resolveProfileWorkCover(index);
+  const src = coverUrl ? resolveMediaUrl(coverUrl) : resolveProfileWorkCover(index);
   return (
     <span className={className ?? "xy-profile-work-cover"} aria-hidden="true">
       <img src={src} alt="" />

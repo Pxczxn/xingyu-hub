@@ -465,6 +465,7 @@ export type ReviewSubmissionDetail = {
   id: string;
   articleId: string;
   title?: string | null;
+  coverUrl?: string | null;
   status: string;
   submittedAt: string;
   decision?: string | null;
@@ -574,6 +575,7 @@ export type ArticleDraft = {
   articleId: string;
   title: string;
   summary: string;
+  coverUrl?: string | null;
   bodyMode?: string;
   body: string;
   visibility: string;
@@ -810,6 +812,7 @@ export const communityApi = {
       title: string;
       body: string;
       summary?: string;
+      coverUrl?: string | null;
       bodyMode?: string;
       visibility?: string;
       categoryId?: string | null;

@@ -17,6 +17,7 @@ import {
 import { strikethroughSchema } from "@milkdown/kit/preset/gfm";
 import type { MarkType } from "@milkdown/kit/prose/model";
 import { TextSelection } from "@milkdown/kit/prose/state";
+import { redoDepth, undoDepth } from "@milkdown/kit/prose/history";
 
 export type EditorBlockType =
   | "paragraph"
@@ -38,6 +39,8 @@ export type EditorFormatState = {
   ol: boolean;
   taskList: boolean;
   blockType: EditorBlockType;
+  canUndo: boolean;
+  canRedo: boolean;
 };
 
 export const EMPTY_EDITOR_FORMAT_STATE: EditorFormatState = {
@@ -50,15 +53,25 @@ export const EMPTY_EDITOR_FORMAT_STATE: EditorFormatState = {
   ol: false,
   taskList: false,
   blockType: "paragraph",
+  canUndo: false,
+  canRedo: false,
 };
 
 const ACTIVE_BLOCK_CLASS = "xy-editor-block-active";
+
+function getReadyEditorView(ctx: Ctx) {
+  const view = ctx.get(editorViewCtx);
+  if (!view?.state?.selection) return null;
+  return view;
+}
 
 export function isMarkActive(ctx: Ctx, markType: MarkType): boolean {
   const commands = ctx.get(commandsCtx);
   if (commands.call(isMarkSelectedCommand.key, markType)) return true;
 
-  const view = ctx.get(editorViewCtx);
+  const view = getReadyEditorView(ctx);
+  if (!view) return false;
+
   const { state } = view;
 
   if (state.storedMarks) {
@@ -76,7 +89,9 @@ export function isMarkActive(ctx: Ctx, markType: MarkType): boolean {
 }
 
 function readBlockType(ctx: Ctx): EditorBlockType {
-  const view = ctx.get(editorViewCtx);
+  const view = getReadyEditorView(ctx);
+  if (!view) return "paragraph";
+
   const { $from } = view.state.selection;
 
   let blockType: EditorBlockType = "paragraph";
@@ -107,7 +122,9 @@ function readBlockType(ctx: Ctx): EditorBlockType {
 }
 
 export function readMilkdownFormatState(ctx: Ctx): EditorFormatState {
-  const view = ctx.get(editorViewCtx);
+  const view = getReadyEditorView(ctx);
+  if (!view) return EMPTY_EDITOR_FORMAT_STATE;
+
   const { $from } = view.state.selection;
 
   let ul = false;
@@ -133,12 +150,15 @@ export function readMilkdownFormatState(ctx: Ctx): EditorFormatState {
     ol,
     taskList,
     blockType: readBlockType(ctx),
+    canUndo: undoDepth(view.state) > 0,
+    canRedo: redoDepth(view.state) > 0,
   };
 }
 
 export function syncMilkdownBlockFocus(ctx: Ctx) {
-  const view = ctx.get(editorViewCtx);
-  const editorRoot = view.dom;
+  const view = getReadyEditorView(ctx);
+  const editorRoot = view?.dom;
+  if (!view || !editorRoot) return;
 
   editorRoot.querySelectorAll(`.${ACTIVE_BLOCK_CLASS}`).forEach((element) => {
     element.classList.remove(ACTIVE_BLOCK_CLASS);
@@ -159,6 +179,7 @@ export function syncMilkdownBlockFocus(ctx: Ctx) {
 }
 
 export function syncMilkdownEditorUi(ctx: Ctx): EditorFormatState {
+  if (!getReadyEditorView(ctx)) return EMPTY_EDITOR_FORMAT_STATE;
   syncMilkdownBlockFocus(ctx);
   return readMilkdownFormatState(ctx);
 }

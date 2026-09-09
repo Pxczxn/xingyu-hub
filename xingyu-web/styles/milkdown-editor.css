@@ -76,6 +76,19 @@
   box-shadow: inset 0 0 0 1px rgb(59 130 246 / 0.18);
 }
 
+.xy-editor-milkdown.is-preview .milkdown .ProseMirror {
+  color: var(--xy-article-color);
+  cursor: text;
+}
+.xy-editor-milkdown.is-preview .milkdown .ProseMirror a {
+  cursor: pointer;
+}
+
+.xy-editor-body-input-wrap--rich.is-inline-preview {
+  border-color: #dbeafe;
+  box-shadow: inset 0 0 0 1px rgb(59 130 246 / 0.08);
+}
+
 .xy-editor-body-input-wrap--rich {
   min-height: 420px;
 }

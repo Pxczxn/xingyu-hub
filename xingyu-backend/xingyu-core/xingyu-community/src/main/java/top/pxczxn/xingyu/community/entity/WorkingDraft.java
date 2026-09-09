@@ -14,6 +14,7 @@ public class WorkingDraft {
     private String articleId;
     private String title;
     private String summary;
+    private String coverUrl;
     private String bodyMode;
     private String body;
     private String slug;

@@ -6,12 +6,10 @@ function insert(
   start: number,
   end: number,
   action: Parameters<typeof applyMarkdownFormatAction>[1],
-  options?: Parameters<typeof applyMarkdownFormatAction>[2],
 ) {
   const result = applyMarkdownFormatAction(
     { value, selectionStart: start, selectionEnd: end },
     action,
-    options,
   );
   expect(result).not.toBeNull();
   return result!;
@@ -41,5 +39,15 @@ describe("applyMarkdownFormatAction", () => {
   it("inserts horizontal rule", () => {
     const { next } = insert("上文", 2, 2, "hr");
     expect(next).toBe("上文\n\n---\n\n");
+  });
+
+  it("converts heading lines to paragraph", () => {
+    const { next } = insert("## 小节标题\n", 0, 9, "paragraph");
+    expect(next).toBe("小节标题\n");
+  });
+
+  it("clears inline markdown from selection", () => {
+    const { next } = insert("**加粗**", 0, 6, "clearInlineFormat");
+    expect(next).toBe("加粗");
   });
 });

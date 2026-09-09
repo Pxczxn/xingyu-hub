@@ -22,9 +22,33 @@ export type EditorFormatAction =
   | "undo"
   | "redo";
 
+export type EditorLinkDraft = {
+  text: string;
+  url: string;
+  hasSelection: boolean;
+  isEditingLink: boolean;
+  focusTarget: "text" | "url";
+};
+
+export type EditorLinkPayload = {
+  text: string;
+  url: string;
+};
+
+export type EditorCaretAnchor = {
+  top: number;
+  left: number;
+  height: number;
+};
+
 export type ArticleEditorBodyController = {
   format: (action: EditorFormatAction) => void;
   uploadImage: (file: File) => void | Promise<void>;
   getMarkdown?: () => string;
   subscribeFormatState?: (listener: (state: EditorFormatState) => void) => () => void;
+  readLinkDraft?: () => EditorLinkDraft | null;
+  readCaretAnchor?: () => EditorCaretAnchor | null;
+  focusEditor?: () => void;
+  applyLink?: (payload: EditorLinkPayload) => void;
+  removeLink?: () => void;
 };

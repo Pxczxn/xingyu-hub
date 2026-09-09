@@ -15,6 +15,7 @@ public class FormalRevision {
     private Integer revisionNumber;
     private String title;
     private String summary;
+    private String coverUrl;
     private String bodyMode;
     private String body;
     private String slug;

@@ -12,6 +12,7 @@ public class WorkingDraftView {
     String articleId;
     String title;
     String summary;
+    String coverUrl;
     String bodyMode;
     String body;
     String slug;
