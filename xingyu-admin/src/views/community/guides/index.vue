@@ -23,7 +23,6 @@
         <n-data-table
           v-if="visiblePages.length || loading"
           v-bind="tableListProps(tableScroll)"
-          :flex-height="true"
           :columns="displayColumns"
           @update:sorter="handleSorterChange"
           :data="visiblePages"

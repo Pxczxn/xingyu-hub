@@ -51,16 +51,16 @@ export function useTableSort<T>({ columns, defaultKey, defaultOrder = 'descend' 
 
   function renderSortTitle(column: SortableColumn): VNodeChild {
     const rawTitle = typeof column.title === 'function' ? column.title(column) : column.title
-    const active = column.key != null && String(column.key) === sortKey.value && sortOrder.value !== false
-    const ariaSort = active ? (sortOrder.value === 'ascend' ? 'ascending' : 'descending') : 'none'
-    const label = active
-      ? `${String(rawTitle ?? '')}，当前${ORDER_LABEL[String(sortOrder.value)]}排列`
-      : String(rawTitle ?? '')
+    const isActive = column.key != null && String(column.key) === sortKey.value && sortOrder.value !== false
+    // naive-ui 2.43.2 的 data-table 未在 th/columnheader 节点输出 aria-sort，其列配置 API 也不允许向 th 注入属性。
+    // 在不使用 DOM 补丁的前提下，无法把 aria-sort 落到语义正确的列头节点，故不伪造 aria-sort；
+    // 改为在表头内容（span，位于原生 th 内部）上提供 aria-label / title，如实描述当前排序列与方向，并提示可排序。
+    const orderText = isActive ? `，当前${ORDER_LABEL[String(sortOrder.value)]}排列` : '，可排序'
+    const label = `${String(rawTitle ?? '')}${orderText}`
     return h(
       'span',
       {
         class: 'table-sort-header',
-        'aria-sort': ariaSort,
         'aria-label': label,
         title: label
       },

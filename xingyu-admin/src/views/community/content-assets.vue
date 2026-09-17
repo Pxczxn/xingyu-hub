@@ -77,7 +77,7 @@ import RecordDetailDrawer from '@/components/community/RecordDetailDrawer.vue'
 import AuthorDetailDrawer from '@/components/community/AuthorDetailDrawer.vue'
 import { useAuthorDetailDrawer } from '@/composables/useCommunityDrawers'
 import { formatAuthorLabel, AUTHOR_COLUMN_TITLE } from '@/utils/community-display'
-import { renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
+import { renderDateTime, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
 import { cellText, colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 import {
   findStatusAction,
@@ -210,7 +210,7 @@ const columns = computed<DataTableColumns<ContentAsset>>(() => {
       title: '更新时间',
       key: 'updatedAt',
       ...colLayout('datetime'),
-      render: (row) => cellText(row.updatedAt)
+      render: (row) => renderDateTime(row.updatedAt)
     },
     {
       title: '操作',

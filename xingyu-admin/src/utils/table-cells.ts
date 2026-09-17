@@ -28,6 +28,20 @@ export function renderDateTime(value?: string | number | null, placeholder = '�
   return h('span', { class: 'table-datetime' }, formatDateTime(value, placeholder))
 }
 
+/**
+ * 纯日期单元格：仅展示 YYYY-MM-DD（本地时区），用于无时间分量的日期字段；
+ * 与 renderDateTime 区分——后者保留 HH:mm。无法解析时原样输出（不吞掉非日期内容）。
+ */
+export function renderDate(value?: string | number | null, placeholder = '—'): VNodeChild {
+  if (value == null || value === '') return placeholder
+  const time = typeof value === 'number' ? value : Date.parse(String(value))
+  if (!Number.isFinite(time)) return cellText(value, placeholder)
+  const date = new Date(time)
+  if (Number.isNaN(date.getTime())) return cellText(value, placeholder)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return h('span', { class: 'table-datetime' }, `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`)
+}
+
 export function renderTableLink(label: string, onClick: () => void): VNodeChild {
   if (!label || label === '-') return '-'
   return h(TableLink, { label, onClick })

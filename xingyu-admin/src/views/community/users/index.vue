@@ -56,12 +56,13 @@
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { NAvatar, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import { NAvatar, NButton, NDropdown, NIcon, NTag, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import { CopyOutline, ChevronDownOutline } from '@vicons/ionicons5'
 import { communityUsersApi, type CommunityUserItem } from '@/api/community-users'
 import AuthorDetailDrawer from '@/components/community/AuthorDetailDrawer.vue'
 import { useAuthorDetailDrawer } from '@/composables/useCommunityDrawers'
 import { useTableSort } from '@/composables/useTableSort'
-import { COMMUNITY_USER_STATUS_META, COMMUNITY_USER_ROLE_FILTER_OPTIONS, formatAuthorLabel, formatCommunityUserRole, matchesCommunityUserRole, AUTHOR_COLUMN_TITLE } from '@/utils/community-display'
+import { COMMUNITY_USER_STATUS_META, COMMUNITY_USER_ROLE_FILTER_OPTIONS, formatAuthorLabel, formatCommunityUserRole, matchesCommunityUserRole } from '@/utils/community-display'
 import { renderDateTime, renderEllipsisText, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
 import { cellText, colLayout, defaultListPagination, tableListFlexProps, tableScrollFromColumns } from '@/utils/table-layout'
 
@@ -118,9 +119,74 @@ function rowProps(row: CommunityUserItem) {
   }
 }
 
-const renderUserActions = (row: CommunityUserItem) => row.status === 'PENDING_REVIEW'
-  ? renderTableActionCell([renderTableActionButton('通过', () => approve(row.id), { type: 'primary' }), renderTableActionButton('拒绝', () => reject(row.id), { type: 'error' })])
-  : renderTableActionCell([renderTableActionButton('重置密码', () => confirmResetPassword(row))])
+function renderUserId(row: CommunityUserItem) {
+  const id = row.id
+  const short = id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id
+  return h('span', { class: 'user-id', title: `用户 ID：${id}` }, [
+    'ID: ' + short,
+    h(
+      NButton,
+      {
+        size: 'tiny',
+        quaternary: true,
+        class: 'user-id-copy',
+        title: '复制用户 ID',
+        onClick: (e: MouseEvent) => {
+          e.stopPropagation()
+          copyId(id)
+        }
+      },
+      { icon: () => h(NIcon, { size: 13 }, { default: () => h(CopyOutline) }) })
+  ])
+}
+
+function copyId(id: string) {
+  if (!navigator.clipboard?.writeText) {
+    message.warning('当前环境不支持自动复制，请手动选择复制')
+    return
+  }
+  navigator.clipboard.writeText(id).then(
+    () => message.success('用户 ID 已复制'),
+    () => message.error('复制失败，请手动选择复制')
+  )
+}
+
+function renderMoreMenu(row: CommunityUserItem, options: Array<{ label: string; key: string }>) {
+  if (!options.length) return null
+  return h(
+    NDropdown,
+    {
+      trigger: 'click',
+      options,
+      onSelect: (key: string) => handleMore(key, row)
+    },
+    {
+      default: () =>
+        renderTableActionButton('更多', undefined, { icon: ChevronDownOutline })
+    }
+  )
+}
+
+function handleMore(key: string, row: CommunityUserItem) {
+  if (key === 'reject') void reject(row.id)
+  else if (key === 'detail') openUser(row)
+}
+
+const renderUserActions = (row: CommunityUserItem) => {
+  const moreOptions: Array<{ label: string; key: string }> = []
+  if (row.status === 'PENDING_REVIEW') {
+    moreOptions.push({ label: '拒绝', key: 'reject' })
+    return renderTableActionCell([
+      renderTableActionButton('通过', () => approve(row.id), { type: 'primary' }),
+      renderMoreMenu(row, moreOptions)
+    ])
+  }
+  moreOptions.push({ label: '查看详情', key: 'detail' })
+  return renderTableActionCell([
+    renderTableActionButton('重置密码', () => confirmResetPassword(row)),
+    renderMoreMenu(row, moreOptions)
+  ])
+}
 
 function compareAuthor(a: CommunityUserItem, b: CommunityUserItem) {
   return userLabel(a).localeCompare(userLabel(b), 'zh-CN', { sensitivity: 'base' })
@@ -154,26 +220,33 @@ function handlePageChange(page: number) {
 
 const userColumns: DataTableColumns<CommunityUserItem> = [
   {
-    title: AUTHOR_COLUMN_TITLE,
+    title: '用户',
     key: 'username',
     ...colLayout('author'),
     sorter: compareAuthor,
-   
     render: row => h('div', { class: 'user-cell' }, [
       h(NAvatar, { round: true, size: 34, class: 'user-avatar' }, { default: () => avatarLabel(row) }),
       h('div', { class: 'user-copy' }, [
         renderTableLink(userLabel(row), () => openUser(row)),
-        h('span', { class: 'user-id' }, 'ID: ' + row.id)
+        renderUserId(row)
       ])
     ])
   },
   { title: '身份', key: 'role', ...colLayout('role'), sorter: compareRole, render: row => cellText(formatCommunityUserRole(row.role)) },
   { title: '加入时间', key: 'createdAt', ...colLayout('datetime'), sorter: compareCreatedAt, render: row => renderDateTime(row.createdAt) },
   { title: '账号状态', key: 'status', ...colLayout('accountStatus'), sorter: compareStatus, render: row => renderStatusTag(row.status, COMMUNITY_USER_STATUS_META) },
-  { title: '邮箱验证', key: 'emailVerified', ...colLayout('verify'), render: row => cellText(row.emailVerified ? '已验证' : '未验证') },
-  { title: '邮箱', key: 'email', ...colLayout('email'), render: row => renderEllipsisText(row.email) },
-  { title: '手机号', key: 'phone', ...colLayout('phone'), render: row => cellText(row.phone) },
-  { title: '操作', key: 'actions', ...colLayout('action3'), render: renderUserActions }
+  {
+    title: '邮箱',
+    key: 'email',
+    ...colLayout('email'),
+    render: row => h('div', { class: 'email-cell' }, [
+      renderEllipsisText(row.email),
+      row.emailVerified
+        ? h(NTag, { size: 'small', type: 'success', bordered: false, class: 'verify-badge' }, { default: () => '已验证' })
+        : h(NTag, { size: 'small', type: 'default', bordered: false, class: 'verify-badge' }, { default: () => '未验证' })
+    ])
+  },
+  { title: '操作', key: 'actions', ...colLayout('action2'), render: renderUserActions }
 ]
 
 const communityUsersTableProps = tableListFlexProps(tableScrollFromColumns(userColumns))
@@ -297,7 +370,12 @@ onMounted(async () => {
 :deep(.user-cell) { display: flex; align-items: center; gap: 10px; min-width: 0; }
 :deep(.user-copy) { display: grid; min-width: 0; gap: 1px; }
 :deep(.user-copy .community-table-link) { margin: -3px -6px; width: calc(100% + 12px); }
-:deep(.user-id) { color: #98a1b0; font-size: 11px; line-height: 1.35; }
+:deep(.user-id) { display: inline-flex; align-items: center; gap: 4px; color: #98a1b0; font-size: 11px; line-height: 1.35; }
+:deep(.user-id-copy) { opacity: .5; }
+:deep(.user-id-copy:hover) { opacity: 1; }
+:deep(.email-cell) { display: flex; align-items: center; gap: 6px; min-width: 0; }
+:deep(.email-cell .n-ellipsis) { min-width: 0; }
+:deep(.verify-badge) { margin-left: 2px; flex-shrink: 0; }
 :deep(.user-avatar) { color: #fff; background: linear-gradient(145deg, #566d9f, #283d66); }
 @media (max-width: 1180px) { .users-filters { grid-template-columns: minmax(190px, 1fr) repeat(2, minmax(120px, .7fr)) auto auto; } }
 @media (max-width: 800px) { .community-users-page { height: auto; min-height: 100%; padding: 12px; }.users-filters, .user-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }.users-filters .n-button { justify-self: start; } .page-list-table-region { min-height: 360px; } }

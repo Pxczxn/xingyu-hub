@@ -482,10 +482,10 @@ const columns: DataTableColumns<SysUser> = [
     }
   }
 ]
-const tableScroll = tableScrollFromColumns(columns)
-
-
 const displayColumns = computed(() => (isFuzzySearching.value ? fuzzySearchColumns : columns))
+
+// scrollX 必须跟随当前展示列：模糊搜索会切换为 fuzzySearchColumns，否则按完整 columns 计算会出现横向空白
+const tableScroll = computed(() => tableScrollFromColumns(displayColumns.value))
 
 // ==================== 弹窗 ====================
 const modalVisible = ref(false)

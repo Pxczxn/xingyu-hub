@@ -50,9 +50,17 @@ export function colLayout(preset: TableColPreset, overrides: Partial<ColBase> = 
   return { ...TABLE_COL[preset], ...overrides }
 }
 
+/** scrollX 计算常量：纵向滚动条占位（gutter）与固定类型列默认宽度，全部显式声明 */
+const SCROLL_GUTTER = 48
+const SELECTION_WIDTH = 40
+const EXPAND_WIDTH = 40
+const FALLBACK_COL_WIDTH = 96
+
 function readColSpan(value?: number | string): number {
   if (value == null) return 0
   if (typeof value === 'number') return value
+  // 百分比宽度随容器伸缩，不计入固定 scrollX（避免把 "20%" 误当 20px）
+  if (value.trim().endsWith('%')) return 0
   const parsed = Number.parseFloat(value)
   return Number.isFinite(parsed) ? parsed : 0
 }
@@ -65,17 +73,21 @@ type ScrollColLike = {
   children?: ScrollColLike[]
 }
 
-/** 根据列定义中的 width / minWidth 计算 scrollX（禁止 columnCount * 常量） */
-export function tableScrollFromColumns(columns: readonly ScrollColLike[], gutter = 48): number {
-  let sum = gutter
-  for (const column of columns) {
-    if (column.type === 'selection' || column.type === 'expand') continue
-    if (column.children?.length) continue
-    // fixed 布局按 width 分配，scrollX 需以 width 为准（minWidth 只是下限）
-    const span = readColSpan(column.width) || readColSpan(column.minWidth) || 96
-    sum += span
+/** 累加单列（或分组列之子列）的有效像素宽度；固定类型列（selection/expand）按显式宽度或默认值计入，避免低估 scrollX */
+function sumColumnSpan(column: ScrollColLike): number {
+  if (column.children?.length) {
+    // 分组表头：宽度为子列之和，不能跳过（否则低估 scrollX）
+    return column.children.reduce((acc, child) => acc + sumColumnSpan(child), 0)
   }
-  return sum
+  if (column.type === 'selection') return readColSpan(column.width) || SELECTION_WIDTH
+  if (column.type === 'expand') return readColSpan(column.width) || EXPAND_WIDTH
+  // fixed 布局下以 width 为准，缺失时回退 minWidth，再回退默认
+  return readColSpan(column.width) || readColSpan(column.minWidth) || FALLBACK_COL_WIDTH
+}
+
+/** 根据列定义计算 scrollX（禁止 columnCount * 常量）；gutter 为纵向滚动条占位，显式计入 */
+export function tableScrollFromColumns(columns: readonly ScrollColLike[], gutter = SCROLL_GUTTER): number {
+  return columns.reduce((sum, column) => sum + sumColumnSpan(column), gutter)
 }
 
 /** 根据列 preset 序列计算 scrollX */

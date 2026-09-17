@@ -37,7 +37,6 @@
         <n-data-table
           v-if="topics.length || loading"
           v-bind="tableListProps(tableScroll)"
-          :flex-height="true"
           :columns="columns"
           :data="topics"
           :loading="loading"

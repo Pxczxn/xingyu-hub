@@ -474,13 +474,6 @@ const columns: DataTableColumns<GenTable> = [
     }
   }
 ]
-const columnEditScroll = tableScrollFromColumns(columnEditColumns)
-
-const importScroll = tableScrollFromColumns(importColumns)
-
-const tableScroll = tableScrollFromColumns(columns)
-
-
 // 导入表列
 const importColumns: DataTableColumns<DatabaseTable> = [
   { type: 'selection' },
@@ -590,6 +583,11 @@ const columnEditColumns: DataTableColumns<GenTableColumn> = [
     }
   }
 ]
+
+// 滚动宽度必须在列定义之后计算（避免 const 的 TDZ ReferenceError）
+const tableScroll = tableScrollFromColumns(columns)
+const importScroll = tableScrollFromColumns(importColumns)
+const columnEditScroll = tableScrollFromColumns(columnEditColumns)
 
 // 加载数据
 async function loadData() {
