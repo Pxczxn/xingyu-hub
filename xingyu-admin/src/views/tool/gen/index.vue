@@ -356,6 +356,7 @@ import { SearchOutline, RefreshOutline, CloudDownloadOutline, CodeSlashOutline, 
 import { genApi, type GenTable, type GenTableColumn, type DatabaseTable } from '@/api/gen'
 import { dictTypeApi } from '@/api/org'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(6)
 const importScroll = tableScrollX(4)
@@ -452,30 +453,28 @@ const columns: DataTableColumns<GenTable> = [
   {
     title: '操作',
     key: 'actions',
-    ...colLayout('action4', { width: 380, minWidth: 360 }),
+    ...colLayout('action5'),
     render(row) {
-      return h(NSpace, null, {
-        default: () => [
-          h(NButton, { size: 'small', quaternary: true, onClick: () => handlePreview(row) }, {
-            default: () => [h(NIcon, null, { default: () => h(EyeOutline) }), ' 预览']
-          }),
-          h(NButton, { size: 'small', quaternary: true, onClick: () => handleEdit(row) }, {
-            default: () => [h(NIcon, null, { default: () => h(SettingsOutline) }), ' 配置']
-          }),
-          h(NButton, { size: 'small', quaternary: true, type: 'success', onClick: () => handleGenerate(row) }, {
-            default: () => [h(NIcon, null, { default: () => h(CodeSlashOutline) }), ' 生成']
-          }),
-          h(NButton, { size: 'small', quaternary: true, onClick: () => handleSync(row) }, {
-            default: () => [h(NIcon, null, { default: () => h(SyncOutline) }), ' 同步']
-          }),
-          h(NButton, { size: 'small', quaternary: true, type: 'warning', onClick: () => handleRemoveCodeDirect(row) }, {
-            default: () => [h(NIcon, null, { default: () => h(CloseCircleOutline) }), ' 移除']
-          }),
-          h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, {
-            default: () => [h(NIcon, null, { default: () => h(TrashOutline) }),'删除']
-          })
-        ]
-      })
+      return renderTableActionCell([
+        h(NButton, { size: 'small', quaternary: true, onClick: () => handlePreview(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(EyeOutline) }), ' 预览']
+        }),
+        h(NButton, { size: 'small', quaternary: true, onClick: () => handleEdit(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(SettingsOutline) }), ' 配置']
+        }),
+        h(NButton, { size: 'small', quaternary: true, type: 'success', onClick: () => handleGenerate(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(CodeSlashOutline) }), ' 生成']
+        }),
+        h(NButton, { size: 'small', quaternary: true, onClick: () => handleSync(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(SyncOutline) }), ' 同步']
+        }),
+        h(NButton, { size: 'small', quaternary: true, type: 'warning', onClick: () => handleRemoveCodeDirect(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(CloseCircleOutline) }), ' 移除']
+        }),
+        h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(TrashOutline) }), ' 删除']
+        })
+      ])
     }
   }
 ]

@@ -8,6 +8,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { communityApi } from "@/lib/community-api";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function NewReportPage() {
   const router = useRouter();
@@ -33,10 +35,10 @@ export default function NewReportPage() {
 
   return (
     <AppShell>
-      <main className="xy-page mx-auto max-w-xl">
+      <main className={cn(shellStyles.page, "mx-auto max-w-xl")}>
         <PageHero variant="compact" eyebrow="社区治理" title="提交举报" description="举报是线索，处理结果会独立通知。" />
         {error && <Alert variant="destructive">{error}</Alert>}
-        <form onSubmit={submit} className="xy-panel space-y-4 p-5">
+        <form onSubmit={submit} className={cn(shellStyles.panel, "space-y-4 p-5")}>
           <label className="block text-sm font-medium">
             对象类型
             <Input value={targetType} onChange={(e) => setTargetType(e.target.value)} className="mt-2" required />

@@ -34,7 +34,7 @@ export function GlobalSearch() {
   return (
     <form
       onSubmit={submit}
-      className="xy-global-search relative mx-auto hidden h-9 min-w-0 max-w-sm flex-1 md:block"
+      className="relative mx-auto hidden h-9 min-w-0 max-w-sm flex-1 md:block"
     >
       <Search
         className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground"

@@ -1,0 +1,346 @@
+.page {
+  width: min(100% - 60px, 1476px);
+  margin: 22px auto 40px;
+  color: #12254d;
+}
+.identity {
+  position: relative;
+  display: grid;
+  grid-template-columns: 158px 1fr 420px;
+  align-items: center;
+  gap: 46px;
+  height: 180px;
+  padding: 0 92px;
+}
+.identity > img {
+  border-radius: 50%;
+  object-fit: cover;
+}
+.identity h1 {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 36px;
+  font-weight: 700;
+}
+.identity h1 svg {
+  width: 20px;
+  color: #c49b69;
+}
+.identity p {
+  margin: 8px 0 16px;
+  font-size: 13px;
+}
+.identity a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.identity a svg {
+  width: 15px;
+  color: #bf8b4e;
+}
+.writing {
+  width: 368px;
+  height: 173px;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+}
+.tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(110deg, #151d4a, #273066);
+  padding: 0 52px;
+  color: white;
+}
+.tabs > div {
+  display: flex;
+  gap: 72px;
+}
+.tabs a {
+  height: 60px;
+  padding-top: 20px;
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 15px;
+}
+.tabs a.active {
+  border-bottom: 3px solid #f38b32;
+}
+.tabs label {
+  display: flex;
+  width: 480px;
+  align-items: center;
+  border: 1px solid rgb(255 255 255/0.15);
+  border-radius: 999px;
+  background: rgb(255 255 255/0.08);
+  padding: 9px 15px;
+}
+.tabs input {
+  width: 100%;
+  background: transparent;
+  font-size: 11px;
+}
+.tabs svg {
+  width: 15px;
+}
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 38px;
+}
+.chips a {
+  border: 1px solid #e7e0d7;
+  border-radius: 999px;
+  padding: 7px 21px;
+  font-size: 11px;
+}
+.chips a.active {
+  background: #222e64;
+  color: white;
+}
+.chips button {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+}
+.chips svg {
+  width: 12px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 558px) minmax(0, 458px) 389px;
+  gap: 15px;
+}
+.featured {
+  position: relative;
+  min-height: 447px;
+  height: 447px;
+  align-self: start;
+  overflow: hidden;
+  border-radius: 7px;
+  color: white;
+}
+.featured > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.featured > div {
+  position: absolute;
+  inset: 25px;
+}
+.featured span {
+  border-radius: 4px;
+  background: #6e422e;
+  padding: 5px 10px;
+  font-size: 9px;
+}
+.featured h2 {
+  margin: 30px 0 20px;
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 31px;
+  line-height: 1.55;
+}
+.featured p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.featured small {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+.featured svg {
+  width: 12px;
+}
+.latest {
+  border: 1px solid #e8e2da;
+  border-radius: 7px;
+  background: rgb(255 255 255/0.55);
+  padding: 10px 15px;
+  height: 447px;
+  align-self: start;
+}
+.latest > header,
+.series > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.latest h2,
+.series h2 {
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+.latest header a,
+.series header a {
+  font-size: 9px;
+}
+.latest > a {
+  display: grid;
+  grid-template-columns: 103px 1fr 15px;
+  gap: 12px;
+  padding: 9px 0;
+}
+.latest > a img {
+  width: 103px;
+  height: 85px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+.latest > a div {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+.latest h3 {
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+.latest p {
+  color: #756e67;
+  font-size: 9px;
+  line-height: 1.6;
+}
+.latest small {
+  color: #91877d;
+  font-size: 8px;
+}
+.latest svg {
+  width: 13px;
+  align-self: end;
+}
+.shelf {
+  position: relative;
+  border: 1px solid #e9e2d9;
+  border-radius: 7px;
+  background: rgb(255 255 255/0.52);
+  padding: 14px 10px;
+  text-align: center;
+}
+.shelf h2 {
+  text-align: left;
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+.shelf img {
+  width: 100%;
+  height: 544px;
+  object-fit: cover;
+}
+.shelf a {
+  font-size: 9px;
+}
+.series {
+  position: relative;
+  margin-top: -150px;
+  margin-right: 404px;
+}
+.series > div {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 15px;
+  margin-top: 10px;
+}
+.series > div > a {
+  position: relative;
+  height: 108px;
+  overflow: hidden;
+  border-radius: 6px;
+  color: white;
+}
+.series img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.series span {
+  position: absolute;
+  inset: auto 12px 10px;
+  display: grid;
+}
+.series b {
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 13px;
+}
+.series small {
+  font-size: 8px;
+}
+
+/* 鍒涗綔绌洪棿锛氱湡瀹炲唴瀹瑰眰锛屽師鍨嬩腑鐨勭ず渚嬫枃妗堜笌绀轰緥灏侀潰涓嶄綔涓虹敤鎴锋暟鎹睍绀?*/
+.real .realAvatar {
+  display: grid;
+  width: 158px;
+  height: 158px;
+  place-items: center;
+  overflow: hidden;
+  border: 4px solid rgb(255 255 255 / 0.92);
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 28%, #d4c2a4, #172657 60%, #0c1538);
+  box-shadow: 0 12px 28px rgb(20 31 72 / 0.16);
+  color: #fff9ef;
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 52px;
+}
+.real .realAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.real .featured > a { position: relative; display: block; height: 100%; color: inherit; }
+.real .realArt { display: grid; width: 103px; height: 85px; place-items: center; overflow: hidden; border-radius: 5px; background: linear-gradient(145deg, #112252, #263f80 55%, #d1a56d); color: #f8ddaa; }
+.real .realArt::before { position: absolute; width: 64px; height: 64px; border: 1px solid rgb(255 247 220 / 0.45); border-radius: 50%; content: ""; }
+.real .realArt svg { position: relative; z-index: 1; width: 28px; height: 28px; }
+.real .realArt1 { background: linear-gradient(145deg, #73472f, #d9a55e 54%, #f5e6c5); color: #fff; }
+.real .realArt2 { background: linear-gradient(145deg, #4d6055, #92a88f 55%, #f3e8ca); color: #fffdf5; }
+.real .realArt3 { background: linear-gradient(145deg, #442750, #8c659e 55%, #e6c997); color: #fff3dc; }
+.real .realArt4 { background: linear-gradient(145deg, #283d65, #587caf 55%, #f0c87e); color: #fff7e4; }
+.isLarge {}
+.real .realArt.isLarge { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; background: linear-gradient(165deg, #0c1943, #16255e 52%, #6f4e40); }
+.real .realArt.isLarge::before { width: 420px; height: 420px; border-color: rgb(255 232 180 / 0.22); }
+.real .realArt.isLarge svg { width: 84px; height: 84px; color: #f0cd87; }
+.real .realFeatured > a > div { position: absolute; inset: 25px; z-index: 1; }
+.real .realEmpty { display: grid; height: 100%; place-content: center; gap: 10px; padding: 28px; background: linear-gradient(160deg, #172657, #263e79); text-align: center; }
+.real .realEmpty svg { width: 36px; height: 36px; margin: auto; color: #f0ca83; }
+.real .realEmpty h2 { margin: 0; font-size: 22px; }
+.real .realEmpty p { margin: 0; }
+.real .latest > a { align-items: center; }
+.real .latest > a > .realArt { grid-column: 1; grid-row: 1; }
+.real .latest > a > div { grid-column: 2; grid-row: 1; }
+.real .latest > a > svg { grid-column: 3; grid-row: 1; }
+.realLoading { display: grid; min-height: 110px; place-items: center; color: #8a8178; font-size: 12px; }
+.real .realCategories { min-height: 560px; display: flex; flex-direction: column; }
+.realCategoryList { display: grid; gap: 10px; margin: 18px 6px; }
+.realCategoryList > a { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 10px; min-height: 62px; padding: 10px 12px; border: 1px solid #e5dbcf; border-radius: 6px; background: linear-gradient(100deg, rgb(255 252 247 / .92), rgb(241 235 226 / .55)); color: #263464; text-align: left; transition: transform .18s ease, box-shadow .18s ease; }
+.realCategoryList > a:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgb(46 35 23 / .08); }
+.realCategoryList > a span { font-family: ui-serif, "Songti SC", serif; font-size: 15px; font-weight: 700; }
+.realCategoryList > a small { color: #83786e; font-size: 11px; }
+.realCategoryList > p { margin: 36px 0; color: #8a8178; font-size: 12px; }
+.realCategoryIcon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 5px; background: #26356a; color: #fae4a6; }
+.realCategoryIcon svg { width: 17px; }
+.realCategoryIcon1 { background: #7d563d; }.realCategoryIcon2 { background: #4e6a59; }.realCategoryIcon3 { background: #73527b; }
+.real .realCategories > a { margin-top: auto; }
+.real .series { min-height: 147px; }
+.realSeriesEmpty { display: flex !important; min-height: 108px; grid-template-columns: none !important; align-items: center; justify-content: center; gap: 12px; border: 1px dashed #dfd5c7; border-radius: 7px; background: rgb(255 255 255 / .45); color: #86796d; }
+.realSeriesEmpty p { font-size: 12px; }
+.realSeriesMark { position: relative !important; inset: auto !important; display: flex !important; width: 38px; height: 32px; align-items: center; justify-content: center; color: #b68a55; }
+.realSeriesMark svg { position: absolute; width: 22px; }.realSeriesMark svg:first-child { transform: translateX(-6px); }.realSeriesMark svg:last-child { transform: translateX(6px); }
+@media (max-width: 900px) {
+  .real .realAvatar { width: 96px; height: 96px; font-size: 34px; }
+  .real .identity { grid-template-columns: 96px 1fr; gap: 22px; padding: 20px 8px; height: auto; }
+  .real .writing { display: none; }
+  .real .series { margin-right: 0; }
+}
+
+/* 鍒嗙被娴忚 */
+

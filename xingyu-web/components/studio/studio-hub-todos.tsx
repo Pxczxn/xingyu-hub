@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-hub.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { Clock3, ClipboardList, Handshake, TriangleAlert } from "lucide-react";
@@ -24,12 +26,12 @@ export function StudioHubTodos({ todos, loading }: Props) {
 
   if (loading) {
     return (
-      <section className="xy-studio-hub-todos" aria-labelledby="studio-hub-todos-title" aria-busy="true">
-        <h2 id="studio-hub-todos-title" className="xy-studio-hub-section-title">待办事项</h2>
-        <div className="xy-studio-hub-todo-list">
+      <section className={cn(styles.todos)} aria-labelledby="studio-hub-todos-title" aria-busy="true">
+        <h2 id="studio-hub-todos-title" className={cn(styles.sectionTitle)}>待办事项</h2>
+        <div className={cn(styles.todoList)}>
           {Array.from({ length: 2 }).map((_, index) => (
-            <div key={index} className="xy-studio-hub-todo-item xy-studio-hub-skeleton">
-              <span className="xy-studio-hub-skeleton-line" />
+            <div key={index} className={cn(styles.todoItem, styles.skeleton)}>
+              <span className={cn(styles.skeletonLine)} />
             </div>
           ))}
         </div>
@@ -40,30 +42,30 @@ export function StudioHubTodos({ todos, loading }: Props) {
   if (!todos.length) return null;
 
   return (
-    <section className="xy-studio-hub-todos" aria-labelledby="studio-hub-todos-title">
-      <header className="xy-studio-hub-section-head">
-        <h2 id="studio-hub-todos-title" className="xy-studio-hub-section-title">待办事项</h2>
+    <section className={cn(styles.todos)} aria-labelledby="studio-hub-todos-title">
+      <header className={cn(styles.sectionHead)}>
+        <h2 id="studio-hub-todos-title" className={cn(styles.sectionTitle)}>待办事项</h2>
         {hasMore ? (
-          <Link href="/studio/content?tab=returned" className="xy-studio-hub-text-link">
+          <Link href="/studio/content?tab=returned" className={cn(styles.textLink)}>
             查看全部
           </Link>
         ) : null}
       </header>
-      <ul className="xy-studio-hub-todo-list">
+      <ul className={cn(styles.todoList)}>
         {visible.map((item) => {
           const Icon = ICONS[item.icon];
           return (
             <li key={item.id}>
-              <div className="xy-studio-hub-todo-item">
+              <div className={cn(styles.todoItem)}>
                 <Icon aria-hidden="true" />
-                <div className="xy-studio-hub-todo-copy">
+                <div className={cn(styles.todoCopy)}>
                   <p>
-                    {item.isNew ? <span className="xy-studio-hub-todo-new">NEW</span> : null}
+                    {item.isNew ? <span className={cn(styles.todoNew)}>NEW</span> : null}
                     {item.title}
                   </p>
                   {item.time ? <time dateTime={item.time}>{formatStudioDateTime(item.time)}</time> : null}
                 </div>
-                <Link href={item.href} className="xy-studio-hub-todo-action">
+                <Link href={item.href} className={cn(styles.todoAction)}>
                   {item.icon === "scheduled" ? "管理" : "查看"}
                 </Link>
               </div>

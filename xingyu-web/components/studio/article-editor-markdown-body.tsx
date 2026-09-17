@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -238,7 +240,11 @@ export function ArticleEditorMarkdownBody({
 
   return (
     <div
-      className={`xy-editor-body-zone${dragging ? " is-dragging" : ""}${previewEnabled ? " is-inline-preview" : ""}`}
+      className={cn(
+        styles.bodyZone,
+        dragging && styles.isDragging,
+        previewEnabled && styles.isInlinePreview,
+      )}
       onDragEnter={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -250,11 +256,11 @@ export function ArticleEditorMarkdownBody({
       onDrop={handleDrop}
     >
       <div
-        className={`xy-editor-body-input-wrap${previewEnabled ? " is-inline-preview" : ""}`}
+        className={cn(styles.bodyInputWrap, previewEnabled && styles.isInlinePreview)}
       >
         {previewEnabled ? (
           <div
-            className="xy-editor-body-preview-readonly xy-editor-body-surface xy-article-body"
+            className={cn(styles.bodyPreviewReadonly, styles.bodySurface, "xy-article-body")}
             aria-label="文章预览"
           >
             <ArticleMarkdownBody body={value} />
@@ -262,12 +268,12 @@ export function ArticleEditorMarkdownBody({
         ) : null}
 
         <div
-          className={`xy-editor-body-source${previewEnabled ? " is-source-hidden" : ""}`}
+          className={cn(styles.bodySource, previewEnabled && styles.isSourceHidden)}
           aria-hidden={previewEnabled}
         >
           <div
             ref={lineNumbersRef}
-            className="xy-editor-body-line-numbers"
+            className={cn(styles.bodyLineNumbers)}
             aria-hidden="true"
           >
             {Array.from({ length: lineCount }, (_, index) => (
@@ -277,7 +283,8 @@ export function ArticleEditorMarkdownBody({
 
           <textarea
             ref={textareaRef}
-            className="xy-editor-body-surface xy-editor-body-input"
+            data-editor-body-input
+            className={cn(styles.bodySurface, styles.bodyInput)}
             value={value}
             placeholder="开始写作。可用上方工具栏排版，也可以把图片拖进来。"
             onChange={(event) => onChange(event.target.value)}
@@ -291,9 +298,9 @@ export function ArticleEditorMarkdownBody({
       </div>
 
       {!previewEnabled && images.length ? (
-        <div className="xy-editor-body-images" aria-label="文中图片预览">
+        <div className={cn(styles.bodyImages)} aria-label="文中图片预览">
           {images.map((image) => (
-            <figure key={`${image.lineIndex}-${image.url}`} className="xy-editor-body-image">
+            <figure key={`${image.lineIndex}-${image.url}`} className={cn(styles.bodyImage)}>
               <Image
                 src={image.url}
                 alt={image.alt || "文中插图"}
@@ -307,7 +314,7 @@ export function ArticleEditorMarkdownBody({
       ) : null}
 
       {dragging || uploading ? (
-        <div className="xy-editor-body-drop-hint" aria-live="polite">
+        <div className={cn(styles.bodyDropHint)} aria-live="polite">
           {uploading ? "图片上传中…" : "松开即可插入图片"}
         </div>
       ) : null}

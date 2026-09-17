@@ -1,0 +1,153 @@
+.followBtn {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease,
+    box-shadow 220ms ease,
+    transform 160ms ease;
+}
+
+.followBtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.followBtn[data-pulse="true"]:not(:disabled) {
+  animation: followBtnPop 360ms cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+
+.followBtnIcon {
+  position: relative;
+  display: inline-grid;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.375rem;
+}
+
+.followBtnGlyph {
+  grid-area: 1 / 1;
+  width: 1rem;
+  height: 1rem;
+  opacity: 0;
+  transform: scale(0.72) rotate(-12deg);
+  transition:
+    opacity 180ms ease,
+    transform 260ms cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+
+.followBtnGlyphActive {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.followBtnLabel {
+  display: inline-block;
+  animation: followBtnLabel 220ms ease;
+}
+
+.profileActionBtn {
+  height: 2rem;
+  border-radius: 999px;
+  padding-inline: 0.85rem;
+  font-size: 0.8125rem;
+  box-shadow: none;
+}
+
+.profileActionBtnPrimary {
+  border: 1px solid rgb(255 255 255 / 0.28);
+  background: rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  color: white;
+}
+
+.profileActionBtnPrimary:hover {
+  background: rgb(255 255 255 / 0.2);
+}
+
+.profileActionBtnFollowing {
+  border-color: rgb(255 255 255 / 0.2);
+  background: rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  color: rgb(255 255 255 / 0.92);
+}
+
+.profileActionBtnFollowing:hover {
+  background: rgb(255 255 255 / 0.16);
+  color: white;
+}
+
+.commentThread {
+  margin-top: 0.25rem;
+}
+
+.commentSort {
+  display: inline-flex;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: #eef2f7;
+}
+
+.commentSort button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.3rem 0.75rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.commentSortActive {
+  background: #fff;
+  color: #354696;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.06);
+}
+
+.commentCompose {
+  margin-top: 0 !important;
+}
+
+.commentInput {
+  min-height: 5.5rem !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: #eef2f7 !important;
+}
+
+.commentList {
+  margin-top: 1rem !important;
+}
+
+.commentItem {
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid #e8edf3;
+}
+
+.commentItemNested {
+  margin-top: 0.65rem;
+  margin-left: 1rem;
+}
+
+@keyframes followBtnPop {
+  0% { transform: scale(1); }
+  42% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+@keyframes followBtnLabel {
+  from {
+    opacity: 0.45;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

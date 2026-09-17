@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomePage } from "@/components/community/home-page";
+import { HomePageV2 } from "@/components/community/home-page-v2";
 import {
   communityApi,
   type ContentSummary,
@@ -13,6 +14,10 @@ import {
 } from "@/lib/community-api";
 import { useTimeGreeting } from "@/lib/use-time-greeting";
 import { AUTH_CHANGED_EVENT } from "@/lib/api-client";
+import shellStyles from "@/components/community/shell-primitives.module.css";
+
+// 功能开关：通过环境变量或 URL 参数启用 V2 版本
+const USE_V2_HOME = import.meta.env.VITE_USE_V2_HOME === "true";
 
 type HomeContent = {
   continueReading: ContentSummary[];
@@ -34,7 +39,7 @@ export default function HomePageRoute() {
 function HomeFallback() {
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <p className="text-sm text-muted-foreground">加载中…</p>
       </main>
     </AppShell>
@@ -44,6 +49,9 @@ function HomeFallback() {
 function HomePageContent() {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
+  const forceV2 = searchParams.get("v2") === "true"; // URL 参数强制启用 V2
+  const useV2 = USE_V2_HOME || forceV2;
+
   const timeGreeting = useTimeGreeting();
   const [content, setContent] = useState<HomeContent>({
     continueReading: [],
@@ -58,6 +66,12 @@ function HomePageContent() {
   const [galaxies, setGalaxies] = useState<GalaxySummary[]>([]);
   const [series, setSeries] = useState<SeriesSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<{
+    username?: string;
+    displayName?: string;
+    avatar?: string;
+    authenticated?: boolean;
+  }>({});
   const [profileName, setProfileName] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -85,8 +99,8 @@ function HomePageContent() {
     }
 
     try {
-      const profile = await communityApi.tryGetMyProfile();
-      if (!profile) {
+      const profileData = await communityApi.tryGetMyProfile();
+      if (!profileData) {
         const guest = await communityApi.getGuestHome();
         setContent({
           continueReading: [],
@@ -96,12 +110,19 @@ function HomePageContent() {
           pendingActions: [],
           isGuest: true,
         });
+        setProfile({});
         setProfileName(null);
         setGalaxies([]);
         setSeries([]);
         return;
       }
-      setProfileName(profile.displayName || profile.username || null);
+      setProfile({
+        username: profileData.username,
+        displayName: profileData.displayName,
+        avatar: profileData.avatar,
+        authenticated: true,
+      });
+      setProfileName(profileData.displayName || profileData.username || null);
       const [home, followingFeed, recommendedFeed, myGalaxies, mySeries] = await Promise.all([
         communityApi.getHome(),
         communityApi.getFeed("following", 0, 10).catch(() => []),
@@ -129,6 +150,7 @@ function HomePageContent() {
         pendingActions: [],
         isGuest: true,
       });
+      setProfile({});
       setProfileName(null);
       setGalaxies([]);
       setSeries([]);
@@ -158,19 +180,40 @@ function HomePageContent() {
 
   return (
     <AppShell>
-      <HomePage
-        isGuest={content.isGuest}
-        loading={loading}
-        greetingLead={greetingLead}
-        showUsernameChip={showUsernameChip}
-        continueReading={content.continueReading}
-        followUpdates={content.followUpdates}
-        recommendations={content.recommendations}
-        topics={topics}
-        announcements={announcements}
-        galaxies={galaxies}
-        series={series}
-      />
+      {useV2 ? (
+        <HomePageV2
+          isGuest={content.isGuest}
+          loading={loading}
+          profile={profile}
+          userState={{
+            draftCount: content.draftArticles?.length ?? 0,
+            unreadCount: 0, // TODO: 从通知 API 获取
+            continueReading: content.continueReading,
+            onboardingCompleted: true, // TODO: 从用户状态获取
+          }}
+          continueReading={content.continueReading}
+          followUpdates={content.followUpdates}
+          recommendations={content.recommendations}
+          topics={topics}
+          announcements={announcements}
+          galaxies={galaxies}
+          series={series}
+        />
+      ) : (
+        <HomePage
+          isGuest={content.isGuest}
+          loading={loading}
+          greetingLead={greetingLead}
+          showUsernameChip={showUsernameChip}
+          continueReading={content.continueReading}
+          followUpdates={content.followUpdates}
+          recommendations={content.recommendations}
+          topics={topics}
+          announcements={announcements}
+          galaxies={galaxies}
+          series={series}
+        />
+      )}
     </AppShell>
   );
 }

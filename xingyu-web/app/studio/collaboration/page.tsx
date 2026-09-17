@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { communityApi, type CollaborationInvite } from "@/lib/community-api";
 import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function StudioCollaborationPage() {
   const [note, setNote] = useState("");
@@ -44,7 +46,7 @@ export default function StudioCollaborationPage() {
 
   return (
     <AppShell>
-      <main className="xy-page max-w-2xl">
+      <main className={cn(shellStyles.page, "max-w-2xl")}>
         <PageHero variant="compact" eyebrow="创作台" title="协作邀请" description="生成邀请链接，邀请协作者加入你的创作空间。" />
         <Card>
           <CardTitle>创建协作邀请</CardTitle>

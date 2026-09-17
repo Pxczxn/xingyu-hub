@@ -12,6 +12,7 @@ public class FeedItemDTO {
     String type;
     String title;
     String summary;
+    String cover;
     String authorId;
     Instant createdAt;
 }

@@ -1,6 +1,7 @@
 package top.pxczxn.xingyu.admin.controller.community;
 
 import top.pxczxn.xingyu.common.result.Result;
+import top.pxczxn.xingyu.community.dto.AdminPasswordResetResult;
 import top.pxczxn.xingyu.community.dto.CommunityUserAdminView;
 import top.pxczxn.xingyu.community.service.CommunityUserAdminService;
 import lombok.RequiredArgsConstructor;
@@ -41,5 +42,10 @@ public class AdminCommunityUserController {
     public Result<Void> reject(@PathVariable String userId) {
         communityUserAdminService.reject(userId);
         return Result.ok();
+    }
+
+    @PostMapping("/{userId}/reset-password")
+    public Result<AdminPasswordResetResult> resetPassword(@PathVariable String userId) {
+        return Result.ok(communityUserAdminService.resetPassword(userId));
     }
 }

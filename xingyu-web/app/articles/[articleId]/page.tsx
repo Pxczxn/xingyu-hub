@@ -1,9 +1,11 @@
 "use client";
+import styles from "./article-detail.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { Eye, List, MessageCircle, X } from "lucide-react";
+import { List, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   ArticleEngagementActions,
@@ -15,8 +17,7 @@ import {
   ArticleSidePanel,
 } from "@/components/community/article-detail-sidebar";
 import { Alert } from "@/components/ui/alert";
-import { Avatar } from "@/components/ui/avatar";
-import { ApiError } from "@/lib/api-client";
+import { ApiError, resolveContentCoverUrl, resolveMediaUrl } from "@/lib/api-client";
 import { prepareArticleBodyForRead } from "@/lib/article-body-read";
 import { extractArticleMedia } from "@/lib/article-media";
 import {
@@ -103,7 +104,15 @@ export default function ArticleReadPage() {
     [article?.body],
   );
   const outline = articleBodyMarkdown ? extractArticleOutline(articleBodyMarkdown) : [];
-  const coverImage = articleBodyMarkdown ? extractArticleMedia(articleBodyMarkdown)[0]?.url : null;
+  const coverImage = useMemo(() => {
+    if (article?.coverUrl) return resolveMediaUrl(article.coverUrl);
+    if (articleBodyMarkdown) {
+      const fromBody = extractArticleMedia(articleBodyMarkdown)[0]?.url;
+      if (fromBody) return resolveMediaUrl(fromBody);
+    }
+    if (article?.id) return resolveContentCoverUrl(null, article.id);
+    return null;
+  }, [article?.coverUrl, article?.id, articleBodyMarkdown]);
   const topicTags = article?.topicSlugs?.length
     ? article.topicSlugs
     : article?.categorySlug
@@ -224,7 +233,7 @@ export default function ArticleReadPage() {
   if (error) {
     return (
       <AppShell>
-        <main className="xy-article-loading">
+        <main className={cn(styles.loading)}>
           <Alert variant="destructive">{error}</Alert>
         </main>
       </AppShell>
@@ -234,7 +243,7 @@ export default function ArticleReadPage() {
   if (!articleId || !article) {
     return (
       <AppShell>
-        <main className="xy-article-loading">正在加载文章…</main>
+        <main className={cn(styles.loading)}>正在加载文章…</main>
       </AppShell>
     );
   }
@@ -252,7 +261,7 @@ export default function ArticleReadPage() {
   };
 
   const outlineNav = (
-    <nav className="xy-article-outline__nav" aria-label="文章目录">
+    <nav className={cn(styles.outline__nav)} aria-label="文章目录">
       {outline.length ? (
         outline.map((item, index) => (
           <a
@@ -271,22 +280,22 @@ export default function ArticleReadPage() {
           </a>
         ))
       ) : (
-        <p className="xy-article-outline__empty">目录暂未提供</p>
+        <p className={cn(styles.outline__empty)}>目录暂未提供</p>
       )}
     </nav>
   );
 
   return (
     <AppShell>
-      <main className="xy-article-page">
-        <div className="xy-article-rail xy-article-rail--left">
-          <aside className="xy-article-outline">
-            <div className="xy-article-outline__progress">
-              <div className="xy-article-outline__progress-head">
+      <main className={cn(styles.page)}>
+        <div className={cn(styles.rail, styles.railLeft)}>
+          <aside className={cn(styles.outline)}>
+            <div className={cn(styles.outline__progress)}>
+              <div className={cn(styles.outline__progressHead)}>
                 <span>阅读进度</span>
                 <b>{progressPercent}%</b>
               </div>
-              <div className="xy-article-outline__progress-bar" aria-hidden="true">
+              <div className={cn(styles.outline__progressBar)} aria-hidden="true">
                 <span style={{ width: `${progressPercent}%` }} />
               </div>
             </div>
@@ -295,18 +304,18 @@ export default function ArticleReadPage() {
           </aside>
         </div>
 
-        <article className="xy-article-main">
-          <div className="xy-article-main__inner">
-            <header className="xy-article-header">
-              <div className="xy-article-header__top">
-                <div className="xy-article-breadcrumb">
+        <article className={cn(styles.main)}>
+          <div className={cn(styles.main__inner)}>
+            <header className={cn(styles.header)}>
+              <div className={cn(styles.header__top)}>
+                <div className={cn(styles.breadcrumb)}>
                   <Link href="/">首页</Link>
                   <span aria-hidden="true">›</span>
                   <span>文章</span>
                 </div>
                 <button
                   type="button"
-                  className="xy-article-outline-trigger"
+                  className={cn(styles.outlineTrigger)}
                   onClick={() => setOutlineOpen(true)}
                   aria-expanded={outlineOpen}
                 >
@@ -315,29 +324,16 @@ export default function ArticleReadPage() {
                 </button>
               </div>
               <h1>{article.title}</h1>
-              {article.summary ? <p className="xy-article-lead">{article.summary}</p> : null}
-              <div className="xy-article-meta-row">
-                <Link href={`/u/${article.ownerUsername}`} className="xy-article-meta-author">
-                  <Avatar src={authorAvatar} fallback={authorLabel} size="md" className="h-9 w-9" />
-                  <div>
-                    <b>{authorLabel}</b>
-                    <small>{publishedLabel}</small>
-                  </div>
-                </Link>
-                <div className="xy-article-meta-stats">
-                  <span><Eye aria-hidden="true" /> 阅读</span>
-                  <span><MessageCircle aria-hidden="true" /> {comments.length}</span>
-                </div>
-              </div>
+              {article.summary ? <p className={cn(styles.lead)}>{article.summary}</p> : null}
+
+              {coverImage ? (
+                <figure className={cn(styles.hero)}>
+                  <img src={coverImage} alt="" />
+                </figure>
+              ) : null}
             </header>
 
-            {coverImage ? (
-              <figure className="xy-article-hero">
-                <img src={coverImage} alt="" />
-              </figure>
-            ) : null}
-
-            <div className="xy-article-body">
+            <div className={cn(styles.body)}>
               <ArticleMarkdownBody body={articleBodyMarkdown} />
             </div>
 
@@ -348,7 +344,7 @@ export default function ArticleReadPage() {
               isAuthor={isAuthor}
             />
 
-            <section className="xy-article-comments" aria-labelledby="comment-title">
+            <section className={cn(styles.comments)} aria-labelledby="comment-title">
               <h2 id="comment-title">评论（{comments.length}）</h2>
               <CommentThread
                 comments={comments}
@@ -372,8 +368,8 @@ export default function ArticleReadPage() {
           ) : null}
         </article>
 
-        <div className="xy-article-rail xy-article-rail--right">
-          <aside className="xy-article-side">
+        <div className={cn(styles.rail, styles.railRight)}>
+          <aside className={cn(styles.side)}>
             <ArticleSidePanel
               article={article}
               authorLabel={authorLabel}
@@ -383,9 +379,9 @@ export default function ArticleReadPage() {
               onShare={shareArticle}
             />
 
-            <section className="xy-article-side-card">
+            <section className={cn(styles.sideCard)}>
               <h2>文章信息</h2>
-              <dl className="xy-article-side-meta">
+              <dl className={cn(styles.sideMeta)}>
                 <div>
                   <dt>发布时间</dt>
                   <dd>{publishedLabel}</dd>
@@ -403,7 +399,7 @@ export default function ArticleReadPage() {
                 {topicTags.length ? (
                   <div>
                     <dt>所属话题</dt>
-                    <dd className="xy-article-side-meta__topics">
+                    <dd className={cn(styles.sideMeta__topics)}>
                       {topicTags.map((tag) => (
                         <Link href={`/topics/${encodeURIComponent(tag)}`} key={tag}>{tag}</Link>
                       ))}
@@ -414,9 +410,9 @@ export default function ArticleReadPage() {
             </section>
 
             {contentTags.length ? (
-              <section className="xy-article-side-card">
+              <section className={cn(styles.sideCard)}>
                 <h2>内容标签</h2>
-                <div className="xy-article-side-tags">
+                <div className={cn(styles.sideTags)}>
                   {contentTags.map((tag) => (
                     <Link href={`/topics/${encodeURIComponent(tag)}`} key={tag}>{tag}</Link>
                   ))}
@@ -425,17 +421,17 @@ export default function ArticleReadPage() {
             ) : null}
 
             {seriesId ? (
-              <section className="xy-article-side-card">
+              <section className={cn(styles.sideCard)}>
                 <h2>相关推荐</h2>
-                <Link href={`/series/${encodeURIComponent(seriesId)}`} className="xy-article-related-card">
+                <Link href={`/series/${encodeURIComponent(seriesId)}`} className={cn(styles.relatedCard)}>
                   <b>继续阅读系列</b>
                   <small>查看本系列更多章节</small>
                 </Link>
               </section>
             ) : (
-              <section className="xy-article-side-card">
+              <section className={cn(styles.sideCard)}>
                 <h2>相关推荐</h2>
-                <Link href={`/u/${article.ownerUsername}`} className="xy-article-related-card">
+                <Link href={`/u/${article.ownerUsername}`} className={cn(styles.relatedCard)}>
                   <b>作者更多作品</b>
                   <small>前往 TA 的个人主页</small>
                 </Link>
@@ -447,21 +443,21 @@ export default function ArticleReadPage() {
       </main>
 
       {outlineOpen ? (
-        <div className="xy-article-outline-drawer" role="dialog" aria-modal="true" aria-label="文章目录">
-          <button type="button" className="xy-article-outline-backdrop" aria-label="关闭目录" onClick={() => setOutlineOpen(false)} />
-          <aside className="xy-article-outline xy-article-outline--drawer">
-            <div className="xy-article-outline__drawer-head">
+        <div className={cn(styles.outlineDrawer)} role="dialog" aria-modal="true" aria-label="文章目录">
+          <button type="button" className={cn(styles.outlineBackdrop)} aria-label="关闭目录" onClick={() => setOutlineOpen(false)} />
+          <aside className={cn(styles.outline, styles.outlineDrawer)}>
+            <div className={cn(styles.outline__drawerHead)}>
               <h2>文章目录</h2>
               <button type="button" onClick={() => setOutlineOpen(false)} aria-label="关闭">
                 <X aria-hidden="true" />
               </button>
             </div>
-            <div className="xy-article-outline__progress">
-              <div className="xy-article-outline__progress-head">
+            <div className={cn(styles.outline__progress)}>
+              <div className={cn(styles.outline__progressHead)}>
                 <span>阅读进度</span>
                 <b>{progressPercent}%</b>
               </div>
-              <div className="xy-article-outline__progress-bar" aria-hidden="true">
+              <div className={cn(styles.outline__progressBar)} aria-hidden="true">
                 <span style={{ width: `${progressPercent}%` }} />
               </div>
             </div>

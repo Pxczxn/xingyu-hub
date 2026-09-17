@@ -96,6 +96,7 @@ export const REDIRECT_RULES: RedirectRule[] = [
   { from: "/register/success", to: "/login", permanent: true },
   { from: "/onboarding/welcome", to: "/onboarding", permanent: true },
   { from: "/moments/new", to: "/studio/moments/new", permanent: true },
+  { from: "/settings", to: "/settings/profile", permanent: true },
   { from: "/settings/account", to: "/settings/profile", permanent: true },
   { from: "/settings/privacy", to: "/settings/privacy/profile", permanent: true },
   { from: "/blocks", to: "/settings/blocks", permanent: true },

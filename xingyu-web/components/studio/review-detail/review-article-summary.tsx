@@ -1,3 +1,5 @@
+import styles from "./review-detail.module.css";
+import { cn } from "@/lib/utils";
 import { FileText } from "lucide-react";
 import { resolveMediaUrl } from "@/lib/api-client";
 
@@ -22,17 +24,17 @@ export function ReviewArticleSummary({
   const coverSrc = coverUrl ? resolveMediaUrl(coverUrl) : null;
 
   return (
-    <section className="xy-review-article-section" aria-label="稿件信息">
-      <h3 className="xy-review-article-label">稿件信息</h3>
-      <article className="xy-review-article">
+    <section className={cn(styles.articleSection)} aria-label="稿件信息">
+      <h3 className={cn(styles.articleLabel)}>稿件信息</h3>
+      <article className={cn(styles.article)}>
         {coverSrc ? (
-          <img src={coverSrc} alt="" className="xy-review-article-cover" />
+          <img src={coverSrc} alt="" className={cn(styles.articleCover)} />
         ) : (
-          <div className="xy-review-article-cover is-placeholder" aria-hidden="true">
+          <div className={cn(styles.articleCover, styles.isPlaceholder)} aria-hidden="true">
             <FileText />
           </div>
         )}
-        <div className="xy-review-article-meta">
+        <div className={cn(styles.articleMeta)}>
           <h2>{title}</h2>
           <dl>
             <div>

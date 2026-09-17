@@ -8,6 +8,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { communityApi } from "@/lib/community-api";
 import { useAsyncData } from "@/lib/use-async-data";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function MePage() {
   const { data, loading, error } = useAsyncData(async () => {
@@ -31,9 +33,9 @@ export default function MePage() {
   if (!data?.profile) {
     return (
       <AppShell>
-        <main className="xy-page max-w-lg">
+        <main className={cn(shellStyles.page, "max-w-lg")}>
           {error && <Alert variant="destructive">{error}</Alert>}
-          <div className="xy-panel grid min-h-[50vh] place-items-center p-8 text-center">
+          <div className={cn(shellStyles.panel, "grid min-h-[50vh] place-items-center p-8 text-center")}>
             <div>
               <h1 className="text-2xl font-semibold text-[#23345a]">请先登录</h1>
               <p className="mt-3 text-sm text-muted-foreground">登录后即可查看个人中心、创作数据与社区活动。</p>

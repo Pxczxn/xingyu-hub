@@ -1,4 +1,6 @@
 "use client";
+import styles from "./moment-detail.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -50,21 +52,21 @@ export default function MomentDetailPage() {
   if (loading)
     return (
       <AppShell>
-        <main className="xy-moment-loading">正在打开动态…</main>
+        <main className={cn(styles.loading)}>正在打开动态…</main>
       </AppShell>
     );
   if (error || !data)
     return (
       <AppShell>
-        <main className="xy-moment-loading">
+        <main className={cn(styles.loading)}>
           <Alert variant="destructive">{error || "动态不存在"}</Alert>
         </main>
       </AppShell>
     );
   return (
     <AppShell>
-      <main className="xy-moment-page">
-        <aside className="xy-moment-rail">
+      <main className={cn(styles.page)} data-layout="moment-detail">
+        <aside className={cn(styles.rail)}>
           <nav>
             {[
               ["首页", "/"],
@@ -90,8 +92,8 @@ export default function MomentDetailPage() {
             </Button>
           </section>
         </aside>
-        <div className="xy-moment-center">
-          <article className="xy-moment-card">
+        <div className={cn(styles.center)}>
+          <article className={cn(styles.card)}>
             <header>
               <Link href="/moments">
                 <ArrowLeft />
@@ -106,7 +108,7 @@ export default function MomentDetailPage() {
                 <MoreHorizontal />
               </div>
             </header>
-            <div className="xy-moment-author">
+            <div className={cn(styles.author)}>
               <span>长</span>
               <div>
                 <Link href={`/u/${author}`}>
@@ -116,7 +118,7 @@ export default function MomentDetailPage() {
               </div>
             </div>
             <h1>{data.title || "动态标题暂未提供"}</h1>
-            <div className="xy-moment-body">
+            <div className={cn(styles.body)}>
               {(
                 data.body || "动态内容暂未提供"
               )
@@ -125,7 +127,7 @@ export default function MomentDetailPage() {
                   <p key={i}>{p}</p>
                 ))}
             </div>
-            <div className="xy-moment-gallery">
+            <div className={cn(styles.gallery)}>
               {["night-one", "night-two", "night-three"].map((x, i) => (
                 <Image
                   src={`/prototype-assets/moment-detail/${x}.png`}
@@ -136,14 +138,14 @@ export default function MomentDetailPage() {
                 />
               ))}
             </div>
-            <div className="xy-moment-tags">
+            <div className={cn(styles.tags)}>
               {topics.map((x) => (
                 <Link href="/topics" key={x}>
                   # {x}
                 </Link>
               ))}
             </div>
-            <div className="xy-moment-stats">
+            <div className={cn(styles.stats)}>
               <button type="button" disabled>
                 <Star />
                 互动数据暂未提供
@@ -162,11 +164,11 @@ export default function MomentDetailPage() {
               </button>
                 <span>浏览数据暂未提供</span>
             </div>
-            <div className="xy-moment-related xy-empty-related">
+            <div className={cn(styles.related, styles.emptyRelated)}>
               <p>关联文章暂未提供</p>
             </div>
           </article>
-          <section className="xy-moment-comments">
+          <section className={cn(styles.comments)}>
             <div>
               <h2>全部评论（{comments.length}）</h2>
               <span>按时间</span>
@@ -179,8 +181,8 @@ export default function MomentDetailPage() {
             />
           </section>
         </div>
-        <aside className="xy-moment-side">
-          <section className="xy-moment-about">
+        <aside className={cn(styles.side)}>
+          <section className={cn(styles.about)}>
             <h2>关于作者</h2>
             <div>
               <span>长</span>
@@ -197,12 +199,12 @@ export default function MomentDetailPage() {
             </p>
           </section>
           <section>
-            <div className="xy-moment-side-title">
+            <div className={cn(styles.sideTitle)}>
               <h2>相关话题</h2>
               <Link href="/topics">更多 ›</Link>
             </div>
             {topics.length ? topics.map((x, i) => (
-              <Link href="/topics" className="xy-moment-topic" key={x}>
+              <Link href="/topics" className={cn(styles.topic)} key={x}>
                 <Image
                   src={`/prototype-assets/moment-detail/night-${["one", "two", "three", "one"][i]}.png`}
                   alt=""
@@ -215,7 +217,7 @@ export default function MomentDetailPage() {
             )) : <p className="py-4 text-sm text-slate-400">相关话题暂未提供</p>}
           </section>
           <section>
-            <div className="xy-moment-side-title">
+            <div className={cn(styles.sideTitle)}>
               <h2>更多动态</h2>
               <Link href="/moments">更多 ›</Link>
             </div>

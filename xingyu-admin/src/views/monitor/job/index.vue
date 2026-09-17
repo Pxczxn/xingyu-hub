@@ -197,6 +197,7 @@ import { SearchOutline, RefreshOutline, AddOutline, ListOutline } from '@vicons/
 import { jobApi, type SysJob, type SysJobLog } from '@/api/monitor'
 import { useUserStore } from '@/stores/user'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(7)
 const logScroll = tableScrollX(7)
@@ -259,7 +260,7 @@ const columns: DataTableColumns<SysJob> = [
     if (hasPermission('monitor:job:delete')) {
       buttons.push(h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }))
     }
-    return buttons.length > 0 ? h(NSpace, null, { default: () => buttons }) : '-'
+    return buttons.length > 0 ? renderTableActionCell(buttons) : '-'
   }}
 ]
 

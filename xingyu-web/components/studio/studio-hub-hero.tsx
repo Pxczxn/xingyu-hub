@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-hub.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -31,20 +33,20 @@ export function StudioHubHero({ greeting, displayName, latestDraft, loading, onC
   }
 
   return (
-    <section className={`xy-studio-hub-hero${collapsed ? " is-collapsed" : ""}`} aria-labelledby="studio-hub-hero-title">
-      <div className="xy-studio-hub-hero-inner">
-        <div className="xy-studio-hub-hero-copy">
-          <h1 id="studio-hub-hero-title" className="xy-studio-hub-hero-title">
-            {greeting}，{displayName} <Sparkles className="xy-studio-hub-hero-star" aria-hidden="true" />
+    <section className={cn(styles.hero, collapsed && styles.isCollapsed)} aria-labelledby="studio-hub-hero-title">
+      <div className={cn(styles.heroInner)}>
+        <div className={cn(styles.heroCopy)}>
+          <h1 id="studio-hub-hero-title" className={cn(styles.heroTitle)}>
+            {greeting}，{displayName} <Sparkles className={cn(styles.heroStar)} aria-hidden="true" />
           </h1>
           {!collapsed ? (
-            <p className="xy-studio-hub-hero-subtitle">
+            <p className={cn(styles.heroSubtitle)}>
               今天想留下些什么？从一篇内容开始，慢慢沉淀你的星系。
             </p>
           ) : null}
         </div>
-        <div className="xy-studio-hub-hero-actions">
-          <button type="button" className="xy-studio-hub-hero-toggle" onClick={toggleCollapsed} aria-expanded={!collapsed}>
+        <div className={cn(styles.heroActions)}>
+          <button type="button" className={cn(styles.heroToggle)} onClick={toggleCollapsed} aria-expanded={!collapsed}>
             {collapsed ? (
               <>
                 展开 <ChevronDown aria-hidden="true" />
@@ -58,31 +60,31 @@ export function StudioHubHero({ greeting, displayName, latestDraft, loading, onC
         </div>
       </div>
       {!collapsed ? (
-        <div className="xy-studio-hub-hero-card-wrap">
+        <div className={cn(styles.heroCardWrap)}>
           {loading ? (
-            <div className="xy-studio-hub-hero-card xy-studio-hub-skeleton" aria-busy="true" aria-label="正在加载草稿">
-              <span className="xy-studio-hub-skeleton-line" />
-              <span className="xy-studio-hub-skeleton-line short" />
+            <div className={cn(styles.heroCard, styles.skeleton)} aria-busy="true" aria-label="正在加载草稿">
+              <span className={cn(styles.skeletonLine)} />
+              <span className={cn(styles.skeletonLine, "short")} />
             </div>
           ) : latestDraft ? (
-            <Link href={`/studio/content/${encodeURIComponent(latestDraft.id)}`} className="xy-studio-hub-hero-card">
+            <Link href={`/studio/content/${encodeURIComponent(latestDraft.id)}`} className={cn(styles.heroCard)}>
               <div>
                 <strong>继续上次的创作</strong>
                 <p>
                   {latestDraft.title || "未命名文章"} · 草稿 · {formatStudioDateTime(latestDraft.updatedAt)}
                 </p>
               </div>
-              <span className="xy-studio-hub-hero-card-cta">
+              <span className={cn(styles.heroCardCta)}>
                 继续编辑 <ArrowRight aria-hidden="true" />
               </span>
             </Link>
           ) : (
-            <button type="button" className="xy-studio-hub-hero-card" onClick={onCreateArticle}>
+            <button type="button" className={cn(styles.heroCard)} onClick={onCreateArticle}>
               <div>
                 <strong>开始第一篇创作</strong>
                 <p>从一篇文章开始，记录你的想法</p>
               </div>
-              <span className="xy-studio-hub-hero-card-cta">
+              <span className={cn(styles.heroCardCta)}>
                 开始创作 <PenLine aria-hidden="true" />
               </span>
             </button>

@@ -12,6 +12,7 @@ public class ArticlePublicView {
     String id;
     String title;
     String summary;
+    String coverUrl;
     String bodyMode;
     String body;
     String slug;

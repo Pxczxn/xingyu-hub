@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -57,7 +59,7 @@ export function ArticleEditorSettings({
   useEffect(() => {
     if (!coverPreviewOpen) return;
     const previousOverflow = document.body.style.overflow;
-    const editorPage = document.querySelector<HTMLElement>(".xy-editor-page");
+    const editorPage = document.querySelector<HTMLElement>("[data-editor-root]");
     document.body.classList.add("xy-editor-cover-lightbox-open");
     document.body.style.overflow = "hidden";
     editorPage?.setAttribute("inert", "");
@@ -84,25 +86,25 @@ export function ArticleEditorSettings({
   }
 
   return (
-    <aside className="xy-editor-settings" aria-label="发布设置">
-      <section className="xy-editor-settings__card">
+    <aside className={cn(styles.settings)} aria-label="发布设置">
+      <section className={cn(styles.settingsCard)}>
         <h2>封面图</h2>
-        <div className="xy-editor-settings__cover">
+        <div className={cn(styles.settingsCover)}>
           {coverUrl ? (
-            <div className="xy-editor-settings__cover-preview is-clickable">
+            <div className={cn(styles.settingsCoverPreview, styles.isClickable)}>
               <button
                 type="button"
-                className="xy-editor-settings__cover-preview-open"
+                className={cn(styles.settingsCoverPreviewOpen)}
                 aria-label="查看封面大图"
                 disabled={coverUploading}
                 onClick={() => setCoverPreviewOpen(true)}
               >
                 <img src={previewSrc} alt="文章封面" />
-                <span className="xy-editor-settings__cover-zoom-hint">点击查看大图</span>
+                <span className={cn(styles.settingsCoverZoomHint)}>点击查看大图</span>
               </button>
               <button
                 type="button"
-                className="xy-editor-settings__cover-remove"
+                className={cn(styles.settingsCoverRemove)}
                 aria-label="移除封面"
                 disabled={coverUploading}
                 onClick={onCoverRemove}
@@ -111,7 +113,7 @@ export function ArticleEditorSettings({
               </button>
             </div>
           ) : (
-            <div className="xy-editor-settings__cover-preview">
+            <div className={cn(styles.settingsCoverPreview)}>
               <img src={previewSrc} alt="封面占位图" />
             </div>
           )}
@@ -145,7 +147,7 @@ export function ArticleEditorSettings({
       {coverPreviewOpen && coverUrl && typeof document !== "undefined"
         ? createPortal(
             <div
-              className="xy-editor-cover-lightbox"
+              className={cn(styles.coverLightbox)}
               role="dialog"
               aria-modal="true"
               aria-label="封面预览"
@@ -153,7 +155,7 @@ export function ArticleEditorSettings({
             >
               <button
                 type="button"
-                className="xy-editor-cover-lightbox__close"
+                className={cn(styles.coverLightboxClose)}
                 aria-label="关闭预览"
                 onClick={() => setCoverPreviewOpen(false)}
               >
@@ -162,7 +164,7 @@ export function ArticleEditorSettings({
               <img
                 src={resolveMediaUrl(coverUrl)}
                 alt="文章封面大图"
-                className="xy-editor-cover-lightbox__image"
+                className={cn(styles.coverLightboxImage)}
                 onClick={(event) => event.stopPropagation()}
               />
             </div>,
@@ -170,12 +172,12 @@ export function ArticleEditorSettings({
           )
         : null}
 
-      <section className="xy-editor-settings__card">
+      <section className={cn(styles.settingsCard)}>
         <h2>话题分类</h2>
         {categories.length ? (
-          <div className="xy-editor-settings__group">
-            <p className="xy-editor-settings__subhead">个人分类</p>
-            <div className="xy-editor-settings__pills">
+          <div className={cn(styles.settingsGroup)}>
+            <p className={cn(styles.settingsSubhead)}>个人分类</p>
+            <div className={cn(styles.settingsPills)}>
               <button
                 type="button"
                 className={!categoryId ? "is-active" : ""}
@@ -196,9 +198,9 @@ export function ArticleEditorSettings({
             </div>
           </div>
         ) : null}
-        <div className="xy-editor-settings__group">
-          <p className="xy-editor-settings__subhead">话题</p>
-          <div className="xy-editor-settings__pills">
+        <div className={cn(styles.settingsGroup)}>
+          <p className={cn(styles.settingsSubhead)}>话题</p>
+          <div className={cn(styles.settingsPills)}>
             {topics.length ? (
               topics.map((topic) => (
                 <button
@@ -211,17 +213,17 @@ export function ArticleEditorSettings({
                 </button>
               ))
             ) : (
-              <span className="xy-editor-settings__hint">暂无可选话题</span>
+              <span className={cn(styles.settingsHint)}>暂无可选话题</span>
             )}
           </div>
         </div>
       </section>
 
-      <section className="xy-editor-settings__card">
+      <section className={cn(styles.settingsCard)}>
         <h2>发布选项</h2>
-        <div className="xy-editor-settings__group">
-          <p className="xy-editor-settings__subhead">可见范围</p>
-          <div className="xy-editor-settings__pills">
+        <div className={cn(styles.settingsGroup)}>
+          <p className={cn(styles.settingsSubhead)}>可见范围</p>
+          <div className={cn(styles.settingsPills)}>
             {VISIBILITY_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -234,27 +236,27 @@ export function ArticleEditorSettings({
             ))}
           </div>
         </div>
-        <div className="xy-editor-settings__group">
-          <p className="xy-editor-settings__subhead">
+        <div className={cn(styles.settingsGroup)}>
+          <p className={cn(styles.settingsSubhead)}>
             <Calendar className="h-3.5 w-3.5" />
             定时发布
           </p>
           <input
             type="datetime-local"
-            className="xy-editor-settings__datetime"
+            className={cn(styles.settingsDatetime)}
             value={scheduledPublishAt}
             onChange={(e) => onScheduleChange(e.target.value)}
           />
         </div>
       </section>
 
-      <section className="xy-editor-settings__card xy-editor-settings__card--danger">
+      <section className={cn(styles.settingsCard, styles.settingsCardDanger)}>
         <h2>删除草稿</h2>
-        <p className="xy-editor-settings__hint">移入回收站后仍可在内容列表找回。</p>
+        <p className={cn(styles.settingsHint)}>移入回收站后仍可在内容列表找回。</p>
         <Button
           type="button"
           variant="outline"
-          className="xy-editor-settings__trash"
+          className={cn(styles.settingsTrash)}
           onClick={onTrash}
         >
           <Trash2 className="h-4 w-4" />

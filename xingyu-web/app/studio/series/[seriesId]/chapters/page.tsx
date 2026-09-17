@@ -83,7 +83,7 @@ export default function SeriesChaptersPage() {
   }
   return (
     <AppShell>
-      <main className="xy-chapter-page mx-auto max-w-[1400px] px-5 py-8 lg:px-8">
+      <main className="mx-auto max-w-[1400px] px-5 py-8 lg:px-8">
         {loading ? (
           <div className="rounded-3xl bg-white/70 p-12 text-center text-slate-500">
             正在载入章节…

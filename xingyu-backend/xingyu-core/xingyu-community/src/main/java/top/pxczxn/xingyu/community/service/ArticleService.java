@@ -293,6 +293,7 @@ public class ArticleService {
                 .id(article.getId())
                 .title(revision.getTitle())
                 .summary(revision.getSummary())
+                .coverUrl(revision.getCoverUrl())
                 .bodyMode(revision.getBodyMode())
                 .body(revision.getBody())
                 .slug(revision.getSlug())

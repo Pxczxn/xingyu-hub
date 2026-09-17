@@ -1,0 +1,102 @@
+/* 星语社区首页 V2 - 全局样式变量 */
+
+:root {
+  /* ========== Hero 区域 ========== */
+  --hero-height-min: 420px;
+  --hero-height-max: 580px;
+  --hero-gradient-from: rgb(var(--violet) / 0.15);
+  --hero-gradient-to: rgb(var(--accent) / 0.08);
+  --hero-padding: 3rem;
+
+  /* ========== 卡片系统 ========== */
+  --card-radius: 16px;
+  --card-radius-sm: 12px;
+  --card-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+  --card-shadow-hover: 0 16px 32px rgb(0 0 0 / 0.12);
+  --card-border: 1px solid rgb(var(--border));
+
+  /* ========== 间距系统 ========== */
+  --section-gap: 3rem;
+  --card-gap: 1.5rem;
+  --content-gap: 1rem;
+
+  /* ========== 动画 ========== */
+  --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.2s;
+  --transition-normal: 0.3s;
+  --transition-slow: 0.5s;
+
+  /* ========== 布局 ========== */
+  --layout-max-width: 1180px;
+  --sidebar-width: 360px;
+}
+
+/* ========== 响应式调整 ========== */
+@media (max-width: 767px) {
+  :root {
+    --hero-height-min: 320px;
+    --hero-padding: 2rem;
+    --section-gap: 2rem;
+    --card-gap: 1rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --hero-height-min: 360px;
+    --section-gap: 2.5rem;
+  }
+}
+
+/* ========== 动画关键帧 ========== */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========== 通用动画类 ========== */
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--muted)) 0%,
+    rgb(var(--muted) / 0.5) 50%,
+    rgb(var(--muted)) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal) var(--transition-smooth);
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-normal) var(--transition-smooth);
+}
+
+/* ========== 减少动画（无障碍） ========== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

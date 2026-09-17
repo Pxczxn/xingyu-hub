@@ -19,6 +19,8 @@ import {
 } from "@/lib/user-preferences";
 import { useAsyncData } from "@/lib/use-async-data";
 import { cn } from "@/lib/utils";
+import searchStyles from "./search.module.css";
+import tabStyles from "@/components/community/discover-tabs.module.css";
 
 const TYPES = [
   ["ALL", "全部"],
@@ -44,10 +46,10 @@ function objectTypeLabel(type?: string) {
 
 function resultMarkClass(type?: string) {
   const key = type?.toUpperCase() ?? "ARTICLE";
-  if (key === "MOMENT") return "xy-search-result-mark--moment";
-  if (key === "SERIES") return "xy-search-result-mark--series";
-  if (key === "TOPIC") return "xy-search-result-mark--topic";
-  return "xy-search-result-mark--article";
+  if (key === "MOMENT") return styles.resultMarkMoment;
+  if (key === "SERIES") return styles.resultMarkSeries;
+  if (key === "TOPIC") return styles.resultMarkTopic;
+  return styles.resultMarkArticle;
 }
 
 export default function SearchPage() {
@@ -55,8 +57,8 @@ export default function SearchPage() {
     <Suspense
       fallback={
         <AppShell>
-          <main className="xy-search-page">
-            <p className="xy-search-status">加载中…</p>
+          <main className={cn(searchStyles.page)}>
+            <p className={cn(searchStyles.status)}>加载中…</p>
           </main>
         </AppShell>
       }
@@ -76,7 +78,7 @@ function SearchForm({
   onSubmit: (event: FormEvent) => void;
 }) {
   return (
-    <form onSubmit={onSubmit} className="xy-search-form">
+    <form onSubmit={onSubmit} className={cn(searchStyles.form)}>
       <Input
         value={draft}
         onChange={(event) => onDraftChange(event.target.value)}
@@ -84,7 +86,7 @@ function SearchForm({
         aria-label="搜索关键词"
         autoFocus
       />
-      <Button type="submit" className="xy-search-submit">
+      <Button type="submit" className={cn(searchStyles.submit)}>
         <Search className="mr-2 h-4 w-4" aria-hidden="true" />
         <span>搜索</span>
       </Button>
@@ -144,29 +146,29 @@ function SearchContent() {
 
   return (
     <AppShell>
-      <main className="xy-search-page">
+      <main className={cn(searchStyles.page)}>
         {query ? (
-          <header className="xy-search-results-head">
-            <p className="xy-search-kicker">
+          <header className={cn(searchStyles.resultsHead)}>
+            <p className={cn(searchStyles.kicker)}>
               <Search aria-hidden="true" />
               搜索结果
             </p>
-            <h1 className="xy-search-query-title">{query}</h1>
+            <h1 className={cn(searchStyles.queryTitle)}>{query}</h1>
           </header>
         ) : (
-          <header className="xy-search-hero-card">
-            <p className="xy-search-kicker">
+          <header className={cn(searchStyles.heroCard)}>
+            <p className={cn(searchStyles.kicker)}>
               <Sparkles aria-hidden="true" />
               全站搜索
             </p>
-            <h1 className="xy-search-hero-title">寻找值得继续探索的内容</h1>
+            <h1 className={cn(searchStyles.heroTitle)}>寻找值得继续探索的内容</h1>
             <SearchForm draft={draft} onDraftChange={setDraft} onSubmit={submit} />
           </header>
         )}
 
         {!query ? (
-          <section className="xy-search-panel" aria-label="最近搜索">
-            <div className="xy-search-panel-head">
+          <section className={cn(searchStyles.panel)} aria-label="最近搜索">
+            <div className={cn(searchStyles.panelHead)}>
               <h2>
                 <Clock3 aria-hidden="true" />
                 最近搜索
@@ -178,11 +180,11 @@ function SearchContent() {
                 </Button>
               ) : null}
             </div>
-            <div className="xy-search-panel-body">
+            <div className={cn(searchStyles.panelBody)}>
               {history.length ? (
-                <div className="xy-search-history-chips">
+                <div className={cn(searchStyles.historyChips)}>
                   {history.map((value) => (
-                    <span key={value} className="xy-search-history-chip">
+                    <span key={value} className={cn(searchStyles.historyChip)}>
                       <Link href={`/search?q=${encodeURIComponent(value)}`}>{value}</Link>
                       <button
                         type="button"
@@ -200,15 +202,15 @@ function SearchContent() {
             </div>
           </section>
         ) : (
-          <section className="xy-search-panel" aria-label="搜索结果">
-            <div className="xy-search-panel-body xy-search-panel-body--toolbar">
-              <div className="xy-search-toolbar">
-                <nav className="xy-discover-type-tabs" aria-label="搜索类型">
+          <section className={cn(searchStyles.panel)} aria-label="搜索结果">
+            <div className={cn(searchStyles.panelBody, searchStyles.panelBodyToolbar)}>
+              <div className={cn(searchStyles.toolbar)}>
+                <nav className={cn(tabStyles.typeTabs)} aria-label="搜索类型">
                   {TYPES.map(([value, label]) => (
                     <button
                       type="button"
                       key={value}
-                      className={cn(type === value && "is-active")}
+                      className={cn(type === value && tabStyles.isActive)}
                       aria-pressed={type === value}
                       onClick={() => setType(value)}
                     >
@@ -216,10 +218,10 @@ function SearchContent() {
                     </button>
                   ))}
                 </nav>
-                <div className="xy-discover-sort-tabs" role="group" aria-label="排序方式">
+                <div className={cn(tabStyles.sortTabs)} role="group" aria-label="排序方式">
                   <button
                     type="button"
-                    className={cn(sort === "hot" && "is-active")}
+                    className={cn(sort === "hot" && tabStyles.isActive)}
                     aria-pressed={sort === "hot"}
                     onClick={() => setSort("hot")}
                   >
@@ -227,7 +229,7 @@ function SearchContent() {
                   </button>
                   <button
                     type="button"
-                    className={cn(sort === "latest" && "is-active")}
+                    className={cn(sort === "latest" && tabStyles.isActive)}
                     aria-pressed={sort === "latest"}
                     onClick={() => setSort("latest")}
                   >
@@ -238,35 +240,35 @@ function SearchContent() {
             </div>
 
             {result.loading ? (
-              <p className="xy-search-status">正在搜索…</p>
+              <p className={cn(searchStyles.status)}>正在搜索…</p>
             ) : result.error ? (
-              <div className="xy-search-empty-wrap">
+              <div className={cn(searchStyles.emptyWrap)}>
                 <EmptyState compact title="搜索暂时不可用" description={result.error} />
               </div>
             ) : items.length ? (
-              <ul className="xy-search-results">
+              <ul className={cn(searchStyles.results)}>
                 {items.map((item) => {
                   const typeKey = item.objectType?.toUpperCase() ?? "ARTICLE";
                   const isUser = typeKey === "USER";
                   return (
-                    <li key={`${item.objectType}-${item.id}`} className="xy-search-result-item">
-                      <Link href={contentHref(item)} className="xy-search-result-link">
+                    <li key={`${item.objectType}-${item.id}`} className={cn(searchStyles.resultItem)}>
+                      <Link href={contentHref(item)} className={cn(searchStyles.resultLink)}>
                         {isUser ? (
                           <Avatar
                             src={item.avatar}
                             fallback={item.title || item.id}
                             size="sm"
-                            className="xy-search-result-avatar"
+                            className={cn(searchStyles.resultAvatar)}
                             alt=""
                           />
                         ) : (
-                          <span className={cn("xy-search-result-mark", resultMarkClass(item.objectType))} aria-hidden="true">
+                          <span className={cn(styles.resultMark, resultMarkClass(item.objectType))} aria-hidden="true">
                             {objectTypeLabel(item.objectType).slice(0, 2)}
                           </span>
                         )}
-                        <span className="xy-search-result-body">
-                          <span className="xy-search-result-meta">
-                            <span className="xy-search-result-type">{objectTypeLabel(item.objectType)}</span>
+                        <span className={cn(searchStyles.resultBody)}>
+                          <span className={cn(searchStyles.resultMeta)}>
+                            <span className={cn(searchStyles.resultType)}>{objectTypeLabel(item.objectType)}</span>
                             {item.updatedAt ? (
                               <time dateTime={item.updatedAt}>
                                 {new Date(item.updatedAt).toLocaleDateString("zh-CN")}
@@ -284,7 +286,7 @@ function SearchContent() {
                 })}
               </ul>
             ) : (
-              <div className="xy-search-empty-wrap">
+              <div className={cn(searchStyles.emptyWrap)}>
                 <EmptyState
                   compact
                   icon={Search}

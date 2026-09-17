@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
@@ -91,7 +93,7 @@ function FormatButton({
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => onFormat(item.key as EditorFormatAction)}
     >
-      <Icon className="xy-editor-format-bar__icon" aria-hidden="true" />
+      <Icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
     </button>
   );
 }
@@ -115,7 +117,7 @@ function BlockTypeDropdown({
   useDismissOnOutside(open, () => setOpen(false), rootRef);
 
   return (
-    <div ref={rootRef} className="xy-editor-format-bar__dropdown">
+    <div ref={rootRef} className={cn(styles.formatBarDropdown)}>
       <button
         type="button"
         title={`块类型：${currentOption.label}`}
@@ -123,16 +125,20 @@ function BlockTypeDropdown({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`块类型：${currentOption.label}`}
-        className={`xy-editor-format-bar__block-type-trigger cursor-pointer${currentBlockType !== "paragraph" ? " is-active" : ""}`}
+        className={cn(
+          styles.formatBarBlockTypeTrigger,
+          "cursor-pointer",
+          currentBlockType !== "paragraph" && styles.isActive,
+        )}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setOpen((current) => !current)}
       >
-        <currentOption.icon className="xy-editor-format-bar__icon" aria-hidden="true" />
-        <ChevronDown className="xy-editor-format-bar__chevron" aria-hidden="true" />
+        <currentOption.icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
+        <ChevronDown className={cn(styles.formatBarChevron)} aria-hidden="true" />
       </button>
 
       {open ? (
-        <div className="xy-editor-format-dropdown-menu" role="menu" aria-label="块类型">
+        <div className={cn(styles.formatDropdownMenu)} role="menu" aria-label="块类型">
           {TOOLBAR_BLOCK_TYPE_OPTIONS.map(({ blockType, action, label, icon: Icon }) => {
             const active = currentBlockType === blockType;
             return (
@@ -141,14 +147,14 @@ function BlockTypeDropdown({
                 type="button"
                 role="menuitem"
                 aria-pressed={active}
-                className={`xy-editor-format-dropdown-menu__item${active ? " is-active" : ""}`}
+                className={cn(styles.formatDropdownMenuItem, active && styles.isActive)}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   onFormat(action);
                   setOpen(false);
                 }}
               >
-                <Icon className="xy-editor-format-bar__icon" aria-hidden="true" />
+                <Icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
                 <span>{label}</span>
               </button>
             );
@@ -201,7 +207,7 @@ function ToolbarMenu({
   }
 
   return (
-    <div ref={rootRef} className="xy-editor-format-bar__dropdown">
+    <div ref={rootRef} className={cn(styles.formatBarDropdown)}>
       <button
         type="button"
         title={segment.title}
@@ -209,16 +215,16 @@ function ToolbarMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={segment.title}
-        className={`xy-editor-format-bar__menu-trigger cursor-pointer${active ? " is-active" : ""}`}
+        className={cn(styles.formatBarMenuTrigger, "cursor-pointer", active && styles.isActive)}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setOpen((current) => !current)}
       >
-        <TriggerIcon className="xy-editor-format-bar__icon" aria-hidden="true" />
-        <ChevronDown className="xy-editor-format-bar__chevron" aria-hidden="true" />
+        <TriggerIcon className={cn(styles.formatBarIcon)} aria-hidden="true" />
+        <ChevronDown className={cn(styles.formatBarChevron)} aria-hidden="true" />
       </button>
 
       {open ? (
-        <div className="xy-editor-format-dropdown-menu" role="menu" aria-label={segment.title}>
+        <div className={cn(styles.formatDropdownMenu)} role="menu" aria-label={segment.title}>
           {items.map((key) => {
             const item = TOOLBAR_ACTIONS[key];
             const itemActive = Boolean(item.isActive?.(formatState));
@@ -228,12 +234,12 @@ function ToolbarMenu({
                 type="button"
                 role="menuitem"
                 aria-pressed={itemActive}
-                className={`xy-editor-format-dropdown-menu__item${itemActive ? " is-active" : ""}`}
+                className={cn(styles.formatDropdownMenuItem, itemActive && styles.isActive)}
                 data-xy-link-trigger={key === "link" ? "true" : undefined}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handleItemClick(key)}
               >
-                <item.icon className="xy-editor-format-bar__icon" aria-hidden="true" />
+                <item.icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
                 <span>{item.title}</span>
               </button>
             );
@@ -272,14 +278,14 @@ export function ArticleEditorToolbar({
   const narrow = useNarrowToolbar();
 
   return (
-    <div className="xy-editor-toolbar-combined" role="toolbar" aria-label="正文编辑工具">
+    <div className={cn(styles.toolbarCombined)} role="toolbar" aria-label="正文编辑工具">
       <div
-        className="xy-editor-body-mode"
+        className={cn(styles.bodyMode)}
         role="tablist"
         aria-label="正文编辑模式"
         data-active={bodyMode}
       >
-        <span className="xy-editor-body-mode__indicator" aria-hidden="true" />
+        <span className={cn(styles.bodyModeIndicator)} aria-hidden="true" />
         <button
           type="button"
           role="tab"
@@ -300,9 +306,9 @@ export function ArticleEditorToolbar({
         </button>
       </div>
 
-      <div className="xy-editor-toolbar-combined__divider" aria-hidden="true" />
+      <div className={cn(styles.toolbarCombinedDivider)} aria-hidden="true" />
 
-      <div className="xy-editor-format-bar">
+      <div className={cn(styles.formatBar)}>
         {ARTICLE_EDITOR_TOOLBAR_SEGMENTS.map((segment, index) => {
           if (segment.kind === "link" && narrow) return null;
 
@@ -310,7 +316,7 @@ export function ArticleEditorToolbar({
             switch (segment.kind) {
               case "history":
                 return (
-                  <div className="xy-editor-format-bar__group" aria-label="撤销与重做">
+                  <div className={cn(styles.formatBarGroup)} aria-label="撤销与重做">
                     {TOOLBAR_HISTORY_ACTIONS.map((item) => (
                       <FormatButton
                         key={item.key}
@@ -332,7 +338,7 @@ export function ArticleEditorToolbar({
                 );
               case "inline":
                 return (
-                  <div className="xy-editor-format-bar__group" aria-label="行内格式">
+                  <div className={cn(styles.formatBarGroup)} aria-label="行内格式">
                     {TOOLBAR_INLINE_ACTIONS.map((item) => (
                       <FormatButton
                         key={item.key}
@@ -377,14 +383,13 @@ export function ArticleEditorToolbar({
           return (
             <div
               key={`${segment.kind}-${index}`}
-              className={
-                trailingMore
-                  ? "xy-editor-format-bar__segment xy-editor-format-bar__segment--trailing"
-                  : "xy-editor-format-bar__segment"
-              }
+              className={cn(
+                styles.formatBarSegment,
+                trailingMore && styles.formatBarSegmentTrailing,
+              )}
             >
               {index > 0 ? (
-                <div className="xy-editor-toolbar-combined__divider" aria-hidden="true" />
+                <div className={cn(styles.toolbarCombinedDivider)} aria-hidden="true" />
               ) : null}
               {segmentNode}
             </div>

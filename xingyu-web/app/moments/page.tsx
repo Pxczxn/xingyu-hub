@@ -1,4 +1,6 @@
 "use client";
+import styles from "./moments-feed.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -36,8 +38,8 @@ export default function MomentsPage() {
   }, []);
   return (
     <AppShell>
-      <main className="xy-feed-page">
-        <section className="xy-feed-main">
+      <main className={cn(styles.feedPage)} data-layout="moments-feed">
+        <section className={cn(styles.main)}>
           <header>
             <span>我的动态</span>
             <h1>
@@ -46,16 +48,16 @@ export default function MomentsPage() {
             <p>记录我所思、所见与热爱的时刻</p>
           </header>
           {loading ? (
-            <div className="xy-feed-loading" aria-busy="true"><span/><span/><span/></div>
+            <div className={cn(styles.feedLoading)} aria-busy="true"><span/><span/><span/></div>
           ) : moments.length ? (
             moments.map((moment, index) => (
-            <article className="xy-feed-entry" key={moment.id}>
+            <article className={cn(styles.entry)} key={moment.id}>
               <time>
                 <b>{moment.createdAt ? new Date(moment.createdAt).toLocaleDateString("zh-CN") : "日期暂未提供"}</b>
                 <i>✦</i>
                     <small>{moment.createdAt ? new Date(moment.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "时间暂未提供"}</small>
               </time>
-              <div className="xy-feed-card">
+              <div className={cn(styles.card)}>
                 <header>
                   <Link href={moment.authorUsername ? `/u/${moment.authorUsername}` : "/users"}>
                     <Image
@@ -76,7 +78,7 @@ export default function MomentsPage() {
                 </header>
                 <p>{moment.body || "动态内容暂未提供"}</p>
                 {index === 0 ? (
-                  <div className="xy-feed-gallery">
+                  <div className={cn(styles.gallery)}>
                     <Image
                       src="/prototype-assets/moments-feed/river.png"
                       alt="河流中的纸船"
@@ -92,14 +94,14 @@ export default function MomentsPage() {
                   </div>
                 ) : (
                   <Image
-                    className="xy-feed-night"
+                    className={cn(styles.night)}
                     src="/prototype-assets/moments-feed/night.png"
                     alt="星空"
                     width={331}
                     height={113}
                   />
                 )}
-                <Link className="xy-feed-topic" href="/topics">
+                <Link className={cn(styles.topic)} href="/topics">
                   # {index ? "星空记录" : "阅读笔记"}
                 </Link>
                 <footer>
@@ -115,7 +117,7 @@ export default function MomentsPage() {
                   <Bookmark />
                 </footer>
                 {index === 0 && (
-                  <div className="xy-feed-comments">
+                  <div className={cn(styles.comments)}>
                     <p>评论内容暂未提供</p>
                     <Link href={`/moments/${moment.id}`}>
                       查看全部评论 ›
@@ -135,8 +137,8 @@ export default function MomentsPage() {
             />
           )}
         </section>
-        <aside className="xy-feed-side">
-          <section className="xy-feed-profile">
+        <aside className={cn(styles.side)}>
+          <section className={cn(styles.profile)}>
             <div>
               <Image
                 src="/prototype-assets/moments-feed/avatar.png"
@@ -170,14 +172,14 @@ export default function MomentsPage() {
               我阅读的，是想抵达的远方。
             </blockquote>
           </section>
-          <Link href="/studio/moments/new" className="xy-feed-write">
+          <Link href="/studio/moments/new" className={cn(styles.write)}>
             <span>羽</span>
             <b>
               写下此刻的想法<small>记录灵感 · 分享思考</small>
             </b>
             <ChevronRight />
           </Link>
-          <section className="xy-feed-topics">
+          <section className={cn(styles.topics)}>
             <h2>常去话题</h2>
             {COMMON_TOPICS.map(([icon, title, description, count]) => (
               <Link href="/topics" key={title}>

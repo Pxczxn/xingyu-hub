@@ -9,6 +9,7 @@ import { PageHero } from "@/components/community/page-primitives";
 import { communityApi } from "@/lib/community-api";
 import { formatDateTime } from "@/lib/format";
 import { useAsyncData } from "@/lib/use-async-data";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 function statusLabel(status: string) {
   if (status === "PENDING") return "待处理";
@@ -25,7 +26,7 @@ export default function RequestsPage() {
 
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <PageHero variant="compact"
           eyebrow="个人中心"
           title="关系请求"

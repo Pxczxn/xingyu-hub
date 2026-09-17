@@ -1,0 +1,61 @@
+.typeTabs button.isPersonal {
+  border-style: dashed;
+}
+
+.typeTabs {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scrollbar-width: none;
+}
+
+.typeTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.typeTabs button {
+  flex-shrink: 0;
+  border: 1px solid #e8e4dc;
+  border-radius: 999px;
+  background: #fffdf9;
+  padding: 0.45rem 0.95rem;
+  color: #566078;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+}
+
+.typeTabs button.isActive {
+  border-color: rgb(var(--violet) / 0.45);
+  background: rgb(var(--violet) / 0.08);
+  color: rgb(var(--violet));
+}
+
+.sortTabs {
+  display: flex;
+  min-width: 0;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.sortTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.sortTabs button {
+  flex-shrink: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  color: #667086;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.sortTabs button.isActive {
+  background: #13234d;
+  color: #fff;
+}

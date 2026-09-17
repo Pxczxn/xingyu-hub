@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
+import top.pxczxn.xingyu.community.dto.AdminPasswordResetResult;
+import top.pxczxn.xingyu.community.dto.LoginResult;
 import top.pxczxn.xingyu.community.dto.MeView;
 import top.pxczxn.xingyu.community.dto.RegisterResponse;
 import top.pxczxn.xingyu.community.dto.SessionView;
@@ -46,6 +48,9 @@ import java.util.concurrent.TimeUnit;
 public class CommunityAccountService {
 
     private static final String COMMUNITY_LOGIN_RETRY_KEY = "community:login:retry:";
+    private static final String COMMUNITY_MUST_CHANGE_PASSWORD_KEY = "community:must-change-password:";
+    private static final String COMMUNITY_ADMIN_TEMP_PASSWORD_KEY = "community:admin-temp-password:";
+    private static final int ADMIN_TEMP_PASSWORD_MINUTES = 5;
     private static final String SMS_REGISTER_KEY = "sms:register:";
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
@@ -190,7 +195,7 @@ public class CommunityAccountService {
     }
 
     @Transactional
-    public String login(
+    public LoginResult login(
             String login,
             String password,
             boolean rememberMe,
@@ -236,6 +241,11 @@ public class CommunityAccountService {
             throw new ContractException(ErrorCode.AUTH_FORBIDDEN, "请先完成邮箱验证后再登录");
         }
 
+        boolean mustChangePassword = requiresPasswordChange(user.getId());
+        if (mustChangePassword && !Boolean.TRUE.equals(redisTemplate.hasKey(adminTempPasswordKey(user.getId())))) {
+            throw new ContractException(ErrorCode.AUTH_FORBIDDEN, "临时密码已过期，请联系管理员重新重置");
+        }
+
         redisTemplate.delete(retryKey);
         if (configHelper.isSingleLogin()) {
             revokeActiveSessions(user.getId());
@@ -255,7 +265,7 @@ public class CommunityAccountService {
         session.setExpiresAt(expiresAt);
         session.setCreatedAt(now);
         sessionMapper.insert(session);
-        return token;
+        return LoginResult.builder().token(token).mustChangePassword(mustChangePassword).build();
     }
 
     @Transactional
@@ -274,7 +284,56 @@ public class CommunityAccountService {
         return MeView.builder()
                 .email(user.getEmail())
                 .emailVerified(user.getEmailVerifiedAt() != null)
+                .mustChangePassword(requiresPasswordChange(user.getId()))
                 .build();
+    }
+
+    public boolean requiresPasswordChange(String userId) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(mustChangePasswordKey(userId)));
+    }
+
+    @Transactional
+    public AdminPasswordResetResult adminResetPassword(String userId) {
+        CommunityUser user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new ContractException(ErrorCode.VALIDATION_FAILED, "该用户未绑定邮箱，无法发送临时密码");
+        }
+
+        String tempPassword = generateTemporaryPassword();
+        user.setPasswordHash(PasswordSupport.hash(tempPassword));
+        userMapper.updateById(user);
+        revokeActiveSessions(user.getId());
+
+        redisTemplate.opsForValue().set(mustChangePasswordKey(userId), "1");
+        redisTemplate.opsForValue().set(
+                adminTempPasswordKey(userId), "1", ADMIN_TEMP_PASSWORD_MINUTES, TimeUnit.MINUTES);
+
+        AdminPasswordResetDelivery delivery = sendAdminTempPasswordMail(user.getEmail(), tempPassword);
+        recordSecurityEvent(userId, "ADMIN_PASSWORD_RESET", delivery.mailPending()
+                ? "管理员发送临时密码（邮件未投递）"
+                : "管理员发送临时密码");
+        return AdminPasswordResetResult.builder()
+                .mailPending(delivery.mailPending())
+                .mailError(delivery.mailError())
+                .recipientEmail(user.getEmail())
+                .tempPassword(tempPassword)
+                .build();
+    }
+
+    @Transactional
+    public void forceChangePassword(CommunityUser user, String newPassword) {
+        if (!requiresPasswordChange(user.getId())) {
+            throw new ContractException(ErrorCode.VALIDATION_FAILED, "当前账号无需修改密码");
+        }
+        validateCommunityPassword(newPassword);
+        user.setPasswordHash(PasswordSupport.hash(newPassword));
+        userMapper.updateById(user);
+        redisTemplate.delete(mustChangePasswordKey(user.getId()));
+        redisTemplate.delete(adminTempPasswordKey(user.getId()));
+        recordSecurityEvent(user.getId(), "PASSWORD_FORCE_CHANGED", "管理员临时密码已更换");
     }
 
     public List<SessionView> listSessions(CommunityUser user, String currentToken) {
@@ -540,7 +599,30 @@ public class CommunityAccountService {
         }
     }
 
+    private AdminPasswordResetDelivery sendAdminTempPasswordMail(String email, String tempPassword) {
+        try {
+            emailService.sendResetPassword(email, tempPassword, ADMIN_TEMP_PASSWORD_MINUTES);
+            log.info("admin temp password mail accepted by SMTP for {}", email);
+            return new AdminPasswordResetDelivery(false, null);
+        } catch (Exception ex) {
+            log.warn("admin temp password mail not sent to {}: {}", email, ex.getMessage());
+            log.info("dev admin temp password for {}: {}", email, tempPassword);
+            return new AdminPasswordResetDelivery(true, summarizeMailError(ex));
+        }
+    }
+
+    private static String summarizeMailError(Exception ex) {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            return "邮件发送失败";
+        }
+        String normalized = message.replaceAll("\\s+", " ").trim();
+        return normalized.length() > 180 ? normalized.substring(0, 180) + "…" : normalized;
+    }
+
     private record PasswordResetDelivery(boolean mailPending, String devResetLink) {}
+
+    private record AdminPasswordResetDelivery(boolean mailPending, String mailError) {}
 
     private void recordSecurityEvent(String userId, String eventType, String detail) {
         securityEventMapper.insert(userId, eventType, detail, null, Instant.now());
@@ -578,6 +660,42 @@ public class CommunityAccountService {
                 sessionMapper.updateById(session);
             }
         }
+    }
+
+    private String mustChangePasswordKey(String userId) {
+        return COMMUNITY_MUST_CHANGE_PASSWORD_KEY + userId;
+    }
+
+    private String adminTempPasswordKey(String userId) {
+        return COMMUNITY_ADMIN_TEMP_PASSWORD_KEY + userId;
+    }
+
+    private String generateTemporaryPassword() {
+        int minLen = Math.max(configHelper.getPasswordMinLength(), 12);
+        int maxLen = configHelper.getPasswordMaxLength();
+        int targetLen = Math.min(Math.max(minLen, 12), maxLen);
+        StringBuilder password = new StringBuilder();
+        if (configHelper.isPasswordRequireUppercase()) {
+            password.append(randomPasswordChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+        }
+        if (configHelper.isPasswordRequireLowercase()) {
+            password.append(randomPasswordChar("abcdefghijklmnopqrstuvwxyz"));
+        }
+        if (configHelper.isPasswordRequireNumber()) {
+            password.append(randomPasswordChar("0123456789"));
+        }
+        if (configHelper.isPasswordRequireSpecial()) {
+            password.append(randomPasswordChar("!@#$%^&*"));
+        }
+        String allChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        while (password.length() < targetLen) {
+            password.append(randomPasswordChar(allChars));
+        }
+        return password.toString();
+    }
+
+    private char randomPasswordChar(String alphabet) {
+        return alphabet.charAt(ThreadLocalRandom.current().nextInt(alphabet.length()));
     }
 
     private void validateCommunityPassword(String password) {

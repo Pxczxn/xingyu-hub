@@ -123,6 +123,12 @@ public class CommunityMeController {
                 body.get("password"));
     }
 
+    @PostMapping("/password/force-change")
+    public ResponseEntity<Void> forceChangePassword(@RequestBody Map<String, String> body) {
+        accountService.forceChangePassword(CommunityAuthContext.requireUser(), body.get("newPassword"));
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/account-status")
     public AccountStatusView accountStatus() {
         return recentAuthenticationService.accountStatus(CommunityAuthContext.requireUser());

@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import { useEffect, useId, useState } from "react";
 import type { EditorLinkDraft, EditorLinkPayload } from "@/components/studio/article-editor-body-controller";
@@ -39,8 +41,8 @@ export function ArticleEditorLinkPopover({
 
   return (
     <div role="dialog" aria-label="编辑链接" onMouseDown={(event) => event.stopPropagation()}>
-      <form className="xy-editor-link-popover__form" onSubmit={handleSubmit}>
-        <label className="xy-editor-link-popover__field" htmlFor={textId}>
+      <form className={cn(styles.linkPopoverForm)} onSubmit={handleSubmit}>
+        <label className={cn(styles.linkPopoverField)} htmlFor={textId}>
           <span>显示文本</span>
           <input
             id={textId}
@@ -52,7 +54,7 @@ export function ArticleEditorLinkPopover({
           />
         </label>
 
-        <label className="xy-editor-link-popover__field" htmlFor={urlId}>
+        <label className={cn(styles.linkPopoverField)} htmlFor={urlId}>
           <span>链接地址</span>
           <input
             id={urlId}
@@ -70,11 +72,11 @@ export function ArticleEditorLinkPopover({
           />
         </label>
 
-        <div className="xy-editor-link-popover__actions">
+        <div className={cn(styles.linkPopoverActions)}>
           {draft.isEditingLink && onRemoveLink ? (
             <button
               type="button"
-              className="xy-editor-link-popover__remove"
+              className={cn(styles.linkPopoverRemove)}
               disabled={disabled}
               onClick={onRemoveLink}
             >
@@ -84,10 +86,10 @@ export function ArticleEditorLinkPopover({
             <span aria-hidden="true" />
           )}
 
-          <div className="xy-editor-link-popover__actions-main">
+          <div className={cn(styles.linkPopoverActions-main)}>
             <button
               type="button"
-              className="xy-editor-link-popover__cancel"
+              className={cn(styles.linkPopoverCancel)}
               disabled={disabled}
               onClick={onCancel}
             >
@@ -95,7 +97,7 @@ export function ArticleEditorLinkPopover({
             </button>
             <button
               type="submit"
-              className="xy-editor-link-popover__confirm"
+              className={cn(styles.linkPopoverConfirm)}
               disabled={confirmDisabled}
             >
               确认

@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { communityApi, contentHref } from "@/lib/community-api";
 import { useAsyncData } from "@/lib/use-async-data";
 import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function GrowthPage() {
   const { data: history } = useAsyncData(() => communityApi.getHistory(), []);
@@ -20,20 +22,20 @@ export default function GrowthPage() {
 
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <PageHero variant="compact" eyebrow="个人中心" title="成长记录" description="阅读轨迹、徽章与待办事项。" />
 
         {insights && (
           <section className="grid gap-3 sm:grid-cols-3">
-            <div className="xy-panel p-4 text-center">
+            <div className={cn(shellStyles.panel, "p-4 text-center")}>
               <p className="text-2xl font-semibold">{insights.articleCount}</p>
               <p className="text-xs text-muted-foreground">已发布文章</p>
             </div>
-            <div className="xy-panel p-4 text-center">
+            <div className={cn(shellStyles.panel, "p-4 text-center")}>
               <p className="text-2xl font-semibold">{insights.followerCount}</p>
               <p className="text-xs text-muted-foreground">粉丝</p>
             </div>
-            <div className="xy-panel p-4 text-center">
+            <div className={cn(shellStyles.panel, "p-4 text-center")}>
               <p className="text-2xl font-semibold">{insights.likeCount}</p>
               <p className="text-xs text-muted-foreground">获得喜欢</p>
             </div>
@@ -46,7 +48,7 @@ export default function GrowthPage() {
             <ul className="mt-3 space-y-2">
               {pendingActions.map((action) => (
                 <li key={`${action.type}-${action.href}`}>
-                  <Link href={action.href} className="xy-panel-interactive block px-4 py-3 text-sm">
+                  <Link href={action.href} className={cn(shellStyles.panelInteractive, "block px-4 py-3 text-sm")}>
                     {action.title}
                   </Link>
                 </li>
@@ -75,7 +77,7 @@ export default function GrowthPage() {
 
         <section>
           <h2 className="text-lg font-semibold">最近阅读</h2>
-          <div className="mt-3 xy-panel divide-y divide-border">
+          <div className={cn("mt-3 divide-y divide-border", shellStyles.panel)}>
             {(history?.items ?? []).length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground">暂无阅读记录</p>
             ) : (
@@ -93,7 +95,7 @@ export default function GrowthPage() {
               <li className="text-sm text-muted-foreground">暂无评论</li>
             ) : (
               comments!.map((comment) => (
-                <li key={comment.id} className="xy-panel p-4 text-sm">
+                <li key={comment.id} className={cn(shellStyles.panel, "p-4 text-sm")}>
                   <p>{comment.body}</p>
                   <p className="mt-2 text-xs text-muted-foreground">{formatDateTime(comment.createdAt)}</p>
                 </li>

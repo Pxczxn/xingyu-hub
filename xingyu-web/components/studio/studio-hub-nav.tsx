@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-hub.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -29,11 +31,11 @@ export function StudioHubNav({ onCreateArticle, creating }: Props) {
   const pathname = usePathname();
 
   return (
-    <aside className="xy-studio-hub-nav" aria-label="创作中心导航">
-      <div className="xy-studio-hub-nav-head">
+    <aside className={cn(styles.nav)} aria-label="创作中心导航">
+      <div className={cn(styles.navHead)}>
         <h2>创作中心</h2>
       </div>
-      <nav className="xy-studio-hub-nav-list">
+      <nav className={cn(styles.navList)}>
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const base = href.split("?")[0];
           const active = pathname === base || pathname.startsWith(`${base}/`);
@@ -41,7 +43,7 @@ export function StudioHubNav({ onCreateArticle, creating }: Props) {
             <Link
               key={href}
               href={href}
-              className={active ? "is-active" : undefined}
+              className={active ? styles.isActive : undefined}
               aria-current={active ? "page" : undefined}
             >
               <Icon aria-hidden="true" />
@@ -50,18 +52,18 @@ export function StudioHubNav({ onCreateArticle, creating }: Props) {
           );
         })}
       </nav>
-      <div className="xy-studio-hub-nav-actions">
+      <div className={cn(styles.navActions)}>
         <p>快速动作</p>
         <div>
-          <button type="button" className="xy-studio-hub-nav-btn" disabled={creating} onClick={onCreateArticle}>
+          <button type="button" className={cn(styles.navBtn)} disabled={creating} onClick={onCreateArticle}>
             <PenLine aria-hidden="true" />
             写文章
           </button>
-          <Link href="/studio/moments/new" className="xy-studio-hub-nav-btn">
+          <Link href="/studio/moments/new" className={cn(styles.navBtn)}>
             <PenLine aria-hidden="true" />
             发动态
           </Link>
-          <Link href="/studio/series/new" className="xy-studio-hub-nav-btn">
+          <Link href="/studio/series/new" className={cn(styles.navBtn)}>
             <Layers3 aria-hidden="true" />
             建系列
           </Link>
@@ -75,7 +77,7 @@ export function StudioHubMobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="xy-studio-hub-mobile-nav" aria-label="创作中心导航">
+    <nav className={cn(styles.mobileNav)} aria-label="创作中心导航">
       <Link href="/studio" className={pathname === "/studio" ? "is-active" : undefined} aria-current={pathname === "/studio" ? "page" : undefined}>
         工作台
       </Link>
@@ -83,7 +85,7 @@ export function StudioHubMobileNav() {
         const base = href.split("?")[0];
         const active = pathname.startsWith(base) && href !== "/studio/content?tab=trash";
         return (
-          <Link key={href} href={href} className={active ? "is-active" : undefined}>
+          <Link key={href} href={href} className={active ? styles.isActive : undefined}>
             {label.replace("管理", "")}
           </Link>
         );

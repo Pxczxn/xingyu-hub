@@ -162,6 +162,7 @@ import { NButton, NTag, NSpace, useMessage, useDialog, type DataTableColumns, ty
 import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { fileConfigApi, type SysFileConfig } from '@/api/system'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(8)
 
@@ -239,13 +240,11 @@ const columns: DataTableColumns<SysFileConfig> = [
     key: 'actions',
     ...colLayout('action3'),
     render(row) {
-      return h(NSpace, null, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
-          row.master !== 1 ? h(NButton, { size: 'small', type: 'info', onClick: () => handleSetMaster(row) }, { default: () => '设为主配置' }) : null,
-          h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row), disabled: row.master === 1 }, { default: () => '删除' })
-        ].filter(Boolean)
-      })
+      return renderTableActionCell([
+        h(NButton, { size: 'small', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+        row.master !== 1 ? h(NButton, { size: 'small', type: 'info', onClick: () => handleSetMaster(row) }, { default: () => '设为主配置' }) : null,
+        h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row), disabled: row.master === 1 }, { default: () => '删除' })
+      ])
     }
   }
 ]

@@ -6,13 +6,14 @@ import { EmptyState } from "@/components/community/empty-state";
 import { PageHero } from "@/components/community/page-primitives";
 import { communityApi } from "@/lib/community-api";
 import { useAsyncData } from "@/lib/use-async-data";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function HelpPage() {
   const { data: pages, loading, error } = useAsyncData(() => communityApi.getGuidePages(), []);
 
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <PageHero eyebrow="帮助" title="帮助中心" description="常见问题与使用说明。" />
         {loading ? (
           <p className="text-sm text-muted-foreground">加载中…</p>

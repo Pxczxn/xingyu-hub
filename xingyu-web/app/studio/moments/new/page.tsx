@@ -1,4 +1,6 @@
 "use client";
+import styles from "./moment-compose.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { ChevronRight, Send, ShieldCheck, Sparkles } from "lucide-react";
@@ -31,8 +33,8 @@ export default function NewMomentPage() {
 
   return (
     <AppShell>
-      <main className="xy-moment-compose">
-        <header className="xy-compose-head">
+      <main className={cn(styles.momentCompose)}>
+        <header className={cn(styles.head)}>
           <div>
             <Button
               variant="ghost"
@@ -58,9 +60,9 @@ export default function NewMomentPage() {
           </div>
         </header>
         {error && <Alert variant="destructive">{error}</Alert>}
-        <form id="moment-compose" onSubmit={submit} className="xy-compose-grid">
-          <section className="xy-compose-editor">
-            <div className="xy-compose-text">
+        <form id="moment-compose" onSubmit={submit} className={cn(styles.grid)}>
+          <section className={cn(styles.editor)}>
+            <div className={cn(styles.text)}>
               <h2>
                 此刻的想法是什么？ <small>{body.length}/3000</small>
               </h2>
@@ -78,8 +80,8 @@ export default function NewMomentPage() {
               <span>自动保存于 14:30:25</span>
             </footer>
           </section>
-          <aside className="xy-compose-side">
-            <section className="xy-compose-preview">
+          <aside className={cn(styles.side)}>
+            <section className={cn(styles.preview)}>
               <h2>
                 动态预览 <small>效果预览</small>
               </h2>
@@ -97,14 +99,14 @@ export default function NewMomentPage() {
                   {body ||
                     "此刻的想法是什么？\n分享你的见解、故事、提问或生活瞬间…"}
                 </p>
-                <div className="xy-preview-image" />
+                <div className={cn(styles.image)} />
                 <footer>互动数据将在发布后显示</footer>
               </article>
               <p>预览仅供参考，实际效果以发布后为准</p>
             </section>
           </aside>
         </form>
-        <aside className="xy-compose-tip">
+        <aside className={cn(styles.tip)}>
           <Sparkles />
           <span>
             <b>创作小贴士</b>真诚分享、友善互动，优质内容更容易被推荐

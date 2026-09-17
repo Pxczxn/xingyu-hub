@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export type TableColumn<Row> = { key: keyof Row & string; label: string; render?: (row: Row) => ReactNode };
 export function DataTable<Row extends { id: string }>({ columns, rows, emptyLabel = "暂无数据" }: { columns: TableColumn<Row>[]; rows: Row[]; emptyLabel?: string }) {
@@ -13,7 +14,7 @@ export function DataTable<Row extends { id: string }>({ columns, rows, emptyLabe
 
 export function ModerationCaseCard({ caseId, title, status, summary, onOpen }: { caseId: string; title: string; status: "待处理" | "处理中" | "已结案"; summary: string; onOpen?: () => void }) {
   const tone = status === "已结案" ? "text-emerald-700 bg-emerald-50" : status === "处理中" ? "text-[rgb(var(--violet))] bg-[rgb(var(--violet)/.1)]" : "text-amber-700 bg-amber-50";
-  return <article className="xy-panel-interactive p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs text-muted-foreground">案件 {caseId}</p><h3 className="mt-1 font-medium">{title}</h3></div><span className={cn("rounded-full px-2 py-1 text-xs font-medium", tone)}>{status}</span></div><p className="mt-3 text-sm leading-6 text-muted-foreground">{summary}</p><Button variant="ghost" size="sm" className="mt-3" onClick={onOpen}>查看处理进度</Button></article>;
+  return <article className={cn(shellStyles.panelInteractive, "p-4")}><div className="flex items-start justify-between gap-3"><div><p className="text-xs text-muted-foreground">案件 {caseId}</p><h3 className="mt-1 font-medium">{title}</h3></div><span className={cn("rounded-full px-2 py-1 text-xs font-medium", tone)}>{status}</span></div><p className="mt-3 text-sm leading-6 text-muted-foreground">{summary}</p><Button variant="ghost" size="sm" className="mt-3" onClick={onOpen}>查看处理进度</Button></article>;
 }
 
 export function ConfirmDialog({

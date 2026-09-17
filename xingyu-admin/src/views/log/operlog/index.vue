@@ -105,6 +105,7 @@ import { SearchOutline, RefreshOutline, TrashOutline } from '@vicons/ionicons5'
 import { operLogApi, type SysOperLog } from '@/api/monitor'
 import { useUserStore } from '@/stores/user'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(10)
 
@@ -149,7 +150,7 @@ const columns: DataTableColumns<SysOperLog> = [
     if (hasPermission('sys:operlog:delete')) {
       buttons.push(h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }))
     }
-    return h(NSpace, null, { default: () => buttons })
+    return renderTableActionCell(buttons)
   }}
 ]
 

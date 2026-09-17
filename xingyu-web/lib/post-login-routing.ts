@@ -1,6 +1,6 @@
 import { communityApi } from "@/lib/community-api";
 
-const AUTH_PATHS = ["/login", "/register", "/verify-email", "/forgot-password", "/reset-password"];
+const AUTH_PATHS = ["/login", "/register", "/verify-email", "/forgot-password", "/reset-password", "/force-change-password"];
 
 export function shouldSkipOnboardingGate(returnTo: string): boolean {
   if (returnTo.startsWith("/onboarding")) return true;

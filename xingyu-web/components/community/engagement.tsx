@@ -8,6 +8,8 @@ import { communityApi } from "@/lib/community-api";
 import { cn } from "@/lib/utils";
 import { AddToCollectionButton } from "@/components/community/collection-picker";
 import { ConfirmDialog } from "@/components/community/governance-tools";
+import styles from "./engagement.module.css";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export function FollowButton({
   username,
@@ -98,20 +100,20 @@ export function FollowButton({
         data-loading={loading ? "true" : "false"}
         data-pulse={pulse ? "true" : "false"}
         className={cn(
-          "xy-follow-btn",
+          styles.followBtn,
           profile &&
             cn(
-              "xy-profile-action-btn",
-              !following && "xy-profile-action-btn--primary"
+              styles.profileActionBtn,
+              following ? styles.profileActionBtnFollowing : styles.profileActionBtnPrimary
             ),
           className
         )}
       >
-        <span className="xy-follow-btn__icon" aria-hidden="true">
-          <UserPlus className={cn("xy-follow-btn__glyph", !following && "is-active")} />
-          <Check className={cn("xy-follow-btn__glyph", following && "is-active")} />
+        <span className={styles.followBtnIcon} data-follow-icon aria-hidden="true">
+          <UserPlus className={cn(styles.followBtnGlyph, !following && styles.followBtnGlyphActive)} />
+          <Check className={cn(styles.followBtnGlyph, following && styles.followBtnGlyphActive)} />
         </span>
-        <span className="xy-follow-btn__label" key={label}>{label}</span>
+        <span className={styles.followBtnLabel} key={label}>{label}</span>
       </Button>
 
       <ConfirmDialog
@@ -398,7 +400,7 @@ export function ShareSheet({ title, onReport }: { title: string; onReport?: () =
     setCopied(true);
   }
   return (
-    <div className="xy-panel p-4" role="group" aria-label="分享选项">
+    <div className={cn(shellStyles.panel, "p-4")} role="group" aria-label="分享选项">
       <p className="text-sm font-medium">分享《{title}》</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={() => void copyLink()}>
@@ -484,8 +486,8 @@ export function CommentThread({
   function renderComment(comment: CommentItem, nested = false) {
     const replies = repliesByParent[comment.id] ?? [];
     const itemClass = cn(
-      variant === "article" ? "xy-article-comment-item" : "border-b border-border pb-5",
-      nested && (variant === "article" ? "xy-article-comment-item--nested" : "ml-6 border-l pl-4")
+      variant === "article" ? styles.commentItem : "border-b border-border pb-5",
+      nested && (variant === "article" ? styles.commentItemNested : "ml-6 border-l pl-4")
     );
 
     return (
@@ -514,7 +516,7 @@ export function CommentThread({
     );
   }
 
-  const rootClass = variant === "article" ? "xy-article-comment-thread" : undefined;
+  const rootClass = variant === "article" ? styles.commentThread : undefined;
 
   return (
     <section className={rootClass} aria-labelledby={hideHeading ? undefined : "comment-title"}>
@@ -524,17 +526,25 @@ export function CommentThread({
         </h2>
       ) : null}
       {variant === "article" ? (
-        <div className="xy-article-comment-sort" role="group" aria-label="评论排序">
-          <button type="button" className={sort === "latest" ? "is-active" : ""} onClick={() => setSort("latest")}>
+        <div className={styles.commentSort} role="group" aria-label="评论排序">
+          <button
+            type="button"
+            className={sort === "latest" ? styles.commentSortActive : undefined}
+            onClick={() => setSort("latest")}
+          >
             最新
           </button>
-          <button type="button" className={sort === "hot" ? "is-active" : ""} onClick={() => setSort("hot")}>
+          <button
+            type="button"
+            className={sort === "hot" ? styles.commentSortActive : undefined}
+            onClick={() => setSort("hot")}
+          >
             最热
           </button>
         </div>
       ) : null}
       {objectType && objectId && (
-        <div className={cn("mt-4 space-y-2", variant === "article" && "xy-article-comment-compose")}>
+        <div className={cn("mt-4 space-y-2", variant === "article" && styles.commentCompose)}>
           {replyTo && (
             <p className="text-xs text-muted-foreground">
               回复 @{replyTo.author}
@@ -548,7 +558,7 @@ export function CommentThread({
             onChange={(event) => setBody(event.target.value)}
             className={cn(
               "min-h-20 w-full rounded-md border border-border bg-background p-3 text-sm",
-              variant === "article" && "xy-article-comment-input"
+              variant === "article" && styles.commentInput
             )}
             placeholder="写下你的想法…"
           />
@@ -558,7 +568,7 @@ export function CommentThread({
           </Button>
         </div>
       )}
-      <div className={cn("mt-4 space-y-5", variant === "article" && "xy-article-comment-list")}>
+      <div className={cn("mt-4 space-y-5", variant === "article" && styles.commentList)}>
         {sortedTopLevel.map((comment) => renderComment(comment))}
       </div>
     </section>

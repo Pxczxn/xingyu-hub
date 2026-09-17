@@ -1,0 +1,65 @@
+/* 空状态组件样式 */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 1.5rem;
+  border-radius: 50%;
+  background: rgb(var(--violet) / 0.08);
+  color: rgb(var(--violet) / 0.6);
+}
+
+.icon svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgb(var(--foreground));
+}
+
+.description {
+  margin: 0 0 1.5rem;
+  max-width: 400px;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: rgb(var(--muted-foreground));
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  background: rgb(var(--violet));
+  color: white;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.action:hover {
+  background: rgb(var(--violet) / 0.9);
+  transform: translateY(-1px);
+}
+
+.action svg {
+  width: 1rem;
+  height: 1rem;
+}

@@ -1,4 +1,6 @@
 "use client";
+import styles from "@/components/studio/studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -72,12 +74,12 @@ export default function ContentManagementPage() {
 
   return (
     <AppShell>
-      <main className="xy-content-management">
+      <main className={cn(styles.contentManagement)}>
         {error && <Alert variant="destructive">{error}</Alert>}
-        <section className="xy-content-panel">
-          <div className="xy-content-panel-head">
+        <section className={cn(styles.panel)}>
+          <div className={cn(styles.panelHead)}>
             <h1><Sparkles aria-hidden="true" /> 内容管理</h1>
-            <Button className="xy-content-create-inline" disabled={creating} onClick={() => void create()}>
+            <Button className={cn(styles.createInline)} disabled={creating} onClick={() => void create()}>
               <PenLine aria-hidden="true" />
               {creating ? "创建中…" : "新建文章"}
             </Button>
@@ -95,7 +97,7 @@ export default function ContentManagementPage() {
               </Link>
             ))}
           </nav>
-          <div className="xy-content-table">
+          <div className={cn(styles.table)}>
             <header>
               <span>文章</span>
               <span>最新编辑时间</span>
@@ -103,13 +105,13 @@ export default function ContentManagementPage() {
               <span>操作</span>
             </header>
             {loading ? (
-              <p className="xy-content-status">正在加载内容…</p>
+              <p className={cn(styles.status)}>正在加载内容…</p>
             ) : visible.length ? (
               visible.map((article, index) => {
                 const state = article.status;
                 return (
                   <article key={article.id}>
-                    <Link className="xy-content-row-main" href={`/studio/content/${article.id}`}>
+                    <Link className={cn(styles.rowMain)} href={`/studio/content/${article.id}`}>
                       <Image
                         src={`/prototype-assets/content-management/content-${(index % 5) + 1}.png`}
                         alt=""
@@ -122,12 +124,21 @@ export default function ContentManagementPage() {
                         <small>{article.summary || "文章摘要暂未提供"}</small>
                       </span>
                     </Link>
-                    <div className="xy-content-row-meta">
-                      <time className="xy-content-row-time">
+                    <div className={cn(styles.rowMeta)}>
+                      <time className={cn(styles.rowTime)}>
                         {article.updatedAt ? new Date(article.updatedAt).toLocaleString("zh-CN") : "更新时间暂未提供"}
                       </time>
-                      <em className={`xy-content-row-status ${state.toLowerCase()}`}>{labels[state] || state}</em>
-                      <div className="xy-content-row-action">
+                      <em
+                        className={cn(
+                          styles.rowStatus,
+                          (state === "REVIEW" || state === "REVIEWING") && styles.review,
+                          state === "DRAFT" && styles.draft,
+                          state === "RETURNED" && styles.returned,
+                        )}
+                      >
+                        {labels[state] || state}
+                      </em>
+                      <div className={cn(styles.rowAction)}>
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/studio/content/${article.id}`}>编辑</Link>
                         </Button>
@@ -137,17 +148,17 @@ export default function ContentManagementPage() {
                 );
               })
             ) : (
-              <p className="xy-content-status">暂无符合条件的内容</p>
+              <p className={cn(styles.status)}>暂无符合条件的内容</p>
             )}
           </div>
           <footer><span>共 {items.length} 篇内容</span></footer>
         </section>
-        <aside className="xy-content-side">
-          <Button className="xy-content-create" variant="outline" disabled={creating} onClick={() => void create()}>
+        <aside className={cn(styles.side)}>
+          <Button className={cn(styles.create)} variant="outline" disabled={creating} onClick={() => void create()}>
             <PenLine aria-hidden="true" />
             {creating ? "创建中…" : "新建文章"}
           </Button>
-          <section className="xy-content-summary">
+          <section className={cn(styles.summary)}>
             <header><h2>创作总览</h2><Link href="/studio/analytics">查看数据 <ChevronRight aria-hidden="true" /></Link></header>
             <div>
               <Metric value={counters.published} label="已发布" />
@@ -156,7 +167,7 @@ export default function ContentManagementPage() {
               <Metric value={counters.returned} label="被退回" />
             </div>
           </section>
-          <section className="xy-content-data"><h2>创作设置</h2><p><Link href="/studio/settings">管理分类与素材</Link></p></section>
+          <section className={cn(styles.data)}><h2>创作设置</h2><p><Link href="/studio/settings">管理分类与素材</Link></p></section>
         </aside>
       </main>
     </AppShell>

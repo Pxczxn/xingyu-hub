@@ -161,6 +161,7 @@ export type ArticleDetail = {
   id: string;
   title: string;
   summary: string | null;
+  coverUrl?: string | null;
   bodyMode?: string;
   body: string;
   slug: string | null;
@@ -484,6 +485,7 @@ export type SearchHit = {
   objectId: string;
   title: string;
   summary?: string;
+  cover?: string;
   avatar?: string;
   updatedAt?: string;
 };
@@ -505,6 +507,7 @@ export type AccountStatus = {
 export type MeAccount = {
   email: string;
   emailVerified: boolean;
+  mustChangePassword?: boolean;
   username?: string;
 };
 
@@ -621,6 +624,7 @@ function toContentSummary(hit: SearchHit): ContentSummary {
     objectType: hit.objectType,
     title: hit.title,
     summary: hit.summary,
+    cover: hit.cover,
     avatar: hit.avatar,
     updatedAt: hit.updatedAt,
   };
@@ -650,6 +654,7 @@ export type FeedItem = {
   type: string;
   title?: string | null;
   summary?: string | null;
+  cover?: string | null;
   authorId?: string | null;
   createdAt?: string | null;
 };
@@ -660,6 +665,7 @@ function feedItemToContentSummary(item: FeedItem): ContentSummary {
     objectType: item.type,
     title: item.title ?? "未命名内容",
     summary: item.summary ?? undefined,
+    cover: item.cover ?? undefined,
     updatedAt: item.createdAt ?? undefined,
   };
 }
@@ -1245,7 +1251,7 @@ export const communityApi = {
     }),
 
   login: (payload: { login: string; password: string; rememberMe?: boolean; uuid?: string; code?: string }) =>
-    apiRequest<{ token?: string }>("/api/v1/auth/login", { method: "POST", body: payload }),
+    apiRequest<{ token?: string; mustChangePassword?: boolean }>("/api/v1/auth/login", { method: "POST", body: payload }),
 
   register: (payload: Record<string, unknown>, idempotencyKey?: string) =>
     apiRequest<{
@@ -1287,6 +1293,12 @@ export const communityApi = {
 
   resetPassword: (payload: Record<string, string>) =>
     apiRequest<void>("/api/v1/auth/password-reset", { method: "POST", body: payload }),
+
+  forceChangePassword: (newPassword: string) =>
+    apiRequest<void>("/api/v1/me/password/force-change", {
+      method: "POST",
+      body: { newPassword },
+    }),
 
   changeEmail: (payload: { newEmail: string; password: string }, recentAuthId?: string) =>
     apiRequest<{ currentEmail: string; pendingEmail: string; mailPending: boolean }>(

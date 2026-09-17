@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { communityApi, type ReviewSubmissionDetail } from "@/lib/community-api";
 import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import pageStyles from "@/components/community/page-primitives.module.css";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 const STATUS_LABEL: Record<string, string> = {
   RETURNED: "已退回",
@@ -32,11 +35,11 @@ export function StudioReturnedPage() {
 
   return (
     <AppShell>
-      <main className="xy-page max-w-5xl">
-        <section className="xy-orbit-bg relative overflow-hidden rounded-[26px] border border-white/80 bg-white/72 p-6 shadow-[0_16px_42px_rgba(30,45,82,.08)] backdrop-blur-xl sm:p-8">
+      <main className={cn(shellStyles.page, "max-w-5xl")}>
+        <section className={cn(pageStyles.orbitBg, "relative overflow-hidden rounded-[26px] border border-white/80 bg-white/72 p-6 shadow-[0_16px_42px_rgba(30,45,82,.08)] backdrop-blur-xl sm:p-8")}>
           <div className="relative z-10 flex items-start justify-between gap-5">
           <div>
-            <p className="xy-kicker">创作空间 · 审核反馈</p>
+            <p className={pageStyles.kicker}>创作空间 · 审核反馈</p>
             <h1 className="mt-2 text-[30px] font-bold tracking-[-.04em] text-[#152957] sm:text-[38px]">被退回的内容</h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-[#68748b]">根据审核意见完成修改后，你可以从原稿继续编辑并重新提交。</p>
           </div>

@@ -1,0 +1,574 @@
+/* 鎸囧崡椤典繚鐣欐枃妗ｄ骇鍝佺殑鐙珛瀵艰埅鑺傚涓庣焊寮犲紡闃呰浣撻獙銆?*/
+.guideHome,
+.guideDetail {
+  color: #12254d;
+}
+.guideHome {
+  width: min(100% - 40px, 1400px);
+  margin: 14px auto 32px;
+}
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 610px;
+  align-items: center;
+  min-height: 300px;
+}
+.hero > div {
+  padding-left: 78px;
+}
+.hero > div > span {
+  font-size: 14px;
+  font-weight: 700;
+}
+.hero h1 {
+  margin: 20px 0 0;
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 58px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.starRule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 200px;
+  margin: 12px 0;
+  color: #dd7925;
+}
+.starRule::before,
+.starRule::after {
+  height: 1px;
+  flex: 1;
+  background: #dd7925;
+  content: "";
+}
+.starRule svg {
+  width: 19px;
+}
+.hero h2 {
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.hero p {
+  max-width: 550px;
+  margin-top: 12px;
+  color: #6c7589;
+  font-size: 14px;
+  line-height: 1.9;
+}
+.hero > img {
+  width: 610px;
+  height: 300px;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+}
+.search {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  max-width: 580px;
+  margin-top: 18px;
+  border: 1px solid #e4ddd2;
+  border-radius: 999px;
+  background: rgb(255 255 255/0.72);
+  padding: 8px 10px 8px 20px;
+  box-shadow: 0 12px 28px rgb(62 44 25/0.08);
+}
+.search svg {
+  color: #727a88;
+}
+.search input {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.search button {
+  border-radius: 999px;
+  background: #df7928;
+  padding-inline: 26px;
+}
+.groups {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 26px;
+  margin-top: 4px;
+}
+.groups article {
+  min-height: 220px;
+  border: 1px solid #e5ddd1;
+  border-radius: 18px;
+  background: rgb(255 255 255/0.68);
+  padding: 20px 18px 16px;
+  text-align: center;
+  box-shadow: 0 12px 28px rgb(61 43 24/0.06);
+  backdrop-filter: blur(12px);
+}
+.groups article > span {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin: auto;
+  place-items: center;
+  border: 1px solid rgb(222 121 40/0.18);
+  border-radius: 50%;
+  background: #fff4e8;
+  color: #db792d;
+  box-shadow: 0 0 0 10px rgb(255 255 255/0.45);
+}
+.groups article > span svg {
+  width: 27px;
+  height: 27px;
+}
+.groups h2 {
+  margin: 14px 0 6px;
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 21px;
+  font-weight: 700;
+}
+.groups p {
+  min-height: 48px;
+  color: #737c90;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.groups ul {
+  margin-top: 13px;
+  text-align: left;
+}
+.groups li a {
+  display: grid;
+  grid-template-columns: 7px 1fr 13px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  color: #626d84;
+  font-size: 12px;
+}
+.groups li i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #e57b25;
+}
+.groups li svg {
+  width: 12px;
+}
+.support {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: min(100% - 200px, 960px);
+  margin: 24px auto 0;
+  border: 1px solid #e4ddd2;
+  border-radius: 999px;
+  background: rgb(255 255 255/0.72);
+  padding: 10px 14px 10px 22px;
+  color: #757d8d;
+  font-size: 12px;
+}
+.support > svg {
+  color: #bc956e;
+}
+.support a {
+  color: #df7022;
+}
+.support button {
+  border-color: #e77b27;
+  border-radius: 999px;
+  color: #df7022;
+}
+
+.guideDetail {
+  display: grid;
+  grid-template-columns: 195px minmax(0, 865px) 212px;
+  gap: 22px;
+  align-items: start;
+  width: min(100% - 42px, 1350px);
+  margin: 28px auto 50px;
+}
+.toc {
+  position: sticky;
+  top: 88px;
+  margin-top: 80px;
+  border: 1px solid #e4ddd3;
+  border-radius: 16px;
+  background: rgb(255 255 255/0.72);
+  padding: 22px;
+  box-shadow: 0 10px 25px rgb(61 43 24/0.055);
+}
+.toc h2 {
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.toc > a {
+  display: block;
+  margin-left: -22px;
+  padding: 10px 14px 10px 22px;
+  color: #4d5a73;
+  font-size: 12px;
+}
+.toc > a.isActive {
+  border-left: 2px solid #df7628;
+  color: #df6d20;
+}
+.toc hr {
+  margin: 8px 0;
+  border-color: #e7e1d8;
+}
+.article {
+  border: 1px solid #e6ded2;
+  border-radius: 17px;
+  background: rgb(255 255 255/0.78);
+  padding: 24px 28px 20px;
+  box-shadow: 0 13px 34px rgb(61 43 24/0.07);
+}
+.breadcrumb {
+  display: flex;
+  gap: 10px;
+  color: #737c90;
+  font-size: 11px;
+}
+.breadcrumb b {
+  color: #dd6e22;
+}
+.article > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 8px 18px;
+  border-bottom: 1px solid #e8e2d9;
+}
+.article header h1 {
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 37px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.article header p {
+  margin: 6px 0 12px;
+  color: #737c8e;
+  font-size: 13px;
+}
+.article header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 18px;
+  color: #848c9c;
+  font-size: 10px;
+}
+.article header span svg {
+  width: 12px;
+}
+.article header button {
+  display: flex;
+  height: max-content;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+.article header button svg {
+  width: 14px;
+}
+.article > section:not(.collapsed) {
+  display: grid;
+  grid-template-columns: 1fr 290px;
+  align-items: center;
+  gap: 20px;
+  min-height: 165px;
+  border-bottom: 1px solid #e8e2d9;
+  padding: 18px 8px;
+}
+.article section h2 {
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+.article section p {
+  margin: 7px 0 10px;
+  color: #657087;
+  font-size: 12px;
+}
+.article section ul,
+.article section ol {
+  display: grid;
+  gap: 7px;
+  padding-left: 20px;
+  color: #485570;
+  font-size: 11px;
+}
+.article section ul {
+  list-style: disc;
+}
+.article section ol {
+  list-style: decimal;
+}
+.article section > img {
+  justify-self: end;
+  max-width: 100%;
+  height: 145px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.collapsed {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 8px;
+}
+.collapsed svg {
+  width: 16px;
+}
+.article > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  border: 1px solid #f0d9bf;
+  border-radius: 11px;
+  background: #fff9f1;
+  padding: 16px 20px;
+}
+.article > footer > div {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.spark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff0dc;
+  color: #d86d20;
+}
+.spark svg {
+  width: 20px;
+}
+.article footer p {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+}
+.article footer p span {
+  color: #717a8c;
+}
+.article footer button {
+  background: #d76d24;
+}
+.related {
+  position: sticky;
+  top: 88px;
+  display: grid;
+  gap: 16px;
+  margin-top: 0;
+}
+.related > section {
+  border: 1px solid #e4ddd3;
+  border-radius: 16px;
+  background: rgb(255 255 255/0.72);
+  padding: 20px;
+  box-shadow: 0 10px 25px rgb(61 43 24/0.05);
+}
+.related h2 {
+  margin-bottom: 13px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.related p {
+  margin: -5px 0 14px;
+  color: #7b8496;
+  font-size: 10px;
+}
+.related > section:first-child > a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid #ebe5dc;
+  padding: 11px 0;
+  font-size: 11px;
+}
+.related a svg {
+  width: 13px;
+}
+.related section > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.related section > div button {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  color: #7a8396;
+  font-size: 9px;
+}
+.related section > div svg {
+  width: 26px;
+  color: #d47c33;
+}
+@media (max-width: 1150px) {
+  .hero {
+    grid-template-columns: 1fr 450px;
+  }
+  .hero > img {
+    width: 450px;
+  }
+  .groups {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .guideDetail {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+  .related {
+    position: static;
+    grid-column: 2;
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 780px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  .hero > div {
+    padding: 30px 20px;
+  }
+  .hero > img {
+    display: none;
+  }
+  .hero h1 {
+    font-size: 46px;
+  }
+  .groups {
+    grid-template-columns: 1fr 1fr;
+  }
+  .support {
+    width: 100%;
+  }
+  .guideDetail {
+    grid-template-columns: 1fr;
+  }
+  .toc {
+    display: none;
+  }
+  .related {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+  .article > section:not(.collapsed) {
+    grid-template-columns: 1fr;
+  }
+  .article section > img {
+    justify-self: center;
+  }
+}
+@media (max-width: 520px) {
+  .guideHome,
+  .guideDetail {
+    width: min(100% - 18px, 1400px);
+  }
+  .groups {
+    grid-template-columns: 1fr;
+  }
+  .article {
+    padding: 18px 14px;
+  }
+  .article header h1 {
+    font-size: 30px;
+  }
+  .article > footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .support {
+    grid-template-columns: 25px 1fr;
+  }
+  .support button {
+    grid-column: 1/-1;
+    width: 100%;
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 980px) {
+  .guideHome {
+    margin-top: 14px;
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 1fr) 500px;
+    min-height: 290px;
+  }
+
+  .hero > div {
+    padding-left: 56px;
+  }
+
+  .hero h1 {
+    margin-top: 12px;
+    font-size: 60px;
+  }
+
+  .starRule {
+    margin: 12px 0;
+  }
+
+  .hero h2 {
+    font-size: 22px;
+  }
+
+  .hero p {
+    margin-top: 8px;
+    line-height: 1.65;
+  }
+
+  .hero > img {
+    width: 500px;
+    height: 270px;
+  }
+
+  .search {
+    margin-top: 16px;
+  }
+
+  .groups {
+    gap: 18px;
+    margin-top: 12px;
+  }
+
+  .groups article {
+    min-height: 190px;
+    padding: 14px 18px 12px;
+  }
+
+  .groups article > span {
+    width: 54px;
+    height: 54px;
+  }
+
+  .groups article > span svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .groups h2 {
+    margin: 10px 0 4px;
+    font-size: 19px;
+  }
+
+  .groups p {
+    min-height: 36px;
+    line-height: 1.5;
+  }
+
+  .groups ul {
+    margin-top: 6px;
+  }
+}

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 type ContentWidth = "md" | "lg" | "xl";
 
@@ -21,7 +22,7 @@ export function ContentPageShell({
 }) {
   return (
     <AppShell>
-      <main className={cn("xy-page", widthClass[width], className)}>{children}</main>
+      <main className={cn(shellStyles.page, widthClass[width], className)}>{children}</main>
     </AppShell>
   );
 }

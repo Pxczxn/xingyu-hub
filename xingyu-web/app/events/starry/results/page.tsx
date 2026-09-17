@@ -1,4 +1,6 @@
 "use client";
+import styles from "../../events.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -74,8 +76,8 @@ export default function ActivityResultsPage() {
   const nextEvent = events.find((item) => item.id !== activeId);
   return (
     <AppShell>
-      <main className="xy-results-page">
-        <section className="xy-results-main">
+      <main className={cn(styles.resultsPage)}>
+        <section className={cn(styles.resultsMain)}>
           <header>
             <h1>
               <Sparkles /> 活动结果
@@ -89,7 +91,7 @@ export default function ActivityResultsPage() {
               height={321}
             />
           </header>
-          <section className="xy-result-theme">
+          <section className={cn(styles.resultTheme)}>
             <span>当前活动</span>
             <h2>{event?.title || (loading ? "正在加载活动" : "暂无活动")}</h2>
             <p>{event?.body || "活动说明将在这里展示。"}</p>
@@ -111,8 +113,8 @@ export default function ActivityResultsPage() {
               </select>
             </label>
           </section>
-          <section className="xy-winner-show xy-result-pending">
-            <article className="xy-winner">
+          <section className={cn(styles.winnerShow)}>
+            <article className={cn(styles.winner)}>
               <div>
                 <Image
                   src="/prototype-assets/activity-results/winner.png"
@@ -179,7 +181,7 @@ export default function ActivityResultsPage() {
               ) : null}
             </aside>
           </section>
-          <section className="xy-result-lower">
+          <section className={cn(styles.resultLower)}>
             <article>
               <h2>
                 <BarChart3 /> 数据回顾
@@ -207,11 +209,11 @@ export default function ActivityResultsPage() {
               <h2>
                 <MessageCircle /> 结果说明
               </h2>
-              <p className="xy-results-empty-copy">
+              <p>
                 评论、投票与获奖名单尚未由接口提供；页面不会展示示例评论或虚构互动数据。
               </p>
             </article>
-            <article className="xy-next-event">
+            <article className={cn(styles.nextEvent)}>
               <h2>
                 <Sparkles /> 下一期活动
               </h2>

@@ -1,3 +1,5 @@
+import { resolveProfileWorkCover } from "@/lib/paths";
+
 export type ProblemDetails = {
   type: string;
   title: string;
@@ -43,6 +45,20 @@ export function resolveMediaUrl(url: string | null | undefined): string {
     ? url.replace("/api/files/", "/api/v1/admin/files/")
     : url;
   return resolveApiUrl(normalized);
+}
+
+/** 内容封面：优先 API 返回的 cover，否则用与个人主页一致的占位图 */
+export function resolveContentCoverUrl(
+  cover: string | null | undefined,
+  seed: string,
+  fallbackIndex = 0,
+): string {
+  if (cover) return resolveMediaUrl(cover);
+  let hash = fallbackIndex;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = Math.imul(31, hash) + seed.charCodeAt(i);
+  }
+  return resolveProfileWorkCover(hash);
 }
 
 export function getStoredToken(): string | null {

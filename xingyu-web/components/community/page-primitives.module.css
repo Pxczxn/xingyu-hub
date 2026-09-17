@@ -1,0 +1,62 @@
+.orbitBg {
+  background-image:
+    radial-gradient(
+      circle at 77% 28%,
+      rgb(255 244 226 / 0.95) 0 2px,
+      transparent 3px
+    ),
+    radial-gradient(
+      circle at 17% 62%,
+      rgb(115 131 206 / 0.55) 0 2px,
+      transparent 3px
+    ),
+    radial-gradient(
+      ellipse at 72% 45%,
+      transparent 0 44%,
+      rgb(116 130 196 / 0.17) 44.5% 45%,
+      transparent 45.5%
+    ),
+    radial-gradient(
+      ellipse at 28% 75%,
+      transparent 0 37%,
+      rgb(228 139 76 / 0.13) 37.5% 38%,
+      transparent 38.5%
+    );
+}
+
+.kicker {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  color: rgb(var(--violet));
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: rgb(var(--navy));
+}
+
+@media (min-width: 640px) {
+  .sectionTitle {
+    font-size: 1.25rem;
+  }
+}
+
+.sectionAction {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: rgb(var(--violet));
+}
+
+.sectionAction:hover {
+  color: rgb(var(--navy));
+}

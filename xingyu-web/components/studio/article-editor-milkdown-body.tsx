@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import { Crepe, CrepeFeature } from "@milkdown/crepe";
 import { editorViewCtx } from "@milkdown/kit/core";
@@ -19,6 +21,7 @@ import {
 } from "@/lib/milkdown-editor-link";
 import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
 import { syncMilkdownEditorUi } from "@/lib/milkdown-editor-format-state";
+import { ArticleMarkdownBody } from "@/lib/article-markdown";
 import "@milkdown/crepe/theme/common/code-mirror.css";
 import "@milkdown/crepe/theme/common/cursor.css";
 import "@milkdown/crepe/theme/common/image-block.css";
@@ -262,26 +265,62 @@ function MilkdownEditorInner({
     if (file) void uploadAndInsert(file);
   }
 
+  const previewMarkdown = ensureCanonicalMarkdownBody(value);
+
   return (
     <div
-      className={`xy-editor-body-zone${dragging ? " is-dragging" : ""}${previewEnabled ? " is-inline-preview" : ""}`}
-      onDragEnter={(event) => {
-        event.preventDefault();
-        setDragging(true);
-      }}
-      onDragOver={(event) => event.preventDefault()}
-      onDragLeave={(event) => {
-        if (event.currentTarget === event.target) setDragging(false);
-      }}
-      onDrop={handleDrop}
+      className={cn(
+        styles.bodyZone,
+        dragging && styles.isDragging,
+        previewEnabled && styles.isInlinePreview,
+      )}
+      onDragEnter={
+        previewEnabled
+          ? undefined
+          : (event) => {
+              event.preventDefault();
+              setDragging(true);
+            }
+      }
+      onDragOver={previewEnabled ? undefined : (event) => event.preventDefault()}
+      onDragLeave={
+        previewEnabled
+          ? undefined
+          : (event) => {
+              if (event.currentTarget === event.target) setDragging(false);
+            }
+      }
+      onDrop={previewEnabled ? undefined : handleDrop}
     >
       <div
-        className={`xy-editor-body-input-wrap xy-editor-body-input-wrap--rich${previewEnabled ? " is-inline-preview" : ""}`}
+        className={cn(
+          styles.bodyInputWrap,
+          styles.bodySourceRich,
+          previewEnabled && styles.isInlinePreview,
+        )}
       >
+        {previewEnabled ? (
+          <div
+            className={cn(styles.bodyPreviewReadonly, styles.bodySurface, "xy-article-body")}
+            aria-label="文章预览"
+          >
+            <ArticleMarkdownBody body={previewMarkdown} />
+          </div>
+        ) : null}
+
         <div
-          className={`xy-editor-milkdown${previewEnabled ? " xy-article-body is-preview" : ""}${editorFocused ? " is-focused" : ""}`}
+          className={cn(
+            styles.bodySource,
+            styles.bodySourceRich,
+            previewEnabled && styles.isSourceHidden,
+          )}
+          aria-hidden={previewEnabled}
         >
-          <Milkdown />
+          <div
+            className={`xy-editor-milkdown${editorFocused ? " is-focused" : ""}`}
+          >
+            <Milkdown />
+          </div>
         </div>
       </div>
     </div>

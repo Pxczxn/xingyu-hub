@@ -1,4 +1,6 @@
 "use client";
+import styles from "./series.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -39,8 +41,8 @@ const rail = [
 function SeriesCard({ item, index }: { item: SeriesSummary; index: number }) {
   const cover = covers[index % covers.length];
   return (
-    <Link href={`/series/${item.id}`} className="xy-series-card group">
-      <Image src={`/prototype-assets/series-list/${cover}.png`} alt="" width={96} height={206} className="xy-series-card-cover" />
+    <Link href={`/series/${item.id}`} className={cn(styles.card, "group")}>
+      <Image src={`/prototype-assets/series-list/${cover}.png`} alt="" width={96} height={206} className={cn(styles.cardCover)} />
       <div className="min-w-0 flex-1 py-4 pr-4">
         <h3>{item.title}</h3>
         <p>{item.chapterCount ?? "持续更新"} 章 · {item.status === "PUBLISHED" ? "连载" : item.status}</p>
@@ -53,13 +55,13 @@ function SeriesCard({ item, index }: { item: SeriesSummary; index: number }) {
 
 function SeriesEmptyState() {
   return (
-    <section className="xy-series-empty-state" aria-label="系列内容为空">
-      <span className="xy-series-empty-icon"><BookOpen aria-hidden="true" /></span>
+    <section className={cn(styles.emptyState)} aria-label="系列内容为空">
+      <span className={cn(styles.emptyIcon)}><BookOpen aria-hidden="true" /></span>
       <div>
         <h2>从一条阅读路线开始</h2>
         <p>系列内容正在汇集，先去探索感兴趣的话题与创作者。</p>
       </div>
-      <div className="xy-series-empty-actions">
+      <div className={cn(styles.emptyActions)}>
         <Button asChild><Link href="/discover"><Compass className="mr-2 h-4 w-4" />去探索内容</Link></Button>
         <Button asChild variant="outline"><Link href="/topics">浏览话题</Link></Button>
       </div>
@@ -78,14 +80,14 @@ export default function SeriesListPage() {
   }, [series, sort, visibleCount]);
   return (
     <AppShell>
-      <main className="xy-series-market">
-        <aside className="xy-series-rail" aria-label="系列导航">
+      <main className={cn(styles.market)}>
+        <aside className={cn(styles.rail)} aria-label="系列导航">
           <nav>{rail.map(([Icon, label, href]) => <Link key={label} href={href} className={label === "系列广场" ? "is-active" : ""}><Icon />{label}</Link>)}</nav>
-          <div className="xy-series-orbit"><Sparkles /><strong>系列</strong><span>按主题探索长篇内容</span></div>
+          <div className={cn(styles.orbit)}><Sparkles /><strong>系列</strong><span>按主题探索长篇内容</span></div>
         </aside>
 
-        <section className="xy-series-main">
-          <div className="xy-series-banner">
+        <section className={cn(styles.main)}>
+          <div className={cn(styles.banner)}>
             <div className="relative z-10 max-w-[560px] p-8">
               <span>系列主题</span><h1>宇宙与文明的边界</h1>
               <p>从宏观宇宙到微观文明，探索人类在时空中的位置与未来。聚焦科学、哲学与想象的交汇。</p>
@@ -93,17 +95,17 @@ export default function SeriesListPage() {
             </div>
             <Image src="/prototype-assets/series-list/hero-art.png" alt="星球轨道" fill priority className="object-cover object-right" />
           </div>
-          <div className="xy-series-filters">
+          <div className={cn(styles.filters)}>
             <button type="button" className={sort === "default" ? "is-active" : ""} onClick={() => setSort("default")}>全部系列</button>
             <button type="button" className={sort === "recent" ? "is-active" : ""} onClick={() => setSort("recent")}>最近更新</button>
           </div>
-          <div className="xy-series-section-title"><h2><Sparkles />系列推荐</h2></div>
-          {loading ? <div className="xy-series-loading-grid" aria-busy="true">{Array.from({length: 4}).map((_, i) => <div className="xy-series-loading-card" key={i}><span/><b/><i/></div>)}</div> : error ? <EmptyState title="系列加载失败" description={error} /> : !series?.length ? <SeriesEmptyState /> : <div className="xy-series-grid">{visibleSeries.map((item,index)=><SeriesCard key={item.id} item={item} index={index}/>)}</div>}
+          <div className={cn(styles.sectionTitle)}><h2><Sparkles />系列推荐</h2></div>
+          {loading ? <div className={cn(styles.loadingGrid)} aria-busy="true">{Array.from({length: 4}).map((_, i) => <div className={cn(styles.loadingCard)} key={i}><span/><b/><i/></div>)}</div> : error ? <EmptyState title="系列加载失败" description={error} /> : !series?.length ? <SeriesEmptyState /> : <div className={cn(styles.grid)}>{visibleSeries.map((item,index)=><SeriesCard key={item.id} item={item} index={index}/>)}</div>}
           {(series?.length ?? 0) > visibleCount ? <Button type="button" variant="outline" onClick={() => setVisibleCount((count) => count + 8)} className="mx-auto mt-6 min-w-60 rounded-xl">加载更多系列 <ChevronDown className="ml-2 h-4 w-4" /></Button> : null}
         </section>
 
-        <aside className="xy-series-side">
-              <section><div className="xy-series-section-title"><h2><Sparkles />本周更新</h2></div>{(series??[]).slice(0,5).map((item,i)=><Link href={`/series/${item.id}`} className="xy-series-update" key={item.id}><Image src={`/prototype-assets/series-list/${covers[i%4]}.png`} alt="" width={48} height={48}/><span><b>{item.title}</b><small>{item.chapterCount === undefined ? "章节数据暂未提供" : `第 ${item.chapterCount} 章`}</small></span><time>{item.updatedAt ? formatDateTime(item.updatedAt) : "更新时间暂未提供"}</time></Link>)}</section>
+        <aside className={cn(styles.side)}>
+              <section><div className={cn(styles.sectionTitle)}><h2><Sparkles />本周更新</h2></div>{(series??[]).slice(0,5).map((item,i)=><Link href={`/series/${item.id}`} className={cn(styles.update)} key={item.id}><Image src={`/prototype-assets/series-list/${covers[i%4]}.png`} alt="" width={48} height={48}/><span><b>{item.title}</b><small>{item.chapterCount === undefined ? "章节数据暂未提供" : `第 ${item.chapterCount} 章`}</small></span><time>{item.updatedAt ? formatDateTime(item.updatedAt) : "更新时间暂未提供"}</time></Link>)}</section>
         </aside>
       </main>
     </AppShell>

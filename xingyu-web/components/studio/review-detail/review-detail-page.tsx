@@ -1,4 +1,6 @@
 "use client";
+import styles from "./review-detail.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -36,7 +38,7 @@ export function ReviewDetailPage() {
   if (loading) {
     return (
       <AppShell>
-        <main className="xy-review-loading">正在加载审核详情…</main>
+        <main className={cn(styles.reviewLoading)}>正在加载审核详情…</main>
       </AppShell>
     );
   }
@@ -44,7 +46,7 @@ export function ReviewDetailPage() {
   if (error || !submission) {
     return (
       <AppShell>
-        <main className="xy-review-error">
+        <main className={cn(styles.reviewError)}>
           <Alert variant="destructive">{error || "投稿不存在或无权查看"}</Alert>
           <Link href="/studio/content?tab=reviewing">返回审核列表</Link>
         </main>
@@ -62,12 +64,12 @@ export function ReviewDetailPage() {
 
   return (
     <AppShell>
-      <main className="xy-review-detail">
-        <div className="xy-review-crumb">
+      <main className={cn(styles.reviewDetail)}>
+        <div className={cn(styles.crumb)}>
           创作中心 <ChevronRight aria-hidden="true" /> <span>审核详情</span>
         </div>
 
-        <section className="xy-review-detail-main">
+        <section className={cn(styles.detailMain)}>
           <ReviewStepBar status={submission.status} />
           <ReviewStatusHeader meta={statusMeta} />
           <ReviewArticleSummary
@@ -78,13 +80,13 @@ export function ReviewDetailPage() {
           />
         </section>
 
-        <aside className="xy-review-detail-side">
+        <aside className={cn(styles.detailSide)}>
           <ReviewFeedbackCard message={feedback} />
           <ReviewToolList articleHref={articleHref} approved={approved} />
           <ReviewStandardsPanel />
         </aside>
 
-        <div className="xy-review-mobile-cta">
+        <div className={cn(styles.mobileCta)}>
           <Link href={articleHref}>{approved ? "查看作品" : "查看稿件"}</Link>
         </div>
       </main>

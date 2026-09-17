@@ -1,4 +1,6 @@
 "use client";
+import styles from "./event-submit.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -65,24 +67,24 @@ export default function EventSubmitPage() {
   const canSubmit = Boolean(event?.submissionOpen && objectId);
   return (
     <AppShell>
-      <main className="xy-submit-page">
+      <main className={cn(styles.submitPage)}>
         <header>
           <div><h1>活动投稿</h1><p>{event?.title || (eventError ? "活动信息暂时无法加载" : "参与活动，分享你的创作")}</p></div>
-          <ol>{["选择作品", "填写说明", "提交完成"].map((label, index) => <li className={index === 0 ? "active" : ""} key={label}><b>{index + 1}</b>{label}</li>)}</ol>
+          <ol>{["选择作品", "填写说明", "提交完成"].map((label, index) => <li className={index === 0 ? styles.active : undefined} key={label}><b>{index + 1}</b>{label}</li>)}</ol>
         </header>
-        <div className="xy-submit-grid">
+        <div className={cn(styles.grid)}>
           <form onSubmit={onSubmit}>
             <section>
               <h2><b>1</b> 选择投稿内容</h2>
-              <div className="xy-submit-tabs">
-                {[["ARTICLE", "单篇文章"], ["SERIES", "系列作品"], ["MOMENT", "社区动态"]].map(([type, label]) => <button type="button" className={objectType === type ? "active" : ""} onClick={() => setObjectType(type)} key={type}>{label}</button>)}
+              <div className={cn(styles.tabs)}>
+                {[["ARTICLE", "单篇文章"], ["SERIES", "系列作品"], ["MOMENT", "社区动态"]].map(([type, label]) => <button type="button" className={objectType === type ? styles.active : undefined} onClick={() => setObjectType(type)} key={type}>{label}</button>)}
               </div>
-              <div className="xy-submit-work">
+              <div className={cn(styles.work)}>
                 <Image src="/prototype-assets/activity-submission/cover.png" alt="" aria-hidden="true" width={181} height={192} />
                 <div>
                   <label>选择已发布作品<select value={objectId} onChange={(e) => setObjectId(e.target.value)}>{options.length ? options.map((item) => <option value={item.objectId} key={item.objectId}>{item.title}</option>) : <option value="">暂无可用作品</option>}</select></label>
                   <label>所选作品标题<input value={selected?.title || ""} readOnly placeholder="请选择要投稿的作品" /></label>
-                  <p className="xy-submit-hint"><FileText /> 作品的正文与已有资料将以原内容为准，投稿页不会修改它。</p>
+                  <p className={cn(styles.hint)}><FileText /> 作品的正文与已有资料将以原内容为准，投稿页不会修改它。</p>
                 </div>
               </div>
             </section>
@@ -101,12 +103,12 @@ export default function EventSubmitPage() {
           </form>
           <aside>
             <section><h2>{event?.title || "活动信息"} <em>{event?.submissionOpen ? "开放中" : "待开放"}</em></h2><p><b>开始时间</b><strong>{formatDate(event?.startsAt)}</strong><span>结束时间：{formatDate(event?.endsAt)}</span></p></section>
-            <section><h2>活动说明</h2><p className="xy-submit-event-body">{event?.body || "活动方暂未提供详细说明。"}</p></section>
-            <section><h2>投稿要求</h2><p className="xy-submit-event-body">请选择自己已发布的内容后提交。其他规则与审核要求以活动说明为准。</p></section>
-            <section><h2>作品预览</h2><div className="xy-submit-preview"><Image src="/prototype-assets/activity-submission/cover.png" alt="" aria-hidden="true" width={112} height={174} /><span><h3>{selected?.title || "尚未选择作品"}</h3><p>{selected ? `内容类型：${selected.objectType}` : "选择作品后将在这里确认投稿对象。"}</p><small><Clock3 /> 投稿不会修改原内容</small></span></div></section>
+            <section><h2>活动说明</h2><p className={cn(styles.eventBody)}>{event?.body || "活动方暂未提供详细说明。"}</p></section>
+            <section><h2>投稿要求</h2><p className={cn(styles.eventBody)}>请选择自己已发布的内容后提交。其他规则与审核要求以活动说明为准。</p></section>
+            <section><h2>作品预览</h2><div className={cn(styles.preview)}><Image src="/prototype-assets/activity-submission/cover.png" alt="" aria-hidden="true" width={112} height={174} /><span><h3>{selected?.title || "尚未选择作品"}</h3><p>{selected ? `内容类型：${selected.objectType}` : "选择作品后将在这里确认投稿对象。"}</p><small><Clock3 /> 投稿不会修改原内容</small></span></div></section>
           </aside>
         </div>
-        <p className="xy-submit-legal"><ShieldCheck /> 投稿即代表你同意遵守《星语社区创作规范》及活动说明。</p>
+        <p className={cn(styles.legal)}><ShieldCheck /> 投稿即代表你同意遵守《星语社区创作规范》及活动说明。</p>
       </main>
     </AppShell>
   );

@@ -1,0 +1,77 @@
+.orbits::before,
+.orbits::after {
+  position: absolute;
+  inset: 8% 5%;
+  border: 1px solid rgb(111 129 194 / 0.24);
+  border-radius: 50%;
+  content: "";
+  transform: rotate(7deg);
+}
+
+.orbits::after {
+  inset: 22% 2% 18%;
+  border-color: rgb(228 139 76 / 0.22);
+  transform: rotate(-8deg);
+}
+
+.orbits {
+  background-image:
+    radial-gradient(circle at 18% 24%, rgb(111 129 194 / 0.8) 0 2px, transparent 3px),
+    radial-gradient(circle at 70% 55%, rgb(228 139 76 / 0.75) 0 2px, transparent 3px),
+    radial-gradient(
+      ellipse at center,
+      transparent 0 42%,
+      rgb(111 129 194 / 0.18) 42.4% 42.8%,
+      transparent 43.2%
+    );
+}
+
+.risingPanel {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  overflow: hidden;
+  padding: 1.25rem 1.5rem;
+  scrollbar-width: thin;
+}
+
+@media (min-width: 1024px) {
+  :global(.xy-nav-topics) .orbits {
+    top: 5.5rem;
+    bottom: 0;
+  }
+  :global(.xy-nav-topics) .risingPanel {
+    margin-top: 1rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .risingPanel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    overflow-x: visible;
+    padding: 1rem;
+  }
+
+  .risingPanel > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .risingPanel > a {
+    min-width: 0;
+    padding-left: 0.75rem;
+  }
+
+  .risingPanel > :global(button) {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 0.25rem;
+  }
+}
+
+@media (max-width: 900px) {
+  :global(.xy-nav-topics) .orbits {
+    top: 5rem;
+  }
+}

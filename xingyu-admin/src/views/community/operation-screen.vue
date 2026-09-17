@@ -9,15 +9,16 @@
     </section>
     <n-card class="operation-card" :bordered="true">
       <div class="card-toolbar"><div><h2>待处理队列</h2><p>按优先级查看当前运营任务和数据状态。</p></div><n-button quaternary size="small">筛选条件</n-button></div>
-      <n-data-table :columns="columns" :data="rows" :bordered="false" :single-line="false" />
+      <n-data-table v-bind="tableListProps(tableScroll)" :columns="columns" :data="rows" />
     </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { h } from 'vue'
-import { NTag } from 'naive-ui'
+import { computed, h } from 'vue'
+import { NTag, type DataTableColumns } from 'naive-ui'
+import { colLayout, tableListProps, tableScrollSum } from '@/utils/table-layout'
+import { renderEllipsisText } from '@/utils/table-cells'
 
 const props = defineProps<{ screen: string }>()
 const catalog: Record<string, { title: string; description: string; action: string }> = {
@@ -54,7 +55,29 @@ const description = computed(() => info.value.description)
 const primaryAction = computed(() => info.value.action)
 const metrics = [{ label: "待处理", value: "24", note: "较昨日 +6", tone: "up" }, { label: "今日新增", value: "138", note: "内容与互动", tone: "neutral" }, { label: "处理完成率", value: "92%", note: "过去 7 天", tone: "up" }, { label: "风险提醒", value: "3", note: "需要关注", tone: "warn" }]
 const rows = [{ id: "OP-2401", subject: "社区内容质量巡检", owner: "运营值班组", updated: "10 分钟前", status: "进行中" }, { id: "OP-2398", subject: "精选内容复核", owner: "内容运营", updated: "32 分钟前", status: "待处理" }, { id: "OP-2392", subject: "用户反馈汇总", owner: "社区治理", updated: "1 小时前", status: "已完成" }]
-const columns = [{ title: "任务", key: "subject" }, { title: "负责人", key: "owner" }, { title: "更新时间", key: "updated" }, { title: "状态", key: "status", render: (row: any) => h(NTag, { type: row.status === "已完成" ? "success" : row.status === "进行中" ? "info" : "warning", bordered: false }, { default: () => row.status }) }]
+type OperationRow = (typeof rows)[number]
+const tableScroll = tableScrollSum(['title', 'name', 'slug', 'status'])
+const columns: DataTableColumns<OperationRow> = [
+  { title: '任务', key: 'subject', ...colLayout('title'), render: row => renderEllipsisText(row.subject) },
+  { title: '负责人', key: 'owner', ...colLayout('name'), render: row => renderEllipsisText(row.owner) },
+  { title: '更新时间', key: 'updated', ...colLayout('slug'), render: row => renderEllipsisText(row.updated) },
+  {
+    title: '状态',
+    key: 'status',
+    ...colLayout('status'),
+    render: row =>
+      h(
+        NTag,
+        {
+          size: 'small',
+          round: true,
+          bordered: true,
+          type: row.status === '已完成' ? 'success' : row.status === '进行中' ? 'info' : 'warning'
+        },
+        { default: () => row.status }
+      )
+  }
+]
 </script>
 
 <style scoped lang="scss">

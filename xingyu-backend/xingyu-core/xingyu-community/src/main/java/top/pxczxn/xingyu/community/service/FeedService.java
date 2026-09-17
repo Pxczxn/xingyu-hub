@@ -27,6 +27,7 @@ public class FeedService {
     private final MomentMapper momentMapper;
     private final SearchDocumentMapper searchDocumentMapper;
     private final RecommendationService recommendationService;
+    private final ContentCoverService contentCoverService;
 
     public List<FeedItemDTO> getFeed(CommunityUser user, String type, int page, int size) {
         if (size <= 0) {
@@ -83,6 +84,7 @@ public class FeedService {
                         .type(card.getObjectType() == null ? "ARTICLE" : card.getObjectType())
                         .title(card.getTitle())
                         .summary(card.getSummary())
+                        .cover(card.getCover())
                         .createdAt(card.getUpdatedAt())
                         .build())
                 .toList();
@@ -98,6 +100,7 @@ public class FeedService {
                         .type(doc.getObjectType())
                         .title(doc.getTitle())
                         .summary(doc.getSummary())
+                        .cover(contentCoverService.resolveCoverUrl(doc))
                         .createdAt(doc.getIndexedAt())
                         .build())
                 .toList();
@@ -117,6 +120,7 @@ public class FeedService {
                 .type(type)
                 .title(document.getTitle())
                 .summary(document.getSummary())
+                .cover(contentCoverService.resolveCoverUrl(document))
                 .authorId(authorId)
                 .createdAt(createdAt != null ? createdAt : document.getIndexedAt())
                 .build();

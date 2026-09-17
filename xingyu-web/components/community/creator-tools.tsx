@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export function AuthorIdentity({ username, name, subtitle, href }: { username: string; name?: string; subtitle?: string; href?: string }) {
   const content = <><Avatar fallback={name || username} size="sm" /><span className="min-w-0"><span className="block truncate text-sm font-medium">{name || username}</span>{subtitle ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{subtitle}</span> : null}</span></>;
@@ -78,7 +79,7 @@ export function EditorCanvas({ initialTitle = "", initialBody = "", title: contr
   }
 
   return (
-    <div className="xy-panel p-5 sm:p-7">
+    <div className={cn(shellStyles.panel, "p-5 sm:p-7")}>
       <Input value={title} onChange={event => updateTitle(event.target.value)} placeholder="输入一个清晰的标题" aria-label="文章标题" className="h-auto border-0 bg-transparent px-0 text-3xl font-semibold shadow-none focus-visible:ring-0" />
       <EditorToolbar body={body} onInsert={handleInsert} textareaRef={bodyRef} />
       <textarea ref={bodyRef} value={body} onChange={event => updateBody(event.target.value)} placeholder="从这里开始写作…" aria-label="文章正文" className="mt-5 min-h-[420px] w-full resize-y border-0 bg-transparent text-[15px] leading-8 outline-none placeholder:text-muted-foreground" />
@@ -86,8 +87,8 @@ export function EditorCanvas({ initialTitle = "", initialBody = "", title: contr
   );
 }
 
-export function PublishPanel({ onSave, onSubmit }: { onSave?: () => void; onSubmit?: () => void }) { return <section className="xy-panel p-5"><p className="font-medium">发布检查</p><ul className="mt-4 space-y-3 text-sm text-muted-foreground"><li className="flex gap-2"><Check className="h-4 w-4 text-[rgb(var(--violet))]" />标题与正文</li><li className="flex gap-2"><Clock3 className="h-4 w-4" />选择话题与可见范围</li></ul><div className="mt-5 grid gap-2"><Button variant="outline" onClick={onSave}><Save className="mr-1.5 h-4 w-4" />保存草稿</Button><Button onClick={onSubmit}><Send className="mr-1.5 h-4 w-4" />提交审核</Button></div></section>; }
+export function PublishPanel({ onSave, onSubmit }: { onSave?: () => void; onSubmit?: () => void }) { return <section className={cn(shellStyles.panel, "p-5")}><p className="font-medium">发布检查</p><ul className="mt-4 space-y-3 text-sm text-muted-foreground"><li className="flex gap-2"><Check className="h-4 w-4 text-[rgb(var(--violet))]" />标题与正文</li><li className="flex gap-2"><Clock3 className="h-4 w-4" />选择话题与可见范围</li></ul><div className="mt-5 grid gap-2"><Button variant="outline" onClick={onSave}><Save className="mr-1.5 h-4 w-4" />保存草稿</Button><Button onClick={onSubmit}><Send className="mr-1.5 h-4 w-4" />提交审核</Button></div></section>; }
 
 export function RevisionTimeline({ revisions }: { revisions: Array<{ id: string; label: string; detail: string; active?: boolean }> }) { return <ol className="border-l border-border pl-5">{revisions.map(revision => <li key={revision.id} className="relative pb-6 last:pb-0"><span className={cn("absolute -left-[25px] top-1 h-3 w-3 rounded-full border-2 border-card", revision.active ? "bg-[rgb(var(--violet))]" : "bg-muted-foreground")} /><p className="text-sm font-medium">{revision.label}</p><p className="mt-1 text-sm text-muted-foreground">{revision.detail}</p></li>)}</ol>; }
 
-export function SettingsNav({ items, current }: { items: Array<{ label: string; href: string }>; current: string }) { return <nav className="xy-panel h-fit p-3" aria-label="设置导航">{items.map(item => <Link key={item.href} href={item.href} className={cn("flex items-center justify-between rounded-lg px-3 py-2.5 text-sm", current === item.href ? "bg-[rgb(var(--violet)/.1)] font-medium text-[rgb(var(--violet))]" : "hover:bg-muted")}><span>{item.label}</span><ChevronRight className="h-4 w-4" /></Link>)}</nav>; }
+export function SettingsNav({ items, current }: { items: Array<{ label: string; href: string }>; current: string }) { return <nav className={cn(shellStyles.panel, "h-fit p-3")} aria-label="设置导航">{items.map(item => <Link key={item.href} href={item.href} className={cn("flex items-center justify-between rounded-lg px-3 py-2.5 text-sm", current === item.href ? "bg-[rgb(var(--violet)/.1)] font-medium text-[rgb(var(--violet))]" : "hover:bg-muted")}><span>{item.label}</span><ChevronRight className="h-4 w-4" /></Link>)}</nav>; }

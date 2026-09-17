@@ -1,4 +1,6 @@
 "use client";
+import styles from "./discover-prototype-page.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,13 +10,13 @@ import {
   BookOpen,
   Filter,
   Hash,
-  MessageCircle,
   Orbit,
   Settings2,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { FollowButton } from "@/components/community/engagement";
+import { useCurrentProfile } from "@/components/layout/current-profile-context";
+import { resolveContentCoverUrl } from "@/lib/api-client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +33,12 @@ import {
   type TopicSummary,
 } from "@/lib/community-api";
 import { formatDateTime } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import {
+  buildDiscoverMockStream,
+  DISCOVER_MOCK_CREATORS,
+  DISCOVER_MOCK_GALAXIES,
+  withHomeMock,
+} from "./discover-page-mock-data";
 
 type DiscoverPrototypePageProps = {
   nav: ExploreNav;
@@ -125,10 +132,10 @@ function SectionHead({
   action?: string;
 }) {
   return (
-    <div className="xy-discover-section-head">
+    <div className={cn(styles.sectionHead)}>
       <h2>{title}</h2>
       {href ? (
-        <Link href={href} className="xy-discover-section-link">
+        <Link href={href} className={cn(styles.sectionLink)}>
           {action}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
@@ -139,13 +146,13 @@ function SectionHead({
 
 function StreamEmpty({ nav }: { nav: ExploreNav }) {
   return (
-    <div className="xy-discover-stream-empty">
+    <div className={cn(styles.streamEmpty)}>
       <p>
         {nav.mode === "user"
           ? "这个探索方向的内容还在汇集，试试切换其他方向或管理我的探索。"
           : "这个星域的内容还在汇集，可以先从其他官方领域开始。"}
       </p>
-      <div className="xy-discover-stream-empty-links">
+      <div className={cn(styles.streamEmptyLinks)}>
         {nav.canManage ? <Link href="/me/interests">管理我的探索</Link> : null}
         <Link href="/topics">逛逛话题</Link>
         <Link href="/galaxies">进入星域</Link>
@@ -154,28 +161,32 @@ function StreamEmpty({ nav }: { nav: ExploreNav }) {
   );
 }
 
+function StreamMeta({ children }: { children: React.ReactNode }) {
+  if (!children) return null;
+  return <div className={styles.streamMeta}>{children}</div>;
+}
+
 function StreamItemRow({ entry, lead = false }: { entry: DiscoverStreamItem; lead?: boolean }) {
   if (entry.kind === "series") {
     const item = entry.item;
+    const chapterLabel =
+      item.chapterCount !== undefined ? `共 ${item.chapterCount} 篇` : "连载中";
+    const hasMeta = Boolean(item.updatedAt);
+
     return (
-      <li className={cn("xy-discover-stream-item", lead && "xy-discover-stream-item--lead")}>
-        <Link href={`/series/${item.id}`} className="xy-discover-stream-link">
-          <span className="xy-discover-stream-mark xy-discover-stream-mark--series" aria-hidden="true">
+      <li className={cn(styles.streamItem, lead && styles.streamItemLead)}>
+        <Link href={`/series/${item.id}`} className={styles.streamLink}>
+          <span className={styles.streamMark} aria-hidden="true">
             <BookOpen className="h-4 w-4" />
           </span>
-          <span className="xy-discover-stream-body">
-            <span className="xy-discover-stream-type">{TYPE_LABELS.series}</span>
-            <strong>{item.title}</strong>
-            <small>
-              {item.chapterCount !== undefined ? `共 ${item.chapterCount} 篇` : "连载中"}
-              {item.updatedAt ? (
-                <>
-                  <span aria-hidden="true"> · </span>
-                  {formatDateTime(item.updatedAt)}
-                </>
-              ) : null}
-            </small>
-          </span>
+          <div className={styles.streamBody}>
+            <span className={styles.streamType}>{TYPE_LABELS.series}</span>
+            <strong className={styles.streamTitle}>{item.title}</strong>
+          </div>
+          <StreamMeta>
+            <span>{chapterLabel}</span>
+            {hasMeta ? <span>{formatDateTime(item.updatedAt!)}</span> : null}
+          </StreamMeta>
         </Link>
       </li>
     );
@@ -183,55 +194,48 @@ function StreamItemRow({ entry, lead = false }: { entry: DiscoverStreamItem; lea
 
   if (entry.kind === "topic") {
     const item = entry.item;
+
     return (
-      <li className={cn("xy-discover-stream-item", lead && "xy-discover-stream-item--lead")}>
-        <Link href={`/topics/${item.slug}`} className="xy-discover-stream-link">
-          <span className="xy-discover-stream-mark xy-discover-stream-mark--topic" aria-hidden="true">
+      <li className={cn(styles.streamItem, lead && styles.streamItemLead)}>
+        <Link href={`/topics/${item.slug}`} className={styles.streamLink}>
+          <span className={styles.streamMark} aria-hidden="true">
             <Hash className="h-3.5 w-3.5" />
           </span>
-          <span className="xy-discover-stream-body">
-            <span className="xy-discover-stream-type">{TYPE_LABELS.topic}</span>
-            <strong># {item.name}</strong>
-            <small>{count(item.contentCount)} 讨论</small>
-          </span>
+          <div className={styles.streamBody}>
+            <span className={styles.streamType}>{TYPE_LABELS.topic}</span>
+            <strong className={styles.streamTitle}># {item.name}</strong>
+          </div>
+          <StreamMeta>
+            <span>{count(item.contentCount)} 讨论</span>
+          </StreamMeta>
         </Link>
       </li>
     );
   }
 
   const item = entry.item;
-  const isMoment = entry.kind === "moment";
+  const hasMeta = Boolean(item.readMinutes || item.updatedAt);
 
   return (
-    <li className={cn("xy-discover-stream-item", lead && "xy-discover-stream-item--lead")}>
-      <Link href={contentHref(item)} className="xy-discover-stream-link">
-        {item.cover ? (
-          <img src={item.cover} alt="" className="xy-discover-stream-thumb" />
-        ) : (
-          <span
-            className={cn(
-              "xy-discover-stream-mark",
-              isMoment ? "xy-discover-stream-mark--moment" : "xy-discover-stream-mark--article"
-            )}
-            aria-hidden="true"
-          >
-            {isMoment ? <MessageCircle className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
-          </span>
-        )}
-        <span className="xy-discover-stream-body">
-          <span className="xy-discover-stream-type">{TYPE_LABELS[entry.kind]}</span>
-          <strong>{item.title}</strong>
-          {item.summary ? <p>{item.summary}</p> : null}
-          <small>
-            {item.authorName || "星语创作者"}
-            {item.updatedAt ? (
-              <>
-                <span aria-hidden="true"> · </span>
-                {formatDateTime(item.updatedAt)}
-              </>
-            ) : null}
-          </small>
-        </span>
+    <li className={cn(styles.streamItem, lead && styles.streamItemLead)}>
+      <Link href={contentHref(item)} className={styles.streamLink}>
+        <img
+          src={resolveContentCoverUrl(item.cover, item.id)}
+          alt=""
+          className={styles.streamThumb}
+        />
+        <div className={styles.streamBody}>
+          <span className={styles.streamType}>{TYPE_LABELS[entry.kind]}</span>
+          <strong className={styles.streamTitle}>{item.title}</strong>
+          {item.summary ? <p className={styles.streamDesc}>{item.summary}</p> : null}
+          <span className={styles.streamAuthor}>{item.authorName || "星语创作者"}</span>
+        </div>
+        {hasMeta ? (
+          <StreamMeta>
+            {item.readMinutes ? <span>{item.readMinutes} 分钟</span> : null}
+            {item.updatedAt ? <span>{formatDateTime(item.updatedAt)}</span> : null}
+          </StreamMeta>
+        ) : null}
       </Link>
     </li>
   );
@@ -250,52 +254,41 @@ export function DiscoverPrototypePage({
   galaxies,
 }: DiscoverPrototypePageProps) {
   const router = useRouter();
+  const currentProfile = useCurrentProfile();
+  const currentUsername = currentProfile.username?.trim().toLowerCase();
+  const streamInput = useMemo(
+    () => buildDiscoverMockStream(articles, more, series, topics),
+    [articles, more, series, topics],
+  );
   const stream = useMemo(
-    () => buildDiscoverStream(articles, more, series, topics),
-    [articles, more, series, topics]
+    () => buildDiscoverStream(streamInput.mockArticles, streamInput.mockMore, streamInput.mockSeries, streamInput.mockTopics),
+    [streamInput],
   );
   const hotGalaxies = useMemo(
-    () => [...galaxies].sort((left, right) => (right.memberCount ?? 0) - (left.memberCount ?? 0)).slice(0, 5),
-    [galaxies]
+    () =>
+      withHomeMock(galaxies, DISCOVER_MOCK_GALAXIES)
+        .sort((left, right) => (right.memberCount ?? 0) - (left.memberCount ?? 0))
+        .slice(0, 5),
+    [galaxies],
   );
-  const activeCreators = useMemo(() => creators.slice(0, 5), [creators]);
+  const activeCreators = useMemo(
+    () => withHomeMock(creators, DISCOVER_MOCK_CREATORS).slice(0, 5),
+    [creators],
+  );
   const activeDomain = nav.domainTabs.find((tab) => tab.key === domainKey);
   const activeDomainLabel = domainKey === "all" ? "全部" : activeDomain?.label;
 
   return (
-    <main className="xy-discover-page">
-      <div className="xy-discover-first-screen">
-        <header className="xy-discover-hero">
-          <img src="/prototype-assets/discover/hero-cosmos.png" alt="" className="xy-discover-hero-art" />
-          <div className="xy-discover-hero-copy">
-            <span className="xy-discover-hero-kicker">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              探索
-            </span>
-            <h1>探索星辰大海，发现优质内容</h1>
-            <p className="xy-discover-hero-desc">官方领域星图指引方向，标签关联内容，按你的探索路径推荐</p>
-            <Link href="/search" className="xy-discover-hero-cta">
-              开始探索
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </div>
-          <div className="xy-discover-hero-note">
-            <span>{nav.mode === "user" ? "全部" : "官方星图"}</span>
-            <strong>{activeDomainLabel ?? (nav.mode === "user" ? "全部" : "技术")}</strong>
-            <small>标签 · 领域 · 推荐</small>
-          </div>
-        </header>
-      </div>
-
-      <div className="xy-discover-toolbar" role="toolbar" aria-label="探索导航">
-        <div className="xy-discover-toolbar-main">
+    <main className={styles.discoverPage} data-layout="discover">
+      <div className={cn(styles.toolbar)} role="toolbar" aria-label="探索导航">
+        <div className={cn(styles.toolbarMain)}>
           {nav.mode !== "user" ? (
-            <div className="xy-discover-toolbar-label">
-              <span className="xy-discover-toolbar-label-mark" aria-hidden="true" />
-              <span className="xy-discover-toolbar-label-text">{nav.sectionTitle}</span>
+            <div className={cn(styles.toolbarLabel)}>
+              <span className={cn(styles.toolbarLabelMark)} aria-hidden="true" />
+              <span className={cn(styles.toolbarLabelText)}>{nav.sectionTitle}</span>
             </div>
           ) : null}
-          <div className="xy-discover-type-tabs" role="tablist" aria-label={nav.sectionTitle}>
+          <div className={cn(styles.typeTabs)} role="tablist" aria-label={nav.sectionTitle}>
             {nav.mode === "user" ? (
               <button
                 key="all"
@@ -303,7 +296,7 @@ export function DiscoverPrototypePage({
                 role="tab"
                 aria-selected={domainKey === "all"}
                 title="汇总你已选探索方向的内容"
-                className={cn(domainKey === "all" && "is-active")}
+                className={cn(domainKey === "all" && styles.isActive)}
                 onClick={() => onFilterChange("all", sortKey)}
               >
                 全部
@@ -316,7 +309,7 @@ export function DiscoverPrototypePage({
                 role="tab"
                 aria-selected={domainKey === tab.key}
                 title={tab.description}
-                className={cn(domainKey === tab.key && "is-active", tab.personal && "is-personal")}
+                className={cn(domainKey === tab.key && styles.isActive, tab.personal && styles.isPersonal)}
                 onClick={() => onFilterChange(tab.key, sortKey)}
               >
                 {tab.label}
@@ -324,15 +317,15 @@ export function DiscoverPrototypePage({
             ))}
           </div>
         </div>
-        <div className="xy-discover-sort-row">
-          <div className="xy-discover-sort-tabs" role="tablist" aria-label="排序方式">
+        <div className={cn(styles.sortRow)}>
+          <div className={cn(styles.sortTabs)} role="tablist" aria-label="排序方式">
             {nav.sortTabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 role="tab"
                 aria-selected={sortKey === tab.key}
-                className={cn(sortKey === tab.key && "is-active")}
+                className={cn(sortKey === tab.key && styles.isActive)}
                 onClick={() => onFilterChange(domainKey, tab.key)}
               >
                 {tab.label}
@@ -340,7 +333,7 @@ export function DiscoverPrototypePage({
             ))}
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger className="xy-discover-filter-btn shrink-0" aria-label="筛选与探索管理">
+            <DropdownMenuTrigger className={cn(styles.filterBtn, "shrink-0")} aria-label="筛选与探索管理">
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />
               筛选
             </DropdownMenuTrigger>
@@ -359,21 +352,18 @@ export function DiscoverPrototypePage({
         </div>
       </div>
 
-      <div className="xy-discover-body">
-        <div className="xy-discover-layout xy-discover-layout-first">
-          <section className="xy-discover-main">
-            <header className="xy-discover-stream-head">
-              <div>
-                <span className="xy-discover-stream-kicker">今日探索</span>
-                <h2>
-                  {activeDomainLabel ? `${activeDomainLabel} · 推荐内容流` : "推荐内容流"}
-                </h2>
-              </div>
+      <div className={cn(styles.body)}>
+        <div className={cn(styles.layout, styles.layoutFirst)}>
+          <section className={cn(styles.main, styles.mainCard)}>
+            <header className={cn(styles.streamHead)}>
+              <h2>
+                {activeDomainLabel ? `${activeDomainLabel} · 推荐内容` : "推荐内容"}
+              </h2>
               <p>{nav.feedHint}</p>
             </header>
 
             {stream.length > 0 ? (
-              <ul className="xy-discover-stream">
+              <ul className={cn(styles.stream)}>
                 {stream.map((entry, index) => (
                   <StreamItemRow key={entry.key} entry={entry} lead={index === 0} />
                 ))}
@@ -383,64 +373,70 @@ export function DiscoverPrototypePage({
             )}
           </section>
 
-          <aside className="xy-discover-aside">
-            <section className="xy-discover-aside-block">
+          <aside className={cn(styles.aside)}>
+            <section className={cn(styles.asideBlock)}>
               <SectionHead title="热门星域" href="/galaxies" action="全部星域" />
               {hotGalaxies.length > 0 ? (
-                <ul className="xy-discover-galaxy-list">
+                <ul className={cn(styles.galaxyList)}>
                   {hotGalaxies.map((galaxy, index) => (
                     <li key={galaxy.id}>
-                      <Link href={`/galaxies/${galaxy.slug}`} className="xy-discover-galaxy-row">
-                        <span className="xy-discover-galaxy-mark" aria-hidden="true">
+                      <Link href={`/galaxies/${galaxy.slug}`} className={cn(styles.galaxyRow)}>
+                        <span className={cn(styles.galaxyMark)} aria-hidden="true">
                           <Orbit className="h-4 w-4" />
                         </span>
                         <span className="min-w-0 flex-1">
                           <strong>{galaxy.name}</strong>
                           <small>{count(galaxy.memberCount)} 成员</small>
                         </span>
-                        <span className="xy-discover-galaxy-rank">{index + 1}</span>
+                        <span className={cn(styles.galaxyRank)}>{index + 1}</span>
                       </Link>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="xy-discover-inline-empty">暂无星域推荐</p>
+                <p className={cn(styles.inlineEmpty)}>暂无星域推荐</p>
               )}
             </section>
 
-            <section className="xy-discover-aside-block">
+            <section className={cn(styles.asideBlock)}>
               <SectionHead title="活跃创作者" href="/search?type=USER" />
               {activeCreators.length > 0 ? (
-                <ul className="xy-discover-creator-list">
+                <ul className={cn(styles.creatorList)}>
                   {activeCreators.map((creator, index) => (
                     <li key={creator.userId}>
-                      <div className="xy-discover-creator-row">
+                      <div className={cn(styles.creatorRow)}>
                         <span
-                          className="xy-discover-creator-avatar"
-                          style={{ background: index % 2 ? "#7490c7" : "#13234d" }}
+                          className={cn(styles.creatorAvatar)}
                         >
                           {(creator.displayName || creator.username).slice(0, 1)}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <Link href={`/u/${creator.username}`} className="xy-discover-creator-name">
+                          <Link href={`/u/${creator.username}`} className={cn(styles.creatorName)}>
                             {creator.displayName || creator.username}
                           </Link>
-                          <span className="xy-discover-creator-role">
+                          <span className={cn(styles.creatorRole)}>
                             <Users className="h-3 w-3" aria-hidden="true" />
                             @{creator.username}
                           </span>
                         </div>
-                        <FollowButton
-                          username={creator.username}
-                          compact
-                          className="h-8 shrink-0 px-2.5 text-xs [&_svg]:hidden"
-                        />
+                        {currentUsername &&
+                        creator.username.trim().toLowerCase() === currentUsername ? (
+                          <span className={cn(styles.creatorSelf)} aria-label="当前账号">
+                            我
+                          </span>
+                        ) : (
+                          <FollowButton
+                            username={creator.username}
+                            compact
+                            className={cn(styles.creatorFollow)}
+                          />
+                        )}
                       </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="xy-discover-inline-empty">暂无创作者推荐</p>
+                <p className={cn(styles.inlineEmpty)}>暂无创作者推荐</p>
               )}
             </section>
           </aside>

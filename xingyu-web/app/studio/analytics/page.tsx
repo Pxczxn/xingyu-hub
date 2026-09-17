@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { communityApi, type InsightsView } from "@/lib/community-api";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function StudioAnalyticsPage() {
   const [insights, setInsights] = useState<InsightsView | null>(null);
@@ -14,7 +16,7 @@ export default function StudioAnalyticsPage() {
 
   return (
     <AppShell>
-      <main className="xy-page mx-auto max-w-4xl py-8">
+      <main className={cn(shellStyles.page, "mx-auto max-w-4xl py-8")}>
         <h1 className="text-2xl font-semibold">创作数据分析</h1>
         <p className="mt-2 text-sm text-muted-foreground">汇总你的创作与互动数据。</p>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

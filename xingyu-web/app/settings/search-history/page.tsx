@@ -19,7 +19,7 @@ export default function SearchHistorySettingsPage() {
   }
 
   return (
-    <CompactPageShell eyebrow="账户" title="搜索历史" description="管理本机与账号同步的搜索记录" width="sm" backHref="/settings" backLabel="返回设置">
+    <CompactPageShell eyebrow="账户" title="搜索历史" description="管理本机与账号同步的搜索记录" width="sm" backHref="/settings/profile" backLabel="返回设置">
       <Card>
         <CardTitle>本机搜索记录</CardTitle>
         <CardDescription className="mt-1">与账号同步，可在不同设备查看最近搜索</CardDescription>

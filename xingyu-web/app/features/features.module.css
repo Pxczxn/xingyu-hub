@@ -1,0 +1,307 @@
+.featurePage {
+  display: grid;
+  grid-template-columns: 213px 1fr;
+  width: min(100%, 1536px);
+  margin: auto;
+  color: #142650;
+}
+.rail {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  flex-direction: column;
+  border-right: 1px solid #e6e0d8;
+  padding: 25px 16px;
+}
+.rail h2 {
+  font-size: 20px;
+}
+.rail nav {
+  display: grid;
+  gap: 8px;
+  margin-top: 30px;
+}
+.rail > a:not(.write),
+.rail nav a {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  border-radius: 9px;
+  padding: 11px 18px;
+}
+.rail nav a.active {
+  background: #ebe6e0;
+  font-weight: 700;
+}
+.rail svg {
+  width: 17px;
+}
+.rail > small {
+  margin: 25px 18px 4px;
+  color: #7f8796;
+}
+.write {
+  position: relative;
+  margin-top: auto;
+  overflow: hidden;
+  border-radius: 10px;
+  text-align: center;
+}
+.write img {
+  width: 100%;
+  height: 122px;
+  object-fit: cover;
+}
+.write b {
+  display: block;
+  margin: 8px;
+}
+.write span {
+  display: block;
+  border-radius: 999px;
+  background: #142d5d;
+  padding: 8px;
+  color: white;
+}
+.content {
+  padding: 18px;
+}
+.hero {
+  position: relative;
+  height: 397px;
+  overflow: hidden;
+  border-radius: 15px;
+  background: #071b35;
+  color: white;
+}
+.hero > img {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 62%;
+  height: 100%;
+  object-fit: cover;
+}
+.hero > div {
+  position: absolute;
+  inset: 30px 48% 28px 40px;
+}
+.hero > div > span {
+  border: 1px solid #d4a35d;
+  border-radius: 5px;
+  padding: 6px 10px;
+  color: #efc27b;
+  font-size: 9px;
+}
+.hero h1 {
+  margin-top: 24px;
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 38px;
+}
+.hero h2 {
+  margin: 10px 0;
+  color: #efb360;
+  font-size: 16px;
+}
+.hero p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.hero small {
+  display: block;
+  margin-top: 22px;
+}
+.hero button,
+.heroAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 18px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f0ba68, #eaa647);
+  padding: 10px 55px;
+  color: #162b50;
+}
+.hero button:last-child,
+.heroShare {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid white;
+  border-radius: 999px;
+  color: white;
+}
+.hero svg {
+  width: 16px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  margin-top: 14px;
+}
+.grid > section {
+  border: 1px solid #e8e2da;
+  background: rgb(255 255 255/0.55);
+  padding: 18px;
+}
+.grid h2 {
+  font-family: ui-serif, "Songti SC", serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+.picks > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 13px;
+  margin-top: 12px;
+}
+.picks > div > a {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  border: 1px solid #e5ded5;
+  border-radius: 9px;
+  padding: 10px;
+}
+.picks img {
+  width: 90px;
+  height: 131px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+.picks span {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.picks i {
+  width: max-content;
+  border-radius: 4px;
+  background: #f4ede4;
+  padding: 3px 6px;
+  font-size: 8px;
+  font-style: normal;
+}
+.picks b {
+  font-size: 12px;
+}
+.picks p,
+.picks small {
+  color: #747d8f;
+  font-size: 8px;
+}
+.chapters header {
+  display: flex;
+  justify-content: space-between;
+}
+.chapters header a {
+  font-size: 9px;
+}
+.chapters > a {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid #e7e0d8;
+  border-radius: 7px;
+  padding: 9px;
+  margin-top: 4px;
+}
+.chapters > a i {
+  color: #e58a2e;
+  font-style: normal;
+}
+.chapters > a small {
+  margin-left: auto;
+  color: #8a7561;
+  font-size: 8px;
+}
+.curators > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 10px;
+}
+.curators article {
+  display: grid;
+  grid-template-columns: 68px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e8e0d8;
+  border-radius: 8px;
+  padding: 12px;
+}
+.curators img {
+  border-radius: 7px;
+  object-fit: cover;
+}
+.curators article div {
+  display: grid;
+  gap: 5px;
+}
+.curators h3 {
+  font-size: 12px;
+}
+.curators h3 span {
+  margin-left: 8px;
+  border-radius: 4px;
+  background: #f5ebdf;
+  padding: 4px;
+  color: #af7540;
+  font-size: 8px;
+}
+.curators p,
+.curators small {
+  font-size: 8px;
+  color: #747c8c;
+}
+.curators button,
+.follow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: end;
+  border: 1px solid #d8c6b2;
+  border-radius: 5px;
+  padding: 5px 12px;
+}
+.empty {
+  margin: 18px 0 6px;
+  color: #747c8c;
+  font-size: 12px;
+}
+.related p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 16px 0;
+}
+.related p a {
+  border-radius: 5px;
+  background: #f2eee9;
+  padding: 7px 10px;
+}
+.related > small {
+  font-size: 10px;
+}
+
+/* 鐑棬鍐呭 */
+@media (min-width: 1100px) {
+  .featurePage { padding-top: 20px; }
+  .featurePage section { gap: 12px; }
+  .hero { min-height: 330px; }
+}
+@media (max-width: 1200px) {
+  .featurePage { grid-template-columns: 180px 1fr; }
+  .grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .featurePage { display: block; }
+  .rail { display: none; }
+  .content { padding: 15px; }
+  .hero > div { inset: 24px; }
+  .hero > img { width: 100%; opacity: 0.4; }
+  .picks > div,
+  .curators > div { grid-template-columns: 1fr; }
+  .grid { display: block; }
+}

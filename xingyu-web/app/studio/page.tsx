@@ -1,4 +1,6 @@
 "use client";
+import styles from "@/components/studio/studio-hub.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -59,8 +61,8 @@ export default function StudioPage() {
   if (hub.unauthorized) {
     return (
       <AppShell>
-        <main className="xy-studio-hub">
-          <div className="xy-studio-hub-state" role="alert">
+        <main className={cn(styles.studioHub)}>
+          <div className={cn(styles.state)} role="alert">
             <h1>请先登录</h1>
             <p>登录后即可使用创作中心管理你的内容。</p>
             <Button asChild>
@@ -78,8 +80,8 @@ export default function StudioPage() {
   if (hub.forbidden) {
     return (
       <AppShell>
-        <main className="xy-studio-hub">
-          <div className="xy-studio-hub-state" role="alert">
+        <main className={cn(styles.studioHub)}>
+          <div className={cn(styles.state)} role="alert">
             <h1>暂无访问权限</h1>
             <p>{hub.error || "当前账号无法访问创作中心。"}</p>
           </div>
@@ -90,12 +92,12 @@ export default function StudioPage() {
 
   return (
     <AppShell>
-      <main className="xy-studio-hub">
+      <main className={cn(styles.studioHub)}>
         {createError || hub.error ? (
-          <Alert variant="destructive" className="xy-studio-hub-alert">
+          <Alert variant="destructive" className={cn(styles.alert)}>
             <span>{createError || hub.error}</span>
             {hub.error && !createError ? (
-              <button type="button" className="xy-studio-hub-retry" onClick={hub.reload}>
+              <button type="button" className={cn(styles.retry)} onClick={hub.reload}>
                 <RefreshCw aria-hidden="true" />
                 重试
               </button>
@@ -105,12 +107,12 @@ export default function StudioPage() {
 
         <StudioHubMobileNav />
 
-        <div className="xy-studio-hub-layout">
-          <div className="xy-studio-hub-rail xy-studio-hub-rail--left">
+        <div className={cn(styles.layout)}>
+          <div className={cn(styles.rail, styles.railLeft)}>
             <StudioHubNav onCreateArticle={() => void createArticle()} creating={creating} />
           </div>
 
-          <div className="xy-studio-hub-main">
+          <div className={cn(styles.main)}>
             <StudioHubHero
               greeting={greeting}
               displayName={displayName}
@@ -129,7 +131,7 @@ export default function StudioPage() {
             <StudioHubTodos todos={hub.todos} loading={hub.loading} />
           </div>
 
-          <div className="xy-studio-hub-rail xy-studio-hub-rail--right">
+          <div className={cn(styles.rail, styles.railRight)}>
             <StudioHubAside announcements={hub.announcements} loading={hub.loading} />
           </div>
         </div>

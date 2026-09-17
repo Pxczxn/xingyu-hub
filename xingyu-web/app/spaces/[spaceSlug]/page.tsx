@@ -1,4 +1,6 @@
 "use client";
+import styles from "./space.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -22,7 +24,7 @@ import {
 
 function Avatar({ name, src }: { name: string; src?: string | null }) {
   return (
-    <span className="xy-space-real-avatar">
+    <span className={cn(styles.realAvatar)}>
       {src ? (
         <img src={src} alt={`${name} 的头像`} />
       ) : (
@@ -36,7 +38,7 @@ function WorkArt({ index, large = false }: { index: number; large?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`xy-space-real-art xy-space-real-art--${index % 5}${large ? " is-large" : ""}`}
+      className={cn(styles.realArt, styles[`realArt${index % 5}` as keyof typeof styles], large && styles.isLarge)}
     >
       <FileText />
     </span>
@@ -93,9 +95,9 @@ function SpaceContent() {
 
   return (
     <AppShell>
-      <main className="xy-space-page xy-space-real">
+      <main data-layout="creation-space" className={cn(styles.page, styles.real)}>
         {error ? <Alert variant="destructive">{error}</Alert> : null}
-        <header className="xy-space-identity">
+        <header className={cn(styles.identity)}>
           <Avatar name={displayName} src={profile?.avatar} />
           <div>
             <h1>
@@ -109,7 +111,7 @@ function SpaceContent() {
             </Link>
           </div>
           <Image
-            className="xy-space-writing"
+            className={cn(styles.writing)}
             src="/prototype-assets/creation-space/writing.png"
             alt=""
             aria-hidden="true"
@@ -117,11 +119,11 @@ function SpaceContent() {
             height={173}
           />
         </header>
-        <nav className="xy-space-tabs" aria-label="创作空间内容类型">
+        <nav className={cn(styles.tabs)} aria-label="创作空间内容类型">
           <div>
             {["全部作品", "文章", "系列", "分类"].map((label, index) => (
               <Link
-                className={index === 0 ? "active" : ""}
+                className={index === 0 ? styles.active : undefined}
                 href={`/spaces/${encodeURIComponent(spaceSlug)}`}
                 key={label}
               >
@@ -139,16 +141,16 @@ function SpaceContent() {
             <Search />
           </label>
         </nav>
-        <div className="xy-space-chips">
+        <div className={cn(styles.chips)}>
           <Link
-            className={!category ? "active" : ""}
+            className={!category ? styles.active : undefined}
             href={`/spaces/${encodeURIComponent(spaceSlug)}`}
           >
             全部
           </Link>
           {(space?.categories ?? []).slice(0, showAllCategories ? undefined : 8).map((item) => (
             <Link
-              className={category === item.slug ? "active" : ""}
+              className={category === item.slug ? styles.active : undefined}
               href={`/spaces/${encodeURIComponent(spaceSlug)}?category=${encodeURIComponent(item.slug)}`}
               key={item.id}
             >
@@ -162,8 +164,8 @@ function SpaceContent() {
             </button>
           ) : null}
         </div>
-        <div className="xy-space-grid">
-          <section className="xy-space-featured xy-space-real-featured">
+        <div className={cn(styles.grid)}>
+          <section className={cn(styles.featured, styles.realFeatured)}>
             {featured ? (
               <Link href={`/articles/${encodeURIComponent(featured.id)}`}>
                 <WorkArt index={0} large />
@@ -181,14 +183,14 @@ function SpaceContent() {
                 </div>
               </Link>
             ) : (
-              <div className="xy-space-real-empty">
+              <div className={cn(styles.realEmpty)}>
                 <FileText />
                 <h2>暂无公开作品</h2>
                 <p>作者发布作品后，会在这里展示。</p>
               </div>
             )}
           </section>
-          <section className="xy-space-latest">
+          <section className={cn(styles.latest)}>
             <header>
               <h2>最新作品</h2>
               <Link
@@ -198,7 +200,7 @@ function SpaceContent() {
               </Link>
             </header>
             {space === null && !error ? (
-              <p className="xy-space-real-loading">正在加载作品…</p>
+              <p className={cn(styles.realLoading)}>正在加载作品…</p>
             ) : null}
             {latest.map((work, index) => (
               <Link
@@ -219,19 +221,19 @@ function SpaceContent() {
               </Link>
             ))}
             {space !== null && !latest.length ? (
-              <p className="xy-space-real-loading">暂无更多作品。</p>
+              <p className={cn(styles.realLoading)}>暂无更多作品。</p>
             ) : null}
           </section>
-          <aside className="xy-space-shelf xy-space-real-categories">
+          <aside className={cn(styles.shelf, styles.realCategories)}>
             <h2>作品分类</h2>
-            <div className="xy-space-real-category-list">
+            <div className={cn(styles.realCategoryList)}>
               {(space?.categories ?? []).map((item, index) => (
                 <Link
                   href={`/spaces/${encodeURIComponent(spaceSlug)}?category=${encodeURIComponent(item.slug)}`}
                   key={item.id}
                 >
                   <i
-                    className={`xy-space-real-category-icon xy-space-real-category-icon--${index % 4}`}
+                    className={cn(styles.realCategoryIcon, styles[`realCategoryIcon${index % 4}` as keyof typeof styles])}
                   >
                     <FileText />
                   </i>
@@ -256,7 +258,7 @@ function SpaceContent() {
             </Link>
           </aside>
         </div>
-        <section className="xy-space-series">
+        <section className={cn(styles.series)}>
           <header>
             <h2>系列作品</h2>
             <Link
@@ -265,7 +267,7 @@ function SpaceContent() {
               查看全部系列 ›
             </Link>
           </header>
-          <div className="xy-space-real-series-empty">
+          <div className={cn(styles.realSeriesEmpty)}>
             <LayersHint />
             <p>该创作空间暂未提供系列列表。</p>
           </div>
@@ -277,7 +279,7 @@ function SpaceContent() {
 
 function LayersHint() {
   return (
-    <span className="xy-space-real-series-mark">
+    <span className={cn(styles.realSeriesMark)}>
       <FileText />
       <FileText />
     </span>
@@ -289,7 +291,7 @@ export default function CreationSpacePage() {
     <Suspense
       fallback={
         <AppShell>
-          <main className="xy-space-page">加载中…</main>
+          <main className={cn(styles.page)} data-layout="creation-space">加载中…</main>
         </AppShell>
       }
     >

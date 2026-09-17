@@ -6,7 +6,6 @@ export type SettingsNavItem = {
 
 /** v3.2 §33.6 设置模块主导航 */
 export const SETTINGS_MAIN_NAV: SettingsNavItem[] = [
-  { label: "设置首页", href: "/settings", match: "exact" },
   { label: "公开资料", href: "/settings/profile", match: "exact" },
   { label: "隐私", href: "/settings/privacy", match: "prefix" },
   { label: "通知设置", href: "/settings/notifications", match: "exact" },

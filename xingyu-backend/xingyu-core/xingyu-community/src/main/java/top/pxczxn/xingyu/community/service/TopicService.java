@@ -55,6 +55,7 @@ public class TopicService {
     private final CommunityProfileMapper profileMapper;
     private final ReservedWordMapper reservedWordMapper;
     private final TopicMergeRecordMapper topicMergeRecordMapper;
+    private final ContentCoverService contentCoverService;
 
     public List<Topic> list(String keyword, String status) {
         LambdaQueryWrapper<Topic> query = new LambdaQueryWrapper<>();
@@ -258,6 +259,7 @@ public class TopicService {
                 .objectType(document.getObjectType())
                 .title(document.getTitle())
                 .summary(document.getSummary())
+                .cover(contentCoverService.resolveCoverUrl(document))
                 .authorName(authorName)
                 .updatedAt(document.getIndexedAt())
                 .build();

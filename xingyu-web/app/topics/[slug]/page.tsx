@@ -1,5 +1,6 @@
 "use client";
-
+import panelStyles from "@/components/community/home-source-panel.module.css";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -79,7 +80,7 @@ export default function TopicDetailPage() {
   if (loading)
     return (
       <AppShell>
-        <main className="xy-page">
+        <main data-layout="topic-detail" className="mx-auto w-[calc(100%_-_2rem)] max-w-[1408px] pb-8 pt-4">
           <p className="text-sm text-muted-foreground">加载中…</p>
         </main>
       </AppShell>
@@ -87,7 +88,7 @@ export default function TopicDetailPage() {
   if (error || !topic)
     return (
       <AppShell>
-        <main className="xy-page">
+        <main data-layout="topic-detail" className="mx-auto w-[calc(100%_-_2rem)] max-w-[1408px] pb-8 pt-4">
           <Alert variant="destructive">{error || "话题不存在"}</Alert>
         </main>
       </AppShell>
@@ -103,7 +104,7 @@ export default function TopicDetailPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto w-[calc(100%_-_2rem)] max-w-[1408px] pb-8 pt-4">
+      <main data-layout="topic-detail" className="mx-auto w-[calc(100%_-_2rem)] max-w-[1408px] pb-8 pt-4">
         <section className="relative min-h-[192px] overflow-hidden rounded-2xl bg-white/32">
           <img
             src="/prototype-assets/topic-detail/hero-orbits.png"
@@ -156,7 +157,7 @@ export default function TopicDetailPage() {
           </Alert>
         )}
 
-        <section className="xy-home-source-panel mt-1 flex min-h-[74px] items-center gap-6 overflow-x-auto px-5">
+        <section className={cn(panelStyles.sourcePanel, "mt-1 flex min-h-[74px] items-center gap-6 overflow-x-auto px-5")}>
           <h2 className="shrink-0 text-[17px] font-semibold">相关话题</h2>
           {relatedNames.map((name, index) => (
             <Link
@@ -293,7 +294,7 @@ export default function TopicDetailPage() {
                 <Link
                   href={contentHref(item)}
                   key={item.id}
-                  className="xy-home-source-panel flex min-h-[105px] items-center gap-4 px-4 py-3"
+                  className={cn(panelStyles.sourcePanel, "flex min-h-[105px] items-center gap-4 px-4 py-3")}
                 >
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#17295a] text-sm text-white">
                     {item.authorName?.slice(0, 1) || "星"}
@@ -339,7 +340,7 @@ export default function TopicDetailPage() {
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {creatorItems.slice(0, 5).map((creator, index) => (
-                <article key={creator.username} className="xy-home-source-panel flex items-center gap-3 px-3 py-2">
+                <article key={creator.username} className={cn(panelStyles.sourcePanel, "flex items-center gap-3 px-3 py-2")}>
                   <Link href={`/u/${creator.username}`} className="flex min-w-0 flex-1 items-center gap-3">
                   <span
                     className={`grid h-10 w-10 place-items-center rounded-full ${index % 2 ? "bg-[#6e75bb]" : "bg-[#17295a]"} text-sm text-white`}

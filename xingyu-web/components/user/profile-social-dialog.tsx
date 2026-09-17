@@ -1,4 +1,6 @@
 "use client";
+import styles from "./user-profile.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -7,7 +9,6 @@ import { FollowButton } from "@/components/community/engagement";
 import { Avatar } from "@/components/ui/avatar";
 import { ApiError } from "@/lib/api-client";
 import { communityApi, type FollowUser } from "@/lib/community-api";
-import { cn } from "@/lib/utils";
 
 export type ProfileSocialTab = "followers" | "following";
 
@@ -37,8 +38,8 @@ function SocialUserRow({
   onNavigate: () => void;
 }) {
   return (
-    <li className="xy-profile-social-row">
-      <Link href={`/u/${user.username}`} className="xy-profile-social-row__profile" onClick={onNavigate}>
+    <li className={cn(styles.socialRow)}>
+      <Link href={`/u/${user.username}`} className={cn(styles.socialRow__profile)} onClick={onNavigate}>
         <Avatar fallback={displayName(user)} className="h-11 w-11 shrink-0 text-sm" alt="" />
         <span className="min-w-0">
           <strong>{displayName(user)}</strong>
@@ -138,34 +139,34 @@ export function ProfileSocialDialog({
   ];
 
   return (
-    <div className="xy-profile-social-dialog" role="presentation" onClick={onClose}>
+    <div className={cn(styles.socialDialog)} role="presentation" onClick={onClose}>
       <section
-        className="xy-profile-social-dialog__panel"
+        className={cn(styles.socialDialog__panel)}
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="xy-profile-social-dialog__header">
-          <div className="xy-profile-social-dialog__tabs" role="tablist" aria-label="关注与粉丝">
+        <header className={cn(styles.socialDialog__header)}>
+          <div className={cn(styles.socialDialog__tabs)} role="tablist" aria-label="关注与粉丝">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab.id}
-                className={cn("xy-profile-social-dialog__tab", activeTab === tab.id && "is-active")}
+                className={cn(styles.socialDialog__tab, activeTab === tab.id && styles.isActive)}
                 onClick={() => onTabChange(tab.id)}
               >
                 {tab.label} {tab.count}
               </button>
             ))}
           </div>
-          <button type="button" className="xy-profile-social-dialog__close" aria-label="关闭" onClick={onClose}>
+          <button type="button" className={cn(styles.socialDialog__close)} aria-label="关闭" onClick={onClose}>
             <X className="h-5 w-5" />
           </button>
         </header>
 
-        <div className="xy-profile-social-dialog__search">
+        <div className={cn(styles.socialDialog__search)}>
           <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
           <input
             value={keyword}
@@ -175,18 +176,18 @@ export function ProfileSocialDialog({
           />
         </div>
 
-        <div className="xy-profile-social-dialog__body">
+        <div className={cn(styles.socialDialog__body)}>
           {loading ? (
-            <div className="xy-profile-social-dialog__state">
+            <div className={cn(styles.socialDialog__state)}>
               <LoaderCircle className="h-6 w-6 animate-spin text-[rgb(var(--violet))] motion-reduce:animate-none" />
               <p>正在加载列表…</p>
             </div>
           ) : error ? (
-            <div className="xy-profile-social-dialog__state">
+            <div className={cn(styles.socialDialog__state)}>
               <p>{error}</p>
             </div>
           ) : filteredItems.length ? (
-            <ul className="xy-profile-social-dialog__list">
+            <ul className={cn(styles.socialDialog__list)}>
               {filteredItems.map((item) => (
                 <SocialUserRow
                   key={item.userId}
@@ -198,7 +199,7 @@ export function ProfileSocialDialog({
               ))}
             </ul>
           ) : (
-            <div className="xy-profile-social-dialog__state">
+            <div className={cn(styles.socialDialog__state)}>
               <p>{keyword ? "没有匹配的用户" : activeTab === "followers" ? "还没有粉丝" : "还没有关注任何人"}</p>
             </div>
           )}

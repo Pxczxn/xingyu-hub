@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHero } from "@/components/community/page-primitives";
 import { cn } from "@/lib/utils";
+import pageStyles from "@/components/community/page-primitives.module.css";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 type PageWidth = "sm" | "md" | "lg" | "xl" | "full";
 
@@ -42,7 +44,7 @@ export function CompactPageShell({
       <div className="flex flex-wrap items-center justify-end gap-3">
         {actions}
         {backHref ? (
-          <Link href={backHref} className="xy-section-action text-sm">
+          <Link href={backHref} className={cn(pageStyles.sectionAction, "text-sm")}>
             {backLabel}
           </Link>
         ) : null}
@@ -51,7 +53,7 @@ export function CompactPageShell({
 
   return (
     <AppShell>
-      <main className={cn("xy-page", widthClass[width], className)}>
+      <main className={cn(shellStyles.page, widthClass[width], className)}>
         <PageHero
           variant="compact"
           eyebrow={eyebrow}

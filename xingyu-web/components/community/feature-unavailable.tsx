@@ -6,6 +6,27 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PageHero } from "@/components/community/page-primitives";
 import { Button } from "@/components/ui/button";
 import type { ScreenSpec } from "@/lib/screen-registry";
+import { cn } from "@/lib/utils";
+import styles from "./feature-unavailable.module.css";
+import shellStyles from "@/components/community/shell-primitives.module.css";
+
+const haloToneClass = {
+  amber: styles.haloAmber,
+  rose: styles.haloRose,
+  red: styles.haloRed,
+  slate: styles.haloSlate,
+  blue: styles.halo,
+  violet: styles.halo,
+} as const;
+
+const iconToneClass = {
+  amber: styles.iconAmber,
+  rose: styles.iconRose,
+  red: styles.iconRed,
+  slate: styles.iconSlate,
+  blue: styles.iconBlue,
+  violet: styles.iconViolet,
+} as const;
 
 /** 页面接口尚未接通时，仍提供与产品一致的可浏览布局。 */
 export function FeatureUnavailable({ screen }: { screen: ScreenSpec }) {
@@ -16,7 +37,7 @@ export function FeatureUnavailable({ screen }: { screen: ScreenSpec }) {
   const description = workspace ? "整理内容、查看进度，并继续完成你的下一步。" : utility ? "这里会集中呈现与你相关的设置与信息。" : "发现值得阅读的内容，和有趣的人慢慢建立连接。";
   return (
     <AppShell>
-      <main className="xy-page pb-12">
+      <main className={cn(shellStyles.page, "pb-12")}>
         <PageHero
           eyebrow={eyebrow}
           title={screen.name}
@@ -62,10 +83,10 @@ export function SystemStatusPage({
   const Icon = statusMeta.icon;
   return (
     <AppShell>
-      <main className="xy-page grid flex-1 place-items-center py-8">
-        <section className="xy-system-status relative w-full max-w-xl overflow-hidden rounded-[28px] border border-white/85 bg-white/78 p-7 text-center shadow-[0_22px_70px_rgba(41,53,92,.12)] backdrop-blur-xl sm:p-10">
-          <div className={`xy-system-status__halo xy-system-status__halo--${statusMeta.tone}`} />
-          <div className={`xy-system-status__icon xy-system-status__icon--${statusMeta.tone}`}>
+      <main className={cn(shellStyles.page, "grid flex-1 place-items-center py-8")}>
+        <section className={cn(styles.status, "relative w-full max-w-xl overflow-hidden rounded-[28px] border border-white/85 bg-white/78 p-7 text-center shadow-[0_22px_70px_rgba(41,53,92,.12)] backdrop-blur-xl sm:p-10")}>
+          <div className={cn(styles.halo, haloToneClass[statusMeta.tone as keyof typeof haloToneClass])} />
+          <div className={cn(styles.icon, iconToneClass[statusMeta.tone as keyof typeof iconToneClass])}>
             <Icon className="h-8 w-8" />
           </div>
           <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#e8eaf1] bg-white/70 px-3 py-1 text-xs font-semibold tracking-[.08em] text-[#69738b]">

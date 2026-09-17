@@ -1,3 +1,5 @@
+import styles from "./review-detail.module.css";
+import { cn } from "@/lib/utils";
 import { Check, XCircle } from "lucide-react";
 import type { ReviewStatusMeta } from "./review-detail-meta";
 
@@ -9,7 +11,15 @@ export function ReviewStatusHeader({ meta }: ReviewStatusHeaderProps) {
   const showIcon = meta.tone !== "pending";
 
   return (
-    <header className={`xy-review-result is-${meta.tone}`}>
+    <header
+      className={cn(
+        styles.result,
+        meta.tone === "approved" && styles.isApproved,
+        meta.tone === "rejected" && styles.isRejected,
+        meta.tone === "returned" && styles.isReturned,
+        meta.tone === "withdrawn" && styles.isWithdrawn,
+      )}
+    >
       <div>
         {showIcon ? <i aria-hidden="true">{resolveStatusIcon(meta.tone)}</i> : null}
         <span>

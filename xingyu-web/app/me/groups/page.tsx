@@ -9,6 +9,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { communityApi } from "@/lib/community-api";
 import { useAsyncData } from "@/lib/use-async-data";
 import { formatDateTime } from "@/lib/format";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function MyGroupsPage() {
   const { data: conversations, loading, error } = useAsyncData(() => communityApi.getConversations(), []);
@@ -16,7 +17,7 @@ export default function MyGroupsPage() {
 
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <PageHero variant="compact"
           eyebrow="个人中心"
           title="我的群聊"

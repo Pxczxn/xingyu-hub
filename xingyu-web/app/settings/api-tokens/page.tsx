@@ -46,7 +46,7 @@ export default function ApiTokensSettingsPage() {
   }
 
   return (
-    <CompactPageShell eyebrow="账户" title="开放 API" description="管理 API Token 与推荐偏好" width="sm" backHref="/settings" backLabel="返回设置">
+    <CompactPageShell eyebrow="账户" title="开放 API" description="管理 API Token 与推荐偏好" width="sm" backHref="/settings/profile" backLabel="返回设置">
       {loading ? (
         <p className="text-sm text-muted-foreground">加载中…</p>
       ) : (

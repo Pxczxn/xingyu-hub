@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { resolveRedirect } from "./redirects";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 type PageModule = { default: ComponentType };
 type RouteMatch = { component: LazyExoticComponent<ComponentType>; params: Record<string, string> } | null;
@@ -97,7 +98,7 @@ function RedirectHandler({ target }: { target: string }) {
   useEffect(() => {
     navigate(target, true);
   }, [target]);
-  return <main className="xy-page" aria-busy="true" />;
+  return <main className={shellStyles.page} aria-busy="true" />;
 }
 
 export function ViteAppRouter() {
@@ -113,13 +114,13 @@ export function ViteAppRouter() {
   const match = matchRoute(currentUrl.pathname);
 
   if (!match) {
-    return <main className="xy-page"><h1 className="text-2xl font-semibold">页面不存在</h1></main>;
+    return <main className={shellStyles.page}><h1 className="text-2xl font-semibold">页面不存在</h1></main>;
   }
 
   const Page = match.component;
   return (
     <NavigationContext.Provider value={{ pathname: currentUrl.pathname, searchParams: currentUrl.searchParams, params: match.params }}>
-      <Suspense fallback={<main className="xy-page" aria-busy="true" />}>
+      <Suspense fallback={<main className={shellStyles.page} aria-busy="true" />}>
         <Page key={currentUrl.pathname} />
       </Suspense>
     </NavigationContext.Provider>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import styles from "./page-primitives.module.css";
 
 export function PageHero({
   eyebrow,
@@ -23,7 +24,8 @@ export function PageHero({
   return (
     <section
       className={cn(
-        "xy-orbit-bg relative overflow-hidden rounded-xl border border-white/85 bg-white/78 shadow-[0_10px_28px_rgba(30,45,82,.05)] backdrop-blur-xl",
+        styles.orbitBg,
+        "relative overflow-hidden rounded-xl border border-white/85 bg-white/78 shadow-[0_10px_28px_rgba(30,45,82,.05)] backdrop-blur-xl",
         isCompact
           ? "flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4"
           : "px-5 py-5 sm:px-7 sm:py-6",
@@ -31,7 +33,7 @@ export function PageHero({
       )}
     >
       <div className={cn("relative min-w-0", isCompact ? "flex-1" : "max-w-2xl")}>
-        {eyebrow && <p className="xy-kicker">{eyebrow}</p>}
+        {eyebrow && <p className={styles.kicker}>{eyebrow}</p>}
         <h1
           className={cn(
           "font-semibold tracking-[-0.035em] text-foreground",
@@ -68,10 +70,10 @@ export function SectionHeading({ title, href, action = "查看全部", descripti
   return (
     <div className={cn("flex min-h-9 items-center justify-between gap-3", className)}>
       <div>
-        <h2 className="xy-section-title">{title}</h2>
+        <h2 className={styles.sectionTitle}>{title}</h2>
         {description && <p className="mt-1 text-sm leading-6 text-muted-foreground sm:text-[0.9375rem]">{description}</p>}
       </div>
-      {href && <Link href={href} className="xy-section-action rounded-md px-2 py-1 hover:bg-[rgb(var(--violet)/.08)]">{action}<ArrowRight className="h-4 w-4" /></Link>}
+      {href && <Link href={href} className={cn(styles.sectionAction, "rounded-md px-2 py-1 hover:bg-[rgb(var(--violet)/.08)]")}>{action}<ArrowRight className="h-4 w-4" /></Link>}
     </div>
   );
 }

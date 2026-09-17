@@ -1,0 +1,58 @@
+.page {
+  display: flex;
+  width: 100%;
+  max-width: 1440px;
+  flex-direction: column;
+  gap: 1rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  padding-block: 1rem;
+}
+
+@media (min-width: 640px) {
+  .page {
+    gap: 1.25rem;
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding-inline: 2rem;
+    padding-block: 1.25rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .page {
+    padding-inline: 1rem;
+    padding-top: 1rem;
+    gap: 1rem;
+  }
+
+  .page :global(h1) {
+    overflow-wrap: anywhere;
+  }
+}
+
+.panel {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(var(--border));
+  background: rgb(var(--card) / 0.95);
+  box-shadow: 0 12px 36px rgb(19 35 77 / 0.05);
+}
+
+.panelInteractive {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(var(--border));
+  background: rgb(var(--card) / 0.95);
+  box-shadow: 0 12px 36px rgb(19 35 77 / 0.05);
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease;
+}
+
+.panelInteractive:hover {
+  border-color: rgb(var(--violet) / 0.42);
+  background: #fff;
+}

@@ -9,6 +9,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { communityApi } from "@/lib/community-api";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 function NewAppealForm() {
   const router = useRouter();
@@ -41,7 +43,7 @@ function NewAppealForm() {
   return (
     <>
       {error && <Alert variant="destructive">{error}</Alert>}
-      <form onSubmit={submit} className="xy-panel space-y-4 p-5">
+      <form onSubmit={submit} className={cn(shellStyles.panel, "space-y-4 p-5")}>
         <label className="block text-sm font-medium">
           案件 ID（与措施 ID 二选一或都填）
           <Input value={caseId} onChange={(e) => setCaseId(e.target.value)} className="mt-2" />
@@ -70,7 +72,7 @@ function NewAppealForm() {
 export default function NewAppealPage() {
   return (
     <AppShell>
-      <main className="xy-page mx-auto max-w-xl">
+      <main className={cn(shellStyles.page, "mx-auto max-w-xl")}>
         <PageHero variant="compact" eyebrow="社区治理" title="提交申诉" description="对治理措施提出申诉，平台将独立审核。" />
         <Suspense fallback={<p className="text-sm text-muted-foreground">加载中…</p>}>
           <NewAppealForm />

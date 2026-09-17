@@ -12,6 +12,7 @@ public class ContentCardView {
     String objectType;
     String title;
     String summary;
+    String cover;
     String authorName;
     Instant updatedAt;
 }

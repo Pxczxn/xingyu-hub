@@ -59,7 +59,7 @@ export const SCREEN_REGISTRY: ScreenSpec[] = [
     ["会话媒体", "/messages/{conversationId}/media"], ["会话文件", "/messages/{conversationId}/files"], ["聊天用户资料", "/messages/users/{username}"], ["聊天空状态", "/messages/empty"],
   ]),
   ...screens("SET", "web", [
-    ["设置总览", "/settings"], ["公开资料", "/settings/profile"], ["主页隐私", "/settings/privacy/profile"],
+    ["公开资料", "/settings/profile"], ["主页隐私", "/settings/privacy/profile"],
     ["互动隐私", "/settings/privacy/interactions"], ["阅读与推荐隐私", "/settings/privacy/activity"],
     ["通知设置", "/settings/notifications"], ["安全总览", "/settings/security"],
     ["修改密码", "/settings/security/password"], ["修改邮箱", "/settings/security/email"],

@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
@@ -47,16 +49,16 @@ function EditorField({
   children: ReactNode;
 }) {
   const labelNode = htmlFor ? (
-    <label className="xy-editor-field__label" htmlFor={htmlFor}>
+    <label className={cn(styles.fieldLabel)} htmlFor={htmlFor}>
       {label}
     </label>
   ) : (
-    <p className="xy-editor-field__label">{label}</p>
+    <p className={cn(styles.fieldLabel)}>{label}</p>
   );
 
   if (variant === "default") {
     return (
-      <section className="xy-editor-field">
+      <section className={cn(styles.field)}>
         {labelNode}
         {children}
       </section>
@@ -64,12 +66,18 @@ function EditorField({
   }
 
   return (
-    <section className={`xy-editor-field xy-editor-field--${variant}`}>
-      <div className="xy-editor-field__head">
+    <section
+      className={cn(
+        styles.field,
+        variant === "title" && styles.fieldTitle,
+        variant === "summary" && styles.fieldSummary,
+      )}
+    >
+      <div className={cn(styles.fieldHead)}>
         {labelNode}
-        {meta ? <div className="xy-editor-field__meta">{meta}</div> : null}
+        {meta ? <div className={cn(styles.fieldMeta)}>{meta}</div> : null}
       </div>
-      <div className="xy-editor-field__surface">{children}</div>
+      <div className={cn(styles.fieldSurface)}>{children}</div>
     </section>
   );
 }
@@ -154,7 +162,7 @@ export function ArticleEditorBody({
   }
 
   return (
-    <div className="xy-editor-body">
+    <div className={cn(styles.body)}>
       <ArticleEditorToolbar
         bodyMode={bodyMode}
         formatState={formatState}
@@ -169,7 +177,7 @@ export function ArticleEditorBody({
       <EditorField label="标题" htmlFor="article-editor-title" variant="title">
         <input
           id="article-editor-title"
-          className="xy-editor-title-input"
+          className={cn(styles.titleInput)}
           value={title}
           onChange={(event) => onTitleChange(event.target.value)}
           placeholder="输入文章标题"
@@ -181,11 +189,11 @@ export function ArticleEditorBody({
         label="摘要"
         htmlFor="article-editor-summary"
         variant="summary"
-        meta={<span className="xy-editor-field__badge">选填</span>}
+        meta={<span className={cn(styles.fieldBadge)}>选填</span>}
       >
         <textarea
           id="article-editor-summary"
-          className="xy-editor-summary-input"
+          className={cn(styles.summaryInput)}
           value={summary}
           onChange={(event) => onSummaryChange(event.target.value)}
           placeholder="用一两句话概括文章要点，会展示在列表与分享卡片中"

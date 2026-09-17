@@ -6,6 +6,8 @@ import { ContentRow } from "@/components/community/content-card";
 import { PageHero } from "@/components/community/page-primitives";
 import { communityApi, contentHref } from "@/lib/community-api";
 import { useAsyncData } from "@/lib/use-async-data";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function StudioAssetsPage() {
   const { data: articles, loading } = useAsyncData(() => communityApi.listMyArticles(), []);
@@ -18,14 +20,14 @@ export default function StudioAssetsPage() {
 
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <PageHero variant="compact" eyebrow="创作台" title="创作素材库" description="你的文章与系列创作资产。" />
         {loading ? (
           <p className="text-sm text-muted-foreground">加载中…</p>
         ) : items.length === 0 ? (
           <p className="text-sm text-muted-foreground">暂无创作内容</p>
         ) : (
-          <div className="xy-panel divide-y divide-border">
+          <div className={cn(shellStyles.panel, "divide-y divide-border")}>
             {items.map((item) => (
               <ContentRow
                 key={`${item.objectType}-${item.id}`}

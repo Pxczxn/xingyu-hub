@@ -1,0 +1,55 @@
+/* Personal hub (/me) */
+.page { width: min(100% - 2rem, 1440px); margin-inline: auto; padding: 1rem 0 2.5rem; }
+.hero { overflow: hidden; border: 1px solid #ece4d8; border-radius: 18px; background: #fffdf9; box-shadow: 0 12px 34px rgb(19 35 77 / .05); }
+.heroCover { position: relative; height: 120px; overflow: hidden; }
+.heroCover img { width: 100%; height: 100%; object-fit: cover; }
+.heroCover::after { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 20%, #fffdf9 100%); content: ""; }
+.heroBody { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem; margin-top: -2.5rem; padding: 0 1.5rem 1rem; }
+.avatar { display: grid; width: 88px; height: 88px; flex-shrink: 0; place-items: center; overflow: hidden; border: 4px solid #fff; border-radius: 999px; background: linear-gradient(145deg, #21395f, #9cacc2); color: #fff; font-size: 1.75rem; font-weight: 600; box-shadow: 0 10px 24px rgb(19 35 77 / .12); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.identity { min-width: 0; flex: 1 1 240px; }
+.identityTop { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.identity h1 { font-size: 1.65rem; font-weight: 600; letter-spacing: -.03em; color: #13234d; }
+.badge { display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; background: #fcf1df; padding: .25rem .65rem; color: #b86f1d; font-size: .75rem; font-weight: 500; }
+.handle { margin-top: .2rem; color: #7c8497; font-size: .85rem; }
+.bio { max-width: 36rem; margin-top: .55rem; color: #566078; font-size: .9rem; line-height: 1.65; }
+.actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid #ece8e1; background: #fff; }
+.stat { padding: .9rem 1.25rem; text-align: center; }
+.stat + .stat { border-left: 1px solid #ece8e1; }
+.stat b { display: block; color: #13234d; font-size: 1.2rem; font-weight: 600; }
+.stat small { display: block; margin-top: .2rem; color: #8a93a6; font-size: .75rem; }
+.layout { display: grid; gap: 1rem; margin-top: 1rem; }
+.main { display: flex; flex-direction: column; gap: 1rem; }
+.section { overflow: hidden; }
+.sectionHead { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #ece8e1; padding: .85rem 1.1rem; }
+.sectionHead h2 { display: flex; align-items: center; gap: .5rem; color: #13234d; font-size: 1rem; font-weight: 600; }
+.linkGrid { display: grid; gap: .65rem; padding: .85rem; }
+.linkCard { display: flex; align-items: center; justify-content: space-between; gap: .75rem; border: 1px solid #ece8e1; border-radius: 12px; background: #fff; padding: .85rem 1rem; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.linkCard:hover { border-color: #d8b07d; box-shadow: 0 8px 18px rgb(50 65 105 / .07); transform: translateY(-1px); }
+.linkCard strong { display: block; color: #13234d; font-size: .9rem; font-weight: 500; }
+.linkCard small { display: block; margin-top: .2rem; color: #8a93a6; font-size: .75rem; }
+.side { display: flex; flex-direction: column; gap: 1rem; }
+.sideCard { padding: 1rem 1.1rem; }
+.sideCard h2 { display: flex; align-items: center; gap: .45rem; color: #13234d; font-size: 1rem; font-weight: 600; }
+.quickLinks { display: grid; gap: .45rem; margin-top: .75rem; }
+.quickLinks a { display: flex; align-items: center; gap: .55rem; border-radius: 10px; padding: .55rem .65rem; color: #45506b; font-size: .875rem; transition: background-color 160ms ease, color 160ms ease; }
+.quickLinks a:hover { background: #f3f5fb; color: #13234d; }
+.sideHighlight { display: flex; flex-direction: column; gap: .65rem; border-color: #f0e0c8; background: linear-gradient(145deg, #fff8ef, #fffdf9); }
+.sideHighlight p { color: #566078; font-size: .875rem; line-height: 1.6; }
+.sideHighlight a { display: inline-flex; align-items: center; gap: .35rem; color: #b86f1d; font-size: .85rem; font-weight: 500; }
+@media (min-width: 1024px) {
+  .linkGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .layout { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; }
+}
+@media (max-width: 639px) {
+  .page { width: min(100% - 1rem, 1440px); }
+  .heroBody { padding-inline: 1rem; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat:nth-child(3) { border-left: 0; border-top: 1px solid #ece8e1; }
+  .stat:nth-child(4) { border-top: 1px solid #ece8e1; }
+}
+
+@media (min-width: 900px) {
+  .heroCover { height: 96px; }
+}

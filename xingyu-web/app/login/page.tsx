@@ -63,13 +63,17 @@ function LoginForm() {
     setError(null);
     setSubmitting(true);
     try {
-      await communityApi.login({
+      const result = await communityApi.login({
         login,
         password,
         rememberMe,
         uuid: captchaEnabled ? captchaUuid : undefined,
         code: captchaEnabled ? captchaCode : undefined,
       });
+      if (result.mustChangePassword) {
+        router.push("/force-change-password");
+        return;
+      }
       router.push(await resolvePostLoginPath(returnTo));
     } catch (err) {
       if (err instanceof ApiError) setError(err.problem.detail || "登录失败");

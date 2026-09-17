@@ -38,7 +38,7 @@ export default function PreferencesSettingsPage() {
     <SettingsLayout
       aside={
         <>
-          <div className="xy-preferences-note-icon grid h-16 w-16 place-items-center rounded-2xl bg-[#fbf1e4] text-2xl text-[#e88739]" aria-hidden="true">
+          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-[#fbf1e4] text-2xl text-[#e88739]" aria-hidden="true">
             ✦
           </div>
           <p className="mt-5 text-sm font-medium text-[#e58436]">舒适阅读</p>

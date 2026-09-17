@@ -1,4 +1,6 @@
 "use client";
+import styles from "./user-profile.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -86,7 +88,7 @@ function WorkCover({
 }) {
   const src = coverUrl ? resolveMediaUrl(coverUrl) : resolveProfileWorkCover(index);
   return (
-    <span className={className ?? "xy-profile-work-cover"} aria-hidden="true">
+    <span className={className ?? cn(styles.workCover)} aria-hidden="true">
       <img src={src} alt="" />
     </span>
   );
@@ -94,7 +96,7 @@ function WorkCover({
 
 function WorkMetrics({ work }: { work: ProfileWorkItem }) {
   return (
-    <div className="xy-profile-work-metrics" aria-label="作品数据">
+    <div className={cn(styles.workMetrics)} aria-label="作品数据">
       <span>
         <Eye aria-hidden="true" strokeWidth={2.25} />
         {formatMetric(work.viewCount)}
@@ -113,7 +115,7 @@ function WorkMetrics({ work }: { work: ProfileWorkItem }) {
 
 function WorksEmptyState() {
   return (
-    <div className="xy-profile-works-empty" role="status">
+    <div className={cn(styles.worksEmpty)} role="status">
       <img src="/prototype-assets/profile/profile-space.png" alt="" aria-hidden="true" />
       <Sparkles aria-hidden="true" />
       <h3>还没有作品，从第一篇内容开始</h3>
@@ -126,12 +128,12 @@ function GridWorkCard({ work, index }: { work: ProfileWorkItem; index: number })
   const publishedLabel = formatPublishLabel(work.publishedAt);
 
   return (
-    <Link href={`/articles/${encodeURIComponent(work.id)}`} className="xy-profile-work-card">
+    <Link href={`/articles/${encodeURIComponent(work.id)}`} className={cn(styles.workCard)}>
       <WorkCover index={index} coverUrl={work.coverUrl} />
-      <div className="xy-profile-work-card__body">
+      <div className={cn(styles.workCard__body)}>
         <h3>{work.title}</h3>
         {publishedLabel ? (
-          <time className="xy-profile-work-meta" dateTime={work.publishedAt ?? undefined}>
+          <time className={cn(styles.workMeta)} dateTime={work.publishedAt ?? undefined}>
             {publishedLabel}
           </time>
         ) : null}
@@ -143,10 +145,10 @@ function GridWorkCard({ work, index }: { work: ProfileWorkItem; index: number })
 
 function BannerWorkCard({ work, index }: { work: ProfileWorkItem; index: number }) {
   return (
-    <Link href={`/articles/${encodeURIComponent(work.id)}`} className="xy-profile-work-banner">
-      <WorkCover index={index} coverUrl={work.coverUrl} className="xy-profile-work-banner__cover" />
-      <div className="xy-profile-work-banner__body">
-        <span className="xy-profile-work-banner__badge">置顶</span>
+    <Link href={`/articles/${encodeURIComponent(work.id)}`} className={cn(styles.workBanner)}>
+      <WorkCover index={index} coverUrl={work.coverUrl} className={cn(styles.workBanner__cover)} />
+      <div className={cn(styles.workBanner__body)}>
+        <span className={cn(styles.workBanner__badge)}>置顶</span>
         <h3>{work.title}</h3>
         {work.summary ? <p>{work.summary}</p> : null}
       </div>
@@ -160,20 +162,20 @@ function ListWorkRow({ work, index }: { work: ProfileWorkItem; index: number }) 
   return (
     <Link
       href={`/articles/${encodeURIComponent(work.id)}`}
-      className={`xy-profile-work-row${work.pinned ? " is-pinned" : ""}`}
+      className={cn(styles.workRow, work.pinned && styles.isPinned)}
     >
-      <WorkCover index={index} coverUrl={work.coverUrl} className="xy-profile-work-row__thumb" />
-      <div className="xy-profile-work-row__main">
-        <div className="xy-profile-work-row__copy">
-          {work.pinned ? <span className="xy-profile-work-row__badge">置顶</span> : null}
+      <WorkCover index={index} coverUrl={work.coverUrl} className={cn(styles.workRow__thumb)} />
+      <div className={cn(styles.workRow__main)}>
+        <div className={cn(styles.workRow__copy)}>
+          {work.pinned ? <span className={cn(styles.workRow__badge)}>置顶</span> : null}
           <h3>{work.title}</h3>
           {publishedLabel ? (
-            <time className="xy-profile-work-meta" dateTime={work.publishedAt ?? undefined}>
+            <time className={cn(styles.workMeta)} dateTime={work.publishedAt ?? undefined}>
               {publishedLabel}
             </time>
           ) : null}
         </div>
-        <div className="xy-profile-work-row__stats">
+        <div className={cn(styles.workRow__stats)}>
           <WorkMetrics work={work} />
         </div>
       </div>
@@ -189,10 +191,10 @@ export function ProfileWorksViewToggle({
   onChange: (mode: ProfileWorksViewMode) => void;
 }) {
   return (
-    <div className="xy-profile-view-toggle" role="group" aria-label="作品视图切换">
+    <div className={cn(styles.viewToggle)} role="group" aria-label="作品视图切换">
       <button
         type="button"
-        className={mode === "grid" ? "is-active" : ""}
+        className={mode === "grid" ? styles.isActive : undefined}
         aria-pressed={mode === "grid"}
         onClick={() => onChange("grid")}
       >
@@ -201,7 +203,7 @@ export function ProfileWorksViewToggle({
       </button>
       <button
         type="button"
-        className={mode === "list" ? "is-active" : ""}
+        className={mode === "list" ? styles.isActive : undefined}
         aria-pressed={mode === "list"}
         onClick={() => onChange("list")}
       >
@@ -297,7 +299,7 @@ export function ProfileWorksSection({
 
   if (viewMode === "list") {
     return (
-      <div className={`xy-profile-works-stage xy-profile-works-list${visible ? " is-visible" : ""}`}>
+      <div className={cn(styles.worksStage, styles.worksList, visible && styles.isVisible)}>
         {items.map((work, index) => (
           <ListWorkRow work={work} index={index} key={work.id} />
         ))}
@@ -306,10 +308,10 @@ export function ProfileWorksSection({
   }
 
   return (
-    <div className={`xy-profile-works-stage xy-profile-works-grid${visible ? " is-visible" : ""}`}>
+    <div className={cn(styles.worksStage, styles.worksGrid, visible && styles.isVisible)}>
       {pinnedWork ? <BannerWorkCard work={pinnedWork} index={0} /> : null}
       {regularWorks.length ? (
-        <div className="xy-profile-works-grid__cards">
+        <div className={cn(styles.worksGrid__cards)}>
           {regularWorks.map((work, index) => (
             <GridWorkCard work={work} index={index + 1} key={work.id} />
           ))}

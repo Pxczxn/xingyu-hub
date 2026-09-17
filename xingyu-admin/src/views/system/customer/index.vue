@@ -88,6 +88,7 @@ import { NButton, NSpace, NIcon, useMessage, useDialog, type DataTableColumns } 
 import { SearchOutline, RefreshOutline, AddOutline, TrashOutline, CreateOutline } from '@vicons/ionicons5'
 import { customerApi, type Customer } from '@/api/customer'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(10)
 
@@ -145,16 +146,14 @@ const columns: DataTableColumns<Customer> = [
     key: 'actions',
     ...colLayout('action2'),
     render(row) {
-      return h(NSpace, null, {
-        default: () => [
-          h(NButton, { size: 'small', quaternary: true, onClick: () => handleEdit(row) }, {
-            default: () => [h(NIcon, null, { default: () => h(CreateOutline) }), ' 编辑']
-          }),
-          h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, {
-            default: () => [h(NIcon, null, { default: () => h(TrashOutline) }), ' 删除']
-          })
-        ]
-      })
+      return renderTableActionCell([
+        h(NButton, { size: 'small', quaternary: true, onClick: () => handleEdit(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(CreateOutline) }), ' 编辑']
+        }),
+        h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(TrashOutline) }), ' 删除']
+        })
+      ])
     }
   }
 ]

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import styles from "./me-prototype.module.css";
+import panelStyles from "./home-source-panel.module.css";
+import { cn } from "@/lib/utils";
 import {
   ArrowRight,
   BadgeCheck,
@@ -65,7 +68,7 @@ const hubSections: { title: string; icon: typeof Star; links: HubLink[] }[] = [
     icon: Settings,
     links: [
       { href: "/settings/profile", label: "编辑资料", description: "头像、简介与主页" },
-      { href: "/settings", label: "账号设置", description: "安全、通知与隐私" },
+      { href: "/settings/profile", label: "账号设置", description: "安全、通知与隐私" },
       { href: "/reports", label: "我的举报", description: "举报与申诉记录" },
       { href: "/me/requests", label: "入群申请", description: "待处理的群聊邀请" },
     ],
@@ -78,7 +81,7 @@ function profileInitial(profile: ProfileDetail) {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="xy-me-stat">
+    <div className={cn(styles.stat)}>
       <b>{value}</b>
       <small>{label}</small>
     </div>
@@ -89,27 +92,27 @@ export function MePrototypePage({ profile, insights }: MePrototypePageProps) {
   const displayName = profile.displayName || profile.username;
 
   return (
-    <main className="xy-me-page">
-      <section className="xy-me-hero">
-        <div className="xy-me-hero-cover" aria-hidden="true">
+    <main className={cn(styles.page)}>
+      <section className={cn(styles.hero)}>
+        <div className={cn(styles.heroCover)} aria-hidden="true">
           <img src="/prototype-assets/profile/profile-cover.png" alt="" />
         </div>
-        <div className="xy-me-hero-body">
-          <div className="xy-me-avatar">
+        <div className={cn(styles.heroBody)}>
+          <div className={cn(styles.avatar)}>
             {profile.avatar ? (
               <img src={profile.avatar} alt={`${displayName} 的头像`} />
             ) : (
               <span>{profileInitial(profile)}</span>
             )}
           </div>
-          <div className="xy-me-identity">
-            <div className="xy-me-identity-top">
+          <div className={cn(styles.identity)}>
+            <div className={cn(styles.identityTop)}>
               <h1>{displayName}</h1>
-              <span className="xy-me-badge"><BadgeCheck className="h-3.5 w-3.5" />创作者</span>
+              <span className={cn(styles.badge)}><BadgeCheck className="h-3.5 w-3.5" />创作者</span>
             </div>
-            <p className="xy-me-handle">@{profile.username}</p>
-            <p className="xy-me-bio">{profile.bio || "完善资料，让更多人了解你的创作方向。"}</p>
-            <div className="xy-me-actions">
+            <p className={cn(styles.handle)}>@{profile.username}</p>
+            <p className={cn(styles.bio)}>{profile.bio || "完善资料，让更多人了解你的创作方向。"}</p>
+            <div className={cn(styles.actions)}>
               <Button asChild className="rounded-full bg-[#ec8b35] text-white hover:bg-[#df7d2d]">
                 <Link href="/settings/profile">编辑资料</Link>
               </Button>
@@ -119,7 +122,7 @@ export function MePrototypePage({ profile, insights }: MePrototypePageProps) {
             </div>
           </div>
         </div>
-        <div className="xy-me-stats">
+        <div className={cn(styles.stats)}>
           <StatCard label="作品" value={insights?.articleCount ?? "—"} />
           <StatCard label="粉丝" value={profile.followerCount ?? insights?.followerCount ?? "—"} />
           <StatCard label="关注" value={profile.followingCount ?? insights?.followingCount ?? "—"} />
@@ -127,18 +130,18 @@ export function MePrototypePage({ profile, insights }: MePrototypePageProps) {
         </div>
       </section>
 
-      <div className="xy-me-layout">
-        <div className="xy-me-main">
+      <div className={cn(styles.layout)}>
+        <div className={cn(styles.main)}>
           {hubSections.map((section) => {
             const Icon = section.icon;
             return (
-              <section key={section.title} className="xy-home-source-panel xy-me-section">
-                <header className="xy-me-section-head">
+              <section key={section.title} className={cn(panelStyles.sourcePanel, styles.section)}>
+                <header className={cn(styles.sectionHead)}>
                   <h2><Icon className="h-4 w-4 text-[#e58a4a]" aria-hidden="true" />{section.title}</h2>
                 </header>
-                <nav className="xy-me-link-grid">
+                <nav className={cn(styles.linkGrid)}>
                   {section.links.map((link) => (
-                    <Link key={link.href} href={link.href} className="xy-me-link-card">
+                    <Link key={link.href} href={link.href} className={cn(styles.linkCard)}>
                       <span>
                         <strong>{link.label}</strong>
                         <small>{link.description}</small>
@@ -152,10 +155,10 @@ export function MePrototypePage({ profile, insights }: MePrototypePageProps) {
           })}
         </div>
 
-        <aside className="xy-me-side">
-          <section className="xy-home-source-panel xy-me-side-card">
+        <aside className={cn(styles.side)}>
+          <section className={cn(panelStyles.sourcePanel, styles.sideCard)}>
             <h2><Sparkles className="h-4 w-4 text-[#e58a4a]" />快捷入口</h2>
-            <div className="xy-me-quick-links">
+            <div className={cn(styles.quickLinks)}>
               <Link href="/studio"><PenLine className="h-4 w-4" />继续创作</Link>
               <Link href="/me/history"><BookMarked className="h-4 w-4" />继续阅读</Link>
               <Link href="/?openMessages=1"><MessageCircle className="h-4 w-4" />消息中心</Link>
@@ -163,15 +166,15 @@ export function MePrototypePage({ profile, insights }: MePrototypePageProps) {
             </div>
           </section>
 
-          <section className="xy-home-source-panel xy-me-side-card xy-me-side-highlight">
+          <section className={cn(panelStyles.sourcePanel, styles.sideCard, styles.sideHighlight)}>
             <Star className="h-5 w-5 text-[#eaa64e]" aria-hidden="true" />
             <p>完善个人主页与创作标签，让更多人发现你的内容。</p>
             <Link href="/settings/profile">去完善资料 <ArrowRight className="h-3.5 w-3.5" /></Link>
           </section>
 
-          <section className="xy-home-source-panel xy-me-side-card">
+          <section className={cn(panelStyles.sourcePanel, styles.sideCard)}>
             <h2><Heart className="h-4 w-4 text-[#e58a4a]" />社区服务</h2>
-            <div className="xy-me-quick-links">
+            <div className={cn(styles.quickLinks)}>
               <Link href="/appeals">申诉与复核</Link>
               <Link href="/feedback/recommendations">推荐反馈</Link>
               <Link href="/help">帮助中心</Link>

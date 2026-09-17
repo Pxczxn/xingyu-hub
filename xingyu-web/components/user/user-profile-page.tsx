@@ -1,4 +1,6 @@
 "use client";
+import styles from "./user-profile.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -8,7 +10,6 @@ import {
   Layers,
   Link2,
   Lock,
-  Plus,
   Send,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -64,7 +65,7 @@ const DEFAULT_BIO = "暂无简介";
 
 function EmptySection({ children }: { children: React.ReactNode }) {
   return (
-    <p className="xy-profile-empty" role="status">
+    <p className={cn(styles.empty)} role="status">
       {children}
     </p>
   );
@@ -76,7 +77,7 @@ function ProfileAvatar({ avatar, display }: { avatar?: string | null; display: s
 
 function TimelineWorkVisual({ index }: { index: number }) {
   return (
-    <span aria-hidden="true" className="xy-profile-visual xy-profile-visual--cover">
+    <span aria-hidden="true" className={cn(styles.visual, styles.visualCover)}>
       <img src={resolveProfileWorkCover(index)} alt="" />
     </span>
   );
@@ -97,7 +98,7 @@ function StatItem({
 }) {
   if (href) {
     return (
-      <Link href={href} className="xy-profile-stat xy-profile-stat--interactive">
+      <Link href={href} className={cn(styles.stat, styles.statInteractive)}>
         <b>{value}</b>
         <span>{label}</span>
       </Link>
@@ -106,7 +107,7 @@ function StatItem({
 
   if (interactive && onClick) {
     return (
-      <button type="button" className="xy-profile-stat xy-profile-stat--interactive" onClick={onClick}>
+      <button type="button" className={cn(styles.stat, styles.statInteractive)} onClick={onClick}>
         <b>{value}</b>
         <span>{label}</span>
       </button>
@@ -114,7 +115,7 @@ function StatItem({
   }
 
   return (
-    <div className="xy-profile-stat">
+    <div className={cn(styles.stat)}>
       <b>{value}</b>
       <span>{label}</span>
     </div>
@@ -282,7 +283,7 @@ export function UserProfilePageContent() {
   if (error) {
     return (
       <AppShell>
-        <main className="xy-profile-loading">
+        <main className={cn(styles.loading)}>
           <Alert variant="destructive">{error}</Alert>
         </main>
       </AppShell>
@@ -292,7 +293,7 @@ export function UserProfilePageContent() {
   if (!user) {
     return (
       <AppShell>
-        <main className="xy-profile-loading" aria-busy="true">正在加载个人主页…</main>
+        <main className={cn(styles.loading)} aria-busy="true">正在加载个人主页…</main>
       </AppShell>
     );
   }
@@ -336,13 +337,13 @@ export function UserProfilePageContent() {
       }
       if (tabLoading) return <EmptySection>正在加载系列…</EmptySection>;
       return series.length ? (
-        <div className="xy-profile-content-grid xy-profile-content-grid--list">
+        <div className={cn(styles.contentGrid, styles.contentGridList)}>
           {series.map((item) => (
-            <Link href={`/series/${encodeURIComponent(item.id)}`} key={item.id} className="xy-profile-entry-card">
-              <span className="xy-profile-entry-card__icon" aria-hidden="true">
+            <Link href={`/series/${encodeURIComponent(item.id)}`} key={item.id} className={cn(styles.entryCard)}>
+              <span className={cn(styles.entryCard__icon)} aria-hidden="true">
                 <Layers />
               </span>
-              <span className="xy-profile-entry-card__body">
+              <span className={cn(styles.entryCard__body)}>
                 <b>{item.title}</b>
                 <small>{item.chapterCount ? `${item.chapterCount} 篇` : "系列"}</small>
               </span>
@@ -358,9 +359,9 @@ export function UserProfilePageContent() {
       if (user.owner) {
         if (tabLoading) return <EmptySection>正在加载动态…</EmptySection>;
         return moments.length ? (
-          <div className="xy-profile-moment-list">
+          <div className={cn(styles.momentList)}>
             {moments.map((moment) => (
-              <Link href={`/moments/${encodeURIComponent(moment.id)}`} key={moment.id} className="xy-profile-moment-item">
+              <Link href={`/moments/${encodeURIComponent(moment.id)}`} key={moment.id} className={cn(styles.momentItem)}>
                 <time>{formatMomentTime(moment.createdAt)}</time>
                 <p>{moment.body || "动态内容"}</p>
               </Link>
@@ -372,14 +373,14 @@ export function UserProfilePageContent() {
       }
 
       return timelineGroups.length ? (
-        <div className="xy-profile-timeline">
+        <div className={cn(styles.timeline)}>
           {timelineGroups.map((group) => (
-            <section key={group.label} className="xy-profile-timeline__group">
+            <section key={group.label} className={cn(styles.timeline__group)}>
               <h3>{group.label}</h3>
               <ol>
                 {group.items.map((item, index) => (
                   <li key={item.id}>
-                    <Link href={`/articles/${encodeURIComponent(item.id)}`} className="xy-profile-timeline__item">
+                    <Link href={`/articles/${encodeURIComponent(item.id)}`} className={cn(styles.timeline__item)}>
                       <TimelineWorkVisual index={index} />
                       <div>
                         <small>{item.kind}</small>
@@ -400,7 +401,7 @@ export function UserProfilePageContent() {
 
     if (!user.owner) {
       return (
-        <div className="xy-profile-private-hint">
+        <div className={cn(styles.privateHint)}>
           <Lock aria-hidden="true" />
           <p>收藏内容仅本人可见</p>
         </div>
@@ -409,17 +410,17 @@ export function UserProfilePageContent() {
 
     if (tabLoading) return <EmptySection>正在加载收藏…</EmptySection>;
     return collections.length ? (
-      <div className="xy-profile-content-grid xy-profile-content-grid--list">
+      <div className={cn(styles.contentGrid, styles.contentGridList)}>
         {collections.map((collection) => (
           <Link
             href={`/me/collections/${encodeURIComponent(collection.id)}`}
             key={collection.id}
-            className="xy-profile-entry-card"
+            className={cn(styles.entryCard)}
           >
-            <span className="xy-profile-entry-card__icon" aria-hidden="true">
+            <span className={cn(styles.entryCard__icon)} aria-hidden="true">
               <FolderHeart />
             </span>
-            <span className="xy-profile-entry-card__body">
+            <span className={cn(styles.entryCard__body)}>
               <b>{collection.title}</b>
               <small>{collection.itemCount} 项 · {collection.visibility === "PUBLIC" ? "公开" : "私密"}</small>
             </span>
@@ -433,14 +434,14 @@ export function UserProfilePageContent() {
 
   return (
     <AppShell>
-      <main className="xy-profile-page">
-        <header className={`xy-profile-banner${user.owner ? " xy-profile-banner--owner" : ""}`}>
-          <div className="xy-profile-banner__cover" aria-hidden="true">
+      <main className={cn(styles.page)}>
+        <header className={cn(styles.banner, user.owner && styles.bannerOwner)}>
+          <div className={cn(styles.banner__cover)} aria-hidden="true">
             <img src="/prototype-assets/profile/profile-cover.png" alt="" />
           </div>
 
           {!user.owner ? (
-            <div className="xy-profile-banner__actions">
+            <div className={cn(styles.banner__actions)}>
               <FollowButton
                 username={user.username}
                 initialFollowing={user.following}
@@ -448,7 +449,7 @@ export function UserProfilePageContent() {
               />
               <Button
                 variant="outline"
-                className="xy-profile-action-btn"
+                className={cn(styles.actionBtn)}
                 onClick={() => requestOpenMessagePanel({ username: user.username })}
               >
                 <Send className="mr-1.5 h-3.5 w-3.5" />
@@ -457,33 +458,33 @@ export function UserProfilePageContent() {
             </div>
           ) : null}
 
-          <div className="xy-profile-banner__deck">
-            <div className="xy-profile-creator-module">
-              <div className="xy-profile-creator-module__row">
-                <div className="xy-profile-avatar-slot">
-                  <div className="xy-profile-avatar">
+          <div className={cn(styles.banner__deck)}>
+            <div className={cn(styles.creatorModule)}>
+              <div className={cn(styles.creatorModule__row)}>
+                <div className={cn(styles.avatarSlot)}>
+                  <div className={cn(styles.avatar)}>
                     <ProfileAvatar avatar={user.avatar} display={display} />
                   </div>
                 </div>
 
-                <div className="xy-profile-identity">
-                  <div className="xy-profile-identity__headline">
-                    <h1 className="xy-profile-name">{display}</h1>
+                <div className={cn(styles.identity)}>
+                  <div className={cn(styles.identity__headline)}>
+                    <h1 className={cn(styles.name)}>{display}</h1>
                     {(isCreator || categoryBadge) ? (
-                      <div className="xy-profile-identity-badges" aria-label="身份标识">
-                        {isCreator ? <span className="xy-profile-identity-badge">创作者</span> : null}
+                      <div className={cn(styles.identityBadges)} aria-label="身份标识">
+                        {isCreator ? <span className={cn(styles.identityBadge)}>创作者</span> : null}
                         {categoryBadge ? (
-                          <span className="xy-profile-identity-tag">{categoryBadge}</span>
+                          <span className={cn(styles.identityTag)}>{categoryBadge}</span>
                         ) : null}
                       </div>
                     ) : null}
                   </div>
-                  <p className="xy-profile-handle">@{user.username}</p>
-                  <p className={`xy-profile-signature${user.bio?.trim() ? "" : " xy-profile-signature--placeholder"}`}>
+                  <p className={cn(styles.handle)}>@{user.username}</p>
+                  <p className={cn(styles.signature, !user.bio?.trim() && styles.signaturePlaceholder)}>
                     {user.bio?.trim() || DEFAULT_BIO}
                   </p>
                   {user.websiteUrl ? (
-                    <a className="xy-profile-link" href={user.websiteUrl} target="_blank" rel="noreferrer">
+                    <a className={cn(styles.link)} href={user.websiteUrl} target="_blank" rel="noreferrer">
                       <Link2 aria-hidden="true" />
                       {user.websiteUrl.replace(/^https?:\/\//, "")}
                     </a>
@@ -491,21 +492,7 @@ export function UserProfilePageContent() {
                 </div>
               </div>
 
-              {user.owner ? (
-                <div className="xy-profile-owner-actions">
-                  <Button variant="outline" className="xy-profile-action-btn" asChild>
-                    <Link href="/settings/profile">编辑资料</Link>
-                  </Button>
-                  <Button className="xy-profile-action-btn xy-profile-action-btn--primary" asChild>
-                    <Link href="/studio/content">
-                      <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      发布作品
-                    </Link>
-                  </Button>
-                </div>
-              ) : null}
-
-              <section className="xy-profile-banner__stats" aria-label="数据概览">
+              <section className={cn(styles.banner__stats)} aria-label="数据概览">
                 <StatItem
                   label="创作"
                   value={creationCount}
@@ -535,30 +522,30 @@ export function UserProfilePageContent() {
           </div>
         </header>
 
-        <div className="xy-profile-tabs-bar">
-          <nav className="xy-profile-tabs" aria-label="内容导航">
+        <div className={cn(styles.tabsBar)}>
+          <nav className={cn(styles.tabs)} aria-label="内容导航">
             {tabs.map((tab) =>
               tab.active ? (
                 <b key={tab.key} aria-current="page">
                   {tab.label}
-                  {tab.ownerOnly && !user.owner ? <Lock className="xy-profile-tabs__lock" aria-hidden="true" /> : null}
+                  {tab.ownerOnly && !user.owner ? <Lock className={cn(styles.tabs__lock)} aria-hidden="true" /> : null}
                 </b>
               ) : (
                 <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}>
                   {tab.label}
-                  {tab.ownerOnly && !user.owner ? <Lock className="xy-profile-tabs__lock" aria-hidden="true" /> : null}
+                  {tab.ownerOnly && !user.owner ? <Lock className={cn(styles.tabs__lock)} aria-hidden="true" /> : null}
                 </button>
               )
             )}
           </nav>
-          <div className="xy-profile-tabs-bar__actions">
+          <div className={cn(styles.tabsBar__actions)}>
             {activeTab === "works" && worksView.isDesktop ? (
               <ProfileWorksViewToggle mode={worksView.viewMode} onChange={worksView.changeViewMode} />
             ) : null}
           </div>
         </div>
 
-        <section className="xy-profile-content" aria-label={`${tabs.find((tab) => tab.active)?.label ?? "内容"}列表`}>
+        <section className={cn(styles.content)} aria-label={`${tabs.find((tab) => tab.active)?.label ?? "内容"}列表`}>
           {renderTabContent()}
         </section>
 

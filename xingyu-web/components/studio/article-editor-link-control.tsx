@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import { TOOLBAR_ACTIONS } from "@/lib/article-editor-toolbar-schema";
 import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
@@ -17,7 +19,7 @@ export function ArticleEditorLinkControl({
   formatState,
   linkPopoverOpen = false,
   onLinkOpen,
-  className = "xy-editor-format-bar__dropdown",
+  className,
   buttonClassName = "cursor-pointer",
 }: ArticleEditorLinkControlProps) {
   const item = TOOLBAR_ACTIONS.link;
@@ -25,7 +27,7 @@ export function ArticleEditorLinkControl({
   const active = linkPopoverOpen || Boolean(item.isActive?.(formatState));
 
   return (
-    <div className={className}>
+    <div className={cn(styles.formatBarDropdown, className)}>
       <button
         type="button"
         title={item.title}
@@ -33,12 +35,12 @@ export function ArticleEditorLinkControl({
         aria-expanded={linkPopoverOpen}
         aria-haspopup="dialog"
         aria-label={item.title}
-        className={`${buttonClassName}${active ? " is-active" : ""}`}
+        className={cn(buttonClassName, active && styles.isActive)}
         data-xy-link-trigger="true"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => onLinkOpen?.()}
       >
-        <Icon className="xy-editor-format-bar__icon" aria-hidden="true" />
+        <Icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
       </button>
     </div>
   );

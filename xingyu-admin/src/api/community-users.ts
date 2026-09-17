@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import { asApiList } from '@/utils/api-data'
+import { asApiList, asApiRecord } from '@/utils/api-data'
 
 export interface CommunityUserItem {
   id: string
@@ -30,5 +30,13 @@ export const communityUsersApi = {
   },
   reject(userId: string): Promise<void> {
     return request({ url: `/community/users/${userId}/reject`, method: 'post' })
+  },
+  resetPassword(userId: string): Promise<{
+    mailPending?: boolean
+    mailError?: string | null
+    recipientEmail?: string | null
+    tempPassword?: string | null
+  }> {
+    return request({ url: `/community/users/${userId}/reset-password`, method: 'post' }).then(asApiRecord)
   }
 }

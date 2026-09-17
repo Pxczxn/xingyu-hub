@@ -148,6 +148,7 @@ import IconSelect from '@/components/IconSelect.vue'
 import { getIconComponent } from '@/utils/icons'
 import { useUserStore } from '@/stores/user'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(10)
 
@@ -281,7 +282,7 @@ const columns: DataTableColumns<SysMenu> = [
       if (hasPermission('sys:menu:delete')) {
         buttons.push(h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }))
       }
-      return buttons.length > 0 ? h(NSpace, null, { default: () => buttons }) : '-'
+      return buttons.length > 0 ? renderTableActionCell(buttons) : '-'
     }
   }
 ]

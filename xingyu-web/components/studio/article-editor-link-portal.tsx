@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -82,7 +84,7 @@ export function ArticleEditorLinkPortal({
   return createPortal(
     <div
       ref={popoverRef}
-      className="xy-editor-link-popover"
+      className={cn(styles.linkPopover)}
       style={{ top: `${position.top}px`, left: `${position.left}px` }}
     >
       <ArticleEditorLinkPopover

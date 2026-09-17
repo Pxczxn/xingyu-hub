@@ -23,6 +23,8 @@ import {
   splitInterests,
 } from "@/lib/onboarding-interests";
 import { cn } from "@/lib/utils";
+import pageStyles from "@/components/community/page-primitives.module.css";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 type OnboardingView = OnboardingState;
 
@@ -166,7 +168,7 @@ export function OnboardingPage() {
           description="完成入门流程，个性化你的星语体验"
           actionLabel="去登录"
           actionHref="/login"
-          className="xy-panel xy-orbit-bg w-full border-solid border-border bg-card/95 px-6 py-12 sm:py-14 shadow-none"
+          className={cn(shellStyles.panel, pageStyles.orbitBg, "w-full border-solid border-border bg-card/95 px-6 py-12 sm:py-14 shadow-none")}
         />
       </OnboardingShell>
     );
@@ -175,7 +177,7 @@ export function OnboardingPage() {
   if (!onboarding) {
     return (
       <OnboardingShell>
-        <div className="xy-panel xy-orbit-bg flex w-full flex-col items-center justify-center gap-3 px-6 py-12 sm:py-14">
+        <div className={cn(shellStyles.panel, pageStyles.orbitBg, "flex w-full flex-col items-center justify-center gap-3 px-6 py-12 sm:py-14")}>
           <Orbit className="h-6 w-6 animate-spin text-[rgb(var(--violet))] motion-reduce:animate-none" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">加载中…</p>
         </div>
@@ -192,7 +194,7 @@ export function OnboardingPage() {
           description="你已准备好探索星语社区"
           actionLabel="返回首页"
           actionHref="/"
-          className="xy-panel xy-orbit-bg w-full border-solid border-border bg-card/95 px-6 py-12 sm:py-14 shadow-none"
+          className={cn(shellStyles.panel, pageStyles.orbitBg, "w-full border-solid border-border bg-card/95 px-6 py-12 sm:py-14 shadow-none")}
         />
       </OnboardingShell>
     );
@@ -209,13 +211,15 @@ export function OnboardingPage() {
           isDoneStep
             ? "max-h-[min(680px,calc(100dvh-9.5rem))] overflow-y-auto overscroll-contain rounded-[1.25rem] border border-white/75 bg-white/42 p-5 shadow-[0_18px_48px_rgb(44_57_92/0.12)] backdrop-blur-xl sm:rounded-[1.5rem] sm:p-6 lg:p-8"
             : cn(
-                "xy-panel xy-orbit-bg max-h-[min(720px,calc(100dvh-9.5rem))]",
+                shellStyles.panel,
+                pageStyles.orbitBg,
+                "max-h-[min(720px,calc(100dvh-9.5rem))]",
                 isInterestsStep ? "flex min-h-0 flex-col" : "overflow-y-auto overscroll-contain p-5 sm:p-6 lg:p-8"
               )
         )}
       >
         <header className="mb-4 shrink-0 sm:mb-5">
-          <p className="xy-kicker">{isDoneStep ? "设置完成" : "入门引导"}</p>
+          <p className={pageStyles.kicker}>{isDoneStep ? "设置完成" : "入门引导"}</p>
           <OnboardingStepNav currentStep={currentStep} />
         </header>
 

@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-hub.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -59,15 +61,15 @@ export function StudioHubRecent({ articles, scheduledIds, loading, onCreateArtic
   }
 
   return (
-    <section className="xy-studio-hub-recent" aria-labelledby="studio-hub-recent-title">
-      <header className="xy-studio-hub-section-head">
-        <h2 id="studio-hub-recent-title" className="xy-studio-hub-section-title">最近编辑</h2>
-        <Link href="/studio/content" className="xy-studio-hub-text-link">
+    <section className={cn(styles.recent)} aria-labelledby="studio-hub-recent-title">
+      <header className={cn(styles.sectionHead)}>
+        <h2 id="studio-hub-recent-title" className={cn(styles.sectionTitle)}>最近编辑</h2>
+        <Link href="/studio/content" className={cn(styles.textLink)}>
           全部作品 <ArrowRight aria-hidden="true" />
         </Link>
       </header>
 
-      <div className="xy-studio-hub-tabs" role="tablist" aria-label="内容状态筛选">
+      <div className={cn(styles.tabs)} role="tablist" aria-label="内容状态筛选">
         {STUDIO_RECENT_TABS.map((tab) => (
           <button
             key={tab.key}
@@ -83,29 +85,29 @@ export function StudioHubRecent({ articles, scheduledIds, loading, onCreateArtic
       </div>
 
       {loading ? (
-        <div className="xy-studio-hub-recent-loading" aria-busy="true" aria-label="正在加载作品">
+        <div className={cn(styles.recentLoading)} aria-busy="true" aria-label="正在加载作品">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="xy-studio-hub-recent-row xy-studio-hub-skeleton">
-              <span className="xy-studio-hub-thumb xy-studio-hub-skeleton-block" />
-              <span className="xy-studio-hub-skeleton-line" />
+            <div key={index} className={cn(styles.recentRow, styles.skeleton)}>
+              <span className={cn(styles.thumb, styles.skeletonBlock)} />
+              <span className={cn(styles.skeletonLine)} />
             </div>
           ))}
         </div>
       ) : visible.length ? (
-        <ul className="xy-studio-hub-recent-list">
+        <ul className={cn(styles.recentList)}>
           {visible.map((article) => {
             const status = resolveArticleDisplayStatus(article, scheduledIds);
             return (
               <li key={article.id}>
-                <Link href={`/studio/content/${encodeURIComponent(article.id)}`} className="xy-studio-hub-recent-row">
-                  <span className="xy-studio-hub-thumb" aria-hidden="true">
+                <Link href={`/studio/content/${encodeURIComponent(article.id)}`} className={cn(styles.recentRow)}>
+                  <span className={cn(styles.thumb)} aria-hidden="true">
                     <FileText />
                   </span>
-                  <span className="xy-studio-hub-recent-main">
+                  <span className={cn(styles.recentMain)}>
                     <strong>{article.title || "未命名文章"}</strong>
                     <small>最后编辑于 {formatStudioDateTime(article.updatedAt)}</small>
                   </span>
-                  <span className={`xy-studio-hub-status is-${status.tone}`}>{status.label}</span>
+                  <span className={cn(styles.status, styles[`is${status.tone.charAt(0).toUpperCase()}${status.tone.slice(1)}` as keyof typeof styles])}>{status.label}</span>
                   <time dateTime={article.updatedAt}>{formatStudioDate(article.updatedAt)}</time>
                 </Link>
               </li>
@@ -113,11 +115,11 @@ export function StudioHubRecent({ articles, scheduledIds, loading, onCreateArtic
           })}
         </ul>
       ) : (
-        <div className="xy-studio-hub-empty" role="status">
+        <div className={cn(styles.empty)} role="status">
           <FileText aria-hidden="true" />
           <h3>还没有作品</h3>
           <p>从第一篇内容开始，探索属于你的星语。</p>
-          <button type="button" className="xy-studio-hub-primary-btn" onClick={onCreateArticle}>
+          <button type="button" className={cn(styles.primaryBtn)} onClick={onCreateArticle}>
             <PenLine aria-hidden="true" />
             开始创作
           </button>
@@ -125,8 +127,8 @@ export function StudioHubRecent({ articles, scheduledIds, loading, onCreateArtic
       )}
 
       {hasMore ? (
-        <div className="xy-studio-hub-recent-more">
-          <button type="button" className="xy-studio-hub-text-btn" onClick={() => setVisibleCount((count) => count + RECENT_PAGE_SIZE)}>
+        <div className={cn(styles.recentMore)}>
+          <button type="button" className={cn(styles.textBtn)} onClick={() => setVisibleCount((count) => count + RECENT_PAGE_SIZE)}>
             加载更多
           </button>
         </div>

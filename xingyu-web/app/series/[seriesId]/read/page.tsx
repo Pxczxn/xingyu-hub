@@ -1,4 +1,6 @@
 "use client";
+import styles from "../../series.module.css";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -54,13 +56,13 @@ export default function SeriesReadPage() {
   if (loading)
     return (
       <AppShell>
-        <main className="xy-reader-loading">正在打开阅读器…</main>
+        <main className={cn(styles.readerLoading)}>正在打开阅读器…</main>
       </AppShell>
     );
   if (error || !series)
     return (
       <AppShell>
-        <main className="xy-reader-loading">
+        <main className={cn(styles.readerLoading)}>
           <Alert variant="destructive">{error || "系列不存在或无权访问"}</Alert>
         </main>
       </AppShell>
@@ -69,9 +71,9 @@ export default function SeriesReadPage() {
     article?.body?.split(/\n+/).filter(Boolean).slice(0, 8) ?? [];
   return (
     <AppShell>
-      <main className="xy-series-reader">
-        <aside className="xy-reader-directory">
-          <div className="xy-reader-dir-head">
+      <main className={cn(styles.reader)}>
+        <aside className={cn(styles.readerDirectory)}>
+          <div className={cn(styles.readerDirHead)}>
             <Link href={`/series/${seriesId}`}>
               <ChevronLeft />
               返回系列
@@ -83,7 +85,7 @@ export default function SeriesReadPage() {
           </div>
           <ol>
             {chapters.map((chapter, index) => (
-              <li key={chapter.id} className={index === currentIndex ? "is-active" : ""}>
+              <li key={chapter.id} className={index === currentIndex ? styles.isActive : undefined}>
                 <button type="button" onClick={() => void openChapter(index)}>
                   <span>
                     {index === currentIndex ? (
@@ -101,18 +103,18 @@ export default function SeriesReadPage() {
             ))}
           </ol>
         </aside>
-        <article className="xy-reader-article">
-          <div className="xy-reader-progress">
+        <article className={cn(styles.readerArticle)}>
+          <div className={cn(styles.readerProgress)}>
             <span style={{ width: chapters.length ? `${((currentIndex + 1) / chapters.length) * 100}%` : "0%" }} />
             <p>{chapters.length ? `${currentIndex + 1} / ${chapters.length}` : "暂无章节"}</p>
           </div>
           {current ? (
-            <div className="xy-reader-copy" style={{ fontSize, maxWidth: lineWidth === "narrow" ? 680 : lineWidth === "wide" ? 960 : 820 }}>
-              <span className="xy-series-tag">
+            <div className={cn(styles.readerCopy)} style={{ fontSize, maxWidth: lineWidth === "narrow" ? 680 : lineWidth === "wide" ? 960 : 820 }}>
+              <span className={cn(styles.tag)}>
                 第 {String(current.position).padStart(2, "0")} 章
               </span>
               <h1>{article?.title || current.title || "章节标题暂未提供"}</h1>
-              <p className="xy-reader-lead">
+              <p className={cn(styles.readerLead)}>
                 {article?.summary || "本章摘要暂未提供。"}
               </p>
               <Image
@@ -129,7 +131,7 @@ export default function SeriesReadPage() {
               )}
             </div>
           ) : (
-            <div className="xy-reader-copy">
+            <div className={cn(styles.readerCopy)}>
               <h1>暂无可阅读章节</h1>
               <p>该系列发布章节后会显示在这里。</p>
             </div>
@@ -149,7 +151,7 @@ export default function SeriesReadPage() {
             </Button>
           </footer>
         </article>
-        <aside className="xy-reader-tools">
+        <aside className={cn(styles.readerTools)}>
           <section>
             <h3>阅读进度</h3>
             <b>{chapters.length ? `${Math.round(((currentIndex + 1) / chapters.length) * 100)}%` : "—"}</b>
@@ -174,8 +176,8 @@ export default function SeriesReadPage() {
             </label>
             <label>
               行宽
-              <div className="xy-width-switch">
-                {[['narrow','窄'],['medium','适中'],['wide','宽']].map(([value, label]) => <button type="button" key={value} className={lineWidth === value ? "is-active" : ""} onClick={() => setLineWidth(value as typeof lineWidth)}>{label}</button>)}
+              <div className={cn(styles.widthSwitch)}>
+                {[['narrow','窄'],['medium','适中'],['wide','宽']].map(([value, label]) => <button type="button" key={value} className={lineWidth === value ? styles.isActive : undefined} onClick={() => setLineWidth(value as typeof lineWidth)}>{label}</button>)}
               </div>
             </label>
           </section>

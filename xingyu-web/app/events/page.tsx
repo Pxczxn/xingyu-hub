@@ -1,4 +1,6 @@
 "use client";
+import styles from "./events.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -89,21 +91,21 @@ export default function EventsPage() {
 
   return (
     <AppShell>
-      <main className="xy-event-real">
-        <section className="xy-event-real-intro" aria-labelledby="events-heading">
+      <main className={cn(styles.real)}>
+        <section className={cn(styles.realIntro)} aria-labelledby="events-heading">
           <p>探索星空之美，分享知识与热情</p>
           <h1 id="events-heading">社区活动</h1>
           <p>在这里，发现更多有趣的活动，结识志同道合的朋友。</p>
         </section>
 
-        <div className="xy-event-real-grid">
-          <section className="xy-event-real-main" aria-label="活动内容">
+        <div className={cn(styles.realGrid)}>
+          <section className={cn(styles.realMain)} aria-label="活动内容">
             {loading ? (
-              <section className="xy-event-real-feature xy-event-real-loading" aria-busy="true">
+              <section className={cn(styles.realFeature, styles.realLoading)} aria-busy="true">
                 <span>正在加载活动</span>
               </section>
             ) : feature ? (
-              <article className="xy-event-real-feature">
+              <article className={cn(styles.realFeature)}>
                 <Image
                   src="/prototype-assets/activity-plaza/hero-art.png"
                   alt=""
@@ -112,7 +114,7 @@ export default function EventsPage() {
                   height={204}
                   priority
                 />
-                <div className="xy-event-real-feature-copy">
+                <div className={cn(styles.realFeatureCopy)}>
                   <span>{statusLabel(feature)}</span>
                   <h2>{feature.title}</h2>
                   {feature.body ? <p>{feature.body}</p> : <p>活动说明将在详情页中展示。</p>}
@@ -123,28 +125,28 @@ export default function EventsPage() {
                     </small>
                   ) : null}
                 </div>
-                <Button asChild className="xy-event-real-feature-action">
+                <Button asChild className={cn(styles.realFeatureAction)}>
                   <Link href={eventHref(feature)}>{feature.submissionOpen ? "立即参与" : "查看活动"}</Link>
                 </Button>
               </article>
             ) : (
-              <section className="xy-event-real-feature xy-event-real-empty-feature" role="status">
+              <section className={cn(styles.realFeature, styles.realEmptyFeature)} role="status">
                 <span>活动广场</span>
                 <h2>{error ? "活动信息暂时无法加载" : "暂未发布活动"}</h2>
                 <p>{error ? "请稍后重新进入此页面查看。" : "新的活动发布后，会在这里与大家见面。"}</p>
               </section>
             )}
 
-            <header className="xy-event-real-section-title">
+            <header className={cn(styles.realSectionTitle)}>
               <h2>进行中的活动</h2>
               <span>{events.length > 0 ? `共 ${events.length} 场` : ""}</span>
             </header>
 
             {visibleEvents.length > 0 ? (
-              <div className="xy-event-real-cards">
+              <div className={cn(styles.realCards)}>
                 {visibleEvents.map((event, index) => (
-                  <article key={event.id} className="xy-event-real-card">
-                    <div className="xy-event-real-card-art" aria-hidden="true">
+                  <article key={event.id} className={cn(styles.realCard)}>
+                    <div className={cn(styles.realCardArt)} aria-hidden="true">
                       <Image
                         src={`/prototype-assets/activity-plaza/${CARD_ARTS[index % CARD_ARTS.length]}.png`}
                         alt=""
@@ -153,7 +155,7 @@ export default function EventsPage() {
                       />
                       <span>{statusLabel(event)}</span>
                     </div>
-                    <div className="xy-event-real-card-copy">
+                    <div className={cn(styles.realCardCopy)}>
                       <time dateTime={event.startsAt}>
                         <b>{dateLabel(event.startsAt)}</b>
                         <small>{timeLabel(event.startsAt) || "时间待公布"}</small>
@@ -173,13 +175,13 @@ export default function EventsPage() {
                 ))}
               </div>
             ) : !loading ? (
-              <section className="xy-event-real-list-empty" role="status">
+              <section className={cn(styles.realListEmpty)} role="status">
                 {error ? "活动列表加载失败，请稍后重试。" : "暂无进行中的活动。"}
               </section>
             ) : null}
 
-            <aside className="xy-event-real-create">
-              <div className="xy-event-real-create-mark" aria-hidden="true"><Sparkles /></div>
+            <aside className={cn(styles.realCreate)}>
+              <div className={cn(styles.realCreateMark)} aria-hidden="true"><Sparkles /></div>
               <div>
                 <h3>想发起活动？</h3>
                 <p>活动发起入口将在开放后显示；先用内容和交流聚集同好。</p>
@@ -188,10 +190,10 @@ export default function EventsPage() {
             </aside>
           </section>
 
-          <aside className="xy-event-real-calendar" aria-label="活动日历">
+          <aside className={cn(styles.realCalendar)} aria-label="活动日历">
             <header>
               <h2><CalendarDays /> 活动日历</h2>
-              <div className="xy-event-real-calendar-switch">
+              <div className={cn(styles.realCalendarSwitch)}>
                 <button
                   type="button"
                   aria-label="上个月"
@@ -205,22 +207,22 @@ export default function EventsPage() {
                 ><ChevronRight /></button>
               </div>
             </header>
-            <div className="xy-event-real-month" role="grid" aria-label={monthTitle(calendarDate)}>
-              {WEEKDAYS.map((weekday) => <span className="xy-event-real-weekday" key={weekday}>{weekday}</span>)}
+            <div className={cn(styles.realMonth)} role="grid" aria-label={monthTitle(calendarDate)}>
+              {WEEKDAYS.map((weekday) => <span className={cn(styles.realWeekday)} key={weekday}>{weekday}</span>)}
               {monthDays.map((day) => {
                 const inMonth = day.getMonth() === calendarDate.getMonth();
                 const marked = inMonth && eventDays.has(day.getDate());
                 return <span className={`${!inMonth ? "is-muted " : ""}${marked ? "is-event" : ""}`} key={day.toISOString()}>{day.getDate()}</span>;
               })}
             </div>
-            <div className="xy-event-real-upcoming">
+            <div className={cn(styles.realUpcoming)}>
               <h3>即将开始</h3>
               {upcoming.length > 0 ? upcoming.map((event) => (
-                <Link className="xy-event-real-upcoming-item" href={eventHref(event)} key={event.id}>
+                <Link className={cn(styles.realUpcomingItem)} href={eventHref(event)} key={event.id}>
                   <time dateTime={event.startsAt}><b>{dateLabel(event.startsAt)}</b><small>{timeLabel(event.startsAt)}</small></time>
                   <span><em>{statusLabel(event)}</em><b>{event.title}</b></span>
                 </Link>
-              )) : <p className="xy-event-real-upcoming-empty">暂无带开始时间的活动安排。</p>}
+              )) : <p className={cn(styles.realUpcomingEmpty)}>暂无带开始时间的活动安排。</p>}
             </div>
           </aside>
         </div>

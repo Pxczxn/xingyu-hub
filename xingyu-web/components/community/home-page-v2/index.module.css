@@ -1,0 +1,80 @@
+/* 首页 V2 主布局样式 */
+
+.homeV2 {
+  width: min(calc(100% - 2.25rem), var(--layout-max-width));
+  max-width: var(--layout-max-width);
+  margin: 0 auto;
+  padding: 0.5rem 0 3rem;
+}
+
+/* ========== 主布局 ========== */
+.mainLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--sidebar-width);
+  gap: 2rem;
+  align-items: start;
+}
+
+.mainColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+  min-width: 0;
+}
+
+.sideColumn {
+  position: sticky;
+  top: 6rem;
+  min-width: 0;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 1023px) {
+  .mainLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .sideColumn {
+    position: static;
+  }
+}
+
+@media (max-width: 767px) {
+  .homeV2 {
+    width: 100%;
+    padding: 0 1rem 2rem;
+  }
+
+  .mainColumn {
+    gap: 2rem;
+  }
+}
+
+/* ========== 动画 ========== */
+.mainColumn > *,
+.sideColumn > * {
+  animation: slideUp 0.6s var(--transition-smooth);
+}
+
+.mainColumn > *:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.mainColumn > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.mainColumn > *:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.sideColumn {
+  animation-delay: 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mainColumn > *,
+  .sideColumn > * {
+    animation: none;
+  }
+}

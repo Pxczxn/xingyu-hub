@@ -156,6 +156,7 @@ import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { roleApi, menuApi, deptApi, type SysRole, type SysMenu, type SysDept } from '@/api/system'
 import { useUserStore } from '@/stores/user'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(8)
 
@@ -238,7 +239,7 @@ const columns: DataTableColumns<SysRole> = [
       if (hasPermission('sys:role:delete')) {
         buttons.push(h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }))
       }
-      return buttons.length > 0 ? h(NSpace, null, { default: () => buttons }) : '-'
+      return buttons.length > 0 ? renderTableActionCell(buttons) : '-'
     }
   }
 ]

@@ -243,6 +243,7 @@ import { useUserStore } from '@/stores/user'
 import EmptyState from '@/components/EmptyState.vue'
 import { renderTableLink } from '@/utils/table-cells'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(7)
 const sendLogScroll = tableScrollX(6)
@@ -351,7 +352,7 @@ const columns: DataTableColumns<SysNotice> = [
       if (hasPermission('sys:notice:delete')) {
         buttons.push(h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }))
       }
-      return h(NSpace, null, { default: () => buttons })
+      return renderTableActionCell(buttons)
     }
   }
 ]

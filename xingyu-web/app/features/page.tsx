@@ -1,4 +1,6 @@
 "use client";
+import styles from "./features.module.css";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -39,8 +41,8 @@ export default function FeaturedCollectionPage() {
 
   return (
     <AppShell>
-      <main className="xy-feature-page">
-        <aside className="xy-feature-rail">
+      <main className={cn(styles.featurePage)} data-layout="features">
+        <aside className={cn(styles.rail)}>
           <h2>✦ 星语社区</h2>
           <nav>
             {[
@@ -54,7 +56,7 @@ export default function FeaturedCollectionPage() {
               [FolderOpen, "资源库"],
             ].map(([Icon, x], i) => (
               <Link
-                className={i === 3 ? "active" : ""}
+                className={i === 3 ? styles.active : undefined}
                 href={i === 3 ? "/features" : "/discover"}
                 key={String(x)}
               >
@@ -76,7 +78,7 @@ export default function FeaturedCollectionPage() {
               {String(x)}
             </Link>
           ))}
-          <Link className="xy-feature-write" href="/studio">
+          <Link className={cn(styles.write)} href="/studio">
             <Image
               src="/prototype-assets/featured-collection/write.png"
               alt="写下你的星语"
@@ -87,8 +89,8 @@ export default function FeaturedCollectionPage() {
             <span>开始创作</span>
           </Link>
         </aside>
-        <section className="xy-feature-content">
-          <section className="xy-feature-hero">
+        <section className={cn(styles.content)}>
+          <section className={cn(styles.hero)}>
             <Image
               src="/prototype-assets/featured-collection/hero.png"
               alt=""
@@ -104,14 +106,14 @@ export default function FeaturedCollectionPage() {
                 这里汇集了社区中正在被阅读、讨论与持续更新的内容。你可以从推荐文章、系列和话题中继续探索。
               </p>
               <small>{picks.length ? `已收录 ${picks.length} 篇公开内容` : "内容将在这里逐步汇集"}</small>
-              <Link className="xy-feature-hero-action" href="/discover">浏览内容</Link>
-              <Link className="xy-feature-hero-share" href="/share" aria-label="分享">
+              <Link className={cn(styles.heroAction)} href="/discover">浏览内容</Link>
+              <Link className={cn(styles.heroShare)} href="/share" aria-label="分享">
                 <Share2 />
               </Link>
             </div>
           </section>
-          <div className="xy-feature-grid">
-            <section className="xy-feature-picks">
+          <div className={cn(styles.grid)}>
+            <section className={cn(styles.picks)}>
               <h2>✺ 编辑推荐</h2>
               <div>
                 {picks.length ? picks.map((item, i) => (
@@ -130,10 +132,10 @@ export default function FeaturedCollectionPage() {
                       <small>{item.authorName || "作者信息暂未提供"}{item.readMinutes ? ` · 约 ${item.readMinutes} 分钟` : ""}</small>
                     </span>
                   </Link>
-                )) : <p className="xy-feature-empty">暂无可展示的公开推荐内容。</p>}
+                )) : <p className={cn(styles.empty)}>暂无可展示的公开推荐内容。</p>}
               </div>
             </section>
-            <section className="xy-feature-chapters">
+            <section className={cn(styles.chapters)}>
               <header>
                 <h2>✺ 系列章节</h2>
                 <Link href="/series">查看全部 ›</Link>
@@ -144,9 +146,9 @@ export default function FeaturedCollectionPage() {
                   {item.title}
                   <small>{item.chapterCount === undefined ? "章节数暂未提供" : `${item.chapterCount} 篇文章`}</small>
                 </Link>
-              )) : <p className="xy-feature-empty">暂无可展示的系列。</p>}
+              )) : <p className={cn(styles.empty)}>暂无可展示的系列。</p>}
             </section>
-            <section className="xy-feature-curators">
+            <section className={cn(styles.curators)}>
               <h2>策展人</h2>
               <div>
                 {curators.length ? curators.map((user, i) => (
@@ -166,12 +168,12 @@ export default function FeaturedCollectionPage() {
                       <p>来自星语社区的公开推荐作者。</p>
                       <small>{user.followedAt ? "已被收录至推荐" : "作者信息待补充"}</small>
                     </div>
-                    <Link className="xy-feature-follow" href={`/u/${user.username}`}>查看</Link>
+                    <Link className={cn(styles.follow)} href={`/u/${user.username}`}>查看</Link>
                   </article>
-                )) : <p className="xy-feature-empty">暂无可展示的推荐作者。</p>}
+                )) : <p className={cn(styles.empty)}>暂无可展示的推荐作者。</p>}
               </div>
             </section>
-            <section className="xy-feature-related">
+            <section className={cn(styles.related)}>
               <h2>关联话题</h2>
               <p>
                 {topics.map((topic) => (

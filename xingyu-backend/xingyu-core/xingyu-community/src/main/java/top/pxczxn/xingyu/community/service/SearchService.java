@@ -20,6 +20,7 @@ import java.util.Locale;
 public class SearchService {
 
     private final SearchDocumentMapper searchDocumentMapper;
+    private final ContentCoverService contentCoverService;
     private final CommunityProfileMapper profileMapper;
 
     public List<SearchResultView> search(String query, String type, String sort, int limit) {
@@ -80,6 +81,7 @@ public class SearchService {
                 .objectId(doc.getObjectId())
                 .title(doc.getTitle())
                 .summary(doc.getSummary())
+                .cover(contentCoverService.resolveCoverUrl(doc))
                 .updatedAt(formatInstant(doc.getIndexedAt()))
                 .build();
     }

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useFloatPanelPresence } from "./use-float-panel-presence";
+import styles from "./floating-panel.module.css";
 
 export function FloatingCard({
   children,
@@ -16,7 +17,7 @@ export function FloatingCard({
   return (
     <div
       className={cn(
-        "xy-float-panel flex flex-col overflow-hidden rounded-2xl border border-[#e8e4dc] bg-[#fffdf9] text-card-foreground shadow-[0_12px_36px_rgb(36_49_84/0.12)]",
+        "flex flex-col overflow-hidden rounded-2xl border border-[#e8e4dc] bg-[#fffdf9] text-card-foreground shadow-[0_12px_36px_rgb(36_49_84/0.12)]",
         className
       )}
       style={width ? { width } : undefined}
@@ -123,8 +124,8 @@ export function HoverFloatRoot({
           aria-modal="false"
           aria-hidden={!visible}
         >
-          <div className="xy-float-hover-bridge" aria-hidden="true" />
-          <div className={cn("xy-float-panel-wrap", visible && "is-visible")}>{panel}</div>
+          <div className={styles.hoverBridge} aria-hidden="true" />
+          <div className={cn(styles.panelWrap, visible && styles.panelWrapVisible)}>{panel}</div>
         </div>
       ) : null}
     </div>

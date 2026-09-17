@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import styles from "./auth-page-shell.module.css";
 
 type AuthPageShellProps = {
   eyebrow: string;
@@ -14,7 +16,7 @@ type AuthPageShellProps = {
 export function AuthPageShell({ eyebrow, title, description, children, footer }: AuthPageShellProps) {
   return (
     <main className="min-h-dvh bg-[#f8f7f3] p-3 sm:p-5 lg:p-6">
-      <section className="xy-auth-shell mx-auto min-h-[calc(100dvh-1.5rem)] max-w-[1440px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_70px_rgba(19,35,77,0.09)] sm:min-h-[calc(100dvh-2.5rem)] lg:h-[calc(100dvh-3rem)] lg:min-h-[620px]">
+      <section className={cn(styles.shell, "mx-auto min-h-[calc(100dvh-1.5rem)] max-w-[1440px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_70px_rgba(19,35,77,0.09)] sm:min-h-[calc(100dvh-2.5rem)] lg:h-[calc(100dvh-3rem)] lg:min-h-[620px]")}>
         <aside className="relative hidden min-h-full overflow-hidden bg-[#10244d] lg:block">
           <Image
             src="/images/auth-observatory.png"

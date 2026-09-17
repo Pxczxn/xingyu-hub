@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 type StudioFlowWidth = "sm" | "md" | "lg";
 
@@ -39,7 +40,7 @@ export function StudioFlowShell({
           {actions}
         </div>
       </header>
-      <main className={cn("xy-page", widthClass[width], className)}>{children}</main>
+      <main className={cn(shellStyles.page, widthClass[width], className)}>{children}</main>
     </div>
   );
 }

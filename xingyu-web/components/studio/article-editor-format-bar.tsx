@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import {
   Bold,
@@ -43,7 +45,7 @@ export function ArticleEditorFormatBar({
   disabled = false,
 }: ArticleEditorFormatBarProps) {
   return (
-    <div className="xy-editor-format-bar" role="toolbar" aria-label="正文格式">
+    <div className={cn(styles.formatBar)} role="toolbar" aria-label="正文格式">
       {ACTIONS.map(({ action, title, icon: Icon }) => (
         <button
           key={action}
@@ -58,7 +60,7 @@ export function ArticleEditorFormatBar({
         </button>
       ))}
       {onImageSelect ? (
-        <label className="xy-editor-format-bar__upload cursor-pointer" title="插入图片">
+        <label className={cn(styles.formatBarUpload, "cursor-pointer")} title="插入图片">
           <ImagePlus className="h-4 w-4" />
           <input
             type="file"

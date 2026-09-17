@@ -636,14 +636,15 @@ a {
 .table-action-cell,
 .action-cell {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 
   .n-button {
     min-height: 28px;
-    padding-inline: 10px;
+    padding-inline: 8px;
     font-weight: 500;
+    flex-shrink: 0;
   }
 
   .n-button--quaternary-type {
@@ -710,17 +711,32 @@ a {
 // 全局表格密度与对齐规范
 .admin-data-table,
 .page-list-table {
-  --n-th-padding: 10px 14px;
-  --n-td-padding: 8px 14px;
-  --n-line-height: 1.45;
+  --n-th-padding: 9px 12px;
+  --n-td-padding: 7px 12px;
+  --n-line-height: 1.42;
+
+  .n-data-table-base-table {
+    width: 100%;
+    table-layout: fixed;
+  }
 
   .n-data-table-th {
     font-weight: 600;
     white-space: nowrap;
+    font-size: 12px;
   }
 
   .n-data-table-td {
     vertical-align: middle;
+    font-size: 13px;
+  }
+
+  .n-data-table-td .n-ellipsis {
+    max-width: 100%;
+  }
+
+  &--embedded .n-data-table-base-table {
+    min-width: 100%;
   }
 
   .n-data-table-td--center-align {
@@ -735,7 +751,8 @@ a {
 }
 
 .community-status-tag.n-tag {
-  min-width: 72px;
+  min-width: 0;
+  max-width: 100%;
   justify-content: center;
   font-size: 12px;
   font-weight: 500;

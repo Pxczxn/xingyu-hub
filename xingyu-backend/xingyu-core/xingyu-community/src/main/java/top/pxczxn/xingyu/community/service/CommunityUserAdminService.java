@@ -2,6 +2,7 @@ package top.pxczxn.xingyu.community.service;
 
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
+import top.pxczxn.xingyu.community.dto.AdminPasswordResetResult;
 import top.pxczxn.xingyu.community.dto.CommunityUserAdminView;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
@@ -25,6 +26,7 @@ public class CommunityUserAdminService {
 
     private final CommunityUserMapper userMapper;
     private final CommunityProfileMapper profileMapper;
+    private final CommunityAccountService accountService;
 
     public List<CommunityUserAdminView> list(
             String status,
@@ -74,6 +76,10 @@ public class CommunityUserAdminService {
         }
         user.setStatus(STATUS_REJECTED);
         userMapper.updateById(user);
+    }
+
+    public AdminPasswordResetResult resetPassword(String userId) {
+        return accountService.adminResetPassword(userId);
     }
 
     private CommunityUser requireUser(String userId) {

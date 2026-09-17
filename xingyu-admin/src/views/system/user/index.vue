@@ -283,6 +283,7 @@ import { userApi, roleApi, postApi, type SysUser, type SysRole } from '@/api/sys
 import { deptApi, type SysDept } from '@/api/org'
 import { useUserStore } from '@/stores/user'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(12)
 
@@ -413,15 +414,6 @@ const columns: DataTableColumns<SysUser> = [
     ...colLayout('action4'),
     render(row) {
       const buttons = []
-      // 待审核状态显示审核按钮
-      if (row.status === 2 && hasPermission('sys:user:edit')) {
-        buttons.push(
-          h(NButton, { size: 'small', type: 'success', onClick: () => handleApprove(row) }, { default: () => '通过' })
-        )
-        buttons.push(
-          h(NButton, { size: 'small', type: 'error', onClick: () => handleReject(row) }, { default: () => '拒绝' })
-        )
-      }
       if (hasPermission('sys:user:edit')) {
         buttons.push(
           h(NButton, { size: 'small', onClick: () => handleEdit(row) }, { default: () => '编辑' })
@@ -450,6 +442,11 @@ const columns: DataTableColumns<SysUser> = [
           key: 'toggleQuit'
         })
 
+        if (row.status === 2) {
+          moreOptions.push({ label: '通过', key: 'approve' })
+          moreOptions.push({ label: '拒绝', key: 'reject' })
+        }
+
         buttons.push(
           h(
             NDropdown,
@@ -461,6 +458,10 @@ const columns: DataTableColumns<SysUser> = [
                   handleToggleQuit(row)
                 } else if (key === 'resetPassword') {
                   handleResetPassword(row)
+                } else if (key === 'approve') {
+                  handleApprove(row)
+                } else if (key === 'reject') {
+                  handleReject(row)
                 }
               }
             },
@@ -479,7 +480,7 @@ const columns: DataTableColumns<SysUser> = [
         )
       }
 
-      return buttons.length > 0 ? h(NSpace, null, { default: () => buttons }) : '-'
+      return buttons.length > 0 ? renderTableActionCell(buttons) : '-'
     }
   }
 ]

@@ -28,9 +28,9 @@
       </section>
     </div>
 
-    <n-modal v-model:show="showManage" preset="card" title="活动列表管理" style="width:780px"><n-data-table :columns="columns" :data="events" :loading="loading" /></n-modal>
+    <n-modal v-model:show="showManage" preset="card" title="活动列表管理" style="width:780px"><n-data-table v-bind="eventTableProps" :columns="columns" :data="events" :loading="loading" :row-key="(row: CommunityEvent) => row.id" /></n-modal>
     <n-modal v-model:show="showModal" preset="card" :title="editing?'编辑活动':'新建活动'" style="width:640px"><n-form ref="eventFormRef" :model="form" :rules="eventRules" label-placement="left" label-width="90"><n-form-item label="标题" path="title"><n-input v-model:value="form.title" /></n-form-item><n-form-item label="别名" path="slug"><n-input v-model:value="form.slug" :disabled="!!editing" /></n-form-item><n-form-item label="正文"><n-input v-model:value="form.body" type="textarea" :rows="6" /></n-form-item><n-form-item label="开放投稿"><n-switch v-model:value="form.submissionOpen" /></n-form-item></n-form><template #footer><n-space justify="end"><n-button @click="showModal=false">取消</n-button><n-button type="primary" :loading="saving" @click="save">保存</n-button></n-space></template></n-modal>
-    <n-drawer v-model:show="showSubmissions" :width="720" placement="right"><n-drawer-content :title="`投稿审核 · ${reviewingEvent?.title??''}`" closable><n-data-table v-if="submissions.length || submissionsLoading" :columns="submissionColumns" :data="submissions" :loading="submissionsLoading" /><div v-else class="submission-empty">当前活动暂无投稿</div></n-drawer-content></n-drawer>
+    <n-drawer v-model:show="showSubmissions" :width="720" placement="right"><n-drawer-content :title="`投稿审核 · ${reviewingEvent?.title??''}`" closable><n-data-table v-if="submissions.length || submissionsLoading" v-bind="submissionTableProps" :columns="submissionColumns" :data="submissions" :loading="submissionsLoading" :row-key="(row: EventSubmission) => row.id" /><div v-else class="submission-empty">当前活动暂无投稿</div></n-drawer-content></n-drawer>
   </div>
 </template>
 
@@ -38,18 +38,51 @@
 import { computed, h, onMounted, ref } from 'vue'
 import { NButton, NTag, useMessage, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { eventApi, type CommunityEvent, type EventSubmission } from '@/api/events'
+import { colLayout, tableModalProps, tableScrollSum } from '@/utils/table-layout'
+import { renderEllipsisText, renderTableActionCell } from '@/utils/table-cells'
 
 const message=useMessage();const loading=ref(false);const saving=ref(false);const reviewing=ref(false);const events=ref<CommunityEvent[]>([]);const selectedEvent=ref<CommunityEvent|null>(null);const showManage=ref(false);const showModal=ref(false);const editing=ref<CommunityEvent|null>(null);const showSubmissions=ref(false);const reviewingEvent=ref<CommunityEvent|null>(null);const submissions=ref<EventSubmission[]>([]);const submissionsLoading=ref(false);const form=ref({title:'',slug:'',body:'',status:'ACTIVE',submissionOpen:true});const eventFormRef=ref<FormInst|null>(null);
 const eventRules:FormRules={title:[{required:true,message:'请输入活动标题',trigger:['input','blur']}],slug:[{required:true,message:'请输入活动别名',trigger:['input','blur']},{pattern:/^[a-z0-9]+(?:-[a-z0-9]+)*$/,message:'仅支持小写字母、数字和连字符',trigger:['input','blur']}]}
 const statusFilter=ref<'ALL'|'PENDING'|'ACTIVE'|'ARCHIVED'>('PENDING')
 const pendingCount=computed(()=>events.value.filter(x=>x.status!=='ACTIVE'&&x.status!=='ARCHIVED').length)
 const displayEvents=computed(()=>statusFilter.value==='ALL'?events.value:statusFilter.value==='PENDING'?events.value.filter(x=>x.status!=='ACTIVE'&&x.status!=='ARCHIVED'):events.value.filter(x=>x.status===statusFilter.value))
-const columns:DataTableColumns<CommunityEvent>=[{title:'活动标题',key:'title'},{title:'状态',key:'status',render:r=>h(NTag,{type:r.status==='ACTIVE'?'success':'warning'},()=>r.status)},{title:'操作',key:'actions',render:r=>h('div',{class:'submission-actions'},[
-  h(NButton,{size:'small',onClick:()=>{selectedEvent.value=r;showManage.value=false}},()=> '审核'),
-  h(NButton,{size:'small',onClick:()=>openEdit(r)},()=> '编辑'),
-  h(NButton,{size:'small',type:'primary',ghost:true,onClick:()=>openSubmissions(r)},()=> '投稿')
-])}];
-const submissionColumns:DataTableColumns<EventSubmission>=[{title:'作者',key:'authorDisplayName'},{title:'内容',key:'objectTitle'},{title:'状态',key:'status'},{title:'操作',key:'actions',render:r=>h('div',{class:'submission-actions'},[h(NButton,{size:'small',type:'primary',onClick:()=>reviewSubmission(r.id,'ACCEPTED')},()=> '通过'),h(NButton,{size:'small',type:'error',onClick:()=>reviewSubmission(r.id,'REJECTED')},()=> '拒绝')])}];
+const eventTableProps = tableModalProps(tableScrollSum(['title', 'status', 'action3']))
+const submissionTableProps = tableModalProps(tableScrollSum(['name', 'title', 'status', 'action2']))
+const columns: DataTableColumns<CommunityEvent> = [
+  { title: '活动标题', key: 'title', ...colLayout('title'), render: row => renderEllipsisText(row.title) },
+  {
+    title: '状态',
+    key: 'status',
+    ...colLayout('status'),
+    render: row => h(NTag, { size: 'small', type: row.status === 'ACTIVE' ? 'success' : 'warning' }, () => row.status)
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    ...colLayout('action3'),
+    render: row =>
+      renderTableActionCell([
+        h(NButton, { size: 'small', onClick: () => { selectedEvent.value = row; showManage.value = false } }, () => '审核'),
+        h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => '编辑'),
+        h(NButton, { size: 'small', type: 'primary', ghost: true, onClick: () => openSubmissions(row) }, () => '投稿')
+      ])
+  }
+]
+const submissionColumns: DataTableColumns<EventSubmission> = [
+  { title: '作者', key: 'authorDisplayName', ...colLayout('name'), render: row => renderEllipsisText(row.authorDisplayName) },
+  { title: '内容', key: 'objectTitle', ...colLayout('title'), render: row => renderEllipsisText(row.objectTitle) },
+  { title: '状态', key: 'status', ...colLayout('status'), render: row => renderEllipsisText(row.status) },
+  {
+    title: '操作',
+    key: 'actions',
+    ...colLayout('action2'),
+    render: row =>
+      renderTableActionCell([
+        h(NButton, { size: 'small', type: 'primary', onClick: () => reviewSubmission(row.id, 'ACCEPTED') }, () => '通过'),
+        h(NButton, { size: 'small', type: 'error', onClick: () => reviewSubmission(row.id, 'REJECTED') }, () => '拒绝')
+      ])
+  }
+]
 function formatRange(event:CommunityEvent){return [event.startsAt,event.endsAt].filter(Boolean).join(' – ') || '暂未设置'}
 async function load(){loading.value=true;try{events.value=await eventApi.list();selectedEvent.value=events.value[0]||null}catch{events.value=[];selectedEvent.value=null;message.error('活动列表暂时无法加载，请检查服务连接后重试')}finally{loading.value=false}}
 function selectEvent(event:CommunityEvent){selectedEvent.value=event}

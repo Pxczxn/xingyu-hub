@@ -46,6 +46,44 @@ export const COMMUNITY_USER_STATUS_META: Record<string, StatusMeta> = {
   DELETED: { label: '已删除', type: 'default' }
 }
 
+/** 社区用户身份（后端默认注册角色为小写 user） */
+export const COMMUNITY_USER_ROLE_LABELS: Record<string, string> = {
+  user: '普通用户',
+  USER: '普通用户',
+  member: '普通成员',
+  MEMBER: '普通成员',
+  creator: '创作者',
+  CREATOR: '创作者',
+  admin: '管理员',
+  ADMIN: '管理员'
+}
+
+export function formatCommunityUserRole(role?: string | null): string {
+  if (!role || !role.trim()) return COMMUNITY_USER_ROLE_LABELS.user
+  const key = role.trim()
+  return COMMUNITY_USER_ROLE_LABELS[key] ?? COMMUNITY_USER_ROLE_LABELS[key.toUpperCase()] ?? key
+}
+
+/** 筛选项 value -> 后端可能出现的 role 值（含历史别名） */
+const COMMUNITY_USER_ROLE_FILTER_GROUPS: Record<string, readonly string[]> = {
+  user: ['user', 'USER', 'member', 'MEMBER'],
+  creator: ['creator', 'CREATOR'],
+  admin: ['admin', 'ADMIN']
+}
+
+export function matchesCommunityUserRole(role: string | null | undefined, filterValue: string): boolean {
+  const aliases = COMMUNITY_USER_ROLE_FILTER_GROUPS[filterValue.trim().toLowerCase()]
+  const actual = (role?.trim() || 'user').toLowerCase()
+  if (!aliases) return actual === filterValue.trim().toLowerCase()
+  return aliases.some((item) => item.toLowerCase() === actual)
+}
+
+export const COMMUNITY_USER_ROLE_FILTER_OPTIONS = [
+  { label: '普通用户', value: 'user' },
+  { label: '创作者', value: 'creator' },
+  { label: '管理员', value: 'admin' }
+] as const
+
 /** 对象类型中文 */
 export const OBJECT_TYPE_LABELS: Record<string, string> = {
   ARTICLE: '文章',

@@ -37,8 +37,11 @@ public interface CommunityUserMapper extends BaseMapper<CommunityUser> {
               </if>
               <if test="keyword != null and keyword != ''">
                 AND (
-                  LOWER(cu.email) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                  LOWER(cu.id) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                  OR LOWER(cu.email) LIKE CONCAT('%', LOWER(#{keyword}), '%')
                   OR LOWER(cp.username) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                  OR LOWER(cp.display_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                  OR LOWER(cp.bio) LIKE CONCAT('%', LOWER(#{keyword}), '%')
                   OR cu.phone LIKE CONCAT('%', #{keyword}, '%')
                 )
               </if>

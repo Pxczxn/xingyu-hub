@@ -8,6 +8,7 @@ import { PageHero } from "@/components/community/page-primitives";
 import { Input } from "@/components/ui/input";
 import { communityApi, type MessageSearchHit } from "@/lib/community-api";
 import { formatDateTime } from "@/lib/format";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 function messageHref(item: MessageSearchHit): string | null {
   if (!item.conversationId) return null;
@@ -51,7 +52,7 @@ export default function MessageSearchPage() {
 
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <PageHero variant="compact" eyebrow="消息" title={conversationId ? "搜索当前会话" : "搜索消息"} description={conversationId ? "结果仅来自当前会话" : "搜索你参与会话中的消息内容"} />
         <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="输入关键词搜索消息…" />
         {loading ? (

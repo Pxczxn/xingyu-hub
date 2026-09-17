@@ -1,4 +1,6 @@
 "use client";
+import styles from "@/components/community/discover-prototype-page.module.css";
+import { cn } from "@/lib/utils";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -132,20 +134,42 @@ function DiscoverPageContent() {
     <AppShell>
       <main>
         {loading ? (
-          <div className="xy-discover-loading mx-auto w-[min(100%-2rem,1408px)]">
-            <div className="xy-discover-loading-hero">
-              <span className="h-3 w-28 rounded-full bg-white/60" />
-              <span className="mt-5 block h-10 w-2/3 rounded-lg bg-white/70" />
-              <span className="mt-4 block h-4 w-1/2 rounded-full bg-white/50" />
+          <div className={cn(styles.loading, "mx-auto", "w-[min(100%-2rem,1180px)]")} aria-busy="true" aria-label="加载探索内容">
+            <div className={styles.loadingToolbar}>
+              <div className={styles.loadingToolbarRow}>
+                <span className={styles.loadingPill} />
+                <span className={styles.loadingPillWide} />
+                <span className={styles.loadingPill} />
+                <span className={styles.loadingPill} />
+              </div>
+              <div className={styles.loadingToolbarRow}>
+                <span className={styles.loadingTab} />
+                <span className={styles.loadingTab} />
+                <span className={styles.loadingTab} />
+                <span className={styles.loadingTabShort} />
+              </div>
             </div>
-            <div className="xy-discover-loading-grid">
-              <div className="xy-discover-loading-card" />
-              <div className="xy-discover-loading-card" />
-              <div className="xy-discover-loading-side" />
+            <div className={styles.loadingGrid}>
+              <div className={styles.loadingMain}>
+                <span className={styles.loadingLineTitle} />
+                <span className={styles.loadingLineSub} />
+                <div className={styles.loadingStream}>
+                  <span className={styles.loadingStreamItem} />
+                  <span className={styles.loadingStreamItem} />
+                  <span className={styles.loadingStreamItem} />
+                </div>
+              </div>
+              <div className={styles.loadingSide}>
+                <span className={styles.loadingLineTitle} />
+                <span className={styles.loadingSideItem} />
+                <span className={styles.loadingSideItem} />
+                <span className={styles.loadingLineTitle} />
+                <span className={styles.loadingSideItem} />
+              </div>
             </div>
           </div>
         ) : error ? (
-          <div className="xy-page">
+          <div className={cn(styles.stateShell)}>
             <EmptyState title="加载失败" description={error} />
           </div>
         ) : (
@@ -169,7 +193,7 @@ function DiscoverPageContent() {
 
 export default function DiscoverPage() {
   return (
-    <Suspense fallback={<div className="xy-page">加载中…</div>}>
+    <Suspense fallback={<div className={cn(styles.stateShell)}>加载中…</div>}>
       <DiscoverPageContent />
     </Suspense>
   );

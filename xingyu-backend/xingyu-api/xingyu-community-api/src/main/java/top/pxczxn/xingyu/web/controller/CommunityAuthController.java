@@ -1,5 +1,6 @@
 package top.pxczxn.xingyu.web.controller;
 
+import top.pxczxn.xingyu.community.dto.LoginResult;
 import top.pxczxn.xingyu.community.dto.RegisterResponse;
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.service.CommunityAccountService;
@@ -47,7 +48,7 @@ public class CommunityAuthController {
     }
 
     @PostMapping("/login")
-    public Map<String, String> login(
+    public Map<String, Object> login(
             @RequestBody Map<String, Object> body,
             @RequestHeader(value = "User-Agent", required = false) String userAgent,
             jakarta.servlet.http.HttpServletRequest request,
@@ -57,10 +58,12 @@ public class CommunityAuthController {
         boolean rememberMe = Boolean.TRUE.equals(body.get("rememberMe"));
         String uuid = body.get("uuid") != null ? body.get("uuid").toString() : null;
         String code = body.get("code") != null ? body.get("code").toString() : null;
-        String token = accountService.login(
+        LoginResult loginResult = accountService.login(
                 login, password, rememberMe, uuid, code, userAgent, hashIp(request.getRemoteAddr()));
-        response.setHeader("satoken", token);
-        return Map.of("token", token);
+        response.setHeader("satoken", loginResult.getToken());
+        return Map.of(
+                "token", loginResult.getToken(),
+                "mustChangePassword", loginResult.isMustChangePassword());
     }
 
     @PostMapping("/logout")

@@ -42,6 +42,7 @@ public class RecommendationService {
     private final ArticleMapper articleMapper;
     private final SeriesMapper seriesMapper;
     private final MomentMapper momentMapper;
+    private final ContentCoverService contentCoverService;
 
     public RecommendationFeedView recommend(CommunityUser user, int limit) {
         if (limit <= 0) {
@@ -206,6 +207,7 @@ public class RecommendationService {
                 .objectType(document.getObjectType())
                 .title(document.getTitle())
                 .summary(document.getSummary())
+                .cover(contentCoverService.resolveCoverUrl(document))
                 .updatedAt(document.getIndexedAt())
                 .build();
     }

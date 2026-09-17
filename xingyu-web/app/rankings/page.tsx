@@ -1,4 +1,6 @@
 "use client";
+import styles from "./rankings.module.css";
+import { cn } from "@/lib/utils";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -127,13 +129,13 @@ export default function RankingsPage() {
   );
   return (
     <AppShell>
-      <main className="xy-rank-page">
-        <aside className="xy-rank-rail">
+      <main className={cn(styles.page)} data-layout="rankings">
+        <aside className={cn(styles.rail)}>
           <h2>星语社区</h2>
           <nav>
             {NAV.map(([Icon, label, href]) => (
               <Link
-                className={label === "全站榜单" ? "active" : ""}
+                className={label === "全站榜单" ? styles.active : undefined}
                 href={href}
                 key={label}
               >
@@ -148,12 +150,12 @@ export default function RankingsPage() {
             汇聚成星系
           </blockquote>
         </aside>
-        <section className="xy-rank-content">
+        <section className={cn(styles.content)}>
           <header>
             <h1>全站榜单</h1>
             <p>发现社区中的公开内容、系列、星系与话题</p>
             <nav>
-              <button className="active" type="button" disabled>
+              <button className={cn(styles.active)} type="button" disabled>
                 当前精选
               </button>
               <button type="button" disabled>
@@ -164,7 +166,7 @@ export default function RankingsPage() {
               </button>
             </nav>
           </header>
-          <section className="xy-rank-grid">
+          <section className={cn(styles.grid)}>
             {boards.map((board) => (
               <article key={board.title}>
                 <header>
@@ -192,7 +194,7 @@ export default function RankingsPage() {
                     </Link>
                   ))
                 ) : (
-                  <p className="xy-rank-board-empty">
+                  <p className={cn(styles.boardEmpty)}>
                     {loading ? "正在加载…" : "暂无可展示内容"}
                   </p>
                 )}
@@ -212,7 +214,7 @@ export default function RankingsPage() {
               </article>
             ))}
           </section>
-          <blockquote className="xy-rank-quote">
+          <blockquote className={cn(styles.quote)}>
             “在星语，每一次思考都值得被记录。”
             <small>阅读、互动与成长值排行榜将在接口支持后开放。</small>
           </blockquote>

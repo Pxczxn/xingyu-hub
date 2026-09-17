@@ -1,4 +1,6 @@
 "use client";
+import styles from "./works.module.css";
+import { cn } from "@/lib/utils";
 
 import { ChevronDown, FileText, Grid2X2, Sparkles } from "lucide-react";
 import Image from "next/image";
@@ -75,8 +77,8 @@ export default function EventWorksPage() {
     type === "ALL" ? works : works.filter((work) => work.objectType === type);
   return (
     <AppShell>
-      <main className="xy-event-works">
-        <header className="xy-event-works-head">
+      <main className={cn(styles.works)}>
+        <header className={cn(styles.worksHead)}>
           <div>
             <h1>
               活动作品 <Sparkles />
@@ -84,11 +86,11 @@ export default function EventWorksPage() {
             <p>{activeEvent?.title || "社区活动作品展廊"}</p>
           </div>
         </header>
-        <div className="xy-event-works-layout">
-          <section className="xy-event-works-content">
-            <div className="xy-works-hero-wrap">
+        <div className={cn(styles.worksLayout)}>
+          <section className={cn(styles.worksContent)}>
+            <div className={cn(styles.heroWrap)}>
               <Image
-                className="xy-works-hero"
+                className={cn(styles.hero)}
                 src="/prototype-assets/event-works/event-hero.png"
                 alt=""
                 aria-hidden="true"
@@ -104,16 +106,16 @@ export default function EventWorksPage() {
                 {activeEvent?.body ? <p>{activeEvent.body}</p> : null}
               </div>
             </div>
-            <nav className="xy-works-filter" aria-label="作品筛选">
+            <nav className={cn(styles.filter)} aria-label="作品筛选">
               <button
-                className={type === "ALL" ? "active" : ""}
+                className={type === "ALL" ? styles.active : undefined}
                 onClick={() => setType("ALL")}
               >
                 全部作品
               </button>
               {types.map((item) => (
                 <button
-                  className={type === item ? "active" : ""}
+                  className={type === item ? styles.active : undefined}
                   onClick={() => setType(item)}
                   key={item}
                 >
@@ -144,13 +146,13 @@ export default function EventWorksPage() {
               </button>
             </nav>
             {visibleWorks.length ? (
-              <div className="xy-works-masonry">
+              <div className={cn(styles.masonry)}>
                 {visibleWorks.map((work, index) => (
                   <article
-                    className={`xy-work-card ${index % 3 === 0 ? "tall" : index % 3 === 1 ? "short" : "mid"}`}
+                    className={cn(styles.workCard)}
                     key={work.id}
                   >
-                    <div className="xy-work-cover">
+                    <div className={cn(styles.workCover)}>
                       <Image
                         src={`/prototype-assets/event-works/${WORK_ARTS[index % WORK_ARTS.length]}`}
                         alt=""
@@ -176,7 +178,7 @@ export default function EventWorksPage() {
                 ))}
               </div>
             ) : (
-              <section className="xy-event-works-empty" role="status">
+              <section className={cn(styles.worksEmpty)} role="status">
                 {failed
                   ? "活动列表暂时无法加载。"
                   : loading
@@ -185,8 +187,8 @@ export default function EventWorksPage() {
               </section>
             )}
           </section>
-          <aside className="xy-event-works-side">
-            <section className="xy-works-stats">
+          <aside className={cn(styles.worksSide)}>
+            <section className={cn(styles.stats)}>
               <h2>
                 <Sparkles /> 活动概览
               </h2>
@@ -208,7 +210,7 @@ export default function EventWorksPage() {
                 </Button>
               ) : null}
             </section>
-            <section className="xy-works-authors">
+            <section className={cn(styles.authors)}>
               <header>
                 <h2>投稿状态</h2>
               </header>
@@ -225,10 +227,10 @@ export default function EventWorksPage() {
                   </div>
                 ))
               ) : (
-                <p className="xy-event-works-side-empty">暂无投稿记录</p>
+                <p className={cn(styles.worksSideEmpty)}>暂无投稿记录</p>
               )}
             </section>
-            <section className="xy-works-rating">
+            <section className={cn(styles.rating)}>
               <Image
                 src="/prototype-assets/event-works/rating-illustration.png"
                 alt=""

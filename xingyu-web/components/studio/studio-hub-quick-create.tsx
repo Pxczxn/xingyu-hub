@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-hub.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { ArrowRight, FileText, Layers3, Zap } from "lucide-react";
@@ -37,20 +39,20 @@ const CARDS = [
 
 export function StudioHubQuickCreate({ onCreateArticle, creating }: Props) {
   return (
-    <section className="xy-studio-hub-quick" aria-labelledby="studio-hub-quick-title">
-      <h2 id="studio-hub-quick-title" className="xy-studio-hub-section-title">快捷创作入口</h2>
-      <div className="xy-studio-hub-quick-grid">
+    <section className={cn(styles.quick)} aria-labelledby="studio-hub-quick-title">
+      <h2 id="studio-hub-quick-title" className={cn(styles.sectionTitle)}>快捷创作入口</h2>
+      <div className={cn(styles.quickGrid)}>
         {CARDS.map((card) => {
           const body = (
             <>
-              <span className="xy-studio-hub-quick-icon" aria-hidden="true">
+              <span className={cn(styles.quickIcon)} aria-hidden="true">
                 <card.icon />
               </span>
-              <div className="xy-studio-hub-quick-copy">
+              <div className={cn(styles.quickCopy)}>
                 <strong>{card.title}</strong>
                 <p>{card.subtitle}</p>
               </div>
-              <span className="xy-studio-hub-quick-cta">
+              <span className={cn(styles.quickCta)}>
                 {card.cta} <ArrowRight aria-hidden="true" />
               </span>
             </>
@@ -61,7 +63,7 @@ export function StudioHubQuickCreate({ onCreateArticle, creating }: Props) {
               <button
                 key={card.key}
                 type="button"
-                className="xy-studio-hub-quick-card"
+                className={cn(styles.quickCard)}
                 disabled={creating}
                 onClick={onCreateArticle}
               >
@@ -71,7 +73,7 @@ export function StudioHubQuickCreate({ onCreateArticle, creating }: Props) {
           }
 
           return (
-            <Link key={card.key} href={card.href!} className="xy-studio-hub-quick-card">
+            <Link key={card.key} href={card.href!} className={cn(styles.quickCard)}>
               {body}
             </Link>
           );

@@ -1,0 +1,98 @@
+/* 寰界珷鑽ｈ獕锛氬師鍨嬬粨鏋勭嫭绔嬪疄鐜帮紝鏁版嵁浠呮潵鑷?/me/badges銆?*/
+.badgesPage {
+  min-height: 100vh;
+  padding: 78px 24px 56px;
+  background:
+    radial-gradient(circle at 82% 8%, rgba(239, 204, 160, .28), transparent 27rem),
+    linear-gradient(135deg, #fcfaf6, #f8f3eb);
+}
+.shell {
+  position: relative;
+  overflow: hidden;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 32px;
+  border: 1px solid rgba(255,255,255,.88);
+  border-radius: 28px;
+  background: rgba(255,253,249,.8);
+  box-shadow: 0 20px 52px rgba(33, 46, 74, .08);
+}
+.orbit {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(62%, 780px);
+  height: 150px;
+  object-fit: cover;
+  object-position: left top;
+  opacity: .85;
+  pointer-events: none;
+}
+.heading { position: relative; z-index: 1; }
+.heading > p { margin: 0 0 8px; color: #6875b5; font-size: 13px; font-weight: 600; letter-spacing: .08em; }
+.heading h1 { margin: 0; color: #172f5b; font-size: clamp(32px, 3vw, 46px); line-height: 1.15; letter-spacing: .08em; }
+.heading > span { display: block; margin-top: 12px; color: #62718e; font-size: 16px; }
+.overview { position: relative; z-index: 1; display: grid; grid-template-columns: 1.1fr 1.45fr .95fr; gap: 0; margin-top: 22px; }
+.overview > section { min-height: 196px; padding: 20px; border: 1px solid #ebe5dc; background: rgba(255,255,255,.7); }
+.overview > section:first-child { border-radius: 16px 0 0 16px; }
+.overview > section:last-child { border-radius: 0 16px 16px 0; }
+.sectionLabel { margin: 0; color: #263c64; font-size: 17px; font-weight: 700; }
+.levelContent { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.levelContent img { width: 134px; height: 132px; object-fit: contain; }
+.levelContent h2 { margin: 0; color: #1c315c; font-size: 22px; letter-spacing: .04em; }
+.levelContent strong { display: block; margin-top: 9px; color: #df802b; font-size: 18px; }
+.levelContent p { margin: 9px 0 0; color: #69758c; font-size: 12px; line-height: 1.65; }
+.overviewSummary > div { display: flex; justify-content: space-between; }
+.overviewSummary button { display: grid; width: 30px; height: 30px; padding: 0; place-items: center; border: 0; border-radius: 50%; background: #fff5e8; color: #ec923f; }
+.overviewSummary button svg { width: 16px; height: 16px; }
+.overviewSummary > strong { display: block; margin-top: 31px; color: #1e345d; font-size: 43px; font-weight: 600; line-height: 1; }
+.overviewSummary > strong small { color: #8290a5; font-size: 16px; font-weight: 500; }
+.overviewSummary > p { margin: 8px 0 0; color: #61708b; font-size: 13px; }
+.summaryLine { height: 28px; margin-top: 22px; overflow: hidden; border-bottom: 1px solid #eee6dc; background: linear-gradient(170deg, transparent 46%, rgba(237,151,66,.18) 47%, rgba(237,151,66,.18) 70%, transparent 71%); }
+.summaryLine i { display: block; width: 100%; height: 2px; margin-top: 16px; transform: skewY(-11deg); background: #ed9842; }
+.milestoneEmpty { display: grid; min-height: 154px; place-items: center; align-content: center; gap: 10px; text-align: center; color: #8591a7; }
+.milestoneEmpty svg { width: 27px; height: 27px; color: #e8a054; }
+.milestoneEmpty p { max-width: 176px; margin: 0; font-size: 13px; line-height: 1.7; }
+.collection { position: relative; z-index: 1; margin-top: 28px; }
+.collection > header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid #e8e1d8; }
+.collection nav { display: flex; flex-wrap: wrap; gap: 28px; }
+.collection nav button { padding: 0 0 13px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #65728b; font-size: 15px; }
+.collection nav button.isActive { border-bottom-color: #ea9137; color: #20355d; font-weight: 700; }
+.collection > header > span { padding-bottom: 13px; color: #65728b; font-size: 13px; white-space: nowrap; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.card { position: relative; min-height: 246px; padding: 15px 20px 18px; overflow: hidden; text-align: center; border: 1px solid #e9e4de; border-radius: 14px; background: rgba(255,255,255,.78); box-shadow: 0 8px 18px rgba(52,43,29,.035); }
+.cardLocked { opacity: .78; }
+.cardState { position: absolute; top: 13px; right: 13px; width: 17px; height: 17px; color: #7e86a0; }
+.cardState--earned { color: #e7b578; fill: #e7b578; stroke: white; }
+.cardArt { width: 112px; height: 112px; margin: 0 auto; object-fit: contain; }
+.card h3 { margin: 0; color: #1f3765; font-size: 17px; font-weight: 700; letter-spacing: .04em; }
+.card p { min-height: 38px; margin: 8px 0 9px; color: #66718b; font-size: 12px; line-height: 1.6; }
+.cardTag { display: inline-flex; min-width: 88px; justify-content: center; padding: 4px 13px; border-radius: 999px; background: #fff2df; color: #d9822c; font-size: 12px; }
+.cardTag--locked { background: #f0eef7; color: #737f9e; }
+.status { display: grid; min-height: 210px; place-items: center; align-content: center; gap: 8px; margin: 0; color: #78839a; text-align: center; }
+.status svg { width: 28px; height: 28px; color: #eb9b4d; }
+.status p { margin: 0; color: #405274; font-size: 16px; font-weight: 600; }
+.status span { font-size: 13px; }
+.statusError { color: #c33b37; }
+.footer { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 26px 0 0; color: #9aa1ae; font-size: 13px; }
+.footer svg { width: 15px; height: 15px; color: #e7a04f; }
+
+@media (max-width: 1080px) {
+  .overview { grid-template-columns: 1fr 1fr; gap: 14px; }
+  .overview > section, .overview > section:first-child, .overview > section:last-child { border-radius: 16px; }
+  .overviewMilestone { grid-column: span 2; }
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .badgesPage { padding: 92px 14px 32px; }
+  .shell { padding: 26px 18px; border-radius: 20px; }
+  .orbit { width: 90%; opacity: .45; }
+  .overview { grid-template-columns: 1fr; }
+  .overviewMilestone { grid-column: auto; }
+  .collection > header { display: block; }
+  .collection nav { gap: 16px; overflow-x: auto; flex-wrap: nowrap; }
+  .collection nav button { white-space: nowrap; }
+  .collection > header > span { display: block; padding-top: 9px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card { padding-inline: 10px; }
+}

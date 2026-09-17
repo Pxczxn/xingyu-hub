@@ -1,3 +1,5 @@
+import styles from "./review-detail.module.css";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ArrowRight, FolderOpen, PenLine, Star } from "lucide-react";
 
@@ -35,7 +37,7 @@ const TOOL_ITEMS = [
 
 export function ReviewToolList({ articleHref, approved }: ReviewToolListProps) {
   return (
-    <section className="xy-review-tools">
+    <section className={cn(styles.tools)}>
       <h2>创作中心工具</h2>
       <ul>
         {TOOL_ITEMS.map((item) => {

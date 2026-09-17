@@ -74,6 +74,7 @@ import { NButton, NSpace, NTag, NInput, NForm, NFormItem, NIcon, NCard, NGrid, N
 import { SearchOutline, EyeOutline, TrashOutline } from '@vicons/ionicons5'
 import { cacheApi } from '@/api/monitor'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderEllipsisText, renderTableActionCell } from '@/utils/table-cells'
 
 const cacheScroll = tableScrollX(2)
 
@@ -92,18 +93,16 @@ const cacheDetail = ref<{ key: string; type: string; value: string; ttl: number 
 })
 
 const columns: DataTableColumns<string> = [
-  { title: '键名', key: 'key', ...colLayout('title'), render(row) { return h('span', { style: 'word-break: break-all;' }, row) }},
+  { title: '键名', key: 'key', ...colLayout('title'), render: row => renderEllipsisText(row) },
   { title: '操作', key: 'actions', ...colLayout('action2'), render(row) {
-    return h(NSpace, null, {
-      default: () => [
-        h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => handleView(row) }, {
-          default: () => [h(NIcon, null, { default: () => h(EyeOutline) }), ' 查看']
-        }),
-        h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, {
-          default: () => [h(NIcon, null, { default: () => h(TrashOutline) }), ' 删除']
-        })
-      ]
-    })
+    return renderTableActionCell([
+      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => handleView(row) }, {
+        default: () => [h(NIcon, null, { default: () => h(EyeOutline) }), ' 查看']
+      }),
+      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, {
+        default: () => [h(NIcon, null, { default: () => h(TrashOutline) }), ' 删除']
+      })
+    ])
   }}
 ]
 

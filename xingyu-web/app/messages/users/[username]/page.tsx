@@ -8,6 +8,8 @@ import { PageHero } from "@/components/community/page-primitives";
 import { Alert } from "@/components/ui/alert";
 import { communityApi } from "@/lib/community-api";
 import { useAsyncData } from "@/lib/use-async-data";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function MessageUserPage() {
   const params = useParams<{ username: string }>();
@@ -28,7 +30,7 @@ export default function MessageUserPage() {
 
   return (
     <AppShell>
-      <main className="xy-page max-w-lg">
+      <main className={cn(shellStyles.page, "max-w-lg")}>
         <PageHero variant="compact" title={profile.displayName || profile.username} description={profile.bio || undefined} />
         <div className="flex flex-wrap gap-3">
           <FollowButton username={profile.username!} initialFollowing={profile.following} />

@@ -11,6 +11,7 @@ import { Bookmark } from "lucide-react";
 import { communityApi } from "@/lib/community-api";
 import { formatDateTime } from "@/lib/format";
 import { useAsyncData } from "@/lib/use-async-data";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 function conversationHref(type: string, conversationId: string) {
   return type === "GROUP"
@@ -23,7 +24,7 @@ export default function SavedMessagesPage() {
 
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <PageHero variant="compact" eyebrow="消息" title="收藏的消息" description="你在聊天中收藏的消息会同步到账号。" />
         {loading ? (
           <p className="text-sm text-muted-foreground">加载中…</p>

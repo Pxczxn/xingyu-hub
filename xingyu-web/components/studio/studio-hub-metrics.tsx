@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-hub.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -28,13 +30,13 @@ export function StudioHubMetrics({ insights, loading }: Props) {
   };
 
   return (
-    <section className="xy-studio-hub-metrics" aria-labelledby="studio-hub-metrics-title">
-      <header className="xy-studio-hub-section-head">
-        <h2 id="studio-hub-metrics-title" className="xy-studio-hub-section-title">创作数据</h2>
-        <div className="xy-studio-hub-metrics-actions">
+    <section className={cn(styles.metrics)} aria-labelledby="studio-hub-metrics-title">
+      <header className={cn(styles.sectionHead)}>
+        <h2 id="studio-hub-metrics-title" className={cn(styles.sectionTitle)}>创作数据</h2>
+        <div className={cn(styles.metricsActions)}>
           <button
             type="button"
-            className="xy-studio-hub-text-btn"
+            className={cn(styles.textBtn)}
             onClick={() => setExpanded((value) => !value)}
             aria-expanded={expanded}
           >
@@ -48,7 +50,7 @@ export function StudioHubMetrics({ insights, loading }: Props) {
               </>
             )}
           </button>
-          <Link href="/studio/analytics" className="xy-studio-hub-text-link">
+          <Link href="/studio/analytics" className={cn(styles.textLink)}>
             查看详情 <ArrowRight aria-hidden="true" />
           </Link>
         </div>
@@ -56,27 +58,27 @@ export function StudioHubMetrics({ insights, loading }: Props) {
 
       {expanded ? (
         loading ? (
-          <div className="xy-studio-hub-metrics-grid" aria-busy="true" aria-label="正在加载创作数据">
+          <div className={cn(styles.metricsGrid)} aria-busy="true" aria-label="正在加载创作数据">
             {METRICS.map((metric) => (
-              <div key={metric.key} className="xy-studio-hub-metric-card xy-studio-hub-skeleton">
-                <span className="xy-studio-hub-skeleton-line" />
-                <span className="xy-studio-hub-skeleton-line short" />
+              <div key={metric.key} className={cn(styles.metricCard, styles.skeleton)}>
+                <span className={cn(styles.skeletonLine)} />
+                <span className={cn(styles.skeletonLine, "short")} />
               </div>
             ))}
           </div>
         ) : (
-          <div className="xy-studio-hub-metrics-grid">
+          <div className={cn(styles.metricsGrid)}>
             {METRICS.map((metric) => (
               <Link
                 key={metric.key}
                 href={`/studio/analytics#${metric.anchor}`}
-                className="xy-studio-hub-metric-card"
+                className={cn(styles.metricCard)}
               >
-                <span className="xy-studio-hub-metric-label">{metric.label}</span>
-                <strong className="xy-studio-hub-metric-value">
+                <span className={cn(styles.metricLabel)}>{metric.label}</span>
+                <strong className={cn(styles.metricValue)}>
                   {values[metric.key] == null ? "—" : values[metric.key]!.toLocaleString()}
                 </strong>
-                <svg className="xy-studio-hub-sparkline" viewBox="0 0 80 24" aria-hidden="true">
+                <svg className={cn(styles.sparkline)} viewBox="0 0 80 24" aria-hidden="true">
                   <polyline points="0,18 16,14 32,16 48,10 64,12 80,6" />
                 </svg>
               </Link>

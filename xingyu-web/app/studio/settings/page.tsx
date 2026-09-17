@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function StudioSettingsPage() {
   return (
     <AppShell>
-      <main className="xy-page mx-auto max-w-3xl py-8">
+      <main className={cn(shellStyles.page, "mx-auto max-w-3xl py-8")}>
         <h1 className="text-2xl font-semibold">创作设置</h1>
         <p className="mt-2 text-sm text-muted-foreground">管理创作空间分类、素材与展示偏好。</p>
         <section className="mt-8 space-y-4">

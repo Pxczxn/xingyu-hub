@@ -38,6 +38,7 @@ public class HomeService {
     private final MomentMapper momentMapper;
     private final ReadingService readingService;
     private final RecommendationService recommendationService;
+    private final ContentCoverService contentCoverService;
 
     public HomeCompositionView compose(CommunityUser user) {
         long unread = user == null ? 0L : notificationMapper.countUnread(user.getId());
@@ -156,6 +157,7 @@ public class HomeService {
                 .objectId(doc.getObjectId())
                 .title(doc.getTitle())
                 .summary(doc.getSummary())
+                .cover(contentCoverService.resolveCoverUrl(doc))
                 .build();
     }
 
@@ -165,6 +167,7 @@ public class HomeService {
                 .objectType(view.getObjectType())
                 .title(view.getTitle())
                 .summary(view.getSummary())
+                .cover(view.getCover())
                 .build();
     }
 
@@ -174,6 +177,7 @@ public class HomeService {
                 .objectType(doc.getObjectType())
                 .title(doc.getTitle())
                 .summary(doc.getSummary())
+                .cover(contentCoverService.resolveCoverUrl(doc))
                 .updatedAt(doc.getIndexedAt())
                 .build();
     }

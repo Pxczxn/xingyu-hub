@@ -30,7 +30,7 @@ export default function AnnouncementDetailPage() {
           <header className="mt-10"><span className="rounded-full bg-[#fff0df] px-3 py-1.5 text-[13px] text-[#dc822c]">社区公告</span><h1 className="mt-5 text-[34px] font-bold leading-[1.28] text-[#162d58]">{data.title}</h1><p className="mt-4 text-[14px] text-[#68748b]">{data.publishedAt ? formatDateTime(data.publishedAt) : "发布时间暂未提供"}</p></header>
           <div className="my-7 flex items-center gap-3 text-[#e59a45]"><i className="h-px flex-1 bg-[#ead9c3]"/><span>✦</span><i className="h-px flex-1 bg-[#ead9c3]"/></div>
           <img src="/prototype-assets/announcement-detail/announcement-hero-image.png" alt="" className="w-full rounded-[15px]"/>
-          <div className="xy-reading-copy mt-7 whitespace-pre-wrap text-[16px] leading-8 text-[#4f5c73]">{data.body || "该公告暂未提供正文内容。"}</div>
+          <div className="mt-7 whitespace-pre-wrap text-[16px] leading-8 text-[#4f5c73]">{data.body || "该公告暂未提供正文内容。"}</div>
           <footer className="mt-7 flex justify-end border-t border-[#eee5da] pt-5"><button type="button" onClick={() => void shareAnnouncement()} className="flex items-center gap-2 rounded-xl border border-[#e9e2d9] bg-white/55 px-5 py-3 text-[14px] text-[#4c5b75]"><Share2 className="h-4 w-4"/>分享</button></footer>
         </article>
         <aside className="h-fit rounded-[22px] border border-white/90 bg-white/75 p-6 shadow-[0_16px_38px_rgba(78,60,34,.08)]">

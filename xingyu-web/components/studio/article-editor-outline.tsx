@@ -1,4 +1,6 @@
 "use client";
+import styles from "./studio-workspace.module.css";
+import { cn } from "@/lib/utils";
 
 import type { EditorOutlineItem } from "@/lib/article-markdown";
 
@@ -14,30 +16,28 @@ export function ArticleEditorOutline({
   onSelect,
 }: ArticleEditorOutlineProps) {
   return (
-    <aside className="xy-editor-outline" aria-label="文章大纲">
-      <p className="xy-editor-outline__label">大纲</p>
-      <nav className="xy-editor-outline__nav">
+    <aside className={cn(styles.outline)} aria-label="文章大纲">
+      <p className={cn(styles.outlineLabel)}>大纲</p>
+      <nav className={cn(styles.outlineNav)}>
         {items.length ? (
           items.map((item, index) => (
             <button
               key={item.id}
               type="button"
-              className={[
-                "xy-editor-outline__item",
-                index === activeIndex ? "is-active" : "",
-                item.level === 2 ? "is-level-2" : "",
-                item.level === 3 ? "is-level-3" : "",
-                item.level === 4 ? "is-level-4" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
+              className={cn(
+                styles.outlineItem,
+                index === activeIndex && styles.isActive,
+                item.level === 2 && styles.isLevel2,
+                item.level === 3 && styles.isLevel3,
+                item.level === 4 && styles.isLevel4,
+              )}
               onClick={() => onSelect(item, index)}
             >
               {item.text}
             </button>
           ))
         ) : (
-          <p className="xy-editor-outline__empty">写几个标题，目录会自动出现</p>
+          <p className={cn(styles.outlineEmpty)}>写几个标题，目录会自动出现</p>
         )}
       </nav>
     </aside>

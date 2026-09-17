@@ -5,14 +5,12 @@ import { FormEvent, useEffect, useState } from "react";
 import { Check, ExternalLink, Globe2, Heart, LoaderCircle } from "lucide-react";
 import { SettingsLayout } from "@/components/settings/settings-layout";
 import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { resolveMediaUrl } from "@/lib/api-client";
 import { communityApi, type CollectionSummary, type InsightsView, type ProfileDetail } from "@/lib/community-api";
 
 type ProfilePageData = { profile: ProfileDetail; collections: CollectionSummary[]; insights: InsightsView };
-
-function profileInitial(profile: ProfileDetail | null) {
-  return (profile?.displayName || profile?.username || "星").trim().slice(0, 1).toUpperCase();
-}
 
 function ValueStat({ value, label }: { value?: number; label: string }) {
   return (
@@ -96,15 +94,22 @@ export default function ProfileSettingsPage() {
             预览效果
           </p>
           <div className="overflow-hidden rounded-[28px] border border-[#eadfce] bg-white shadow-[0_16px_34px_rgb(86_60_33/.1)]">
-            <img src="/prototype-assets/profile-edit/cover.png" alt="" className="h-28 w-full object-cover" />
-            <div className="mx-auto -mt-10 grid h-20 w-20 place-items-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#21395f,#9cacc2)] text-xl font-semibold text-white">
-              {profile.avatar ? (
-                <img src={profile.avatar} alt="" className="h-full w-full object-cover" />
-              ) : (
-                profileInitial(profile)
-              )}
+            <div className="relative h-28">
+              <img
+                src="/prototype-assets/profile/profile-cover.png"
+                alt=""
+                className="h-full w-full object-cover object-[center_38%]"
+              />
+              <div className="absolute bottom-0 left-1/2 z-10 -translate-x-1/2 translate-y-1/2">
+                <Avatar
+                  src={profile.avatar ? resolveMediaUrl(profile.avatar) : null}
+                  fallback={profile.displayName || profile.username}
+                  size="lg"
+                  className="h-20 w-20 border-4 border-white bg-[linear-gradient(145deg,#21395f,#9cacc2)] text-xl font-semibold text-white shadow-[0_8px_20px_rgb(19_35_77/.18)]"
+                />
+              </div>
             </div>
-            <div className="p-5 text-center">
+            <div className="px-5 pb-5 pt-12 text-center">
               <h2 className="text-xl font-semibold text-[#192d58]">{profile.displayName || profile.username}</h2>
               <p className="mt-1 text-xs text-slate-400">@{profile.username}</p>
               <p className="mt-4 whitespace-pre-line text-left text-xs leading-5 text-slate-500">

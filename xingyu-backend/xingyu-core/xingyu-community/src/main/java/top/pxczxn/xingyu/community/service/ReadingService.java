@@ -30,6 +30,7 @@ public class ReadingService {
     private final SeriesMapper seriesMapper;
     private final SearchDocumentMapper searchDocumentMapper;
     private final ClientSettingsService clientSettingsService;
+    private final ContentCoverService contentCoverService;
 
     public List<ContentCardView> continueReading(CommunityUser user, int limit) {
         if (user == null || !clientSettingsService.isReadingHistoryEnabled(user)) {
@@ -169,6 +170,7 @@ public class ReadingService {
                 .objectType(objectType)
                 .title(document.getTitle())
                 .summary(document.getSummary())
+                .cover(contentCoverService.resolveCoverUrl(document))
                 .updatedAt(document.getIndexedAt())
                 .build();
     }

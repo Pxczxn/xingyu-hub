@@ -1,0 +1,7 @@
+.sourcePanel {
+  border: 1px solid rgb(229 220 206 / 0.92);
+  border-radius: 0.95rem;
+  background: rgb(255 253 249 / 0.82);
+  box-shadow: 0 10px 26px rgb(47 38 28 / 0.045);
+  backdrop-filter: blur(18px);
+}

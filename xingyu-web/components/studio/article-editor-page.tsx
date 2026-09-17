@@ -1,5 +1,5 @@
 "use client";
-
+import styles from "./studio-workspace.module.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -380,7 +380,7 @@ export default function ArticleEditorPage() {
         return;
       }
 
-      const textarea = document.querySelector<HTMLTextAreaElement>(".xy-editor-body-input");
+      const textarea = document.querySelector<HTMLTextAreaElement>("[data-editor-body-input]");
       if (!textarea) return;
       const lines = body.split("\n");
       let charIndex = 0;
@@ -400,7 +400,7 @@ export default function ArticleEditorPage() {
       setActiveOutline(0);
       return;
     }
-    const textarea = document.querySelector<HTMLTextAreaElement>(".xy-editor-body-input");
+    const textarea = document.querySelector<HTMLTextAreaElement>("[data-editor-body-input]");
     if (!textarea) return;
 
     const updateActive = () => {
@@ -443,28 +443,29 @@ export default function ArticleEditorPage() {
   }
 
   return (
-    <div className="xy-editor-page">
-      <header className="xy-editor-toolbar">
-        <Link href="/studio/content" className="xy-editor-toolbar__back">
+    <div className={cn(styles.editorPage)} data-editor-root>
+      <header className={cn(styles.toolbar)}>
+        <Link href="/studio/content" className={cn(styles.toolbarBack)}>
           <ArrowLeft className="h-4 w-4" />
           返回
         </Link>
 
         <input
-          className="xy-editor-toolbar__title"
+          className={cn(styles.toolbarTitle)}
           value={title}
           onChange={(e) => handleFieldChange(setTitle, e.target.value)}
           placeholder="输入文章标题"
           aria-label="文章标题"
         />
 
-        <div className="xy-editor-toolbar__actions">
+        <div className={cn(styles.toolbarActions)}>
           <ToolbarSaveStatus state={saveState} lastSavedAt={lastSavedAt} />
           <Button
             variant="outline"
             type="button"
             className={cn(
-              "xy-editor-toolbar__preview-btn cursor-pointer",
+              styles.toolbarPreviewBtn,
+              "cursor-pointer",
               previewEnabled &&
                 "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
             )}
@@ -500,7 +501,7 @@ export default function ArticleEditorPage() {
       <ConflictModal open={conflictOpen} onClose={closeModal} />
       <RecoveryModal open={recoveryOpen} onClose={closeModal} />
 
-      <div className="xy-editor-shell">
+      <div className={cn(styles.shell)}>
         <ArticleEditorOutline
           items={outline}
           activeIndex={activeOutline}
@@ -510,14 +511,14 @@ export default function ArticleEditorPage() {
           }}
         />
 
-        <main className="xy-editor-main">
+        <main className={cn(styles.main)}>
           {uploadError ? (
-            <Alert variant="destructive" className="xy-editor-upload-alert">
+            <Alert variant="destructive" className={cn(styles.uploadAlert)}>
               {uploadError}
             </Alert>
           ) : null}
 
-          <div className="xy-editor-canvas">
+          <div className={cn(styles.canvas)}>
             <ArticleEditorBody
               bodyMode={bodyMode}
               title={title}
@@ -586,18 +587,18 @@ function ToolbarSaveStatus({
 }) {
   if (state === "saving") {
     return (
-      <span className="xy-editor-toolbar__status">
+      <span className={cn(styles.toolbarStatus)}>
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
         正在保存…
       </span>
     );
   }
   if (state === "error") {
-    return <span className="xy-editor-toolbar__status is-error">保存失败</span>;
+    return <span className={cn(styles.toolbarStatus, styles.isError)}>保存失败</span>;
   }
   if (state === "saved" && lastSavedAt) {
     return (
-      <span className="xy-editor-toolbar__status is-saved">
+      <span className={cn(styles.toolbarStatus, styles.isSaved)}>
         已保存 {formatSavedTime(lastSavedAt)}
       </span>
     );

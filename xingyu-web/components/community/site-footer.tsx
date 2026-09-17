@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import styles from "./site-footer.module.css";
 
 const footerLinks = [
   ["关于星语", "/guide"],
@@ -12,10 +14,10 @@ const footerLinks = [
 
 export function SiteFooter() {
   return (
-    <footer className="xy-site-footer" aria-label="站点页脚">
-      <div className="xy-site-footer__inner">
-        <div className="xy-site-footer__brand">
-          <span className="xy-site-footer__mark" aria-hidden="true">星</span>
+    <footer className={cn(styles.footer)} aria-label="站点页脚">
+      <div className={cn(styles.inner)}>
+        <div className={cn(styles.brand)}>
+          <span className={cn(styles.mark)} aria-hidden="true">星</span>
           <span>
             <strong>星语社区</strong>
             <small>记录思想 · 连接同好</small>
@@ -29,7 +31,7 @@ export function SiteFooter() {
             </Link>
           ))}
         </nav>
-        <p>© 2024–2026 星语社区</p>
+        <p className={cn(styles.copyright)}>© 2024–2026 星语社区</p>
       </div>
     </footer>
   );

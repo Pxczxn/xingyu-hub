@@ -1,4 +1,6 @@
 "use client";
+import styles from "@/app/articles/[articleId]/article-detail.module.css";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -41,7 +43,7 @@ export function ArticleAuthorAction({
 }) {
   if (isAuthor) {
     return (
-      <Link href={`/u/${username}`} className="xy-article-profile-link">
+      <Link href={`/u/${username}`} className={cn(styles.profileLink)}>
         <UserRound aria-hidden="true" />
         个人主页
       </Link>
@@ -63,14 +65,14 @@ export function ArticleAuthorStrip({
   isAuthor: boolean;
 }) {
   return (
-    <section className="xy-article-author-strip" aria-label={isAuthor ? "作者信息" : "关于作者"}>
+    <section className={cn(styles.authorStrip)} aria-label={isAuthor ? "作者信息" : "关于作者"}>
       <Avatar
         src={authorAvatar}
         fallback={authorLabel}
         size="lg"
-        className="xy-article-author-strip__avatar h-12 w-12"
+        className={cn(styles.authorStrip__avatar, "h-12", "w-12")}
       />
-      <div className="xy-article-author-strip__copy">
+      <div className={cn(styles.authorStrip__copy)}>
         <b>{authorLabel}</b>
         <p>
           {isAuthor
@@ -135,12 +137,12 @@ export function ArticleSidePanel({
   }
 
   return (
-    <section className="xy-article-side-card xy-article-side-card--actions">
+    <section className={cn(styles.sideCard, styles.sideCardActions)}>
       <h2>{isAuthor ? "文章管理" : "文章操作"}</h2>
 
       {isAuthor ? (
         <>
-          <div className="xy-article-side-manage-actions">
+          <div className={cn(styles.sideManageActions)}>
             <Link href={`/studio/content/${article.id}`}>
               <Pencil aria-hidden="true" />
               <span>编辑文章</span>
@@ -158,7 +160,7 @@ export function ArticleSidePanel({
             </button>
           </div>
 
-          <div className="xy-article-side-author">
+          <div className={cn(styles.sideAuthor)}>
             <Avatar src={authorAvatar} fallback={authorLabel} size="md" className="h-9 w-9" />
             <div>
               <Link href={`/u/${article.ownerUsername}`}>{authorLabel}</Link>
@@ -168,13 +170,13 @@ export function ArticleSidePanel({
           </div>
 
           <div className="w-full">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="xy-article-more-actions">
+            <DropdownMenu className="block w-full">
+              <DropdownMenuTrigger className={cn(styles.moreActions)}>
                 <MoreHorizontal aria-hidden="true" />
                 更多操作
                 <ChevronDown aria-hidden="true" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[9.5rem]">
+              <DropdownMenuContent align="end" side="top" className="min-w-[9.5rem]">
                 <DropdownMenuItem
                   className="gap-2"
                   onSelect={() => router.push(`/studio/content/${article.id}`)}
@@ -211,7 +213,7 @@ export function ArticleSidePanel({
             onShare={() => void onShare()}
             engagement={engagement}
           />
-          <div className="xy-article-side-author">
+          <div className={cn(styles.sideAuthor)}>
             <Avatar src={authorAvatar} fallback={authorLabel} size="md" className="h-9 w-9" />
             <div>
               <Link href={`/u/${article.ownerUsername}`}>{authorLabel}</Link>

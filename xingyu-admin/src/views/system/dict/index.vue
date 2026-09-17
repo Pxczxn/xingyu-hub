@@ -150,6 +150,7 @@ import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { dictTypeApi, dictDataApi, type SysDictType, type SysDictData } from '@/api/org'
 import { useUserStore } from '@/stores/user'
 import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderTableActionCell } from '@/utils/table-cells'
 
 const tableScroll = tableScrollX(7)
 const dictDataScroll = tableScrollX(7)
@@ -192,7 +193,7 @@ const columns: DataTableColumns<SysDictType> = [
     if (hasPermission('sys:dict:delete')) {
       buttons.push(h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }))
     }
-    return h(NSpace, null, { default: () => buttons })
+    return renderTableActionCell(buttons)
   }}
 ]
 
@@ -242,7 +243,7 @@ const dataColumns: DataTableColumns<SysDictData> = [
     if (hasPermission('sys:dict:delete')) {
       buttons.push(h(NButton, { size: 'small', type: 'error', onClick: () => handleDeleteData(row) }, { default: () => '删除' }))
     }
-    return buttons.length > 0 ? h(NSpace, null, { default: () => buttons }) : '-'
+    return buttons.length > 0 ? renderTableActionCell(buttons) : '-'
   }}
 ]
 

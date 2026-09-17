@@ -104,7 +104,13 @@ export function useAuthorDetailDrawer() {
       authorLabel: author.authorLabel as string | undefined,
       authorName: author.authorName as string | undefined,
       authorEmail: author.authorEmail || author.email as string | undefined,
-      authorBio: author.authorBio || author.bio as string | undefined
+      authorBio: author.authorBio || author.bio as string | undefined,
+      status: author.status as string | undefined,
+      role: author.role as string | undefined,
+      phone: author.phone as string | null | undefined,
+      emailVerified: author.emailVerified as boolean | undefined,
+      phoneVerified: author.phoneVerified as boolean | undefined,
+      createdAt: author.createdAt as string | null | undefined
     }
     showAuthor.value = true
   }

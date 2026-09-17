@@ -15,6 +15,7 @@ import { FloatingCard, FloatingCardBody, FloatingCardHeader, FloatingTabs, Hover
 import { FloatingChatThread } from "./floating-chat-thread";
 import { useHoverOpen } from "./use-hover-open";
 import { useFloatPanelPresence } from "./use-float-panel-presence";
+import styles from "./floating-panel.module.css";
 
 type MessageTab = "all" | "direct" | "group";
 
@@ -149,11 +150,12 @@ function MessageListCard({
         else event.preventDefault();
       }}
     >
-      <div className={cn("xy-message-float-input-wrap relative min-w-0", showCreateGroup && "is-create")}>
+      <div className={cn(styles.inputWrap, "relative min-w-0", showCreateGroup && styles.inputWrapCreate)}>
         <Search
           className={cn(
-            "xy-message-float-input-icon pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground",
-            showCreateGroup && "is-hidden"
+            styles.inputIcon,
+            "pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground",
+            showCreateGroup && styles.inputIconHidden
           )}
           aria-hidden={showCreateGroup}
         />
@@ -166,16 +168,18 @@ function MessageListCard({
           placeholder={showCreateGroup ? "输入群名称" : "搜索联系人或消息"}
           aria-label={showCreateGroup ? "群名称" : "搜索联系人或消息"}
           className={cn(
-            "xy-message-float-input h-8 rounded-full border-[#e8e4dc] bg-[#f5f3ef] text-xs",
-            showCreateGroup ? "is-create pl-3 pr-9" : "pl-8 pr-3"
+            styles.input,
+            "h-8 rounded-full border-[#e8e4dc] bg-[#f5f3ef] text-xs",
+            showCreateGroup ? cn(styles.inputCreate, "pl-3 pr-9") : "pl-8 pr-3"
           )}
           autoFocus={showCreateGroup}
         />
         <button
           type="submit"
           className={cn(
-            "xy-message-float-input-confirm absolute right-1 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-[rgb(var(--violet))] text-white disabled:cursor-not-allowed disabled:opacity-45",
-            !showCreateGroup && "is-hidden"
+            styles.inputConfirm,
+            "absolute right-1 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-[rgb(var(--violet))] text-white disabled:cursor-not-allowed disabled:opacity-45",
+            !showCreateGroup && styles.inputConfirmHidden
           )}
           aria-label="创建群聊"
           aria-hidden={!showCreateGroup}
@@ -201,15 +205,17 @@ function MessageListCard({
         <span className="relative grid h-4 w-4 place-items-center">
           <Plus
             className={cn(
-              "xy-message-float-toggle-icon absolute h-4 w-4",
-              showCreateGroup && "is-hidden"
+              styles.toggleIcon,
+              "absolute h-4 w-4",
+              showCreateGroup && styles.toggleIconHidden
             )}
             aria-hidden={showCreateGroup}
           />
           <X
             className={cn(
-              "xy-message-float-toggle-icon absolute h-4 w-4",
-              !showCreateGroup && "is-hidden"
+              styles.toggleIcon,
+              "absolute h-4 w-4",
+              !showCreateGroup && styles.toggleIconHidden
             )}
             aria-hidden={!showCreateGroup}
           />
@@ -383,7 +389,7 @@ function MessagePanelContent({
   const showChat = activeConversation != null;
 
   return (
-    <div className={cn("flex items-start gap-2", showList && showChat && "xy-float-message-dual")}>
+    <div className={cn("flex items-start gap-2", showList && showChat && styles.messageDual)}>
       {showList ? (
         <MessageListCard
           conversations={conversations}
@@ -554,8 +560,9 @@ export function MessageFloatTrigger({
             <button
               type="button"
               className={cn(
-                "xy-float-backdrop fixed inset-0 z-40 bg-black/12",
-                mobileVisible && "is-visible"
+                styles.backdrop,
+                "fixed inset-0 z-40 bg-black/12",
+                mobileVisible && styles.backdropVisible
               )}
               aria-label="关闭消息面板"
               onClick={() => {
@@ -569,7 +576,7 @@ export function MessageFloatTrigger({
               aria-modal="false"
               aria-hidden={!mobileVisible}
             >
-              <div className={cn("xy-float-panel-wrap", mobileVisible && "is-visible")}>
+              <div className={cn(styles.panelWrap, mobileVisible && styles.panelWrapVisible)}>
                 <MessagePanelContent
                   {...panelProps}
                   compact

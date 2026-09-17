@@ -1,9 +1,21 @@
 import { h, type VNodeChild } from 'vue'
-import { NButton, NIcon, NTag } from 'naive-ui'
+import { NButton, NEllipsis, NIcon, NTag } from 'naive-ui'
+import { cellText } from '@/utils/table-layout'
 import type { ButtonProps, TagProps } from 'naive-ui'
 import { CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import TableLink from '@/components/community/TableLink.vue'
 import { resolveStatusLabel } from '@/utils/community-display'
+
+/** 带 tooltip 的单行省略文本（列未开启 ellipsis 时的补充） */
+export function renderEllipsisText(value: unknown, placeholder = '—'): VNodeChild {
+  const text = cellText(value, placeholder)
+  if (text === placeholder) return text
+  return h(
+    NEllipsis,
+    { style: 'max-width: 100%', tooltip: { width: 360 } },
+    { default: () => text }
+  )
+}
 
 export function renderTableLink(label: string, onClick: () => void): VNodeChild {
   if (!label || label === '-') return '-'

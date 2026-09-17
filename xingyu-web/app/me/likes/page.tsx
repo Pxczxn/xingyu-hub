@@ -8,13 +8,14 @@ import { communityApi, contentHref } from "@/lib/community-api";
 import { useAsyncData } from "@/lib/use-async-data";
 import { formatDateTime } from "@/lib/format";
 import { LoaderCircle } from "lucide-react";
+import shellStyles from "@/components/community/shell-primitives.module.css";
 
 export default function MyLikesPage() {
   const { data: likes, loading, error } = useAsyncData(() => communityApi.getMyLikes(), []);
 
   return (
     <AppShell>
-      <main className="xy-page">
+      <main className={shellStyles.page}>
         <PageHero variant="compact" eyebrow="个人中心" title="我的喜欢" description="你点赞过的内容。" />
         {loading ? (
           <EmptyState icon={LoaderCircle} title="正在加载喜欢的内容" description="马上就好，请稍候。" compact className="min-h-40" />

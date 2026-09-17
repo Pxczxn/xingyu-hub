@@ -1,5 +1,6 @@
 "use client";
 
+import styles from "./studio-workspace.module.css";
 import { Button } from "@/components/ui/button";
 import { ArticleMarkdownBody } from "@/lib/article-markdown";
 import { cn } from "@/lib/utils";
@@ -67,12 +68,12 @@ export function PreviewModal({
 }: PreviewModalProps) {
   return (
     <StudioModal open={open} onClose={onClose} title="预览文章" size="preview">
-      <div className="xy-editor-preview">
-        <header className="xy-editor-preview__header">
-          <h3 className="xy-editor-preview__title">{articleTitle.trim() || "无标题"}</h3>
-          {summary.trim() ? <p className="xy-editor-preview__summary">{summary}</p> : null}
+      <div>
+        <header className={cn(styles.previewHeader)}>
+          <h3 className={cn(styles.previewTitle)}>{articleTitle.trim() || "无标题"}</h3>
+          {summary.trim() ? <p className={cn(styles.previewSummary)}>{summary}</p> : null}
         </header>
-        <div className="xy-editor-preview__body xy-article-body">
+        <div className={cn(styles.previewBody, "xy-article-body")}>
           <ArticleMarkdownBody body={body} />
         </div>
       </div>
