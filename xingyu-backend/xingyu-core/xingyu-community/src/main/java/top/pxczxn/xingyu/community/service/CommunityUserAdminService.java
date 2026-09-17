@@ -1,9 +1,14 @@
 package top.pxczxn.xingyu.community.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
+import top.pxczxn.xingyu.common.result.PageResult;
 import top.pxczxn.xingyu.community.dto.AdminPasswordResetResult;
 import top.pxczxn.xingyu.community.dto.CommunityUserAdminView;
+import top.pxczxn.xingyu.community.dto.CommunityUserStatistics;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
@@ -23,39 +28,51 @@ public class CommunityUserAdminService {
     private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String STATUS_REJECTED = "REJECTED";
+    private static final String STATUS_SUSPENDED = "SUSPENDED";
 
     private final CommunityUserMapper userMapper;
     private final CommunityProfileMapper profileMapper;
     private final CommunityAccountService accountService;
 
-    public List<CommunityUserAdminView> list(
+    public PageResult<CommunityUserAdminView> list(
+            long page,
+            long pageSize,
             String status,
-            String username,
-            String email,
-            String phone,
             String keyword,
-            int limit) {
+            String role) {
         String normalizedStatus = status == null || status.isBlank()
                 ? null
                 : status.trim().toUpperCase(Locale.ROOT);
-        String normalizedUsername = normalizeSearchValue(username);
-        String normalizedEmail = normalizeSearchValue(email);
-        String normalizedPhone = normalizeSearchValue(phone);
         String normalizedKeyword = normalizeSearchValue(keyword);
-        int boundedLimit = Math.min(Math.max(limit, 1), 200);
-        List<CommunityUser> users = userMapper.listForAdmin(
-                normalizedStatus,
-                normalizedUsername,
-                normalizedEmail,
-                normalizedPhone,
-                normalizedKeyword,
-                boundedLimit);
-        List<CommunityUserAdminView> result = new ArrayList<>(users.size());
-        for (CommunityUser user : users) {
+        String normalizedRole = normalizeSearchValue(role);
+        long safePage = Math.max(page, 1);
+        long safeSize = Math.min(Math.max(pageSize, 1), 100);
+        IPage<CommunityUser> pageParam = new Page<>(safePage, safeSize);
+        IPage<CommunityUser> paged = userMapper.listForAdmin(pageParam, normalizedStatus, normalizedKeyword, normalizedRole);
+        List<CommunityUserAdminView> views = new ArrayList<>(paged.getRecords().size());
+        for (CommunityUser user : paged.getRecords()) {
             CommunityProfile profile = profileMapper.findByUserId(user.getId());
-            result.add(toView(user, profile));
+            views.add(toView(user, profile));
         }
-        return result;
+        return PageResult.of(views, paged.getTotal(), paged.getCurrent(), paged.getSize());
+    }
+
+    /**
+     * 社区用户全局概览统计，不跟随 page/pageSize/keyword/status/role 变化，
+     * 避免“搜索一个用户后用户总数变成 1”这类语义错误。
+     */
+    public CommunityUserStatistics statistics() {
+        long totalUsers = userMapper.selectCount(new LambdaQueryWrapper<CommunityUser>());
+        long pendingReview = countByStatus(STATUS_PENDING_REVIEW);
+        long active = countByStatus(STATUS_ACTIVE);
+        long attention = userMapper.selectCount(
+                new LambdaQueryWrapper<CommunityUser>()
+                        .in(CommunityUser::getStatus, STATUS_REJECTED, STATUS_SUSPENDED));
+        return CommunityUserStatistics.of(totalUsers, pendingReview, active, attention);
+    }
+
+    private long countByStatus(String status) {
+        return userMapper.selectCount(new LambdaQueryWrapper<CommunityUser>().eq(CommunityUser::getStatus, status));
     }
 
     @Transactional

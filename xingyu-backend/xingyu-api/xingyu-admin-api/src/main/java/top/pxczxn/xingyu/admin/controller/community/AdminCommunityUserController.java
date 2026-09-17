@@ -1,8 +1,10 @@
 package top.pxczxn.xingyu.admin.controller.community;
 
+import top.pxczxn.xingyu.common.result.PageResult;
 import top.pxczxn.xingyu.common.result.Result;
 import top.pxczxn.xingyu.community.dto.AdminPasswordResetResult;
 import top.pxczxn.xingyu.community.dto.CommunityUserAdminView;
+import top.pxczxn.xingyu.community.dto.CommunityUserStatistics;
 import top.pxczxn.xingyu.community.service.CommunityUserAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,8 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/community/users")
 @RequiredArgsConstructor
@@ -22,14 +22,18 @@ public class AdminCommunityUserController {
     private final CommunityUserAdminService communityUserAdminService;
 
     @GetMapping
-    public Result<List<CommunityUserAdminView>> list(
+    public Result<PageResult<CommunityUserAdminView>> list(
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long pageSize,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String username,
-            @RequestParam(required = false) String email,
-            @RequestParam(required = false) String phone,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "50") int limit) {
-        return Result.ok(communityUserAdminService.list(status, username, email, phone, keyword, limit));
+            @RequestParam(required = false) String role) {
+        return Result.ok(communityUserAdminService.list(page, pageSize, status, keyword, role));
+    }
+
+    @GetMapping("/statistics")
+    public Result<CommunityUserStatistics> statistics() {
+        return Result.ok(communityUserAdminService.statistics());
     }
 
     @PostMapping("/{userId}/approve")

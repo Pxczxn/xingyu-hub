@@ -28,21 +28,22 @@
 
         <div class="page-list-body">
           <div class="list-caption">
-            <span>共 <strong>{{ items.length }}</strong> 位用户</span>
+            <span>共 <strong>{{ pagination.itemCount }}</strong> 位用户</span>
           </div>
 
           <div class="page-list-table-region">
+            <!-- remote：服务端分页。必须显式开启，否则 naive-ui 会按本地 data 推导 pageCount（每页仅 1 页，无法翻页） -->
             <n-data-table
               v-bind="communityUsersTableProps"
               class="community-users-table"
               :columns="displayColumns"
               :data="tableData"
               :loading="loading"
-              :pagination="items.length ? pagination : false"
+              :remote="true"
+              :pagination="pagination"
               :row-key="(row: CommunityUserItem) => row.id"
               :row-props="rowProps"
               @update:sorter="handleSorterChange"
-              @update:page="handlePageChange"
             />
           </div>
         </div>
@@ -58,19 +59,20 @@ import { computed, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { NAvatar, NButton, NDropdown, NIcon, NTag, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import { CopyOutline, ChevronDownOutline } from '@vicons/ionicons5'
-import { communityUsersApi, type CommunityUserItem } from '@/api/community-users'
+import { communityUsersApi, type CommunityUserItem, type CommunityUserStatistics } from '@/api/community-users'
 import AuthorDetailDrawer from '@/components/community/AuthorDetailDrawer.vue'
 import { useAuthorDetailDrawer } from '@/composables/useCommunityDrawers'
 import { useTableSort } from '@/composables/useTableSort'
-import { COMMUNITY_USER_STATUS_META, COMMUNITY_USER_ROLE_FILTER_OPTIONS, formatAuthorLabel, formatCommunityUserRole, matchesCommunityUserRole } from '@/utils/community-display'
+import { COMMUNITY_USER_STATUS_META, COMMUNITY_USER_ROLE_FILTER_OPTIONS, formatAuthorLabel, formatCommunityUserRole } from '@/utils/community-display'
 import { renderDateTime, renderEllipsisText, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
-import { cellText, colLayout, defaultListPagination, tableListFlexProps, tableScrollFromColumns } from '@/utils/table-layout'
+import { cellText, colLayout, tableListFlexProps, tableScrollFromColumns } from '@/utils/table-layout'
 
 const message = useMessage()
 const dialog = useDialog()
 const route = useRoute()
 const loading = ref(false)
 const items = ref<CommunityUserItem[]>([])
+const stats = ref<CommunityUserStatistics | null>(null)
 const searchForm = reactive({ keyword: '' })
 const status = ref<string | null>(null)
 const role = ref<string | null>(null)
@@ -85,12 +87,30 @@ const statusOptions = [
 ]
 const roleOptions = [...COMMUNITY_USER_ROLE_FILTER_OPTIONS]
 const summary = computed(() => [
-  { label: '用户总数', value: items.value.length, note: '当前筛选结果', tone: 'amber' },
-  { label: '待审核', value: items.value.filter(item => item.status === 'PENDING_REVIEW').length, note: '需要处理', tone: 'blue' },
-  { label: '正常账号', value: items.value.filter(item => item.status === 'ACTIVE').length, note: '可正常访问', tone: 'green' },
-  { label: '需要关注', value: items.value.filter(item => ['REJECTED', 'SUSPENDED'].includes(item.status)).length, note: '已拒绝或停用', tone: 'violet' }
+  { label: '用户总数', value: stats.value?.totalUsers ?? 0, note: '社区全局', tone: 'amber' },
+  { label: '待审核', value: stats.value?.pendingReview ?? 0, note: '需要处理', tone: 'blue' },
+  { label: '正常账号', value: stats.value?.active ?? 0, note: '可正常访问', tone: 'green' },
+  { label: '需要关注', value: stats.value?.attention ?? 0, note: '已拒绝或停用', tone: 'violet' }
 ])
-const pagination = reactive({ ...defaultListPagination, page: 1 })
+
+// 远程分页：total 来自后端，page/pageSize 双向驱动列表请求
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50],
+  itemCount: 0,
+  pageSlot: 7,
+  onUpdatePage(page: number) {
+    pagination.page = page
+    void load()
+  },
+  onUpdatePageSize(size: number) {
+    pagination.pageSize = size
+    pagination.page = 1
+    void load()
+  }
+})
 
 function userLabel(row: CommunityUserItem) { return formatAuthorLabel(row.displayName, row.username, row.username || row.email || '未设置用户名') }
 function avatarLabel(row: CommunityUserItem) { return (row.displayName || row.username || row.email || '?').slice(0, 1).toUpperCase() }
@@ -215,10 +235,6 @@ function compareStatus(a: CommunityUserItem, b: CommunityUserItem) {
   return (STATUS_SORT_ORDER[a.status] ?? 99) - (STATUS_SORT_ORDER[b.status] ?? 99)
 }
 
-function handlePageChange(page: number) {
-  pagination.page = page
-}
-
 const userColumns: DataTableColumns<CommunityUserItem> = [
   {
     title: '用户',
@@ -252,26 +268,71 @@ const userColumns: DataTableColumns<CommunityUserItem> = [
 
 const communityUsersTableProps = tableListFlexProps(tableScrollFromColumns(userColumns))
 
-const { columns: displayColumns, handleSorterChange } = useTableSort<CommunityUserItem>({
+const { columns: displayColumns, handleSorterChange, sortKey, sortOrder } = useTableSort<CommunityUserItem>({
   columns: userColumns,
   defaultKey: 'createdAt',
   defaultOrder: 'descend'
 })
 
-const tableData = computed(() => items.value)
+/**
+ * 服务端分页（n-data-table remote）下 naive-ui 不再执行本地排序，
+ * 这里复用同一套列比较器对当前页排序，避免排序表头变成死交互。
+ * 默认 createdAt descend 与服务端 ORDER BY created_at DESC 一致，故默认顺序不变；
+ * 跨页全局排序需后续把 sortField/sortOrder 下推后端（见本轮遗留项）。
+ */
+const columnComparators = new Map<string, (a: CommunityUserItem, b: CommunityUserItem) => number>()
+for (const column of userColumns) {
+  const { key, sorter } = column as { key?: string | number; sorter?: unknown }
+  if (key != null && typeof sorter === 'function') {
+    columnComparators.set(String(key), sorter as (a: CommunityUserItem, b: CommunityUserItem) => number)
+  }
+}
+
+const tableData = computed(() => {
+  const comparator = sortKey.value ? columnComparators.get(sortKey.value) : undefined
+  if (!comparator || !sortOrder.value) return items.value
+  const rows = [...items.value]
+  rows.sort(sortOrder.value === 'ascend' ? comparator : (a, b) => comparator(b, a))
+  return rows
+})
+
+// 请求序号：快速搜索/筛选时的异步竞态保护，旧请求结果不得覆盖后发的新请求
+let requestSeq = 0
 
 async function load() {
+  const seq = ++requestSeq
   loading.value = true
   const keyword = searchForm.keyword.trim()
   try {
-    items.value = await communityUsersApi.list({
+    const data = await communityUsersApi.list({
+      page: pagination.page,
+      pageSize: pagination.pageSize,
       status: status.value || undefined,
       keyword: keyword || undefined,
-      limit: 100
+      role: role.value || undefined
     })
-    const roleFilter = role.value
-    if (roleFilter) items.value = items.value.filter(item => matchesCommunityUserRole(item.role, roleFilter))
-  } catch { message.error('社区用户暂时无法加载，请检查服务连接后重试') } finally { loading.value = false }
+    if (seq !== requestSeq) return
+    items.value = data.list
+    pagination.itemCount = data.total
+    // 审核等操作后当前页可能变空，若已非首页则回退上一页重新获取，避免停留在空白页
+    if (data.list.length === 0 && pagination.page > 1) {
+      pagination.page -= 1
+      void load()
+    }
+  } catch {
+    if (seq !== requestSeq) return
+    message.error('社区用户暂时无法加载，请检查服务连接后重试')
+  } finally {
+    if (seq === requestSeq) loading.value = false
+  }
+}
+
+async function loadStatistics() {
+  try {
+    stats.value = await communityUsersApi.statistics()
+  } catch {
+    // 统计失败不影响列表展示
+  }
 }
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
@@ -295,8 +356,20 @@ watch(
     searchTimer = setTimeout(() => { searchTimer = undefined; void load() }, delay)
   }
 )
-async function approve(userId: string) { try { await communityUsersApi.approve(userId); message.success('已通过该用户的社区审核'); await load() } catch { message.error('审核操作未完成，请稍后重试') } }
-async function reject(userId: string) { try { await communityUsersApi.reject(userId); message.success('已拒绝该用户的注册申请'); await load() } catch { message.error('审核操作未完成，请稍后重试') } }
+async function approve(userId: string) {
+  try {
+    await communityUsersApi.approve(userId)
+    message.success('已通过该用户的社区审核')
+    await Promise.all([load(), loadStatistics()])
+  } catch { message.error('审核操作未完成，请稍后重试') }
+}
+async function reject(userId: string) {
+  try {
+    await communityUsersApi.reject(userId)
+    message.success('已拒绝该用户的注册申请')
+    await Promise.all([load(), loadStatistics()])
+  } catch { message.error('审核操作未完成，请稍后重试') }
+}
 function confirmResetPassword(row: CommunityUserItem) {
   if (!row.email?.trim()) {
     message.warning('该用户未绑定邮箱，无法发送临时密码')
@@ -315,6 +388,7 @@ function confirmResetPassword(row: CommunityUserItem) {
       dialogInst.closable = false
       try {
         const result = await communityUsersApi.resetPassword(row.id)
+        // 重置密码不改变状态分布，无需刷新统计
         const email = result.recipientEmail || row.email
         const tempPassword = result.tempPassword
         const passwordHint = tempPassword
@@ -341,7 +415,7 @@ function confirmResetPassword(row: CommunityUserItem) {
   })
 }
 onMounted(async () => {
-  await load()
+  await Promise.all([load(), loadStatistics()])
   const userId = route.params.userId as string | undefined
   if (!userId) return
   const row = items.value.find(item => item.id === userId)

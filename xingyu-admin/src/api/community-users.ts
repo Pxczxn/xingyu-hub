@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import { asApiList, asApiRecord } from '@/utils/api-data'
+import { asApiRecord, asMarsPage, type MarsPageResult } from '@/utils/api-data'
 
 export interface CommunityUserItem {
   id: string
@@ -14,16 +14,26 @@ export interface CommunityUserItem {
   createdAt?: string | null
 }
 
+export interface CommunityUserStatistics {
+  totalUsers: number
+  pendingReview: number
+  active: number
+  attention: number
+}
+
 export const communityUsersApi = {
   list(params?: {
+    page?: number
+    pageSize?: number
     status?: string
-    username?: string
-    email?: string
-    phone?: string
     keyword?: string
-    limit?: number
-  }): Promise<CommunityUserItem[]> {
-    return request({ url: '/community/users', method: 'get', params }).then(asApiList<CommunityUserItem>)
+    role?: string
+  }): Promise<MarsPageResult<CommunityUserItem>> {
+    return request({ url: '/community/users', method: 'get', params }).then(asMarsPage<CommunityUserItem>)
+  },
+  statistics(): Promise<CommunityUserStatistics> {
+    return request({ url: '/community/users/statistics', method: 'get' })
+      .then(asApiRecord<CommunityUserStatistics & Record<string, unknown>>)
   },
   approve(userId: string): Promise<void> {
     return request({ url: `/community/users/${userId}/approve`, method: 'post' })

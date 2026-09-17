@@ -1,12 +1,11 @@
 package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-
-import java.util.List;
 
 @Mapper
 public interface CommunityUserMapper extends BaseMapper<CommunityUser> {
@@ -17,6 +16,11 @@ public interface CommunityUserMapper extends BaseMapper<CommunityUser> {
     @Select("SELECT * FROM community_user WHERE phone = #{phone} LIMIT 1")
     CommunityUser findByPhone(String phone);
 
+    /**
+     * 管理端社区用户列表：服务端分页（第一个参数为 MyBatis-Plus 分页对象，由分页插件自动追加 COUNT 与 LIMIT）。
+     * 排序以 created_at DESC 为主、cu.id DESC 为次级，保证翻页稳定不漂移。
+     * 角色筛选与前端 matchesCommunityUserRole 等价：user 含 user/member 且 null/空视为 user。
+     */
     @Select("""
             <script>
             SELECT DISTINCT cu.*
@@ -25,15 +29,6 @@ public interface CommunityUserMapper extends BaseMapper<CommunityUser> {
             <where>
               <if test="status != null and status != ''">
                 AND cu.status = #{status}
-              </if>
-              <if test="username != null and username != ''">
-                AND LOWER(cp.username) LIKE CONCAT('%', LOWER(#{username}), '%')
-              </if>
-              <if test="email != null and email != ''">
-                AND LOWER(cu.email) LIKE CONCAT('%', LOWER(#{email}), '%')
-              </if>
-              <if test="phone != null and phone != ''">
-                AND cu.phone LIKE CONCAT('%', #{phone}, '%')
               </if>
               <if test="keyword != null and keyword != ''">
                 AND (
@@ -45,16 +40,21 @@ public interface CommunityUserMapper extends BaseMapper<CommunityUser> {
                   OR cu.phone LIKE CONCAT('%', #{keyword}, '%')
                 )
               </if>
+              <if test="role != null and role != ''">
+                <choose>
+                  <when test="role == 'user'">AND (LOWER(cu.role) IN ('user', 'member') OR cu.role IS NULL OR cu.role = '')</when>
+                  <when test="role == 'creator'">AND LOWER(cu.role) = 'creator'</when>
+                  <when test="role == 'admin'">AND LOWER(cu.role) = 'admin'</when>
+                  <otherwise>AND LOWER(cu.role) = #{role}</otherwise>
+                </choose>
+              </if>
             </where>
-            ORDER BY cu.created_at DESC
-            LIMIT #{limit}
+            ORDER BY cu.created_at DESC, cu.id DESC
             </script>
             """)
-    List<CommunityUser> listForAdmin(
+    IPage<CommunityUser> listForAdmin(
+            IPage<CommunityUser> page,
             @Param("status") String status,
-            @Param("username") String username,
-            @Param("email") String email,
-            @Param("phone") String phone,
             @Param("keyword") String keyword,
-            @Param("limit") int limit);
+            @Param("role") String role);
 }
