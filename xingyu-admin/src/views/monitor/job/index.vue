@@ -196,11 +196,8 @@ import { NButton, NTag, NSpace, NSwitch, NPagination, useMessage, useDialog, typ
 import { SearchOutline, RefreshOutline, AddOutline, ListOutline } from '@vicons/ionicons5'
 import { jobApi, type SysJob, type SysJobLog } from '@/api/monitor'
 import { useUserStore } from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(7)
-const logScroll = tableScrollX(7)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -264,6 +261,9 @@ const columns: DataTableColumns<SysJob> = [
   }}
 ]
 
+const tableScroll = tableScrollFromColumns(columns)
+
+
 const cronPresetSelect = ref<string | null>(null)
 const modalVisible = ref(false)
 const modalTitle = ref('新增任务')
@@ -293,9 +293,11 @@ const logColumns: DataTableColumns<SysJobLog> = [
   { title: '状态', key: 'status', ...colLayout('status'), render(row) {
     return h(NTag, { type: row.status === 0 ? 'success' : 'error', size: 'small' }, { default: () => row.status === 0 ? '成功' : '失败' })
   }},
-  { title: '开始时间', key: 'startTime', ...colLayout('datetime') },
-  { title: '结束时间', key: 'stopTime', ...colLayout('datetime') }
+  { title: '开始时间', key: 'startTime', ...colLayout('datetime'), render: row => renderDateTime(row.startTime) },
+  { title: '结束时间', key: 'stopTime', ...colLayout('datetime'), render: row => renderDateTime(row.stopTime) }
 ]
+
+const logScroll = tableScrollFromColumns(logColumns)
 
 watch(showLogModal, (val) => {
   if (val) {

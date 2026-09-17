@@ -15,7 +15,8 @@ export function useContentDetailDrawer() {
   const detailTitle = ref('内容详情')
   const detailFields = ref<Array<{ label: string; value: string; multiline?: boolean }>>([])
 
-  function openLocalContent(row: Record<string, unknown>, title?: string) {
+  function openLocalContent<T extends object>(record: T, title?: string) {
+    const row = record as Record<string, unknown>
     detailTitle.value = title || String(row.title || row.name || '内容详情')
     detailFields.value = buildDetailFields([
       { label: '编号', value: row.id as string },

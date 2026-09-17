@@ -162,9 +162,8 @@ import {SearchOutline, AddOutline} from '@vicons/ionicons5'
 import {deptApi, type SysDept} from '@/api/org'
 import {userApi, type SysUser, postApi} from '@/api/system'
 import {useUserStore} from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-
-const tableScroll = tableScrollX(9)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -300,8 +299,10 @@ const userColumns: DataTableColumns<SysUser> = [
       return h(NTag, {type: status.type, size: 'small'}, {default: () => status.label})
     }
   },
-  {title: '创建时间', key: 'createTime', ...colLayout('datetime')}
+  {title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) }
 ]
+
+const tableScroll = tableScrollFromColumns(userColumns)
 
 async function loadUserData() {
   userLoading.value = true

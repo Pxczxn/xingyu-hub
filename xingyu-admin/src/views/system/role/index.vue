@@ -155,10 +155,8 @@ import { NButton, NTag, NSpace, useMessage, useDialog, type DataTableColumns, ty
 import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { roleApi, menuApi, deptApi, type SysRole, type SysMenu, type SysDept } from '@/api/system'
 import { useUserStore } from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(8)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -226,7 +224,7 @@ const columns: DataTableColumns<SysRole> = [
     }
   },
   { title: '备注', key: 'remark', ...colLayout('description') },
-  { title: '创建时间', key: 'createTime', ...colLayout('datetime') },
+  { title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) },
   {
     title: '操作',
     key: 'actions',
@@ -243,6 +241,8 @@ const columns: DataTableColumns<SysRole> = [
     }
   }
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 // 弹窗
 const modalVisible = ref(false)

@@ -149,11 +149,8 @@ import { NButton, NTag, NSpace, NPagination, useMessage, useDialog, type DataTab
 import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { dictTypeApi, dictDataApi, type SysDictType, type SysDictData } from '@/api/org'
 import { useUserStore } from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(7)
-const dictDataScroll = tableScrollX(7)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -184,7 +181,7 @@ const columns: DataTableColumns<SysDictType> = [
     return h(NTag, { type: row.status === 1 ? 'success' : 'error', size: 'small' }, { default: () => row.status === 1 ? '启用' : '禁用' })
   }},
   { title: '备注', key: 'remark', ...colLayout('description') },
-  { title: '创建时间', key: 'createTime', ...colLayout('datetime') },
+  { title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) },
   { title: '操作', key: 'actions', ...colLayout('action3'), render(row) {
     const buttons = [h(NButton, { size: 'small', onClick: () => handleViewData(row) }, { default: () => '字典数据' })]
     if (hasPermission('sys:dict:edit')) {
@@ -196,6 +193,9 @@ const columns: DataTableColumns<SysDictType> = [
     return renderTableActionCell(buttons)
   }}
 ]
+
+const tableScroll = tableScrollFromColumns(columns)
+
 
 const modalVisible = ref(false)
 const modalTitle = ref('新增字典类型')
@@ -246,6 +246,8 @@ const dataColumns: DataTableColumns<SysDictData> = [
     return buttons.length > 0 ? renderTableActionCell(buttons) : '-'
   }}
 ]
+
+const dictDataScroll = tableScrollFromColumns(dataColumns)
 
 async function loadData() {
   loading.value = true

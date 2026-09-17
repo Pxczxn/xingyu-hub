@@ -9,7 +9,7 @@
         <n-button secondary size="small" :loading="loading" @click="load">刷新数据</n-button>
       </header>
 
-      <n-card :bordered="false" class="users-panel">
+      <n-card :bordered="false" class="users-panel page-list-card">
         <div class="users-filters" role="search">
           <n-input v-model:value="searchForm.keyword" clearable placeholder="搜索用户名 / 用户 ID / 简介" @keyup.enter="searchNow" @clear="searchNow" />
           <n-select v-model:value="role" :options="roleOptions" clearable placeholder="身份：全部" />
@@ -26,22 +26,26 @@
           </article>
         </section>
 
-        <div class="list-caption">
-          <span>共 <strong>{{ items.length }}</strong> 位用户</span>
-        </div>
+        <div class="page-list-body">
+          <div class="list-caption">
+            <span>共 <strong>{{ items.length }}</strong> 位用户</span>
+          </div>
 
-        <n-data-table
-          v-bind="tableListProps(tableScrollX(isFuzzySearching ? 4 : 8, 1040))"
-          class="community-users-table"
-          :flex-height="true"
-          :columns="displayColumns"
-          :data="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          :row-key="(row: CommunityUserItem) => row.id"
-          :row-props="rowProps"
-          @update:sorter="handleSorterChange"
-        />
+          <div class="page-list-table-region">
+            <n-data-table
+              v-bind="communityUsersTableProps"
+              class="community-users-table"
+              :columns="displayColumns"
+              :data="tableData"
+              :loading="loading"
+              :pagination="items.length ? pagination : false"
+              :row-key="(row: CommunityUserItem) => row.id"
+              :row-props="rowProps"
+              @update:sorter="handleSorterChange"
+              @update:page="handlePageChange"
+            />
+          </div>
+        </div>
       </n-card>
     </section>
 
@@ -52,13 +56,14 @@
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { NAvatar, useDialog, useMessage, type DataTableColumns, type DataTableSortState } from 'naive-ui'
+import { NAvatar, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import { communityUsersApi, type CommunityUserItem } from '@/api/community-users'
 import AuthorDetailDrawer from '@/components/community/AuthorDetailDrawer.vue'
 import { useAuthorDetailDrawer } from '@/composables/useCommunityDrawers'
+import { useTableSort } from '@/composables/useTableSort'
 import { COMMUNITY_USER_STATUS_META, COMMUNITY_USER_ROLE_FILTER_OPTIONS, formatAuthorLabel, formatCommunityUserRole, matchesCommunityUserRole, AUTHOR_COLUMN_TITLE } from '@/utils/community-display'
-import { renderEllipsisText, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
-import { cellText, colLayout, tableListProps, tableScrollX, toggleTableSortOrder, type TableSortOrder } from '@/utils/table-layout'
+import { renderDateTime, renderEllipsisText, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
+import { cellText, colLayout, defaultListPagination, tableListFlexProps, tableScrollFromColumns } from '@/utils/table-layout'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -78,18 +83,13 @@ const statusOptions = [
   { label: '已停用', value: 'SUSPENDED' }
 ]
 const roleOptions = [...COMMUNITY_USER_ROLE_FILTER_OPTIONS]
-const isFuzzySearching = computed(() => Boolean(searchForm.keyword.trim()))
 const summary = computed(() => [
   { label: '用户总数', value: items.value.length, note: '当前筛选结果', tone: 'amber' },
   { label: '待审核', value: items.value.filter(item => item.status === 'PENDING_REVIEW').length, note: '需要处理', tone: 'blue' },
   { label: '正常账号', value: items.value.filter(item => item.status === 'ACTIVE').length, note: '可正常访问', tone: 'green' },
   { label: '需要关注', value: items.value.filter(item => ['REJECTED', 'SUSPENDED'].includes(item.status)).length, note: '已拒绝或停用', tone: 'violet' }
 ])
-const pagination = { pageSize: 10, showSizePicker: false }
-const SORTABLE_COLUMN_KEYS = ['username', 'role', 'createdAt', 'status'] as const
-type SortableColumnKey = typeof SORTABLE_COLUMN_KEYS[number]
-const sortColumnKey = ref<SortableColumnKey>('createdAt')
-const sortOrder = ref<Exclude<TableSortOrder, false>>('descend')
+const pagination = reactive({ ...defaultListPagination, page: 1 })
 
 function userLabel(row: CommunityUserItem) { return formatAuthorLabel(row.displayName, row.username, row.username || row.email || '未设置用户名') }
 function avatarLabel(row: CommunityUserItem) { return (row.displayName || row.username || row.email || '?').slice(0, 1).toUpperCase() }
@@ -148,70 +148,43 @@ function compareStatus(a: CommunityUserItem, b: CommunityUserItem) {
   return (STATUS_SORT_ORDER[a.status] ?? 99) - (STATUS_SORT_ORDER[b.status] ?? 99)
 }
 
-const sortCompareFns: Record<SortableColumnKey, (a: CommunityUserItem, b: CommunityUserItem) => number> = {
-  username: compareAuthor,
-  role: compareRole,
-  createdAt: compareCreatedAt,
-  status: compareStatus
-}
-const twoStateSort = { customNextSortOrder: toggleTableSortOrder } as const
-
-function sortItems(list: CommunityUserItem[]) {
-  const compare = sortCompareFns[sortColumnKey.value]
-  const direction = sortOrder.value === 'ascend' ? 1 : -1
-  return [...list].sort((left, right) => compare(left, right) * direction)
+function handlePageChange(page: number) {
+  pagination.page = page
 }
 
-function handleSorterChange(state: DataTableSortState | DataTableSortState[] | null) {
-  if (!state || Array.isArray(state)) return
-  const key = String(state.columnKey) as SortableColumnKey
-  if (!SORTABLE_COLUMN_KEYS.includes(key)) return
-  if (sortColumnKey.value === key) {
-    sortOrder.value = toggleTableSortOrder(sortOrder.value)
-    return
-  }
-  sortColumnKey.value = key
-  sortOrder.value = 'descend'
-}
-
-const fuzzySearchColumns: DataTableColumns<CommunityUserItem> = [
-  { title: AUTHOR_COLUMN_TITLE, key: 'username', ...colLayout('author'), sorter: compareAuthor, ...twoStateSort, render: row => renderTableLink(userLabel(row), () => openUser(row)) },
-  { title: '邮箱', key: 'email', ...colLayout('email'), render: row => renderEllipsisText(row.email) },
-  { title: '手机号', key: 'phone', ...colLayout('phone'), render: row => cellText(row.phone) },
-  { title: '操作', key: 'actions', ...colLayout('action2'), render: renderUserActions }
-]
-const fullColumns: DataTableColumns<CommunityUserItem> = [
+const userColumns: DataTableColumns<CommunityUserItem> = [
   {
-    title: AUTHOR_COLUMN_TITLE, key: 'username', ...colLayout('author'), sorter: compareAuthor, ...twoStateSort, render: row => h('div', { class: 'user-cell' }, [
+    title: AUTHOR_COLUMN_TITLE,
+    key: 'username',
+    ...colLayout('author'),
+    sorter: compareAuthor,
+   
+    render: row => h('div', { class: 'user-cell' }, [
       h(NAvatar, { round: true, size: 34, class: 'user-avatar' }, { default: () => avatarLabel(row) }),
-      h('div', { class: 'user-copy' }, [renderTableLink(userLabel(row), () => openUser(row)), h('span', { class: 'user-id' }, 'ID: ' + row.id)])
+      h('div', { class: 'user-copy' }, [
+        renderTableLink(userLabel(row), () => openUser(row)),
+        h('span', { class: 'user-id' }, 'ID: ' + row.id)
+      ])
     ])
   },
-  { title: '身份', key: 'role', ...colLayout('role'), sorter: compareRole, ...twoStateSort, render: row => cellText(formatCommunityUserRole(row.role)) },
-  { title: '加入时间', key: 'createdAt', ...colLayout('datetime'), sorter: compareCreatedAt, ...twoStateSort, render: row => renderEllipsisText(row.createdAt) },
-  { title: '活跃状态', key: 'status', ...colLayout('status'), sorter: compareStatus, ...twoStateSort, render: row => renderStatusTag(row.status, COMMUNITY_USER_STATUS_META) },
-  { title: '邮箱验证', key: 'verified', ...colLayout('verify'), render: row => cellText(row.emailVerified ? '已验证' : '未验证') },
+  { title: '身份', key: 'role', ...colLayout('role'), sorter: compareRole, render: row => cellText(formatCommunityUserRole(row.role)) },
+  { title: '加入时间', key: 'createdAt', ...colLayout('datetime'), sorter: compareCreatedAt, render: row => renderDateTime(row.createdAt) },
+  { title: '账号状态', key: 'status', ...colLayout('accountStatus'), sorter: compareStatus, render: row => renderStatusTag(row.status, COMMUNITY_USER_STATUS_META) },
+  { title: '邮箱验证', key: 'emailVerified', ...colLayout('verify'), render: row => cellText(row.emailVerified ? '已验证' : '未验证') },
   { title: '邮箱', key: 'email', ...colLayout('email'), render: row => renderEllipsisText(row.email) },
-  {
-    title: '操作', key: 'actions', ...colLayout('action2'), render: renderUserActions
-  }
+  { title: '手机号', key: 'phone', ...colLayout('phone'), render: row => cellText(row.phone) },
+  { title: '操作', key: 'actions', ...colLayout('action3'), render: renderUserActions }
 ]
-const displayColumns = computed(() => {
-  const columns = isFuzzySearching.value ? fuzzySearchColumns : fullColumns
-  return columns.map(column => {
-    if (!('sorter' in column) || !column.sorter) return column
-    if (column.key !== sortColumnKey.value || !isSortColumnVisible.value) return column
-    return { ...column, sortOrder: sortOrder.value }
-  })
+
+const communityUsersTableProps = tableListFlexProps(tableScrollFromColumns(userColumns))
+
+const { columns: displayColumns, handleSorterChange } = useTableSort<CommunityUserItem>({
+  columns: userColumns,
+  defaultKey: 'createdAt',
+  defaultOrder: 'descend'
 })
 
-const isSortColumnVisible = computed(() => {
-  const columns = isFuzzySearching.value ? fuzzySearchColumns : fullColumns
-  return columns.some(column => column.key === sortColumnKey.value && 'sorter' in column && column.sorter)
-})
-
-/** 可见列交给 Naive UI 排序；搜索模式下排序列不可见时自行排序，避免双重排序 */
-const tableData = computed(() => isSortColumnVisible.value ? items.value : sortItems(items.value))
+const tableData = computed(() => items.value)
 
 async function load() {
   loading.value = true
@@ -222,13 +195,20 @@ async function load() {
       keyword: keyword || undefined,
       limit: 100
     })
-    if (role.value) items.value = items.value.filter(item => matchesCommunityUserRole(item.role, role.value))
+    const roleFilter = role.value
+    if (roleFilter) items.value = items.value.filter(item => matchesCommunityUserRole(item.role, roleFilter))
   } catch { message.error('社区用户暂时无法加载，请检查服务连接后重试') } finally { loading.value = false }
 }
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+/**
+ * 回车只负责"立即执行待发的那一次请求"：pending 定时器存在则马上执行并清空，
+ * 不存在说明 watch 的防抖已经加载过，直接忽略，避免回车多发一次请求。
+ */
 function searchNow() {
-  if (searchTimer) clearTimeout(searchTimer)
+  if (!searchTimer) return
+  clearTimeout(searchTimer)
+  searchTimer = undefined
   void load()
 }
 
@@ -236,8 +216,9 @@ watch(
   () => [searchForm.keyword, status.value, role.value] as const,
   ([keyword], [previousKeyword]) => {
     if (searchTimer) clearTimeout(searchTimer)
+    pagination.page = 1
     const delay = keyword === previousKeyword ? 0 : 150
-    searchTimer = setTimeout(() => { void load() }, delay)
+    searchTimer = setTimeout(() => { searchTimer = undefined; void load() }, delay)
   }
 )
 async function approve(userId: string) { try { await communityUsersApi.approve(userId); message.success('已通过该用户的社区审核'); await load() } catch { message.error('审核操作未完成，请稍后重试') } }
@@ -296,30 +277,29 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .community-users-page { display: flex; height: 100%; min-height: 0; flex-direction: column; padding: 18px; overflow: hidden; background: #f7f7f5; }
-.users-workspace { display: flex; min-width: 0; min-height: 0; flex-direction: column; gap: 14px; }
+.users-workspace { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; gap: 14px; }
 .users-heading { display: flex; align-items: end; justify-content: space-between; padding: 2px 2px 0; }
 .users-kicker { margin: 0 0 3px; color: #8a7259; font-size: 12px; letter-spacing: .06em; }
 .users-heading h1 { margin: 0; color: #192744; font-size: 25px; line-height: 1.15; }
 .users-panel { display: flex; min-height: 0; flex: 1; flex-direction: column; background: rgb(255 255 255 / .94); }
-.users-panel :deep(.n-card__content) { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 16px; padding-top: 14px; }
-.users-filters { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(125px, .72fr)) auto auto; gap: 10px; padding-bottom: 16px; border-bottom: 1px solid #edf0f4; }
-.user-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.users-panel :deep(.n-card__content) { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 16px; padding-top: 14px; overflow: hidden; }
+.users-filters { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(125px, .72fr)) auto auto; gap: 10px; padding-bottom: 16px; border-bottom: 1px solid #edf0f4; flex-shrink: 0; }
+.user-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; flex-shrink: 0; }
 .metric-card { position: relative; display: flex; min-height: 100px; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden; padding: 17px 18px; border: 1px solid #f0ebe4; border-radius: 12px; background: linear-gradient(135deg, #fff, #fdfaf5); }
 .metric-label, .metric-note { position: relative; z-index: 1; color: #7d8797; font-size: 12px; }
 .metric-card strong { position: relative; z-index: 1; color: #17243e; font-size: 24px; letter-spacing: -.03em; line-height: 1.15; }
 .metric-note { color: #9b8068; }
 .metric-orbit { position: absolute; right: -10px; bottom: -22px; width: 74px; height: 74px; border: 12px solid currentColor; border-radius: 50%; opacity: .12; }
 .metric-card--amber { color: #f09a28; } .metric-card--blue { color: #4a8eff; } .metric-card--green { color: #35b973; } .metric-card--violet { color: #736af0; }
-.list-caption { display: flex; align-items: center; color: #798397; font-size: 13px; }
+.list-caption { display: flex; align-items: center; color: #798397; font-size: 13px; flex-shrink: 0; }
 .list-caption strong { color: #233352; font-size: 15px; }
-.community-users-table { min-height: 300px; flex: 1; }
 :deep(.community-users-table .community-users-table__row--active .n-data-table-td) { background: #fff9ef !important; }
 :deep(.user-cell) { display: flex; align-items: center; gap: 10px; min-width: 0; }
 :deep(.user-copy) { display: grid; min-width: 0; gap: 1px; }
 :deep(.user-copy .community-table-link) { margin: -3px -6px; width: calc(100% + 12px); }
 :deep(.user-id) { color: #98a1b0; font-size: 11px; line-height: 1.35; }
 :deep(.user-avatar) { color: #fff; background: linear-gradient(145deg, #566d9f, #283d66); }
-@media (max-width: 1180px) { .community-users-page { overflow-y: auto; }.users-filters { grid-template-columns: minmax(190px, 1fr) repeat(2, minmax(120px, .7fr)) auto auto; } }
-@media (max-width: 800px) { .community-users-page { height: auto; min-height: 100%; padding: 12px; }.users-filters, .user-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }.users-filters .n-button { justify-self: start; } }
+@media (max-width: 1180px) { .users-filters { grid-template-columns: minmax(190px, 1fr) repeat(2, minmax(120px, .7fr)) auto auto; } }
+@media (max-width: 800px) { .community-users-page { height: auto; min-height: 100%; padding: 12px; }.users-filters, .user-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }.users-filters .n-button { justify-self: start; } .page-list-table-region { min-height: 360px; } }
 @media (max-width: 520px) { .users-filters, .user-metrics { grid-template-columns: 1fr; }.users-heading h1 { font-size: 22px; } }
 </style>

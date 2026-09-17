@@ -15,7 +15,7 @@
     <n-card class="page-list-card governance-card">
       <div class="page-list-body">
       <n-alert v-if="error" type="error" style="margin-bottom:12px">{{ error }} <n-button text type="primary" @click="load">重试</n-button></n-alert>
-      <n-data-table v-if="items.length || loading" v-bind="tableListProps(tableScrollX(isAppeal ? 5 : 6, 960))" :flex-height="true" :columns="columns" :data="items" :loading="loading" />
+      <n-data-table v-if="items.length || loading" v-bind="tableListProps(tableScroll)" :flex-height="true" :columns="columns" :data="items" :loading="loading" />
       <EmptyState v-else title="暂无待处理队列" description="当前队列为空或接口暂不可用。" />
       </div>
     </n-card>
@@ -47,8 +47,8 @@ import RecordDetailDrawer from '@/components/community/RecordDetailDrawer.vue'
 import AuthorDetailDrawer from '@/components/community/AuthorDetailDrawer.vue'
 import { useAuthorDetailDrawer, useContentDetailDrawer } from '@/composables/useCommunityDrawers'
 import { buildDetailFields, formatAuthorLabel, formatObjectType, resolveStatusLabel } from '@/utils/community-display'
-import { renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
-import { cellText, colLayout, tableListProps, tableScrollX } from '@/utils/table-layout'
+import { renderDateTime, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
+import { colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 
 interface QueueItem {
   id: string
@@ -179,7 +179,7 @@ const columns = computed<DataTableColumns<QueueItem>>(() => {
       ...colLayout('status'),
       render: (row) => renderStatusTag(row.status)
     },
-    { title: '提交时间', key: 'createdAt', ...colLayout('datetime'), render: (row) => cellText(row.createdAt) },
+    { title: '提交时间', key: 'createdAt', ...colLayout('datetime'), render: (row) => renderDateTime(row.createdAt) },
     {
       title: '操作',
       key: 'actions',
@@ -211,6 +211,8 @@ const columns = computed<DataTableColumns<QueueItem>>(() => {
 
   return base
 })
+
+const tableScroll = computed(() => tableScrollFromColumns(columns.value))
 
 async function load() {
   loading.value = true

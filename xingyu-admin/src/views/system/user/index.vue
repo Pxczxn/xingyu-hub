@@ -282,10 +282,8 @@ import { SearchOutline, RefreshOutline, AddOutline, ChevronDownOutline, CloudUpl
 import { userApi, roleApi, postApi, type SysUser, type SysRole } from '@/api/system'
 import { deptApi, type SysDept } from '@/api/org'
 import { useUserStore } from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(12)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -407,7 +405,7 @@ const columns: DataTableColumns<SysUser> = [
       return h(NTag, { type: status.type, size: 'small' }, { default: () => status.label })
     }
   },
-  { title: '创建时间', key: 'createTime', ...colLayout('datetime') },
+  { title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) },
   {
     title: '操作',
     key: 'actions',
@@ -484,6 +482,8 @@ const columns: DataTableColumns<SysUser> = [
     }
   }
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 const displayColumns = computed(() => (isFuzzySearching.value ? fuzzySearchColumns : columns))
 

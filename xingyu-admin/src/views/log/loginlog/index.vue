@@ -72,9 +72,8 @@ import { NButton, NTag, NSpace, NPagination, useMessage, useDialog, type DataTab
 import { SearchOutline, RefreshOutline, TrashOutline } from '@vicons/ionicons5'
 import { loginLogApi, type SysLoginLog } from '@/api/monitor'
 import { useUserStore } from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-
-const tableScroll = tableScrollX(10)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -104,13 +103,15 @@ const columns: DataTableColumns<SysLoginLog> = [
     return h(NTag, { type: row.status === 0 ? 'success' : 'error', size: 'small' }, { default: () => row.status === 0 ? '成功' : '失败' })
   }},
   { title: '提示信息', key: 'msg', ...colLayout('summary') },
-  { title: '登录时间', key: 'loginTime', ...colLayout('datetime') },
+  { title: '登录时间', key: 'loginTime', ...colLayout('datetime'), render: row => renderDateTime(row.loginTime) },
   { title: '操作', key: 'actions', ...colLayout('action1'), render(row) {
     return hasPermission('sys:loginlog:delete')
       ? h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' })
       : '-'
   }}
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 async function loadData() {
   loading.value = true

@@ -241,12 +241,9 @@ import { deptApi, type SysDept } from '@/api/org'
 import { userApi } from '@/api/system'
 import { useUserStore } from '@/stores/user'
 import EmptyState from '@/components/EmptyState.vue'
-import { renderTableLink } from '@/utils/table-cells'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableLink } from '@/utils/table-cells'
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
 import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(7)
-const sendLogScroll = tableScrollX(6)
 
 const message = useMessage()
 const dialog = useDialog()
@@ -333,7 +330,7 @@ const columns: DataTableColumns<SysNotice> = [
     }
   },
   { title: '创建者', key: 'createName', ...colLayout('name') },
-  { title: '创建时间', key: 'createTime', ...colLayout('datetime') },
+  { title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) },
   {
     title: '操作',
     key: 'actions',
@@ -356,6 +353,9 @@ const columns: DataTableColumns<SysNotice> = [
     }
   }
 ]
+
+const tableScroll = tableScrollFromColumns(columns)
+
 
 // 弹窗
 const modalVisible = ref(false)
@@ -424,7 +424,7 @@ const sendLogColumns: DataTableColumns<NoticeSendLog> = [
     render: (row) => `${row.targetCount ?? 0} / ${row.successCount ?? 0}`
   },
   { title: '失败原因', key: 'errorMsg', ...colLayout('description') },
-  { title: '推送时间', key: 'sendTime', ...colLayout('datetime') },
+  { title: '推送时间', key: 'sendTime', ...colLayout('datetime'), render: row => renderDateTime(row.sendTime) },
   {
     title: '操作',
     key: 'actions',
@@ -440,6 +440,8 @@ const sendLogColumns: DataTableColumns<NoticeSendLog> = [
         : null
   }
 ]
+
+const sendLogScroll = tableScrollFromColumns(sendLogColumns)
 
 // 加载数据
 async function loadData() {

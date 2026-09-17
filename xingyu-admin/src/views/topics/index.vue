@@ -36,7 +36,7 @@
 
         <n-data-table
           v-if="topics.length || loading"
-          v-bind="tableListProps(tableScrollX(8, 1080))"
+          v-bind="tableListProps(tableScroll)"
           :flex-height="true"
           :columns="columns"
           :data="topics"
@@ -143,7 +143,7 @@ import RecordDetailDrawer from '@/components/community/RecordDetailDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useContentDetailDrawer } from '@/composables/useCommunityDrawers'
 import { renderEditAction, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
-import { cellText, colLayout, tableListProps, tableScrollX } from '@/utils/table-layout'
+import { cellText, colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 
 const message = useMessage()
 const route = useRoute()
@@ -257,6 +257,8 @@ const columns: DataTableColumns<Topic> = [
       ])
   }
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 async function loadTopics() {
   loading.value = true

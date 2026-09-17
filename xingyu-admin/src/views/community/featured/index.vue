@@ -17,7 +17,7 @@
       <div class="page-list-body">
         <n-data-table
           v-if="items.length || loading"
-          v-bind="tableListProps(tableScrollX(5, 960))"
+          v-bind="tableListProps(tableScroll)"
           :flex-height="true"
           :columns="columns"
           :data="items"
@@ -56,7 +56,7 @@ import { featuredApi, type FeaturedContent } from '@/api/featured'
 import EmptyState from '@/components/EmptyState.vue'
 import { formatObjectType } from '@/utils/community-display'
 import { renderStatusTag, renderTableActionButton, renderTableActionCell } from '@/utils/table-cells'
-import { cellText, colLayout, tableListProps, tableScrollX } from '@/utils/table-layout'
+import { cellText, colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 
 const message = useMessage()
 const loading = ref(false)
@@ -96,6 +96,8 @@ const columns: DataTableColumns<FeaturedContent> = [
       ])
   }
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 async function load() {
   loading.value = true

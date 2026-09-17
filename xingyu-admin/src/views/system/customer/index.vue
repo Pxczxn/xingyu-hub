@@ -87,10 +87,8 @@ import { ref, reactive, h, onMounted } from 'vue'
 import { NButton, NSpace, NIcon, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline, TrashOutline, CreateOutline } from '@vicons/ionicons5'
 import { customerApi, type Customer } from '@/api/customer'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(10)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -139,8 +137,8 @@ const columns: DataTableColumns<Customer> = [
   { title: '身份证号', key: 'idCard', ...colLayout('objectId') },
   { title: '地址', key: 'address', ...colLayout('description') },
   { title: '备注', key: 'remark', ...colLayout('summary') },
-  { title: '创建时间', key: 'createTime', ...colLayout('datetime') },
-  { title: '更新时间', key: 'updateTime', ...colLayout('datetime') },
+  { title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) },
+  { title: '更新时间', key: 'updateTime', ...colLayout('datetime'), render: row => renderDateTime(row.updateTime) },
   {
     title: '操作',
     key: 'actions',
@@ -157,6 +155,8 @@ const columns: DataTableColumns<Customer> = [
     }
   }
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 // 加载数据
 async function loadData() {

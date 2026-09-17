@@ -355,12 +355,8 @@ import { NButton, NSpace, NIcon, NTag, NSwitch, NSelect, NInput, NText, NList, N
 import { SearchOutline, RefreshOutline, CloudDownloadOutline, CodeSlashOutline, TrashOutline, SettingsOutline, EyeOutline, SyncOutline, CloseCircleOutline, ExpandOutline } from '@vicons/ionicons5'
 import { genApi, type GenTable, type GenTableColumn, type DatabaseTable } from '@/api/gen'
 import { dictTypeApi } from '@/api/org'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(6)
-const importScroll = tableScrollX(4)
-const columnEditScroll = tableScrollX(10)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -449,7 +445,7 @@ const columns: DataTableColumns<GenTable> = [
   { title: '表名', key: 'tableName', ...colLayout('name') },
   { title: '表描述', key: 'tableComment', ...colLayout('description') },
   { title: '实体类', key: 'className', ...colLayout('name') },
-  { title: '创建时间', key: 'createTime', ...colLayout('datetime') },
+  { title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) },
   {
     title: '操作',
     key: 'actions',
@@ -478,13 +474,19 @@ const columns: DataTableColumns<GenTable> = [
     }
   }
 ]
+const columnEditScroll = tableScrollFromColumns(columnEditColumns)
+
+const importScroll = tableScrollFromColumns(importColumns)
+
+const tableScroll = tableScrollFromColumns(columns)
+
 
 // 导入表列
 const importColumns: DataTableColumns<DatabaseTable> = [
   { type: 'selection' },
   { title: '表名', key: 'tableName', ...colLayout('name') },
   { title: '表描述', key: 'tableComment', ...colLayout('description') },
-  { title: '创建时间', key: 'createTime', ...colLayout('datetime') }
+  { title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) }
 ]
 
 // 字段编辑列

@@ -104,10 +104,8 @@ import { NButton, NTag, NSpace, NPagination, useMessage, useDialog, type DataTab
 import { SearchOutline, RefreshOutline, TrashOutline } from '@vicons/ionicons5'
 import { operLogApi, type SysOperLog } from '@/api/monitor'
 import { useUserStore } from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(10)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -144,7 +142,7 @@ const columns: DataTableColumns<SysOperLog> = [
     return h(NTag, { type: row.status === 0 ? 'success' : 'error', size: 'small' }, { default: () => row.status === 0 ? '正常' : '异常' })
   }},
   { title: '耗时', key: 'costTime', ...colLayout('number'), render(row) { return h('span', {}, `${row.costTime}ms`) }},
-  { title: '操作时间', key: 'operTime', ...colLayout('datetime') },
+  { title: '操作时间', key: 'operTime', ...colLayout('datetime'), render: row => renderDateTime(row.operTime) },
   { title: '操作', key: 'actions', ...colLayout('action2'), render(row) {
     const buttons = [h(NButton, { size: 'small', onClick: () => handleDetail(row) }, { default: () => '详情' })]
     if (hasPermission('sys:operlog:delete')) {
@@ -153,6 +151,8 @@ const columns: DataTableColumns<SysOperLog> = [
     return renderTableActionCell(buttons)
   }}
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 async function loadData() {
   loading.value = true

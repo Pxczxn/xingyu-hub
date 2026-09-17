@@ -39,11 +39,11 @@
 
       <n-data-table
         v-if="records.length || loading"
-        v-bind="tableListProps(tableScrollX(props.assetType === 'SERIES' ? 7 : 6, 1080))"
+        v-bind="tableListProps(tableScroll)"
         :columns="columns"
         :data="records"
         :loading="loading"
-        :row-key="(row) => String(row.id)"
+        :row-key="(row: any) => String(row.id)"
       />
       <EmptyState
         v-else-if="!error"
@@ -78,7 +78,7 @@ import AuthorDetailDrawer from '@/components/community/AuthorDetailDrawer.vue'
 import { useAuthorDetailDrawer } from '@/composables/useCommunityDrawers'
 import { formatAuthorLabel, AUTHOR_COLUMN_TITLE } from '@/utils/community-display'
 import { renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
-import { cellText, colLayout, tableListProps, tableScrollX } from '@/utils/table-layout'
+import { cellText, colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 import {
   findStatusAction,
   formatAssetStatus,
@@ -240,6 +240,8 @@ const columns = computed<DataTableColumns<ContentAsset>>(() => {
 
   return base
 })
+
+const tableScroll = computed(() => tableScrollFromColumns(columns.value))
 
 function onStatusChange() {
   page.value = 1

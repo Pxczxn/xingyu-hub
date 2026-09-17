@@ -845,6 +845,16 @@ function handleUserAction(key: string) {
     min-height: 0;
     overflow: hidden;
   }
+
+  /** naive static n-layout 的 scroll-container 默认是普通 overflow div，
+      不设 flex 会让 .layout-content 的 flex:1 失效（高度塌陷为内容高度），
+      页面内 flex-height 表格区域随之只剩"表头+分页"的最小高度。
+      DOM：.layout > scroll-container > n-layout(内容列) > scroll-container > .layout-content */
+  > :deep(.n-layout-scroll-container > .n-layout > .n-layout-scroll-container) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
 }
 
 .layout-sider {

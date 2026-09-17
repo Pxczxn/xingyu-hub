@@ -1,6 +1,6 @@
 import { h, type VNodeChild } from 'vue'
 import { NButton, NEllipsis, NIcon, NTag } from 'naive-ui'
-import { cellText } from '@/utils/table-layout'
+import { cellText, formatDateTime } from '@/utils/table-layout'
 import type { ButtonProps, TagProps } from 'naive-ui'
 import { CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import TableLink from '@/components/community/TableLink.vue'
@@ -15,6 +15,17 @@ export function renderEllipsisText(value: unknown, placeholder = '—'): VNodeCh
     { style: 'max-width: 100%', tooltip: { width: 360 } },
     { default: () => text }
   )
+}
+
+/**
+ * 日期时间单元格：统一按本地时区展示 YYYY-MM-DD HH:mm，避免各页直接输出 ISO 串。
+ * 值无法解析时原样输出（不吞掉非日期内容）。
+ */
+export function renderDateTime(value?: string | number | null, placeholder = '—'): VNodeChild {
+  if (value == null || value === '') return placeholder
+  const time = typeof value === 'number' ? value : Date.parse(String(value))
+  if (!Number.isFinite(time)) return cellText(value, placeholder)
+  return h('span', { class: 'table-datetime' }, formatDateTime(value, placeholder))
 }
 
 export function renderTableLink(label: string, onClick: () => void): VNodeChild {

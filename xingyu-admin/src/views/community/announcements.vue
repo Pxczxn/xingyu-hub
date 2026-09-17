@@ -8,9 +8,10 @@
       <div class="page-list-body">
         <n-data-table
           v-if="items.length || loading"
-          v-bind="tableListProps(tableScrollX(4, 880))"
+          v-bind="tableListProps(tableScroll)"
           :flex-height="true"
-          :columns="columns"
+          :columns="displayColumns"
+          @update:sorter="handleSorterChange"
           :data="items"
           :loading="loading"
         />
@@ -39,9 +40,10 @@ import { announcementApi, type Announcement } from '@/api/announcements'
 import RecordDetailDrawer from '@/components/community/RecordDetailDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useContentDetailDrawer } from '@/composables/useCommunityDrawers'
+import { useTableSort } from '@/composables/useTableSort'
 import { ANNOUNCEMENT_STATUS_META } from '@/utils/community-display'
-import { renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
-import { cellText, colLayout, tableListProps, tableScrollX } from '@/utils/table-layout'
+import { renderDateTime, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
+import { colLayout, compareDateTime, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 
 const message = useMessage()
 const loading = ref(false)
@@ -53,12 +55,12 @@ const form = ref({ title: '', body: '' })
 const { showDetail, detailTitle, detailFields, openLocalContent } = useContentDetailDrawer()
 function openCreate() { form.value = { title: '', body: '' }; show.value = true }
 
-const columns: DataTableColumns<Announcement> = [
+const announcementColumns: DataTableColumns<Announcement> = [
   {
     title: '标题',
     key: 'title',
     ...colLayout('title'),
-    render: (row) => renderTableLink(row.title || '(未命名)', () => openLocalContent(row, row.title))
+    render: (row) => renderTableLink(row.title || '(未命名)', () => openLocalContent(row, row.title || '(未命名)'))
   },
   {
     title: '状态',
@@ -66,8 +68,8 @@ const columns: DataTableColumns<Announcement> = [
     ...colLayout('status'),
     render: (row) => renderStatusTag(row.status, ANNOUNCEMENT_STATUS_META)
   },
-  { title: '发布时间', key: 'publishedAt', ...colLayout('datetime'), render: (row) => cellText(row.publishedAt) },
-  { title: '创建时间', key: 'createdAt', ...colLayout('datetime'), render: (row) => cellText(row.createdAt) },
+  { title: '发布时间', key: 'publishedAt', ...colLayout('datetime'), sorter: (a, b) => compareDateTime(a.publishedAt, b.publishedAt), render: (row) => renderDateTime(row.publishedAt) },
+  { title: '创建时间', key: 'createdAt', ...colLayout('datetime'), sorter: (a, b) => compareDateTime(a.createdAt, b.createdAt), render: (row) => renderDateTime(row.createdAt) },
   {
     title: '操作',
     key: 'actions',
@@ -83,6 +85,12 @@ const columns: DataTableColumns<Announcement> = [
       ])
   }
 ]
+const { columns: displayColumns, handleSorterChange } = useTableSort<Announcement>({
+  columns: announcementColumns
+})
+
+const tableScroll = tableScrollFromColumns(announcementColumns)
+
 
 async function load() {
   loading.value = true

@@ -73,10 +73,8 @@ import { ref, reactive, h, onMounted, onUnmounted } from 'vue'
 import { NButton, NSpace, NTag, NInput, NForm, NFormItem, NIcon, NCard, NGrid, NGi, NDescriptions, NDescriptionsItem, NDataTable, NModal, NScrollbar, NCode, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
 import { SearchOutline, EyeOutline, TrashOutline } from '@vicons/ionicons5'
 import { cacheApi } from '@/api/monitor'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
 import { renderEllipsisText, renderTableActionCell } from '@/utils/table-cells'
-
-const cacheScroll = tableScrollX(2)
 
 const message = useMessage()
 const dialog = useDialog()
@@ -105,6 +103,8 @@ const columns: DataTableColumns<string> = [
     ])
   }}
 ]
+const cacheScroll = tableScrollFromColumns(columns)
+
 
 // 图表
 const memoryChartRef = ref<HTMLElement | null>(null)

@@ -161,10 +161,8 @@ import { ref, reactive, h, onMounted } from 'vue'
 import { NButton, NTag, NSpace, useMessage, useDialog, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { fileConfigApi, type SysFileConfig } from '@/api/system'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(8)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -234,7 +232,7 @@ const columns: DataTableColumns<SysFileConfig> = [
       }, { default: () => row.status === 1 ? '启用' : '禁用' })
     }
   },
-  { title: '创建时间', key: 'createTime', ...colLayout('datetime') },
+  { title: '创建时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) },
   {
     title: '操作',
     key: 'actions',
@@ -248,6 +246,8 @@ const columns: DataTableColumns<SysFileConfig> = [
     }
   }
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 // 弹窗
 const modalVisible = ref(false)

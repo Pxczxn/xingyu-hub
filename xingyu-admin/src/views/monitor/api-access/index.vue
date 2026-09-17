@@ -101,9 +101,8 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { NCard, NGrid, NGi, NForm, NFormItem, NInput, NSelect, NDatePicker, NButton, NSpace, NIcon, NDataTable, NPagination, type DataTableColumns } from 'naive-ui'
 import { SearchOutline, RefreshOutline } from '@vicons/ionicons5'
 import { apiAccessApi, type ApiAccessLog, type ApiAccessStatistics } from '@/api/monitor'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-
-const tableScroll = tableScrollX(9)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime } from '@/utils/table-cells'
 
 const stats = reactive<ApiAccessStatistics>({
   totalCount: 0,
@@ -153,8 +152,10 @@ const columns: DataTableColumns<ApiAccessLog> = [
   { title: '耗时(ms)', key: 'costTime', ...colLayout('number') },
   { title: 'IP', key: 'ip', ...colLayout('slug') },
   { title: '用户ID', key: 'userId', ...colLayout('id') },
-  { title: '请求时间', key: 'startTime', ...colLayout('datetime') }
+  { title: '请求时间', key: 'startTime', ...colLayout('datetime'), render: row => renderDateTime(row.startTime) }
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 const startDate = computed(() => {
   const d = new Date()

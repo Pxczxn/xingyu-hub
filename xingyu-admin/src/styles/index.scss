@@ -706,6 +706,24 @@ a {
 .page-list-table {
   flex: 1;
   min-height: 280px;
+  min-width: 0;
+}
+
+/** 列表表格区域：纵向滚动交给 DataTable，祖先禁止 overflow-y: auto */
+.page-list-table-region {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  > .page-list-table,
+  > .n-data-table {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+  }
 }
 
 // 全局表格密度与对齐规范
@@ -715,9 +733,16 @@ a {
   --n-td-padding: 7px 12px;
   --n-line-height: 1.42;
 
+  /** 不用 max-content：与 table-layout: fixed 组合会让表格爆宽（实测 800000px），
+      把除首列外的所有单元格推出视口，表现为"表头在、数据行不可见"。
+      naive-ui 已在 table 元素上内联 min-width(scrollX) + table-layout: fixed。 */
   .n-data-table-base-table {
     width: 100%;
-    table-layout: fixed;
+    min-width: 100%;
+  }
+
+  .n-data-table-wrapper {
+    min-height: 0;
   }
 
   .n-data-table-th {
@@ -748,6 +773,21 @@ a {
   .n-data-table-td--right-align {
     font-variant-numeric: tabular-nums;
   }
+}
+
+// 统一日期时间单元格（renderDateTime）：等宽数字对齐、禁止换行
+.table-datetime {
+  display: inline-block;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+// 可排序列表头（useTableSort 声明式渲染）：与 Naive UI 排序图标保持基线对齐
+.table-sort-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
 }
 
 .community-status-tag.n-tag {

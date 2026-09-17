@@ -979,9 +979,8 @@ import { fileApi } from '@/api/system'
 import { wechatApi } from '@/api/wechat'
 import { useSiteStore } from '@/stores/site'
 import { clearCryptoConfigCache, initCryptoRuntime } from '@/utils/request'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-
-const smsLogsScroll = tableScrollX(6)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime } from '@/utils/table-cells'
 
 const message = useMessage()
 const siteStore = useSiteStore()
@@ -1175,8 +1174,10 @@ const smsLogsColumns = [
     }
   },
   { title: '结果信息', key: 'resultMsg', ...colLayout('description') },
-  { title: '发送时间', key: 'createTime', ...colLayout('datetime') }
+  { title: '发送时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) }
 ]
+
+const smsLogsScroll = tableScrollFromColumns(smsLogsColumns)
 
 // 密钥生成相关
 const generatingKeys = ref(false)

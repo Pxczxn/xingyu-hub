@@ -22,9 +22,10 @@
 
         <n-data-table
           v-if="visiblePages.length || loading"
-          v-bind="tableListProps(tableScrollX(5, 880))"
+          v-bind="tableListProps(tableScroll)"
           :flex-height="true"
-          :columns="columns"
+          :columns="displayColumns"
+          @update:sorter="handleSorterChange"
           :data="visiblePages"
           :loading="loading"
         />
@@ -63,9 +64,10 @@ import { guidePageApi, type GuidePage } from '@/api/guide-pages'
 import RecordDetailDrawer from '@/components/community/RecordDetailDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useContentDetailDrawer } from '@/composables/useCommunityDrawers'
+import { useTableSort } from '@/composables/useTableSort'
 import { COMMON_CONTENT_STATUS_META } from '@/utils/community-display'
 import { renderEditAction, renderStatusTag, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
-import { cellText, colLayout, tableListProps, tableScrollX } from '@/utils/table-layout'
+import { cellText, colLayout, compareNumber, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 
 const message = useMessage()
 const route = useRoute()
@@ -101,15 +103,15 @@ const visiblePages = computed(() => {
   )
 })
 
-const columns: DataTableColumns<GuidePage> = [
+const guideColumns: DataTableColumns<GuidePage> = [
   {
     title: '标题',
     key: 'title',
     ...colLayout('title'),
-    render: (row) => renderTableLink(row.title || '(未命名)', () => openLocalContent(row, row.title))
+    render: (row) => renderTableLink(row.title || '(未命名)', () => openLocalContent(row, row.title || '(未命名)'))
   },
   { title: '别名', key: 'slug', ...colLayout('slug'), render: (row) => cellText(row.slug) },
-  { title: '排序', key: 'sortOrder', ...colLayout('sort'), render: (row) => cellText(row.sortOrder) },
+  { title: '排序', key: 'sortOrder', ...colLayout('sort'), sorter: (a, b) => compareNumber(a.sortOrder, b.sortOrder), render: (row) => cellText(row.sortOrder) },
   {
     title: '状态',
     key: 'status',
@@ -123,6 +125,12 @@ const columns: DataTableColumns<GuidePage> = [
     render: (row) => renderTableActionCell([renderEditAction(() => openEdit(row))])
   }
 ]
+const { columns: displayColumns, handleSorterChange } = useTableSort<GuidePage>({
+  columns: guideColumns
+})
+
+const tableScroll = tableScrollFromColumns(guideColumns)
+
 
 async function load() {
   loading.value = true

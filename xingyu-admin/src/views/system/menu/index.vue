@@ -147,10 +147,8 @@ import { menuApi, type SysMenu } from '@/api/system'
 import IconSelect from '@/components/IconSelect.vue'
 import { getIconComponent } from '@/utils/icons'
 import { useUserStore } from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
 import { renderTableActionCell } from '@/utils/table-cells'
-
-const tableScroll = tableScrollX(10)
 
 const message = useMessage()
 const dialog = useDialog()
@@ -286,6 +284,8 @@ const columns: DataTableColumns<SysMenu> = [
     }
   }
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 // 弹窗
 const modalVisible = ref(false)

@@ -67,9 +67,7 @@
 import { ref, h, onMounted, onUnmounted } from 'vue'
 import { NProgress, type DataTableColumns } from 'naive-ui'
 import { serverApi } from '@/api/monitor'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-
-const diskScroll = tableScrollX(5)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
 
 const serverInfo = ref<any>({})
 const cpuChartRef = ref<HTMLElement | null>(null)
@@ -87,11 +85,13 @@ const diskColumns: DataTableColumns<any> = [
   { title: '总大小', key: 'total', ...colLayout('number') },
   { title: '可用大小', key: 'free', ...colLayout('number') },
   { title: '已用大小', key: 'usable', ...colLayout('number') },
-  { title: '使用率', key: 'usedPercent', ...colLayout('verify'), render(row) {
+  { title: '使用率', key: 'usedPercent', ...colLayout('progress'), render(row) {
     const percent = parseFloat(row.usedPercent) || 0
     return h(NProgress, { type: 'line', percentage: percent, indicatorPlacement: 'inside', processing: percent > 80 })
   }}
 ]
+
+const diskScroll = tableScrollFromColumns(diskColumns)
 
 async function loadServerInfo() {
   try {

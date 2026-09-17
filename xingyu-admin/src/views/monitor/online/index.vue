@@ -17,9 +17,8 @@ import { ref, h, onMounted } from 'vue'
 import { NButton, NSpace, NTag, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
 import { onlineApi, type OnlineUser } from '@/api/monitor'
 import { useUserStore } from '@/stores/user'
-import { colLayout, tableScrollX, tableListProps } from '@/utils/table-layout'
-
-const tableScroll = tableScrollX(11)
+import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
+import { renderDateTime } from '@/utils/table-cells'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -40,14 +39,16 @@ const columns: DataTableColumns<OnlineUser> = [
   { title: '会话状态', key: 'status', ...colLayout('status'), render(row) {
     return h(NTag, { type: row.status === 1 ? 'success' : 'default', size: 'small' }, { default: () => row.status === 1 ? '在线' : '离线' })
   }},
-  { title: '登录时间', key: 'loginTime', ...colLayout('datetime') },
-  { title: '最后访问时间', key: 'lastAccessTime', ...colLayout('datetime') },
+  { title: '登录时间', key: 'loginTime', ...colLayout('datetime'), render: row => renderDateTime(row.loginTime) },
+  { title: '最后访问时间', key: 'lastAccessTime', ...colLayout('datetime'), render: row => renderDateTime(row.lastAccessTime) },
   { title: '操作', key: 'actions', ...colLayout('action1'), render(row) {
     return hasPermission('monitor:online:forceLogout')
       ? h(NButton, { size: 'small', type: 'error', onClick: () => handleForceLogout(row) }, { default: () => '强退' })
       : '-'
   }}
 ]
+const tableScroll = tableScrollFromColumns(columns)
+
 
 async function loadData() {
   loading.value = true
