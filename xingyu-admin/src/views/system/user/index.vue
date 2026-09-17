@@ -83,7 +83,7 @@
       <n-data-table
         v-bind="tableListProps(tableScroll)"
         :flex-height="true"
-        :columns="displayColumns"
+        :columns="columns"
         :data="tableData"
         :loading="loading"
         :row-key="(row: SysUser) => row.id"
@@ -316,10 +316,6 @@ const searchForm = reactive({
   userType: null as string | null
 })
 
-const isFuzzySearching = computed(() =>
-  Boolean(searchForm.username.trim() || searchForm.email.trim() || searchForm.phone.trim())
-)
-
 const statusOptions = [
   { label: '启用', value: 1 },
   { label: '禁用', value: 0 },
@@ -345,12 +341,6 @@ const userTypeOptions = [
   { label: '后台管理员', value: 'admin' },
   { label: 'PC前台用户', value: 'pc' },
   { label: 'App/小程序用户', value: 'app' }
-]
-
-const fuzzySearchColumns: DataTableColumns<SysUser> = [
-  { title: '用户名', key: 'username', ...colLayout('name') },
-  { title: '邮箱', key: 'email', ...colLayout('email'), render(row) { return row.email || '-' } },
-  { title: '手机号', key: 'phone', ...colLayout('phone'), render(row) { return row.phone || '-' } }
 ]
 
 const columns: DataTableColumns<SysUser> = [
@@ -482,10 +472,8 @@ const columns: DataTableColumns<SysUser> = [
     }
   }
 ]
-const displayColumns = computed(() => (isFuzzySearching.value ? fuzzySearchColumns : columns))
-
-// scrollX 必须跟随当前展示列：模糊搜索会切换为 fuzzySearchColumns，否则按完整 columns 计算会出现横向空白
-const tableScroll = computed(() => tableScrollFromColumns(displayColumns.value))
+// 搜索与筛选仅改变数据，不改变表格 schema：始终使用完整 columns（含 selection 列），scrollX 据此计算
+const tableScroll = tableScrollFromColumns(columns)
 
 // ==================== 弹窗 ====================
 const modalVisible = ref(false)
@@ -565,6 +553,7 @@ async function loadPostOptions() {
 
 // ==================== 操作方法 ====================
 function handleSearch() {
+  checkedRowKeys.value = []
   pagination.page = 1
   loadData()
 }
@@ -580,11 +569,13 @@ function handleReset() {
 }
 
 function handlePageChange(page: number) {
+  checkedRowKeys.value = []
   pagination.page = page
   loadData()
 }
 
 function handlePageSizeChange(pageSize: number) {
+  checkedRowKeys.value = []
   pagination.pageSize = pageSize
   pagination.page = 1
   loadData()

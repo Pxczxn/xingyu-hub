@@ -9,7 +9,6 @@
         <n-data-table
           v-if="items.length || loading"
           v-bind="tableListProps(tableScroll)"
-          :flex-height="true"
           :columns="displayColumns"
           @update:sorter="handleSorterChange"
           :data="items"

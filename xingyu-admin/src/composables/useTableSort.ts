@@ -27,7 +27,7 @@ const ORDER_LABEL: Record<string, string> = {
  * 单列排序模型：同一时刻只有一个 sortKey + sortOrder，点击其他可排序列即切换。
  * - 以 Naive UI 回传的 order 为唯一数据源，避免页面与组件各算一次
  * - 三态循环：降序 → 升序 → 取消
- * - 表头通过声明式渲染函数输出 aria-sort / aria-label（不直接操作 DOM）
+ * - 表头在列标题 span 上输出 aria-label / title；naive-ui 2.43.2 无 th 级 aria-sort 且不暴露向列头注入属性的 API，故不伪造 aria-sort（不直接操作 DOM）
  */
 export function useTableSort<T>({ columns, defaultKey, defaultOrder = 'descend' }: UseTableSortOptions<T>) {
   const sortKey = ref<string | undefined>(defaultKey)

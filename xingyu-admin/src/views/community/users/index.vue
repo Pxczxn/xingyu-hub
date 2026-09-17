@@ -169,6 +169,7 @@ function renderMoreMenu(row: CommunityUserItem, options: Array<{ label: string; 
 
 function handleMore(key: string, row: CommunityUserItem) {
   if (key === 'reject') void reject(row.id)
+  else if (key === 'reset') void confirmResetPassword(row)
   else if (key === 'detail') openUser(row)
 }
 
@@ -181,9 +182,9 @@ const renderUserActions = (row: CommunityUserItem) => {
       renderMoreMenu(row, moreOptions)
     ])
   }
-  moreOptions.push({ label: '查看详情', key: 'detail' })
+  moreOptions.push({ label: '重置密码', key: 'reset' })
   return renderTableActionCell([
-    renderTableActionButton('重置密码', () => confirmResetPassword(row)),
+    renderTableActionButton('查看详情', () => openUser(row)),
     renderMoreMenu(row, moreOptions)
   ])
 }

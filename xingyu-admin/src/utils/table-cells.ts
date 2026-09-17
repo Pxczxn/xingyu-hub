@@ -34,6 +34,10 @@ export function renderDateTime(value?: string | number | null, placeholder = '�
  */
 export function renderDate(value?: string | number | null, placeholder = '—'): VNodeChild {
   if (value == null || value === '') return placeholder
+  // 纯日历日期（YYYY-MM-DD）直接按字符串展示，避免 Date.parse 的 UTC→本地时区转换导致跨日
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return h('span', { class: 'table-datetime' }, value.trim())
+  }
   const time = typeof value === 'number' ? value : Date.parse(String(value))
   if (!Number.isFinite(time)) return cellText(value, placeholder)
   const date = new Date(time)
