@@ -50,6 +50,8 @@ temp/
 *.log
 *.pid
 *.tmp
+# 会话内临时脚本/快照（.tmp- 前缀），避免误入库
+.tmp-*
 
 # 本地环境与密钥
 .env
@@ -95,6 +97,9 @@ rollout-*.jsonl
 analyze-pages.py
 page-analysis.json
 page-summaries.txt
+
+# 本地验收截图（浏览器 smoke 证据，仅本地留存，不入库）
+/p1*-smoke*.png
 
 # 原型路径（忽略；与 public/images/、public/brand/ 插图路径无关）
 .prototype-review/
