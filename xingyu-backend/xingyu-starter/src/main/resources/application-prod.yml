@@ -64,6 +64,12 @@ xingyu:
     migration:
       enabled: false
       dir: ../sql
+  security:
+    # 迁移基线为保留可复现的迁移链，种子数据里保留了 admin 的已知默认口令。
+    # 生产启动时 DefaultAdminPasswordGuard 会扫描 sys_user，命中即终止启动。
+    default-admin-passwords: admin123,123456,admin
+    # 仅在确认风险后临时置 true 才能放行，默认必须为 false。
+    allow-default-admin-password: false
   sql-monitor:
     enabled: false
     max-records: 100

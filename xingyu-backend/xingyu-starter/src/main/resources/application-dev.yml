@@ -29,8 +29,11 @@ spring:
       stat-view-servlet:
         enabled: true
         url-pattern: /druid/*
-        login-username: admin
-        login-password: admin123
+        # 仓库不提交任何可用口令：默认值是明确无效的占位符，必须由环境变量 DRUID_USERNAME /
+        # DRUID_PASSWORD 提供，否则监控页无法登录（fail-fast，不会静默沿用弱口令）。
+        # 本地可用值放在 gitignore 的 scripts/local-db.env。生产 profile 已关闭该页面。
+        login-username: ${DRUID_USERNAME:__SET_DRUID_USERNAME__}
+        login-password: ${DRUID_PASSWORD:__SET_DRUID_PASSWORD__}
       web-stat-filter:
         enabled: true
         url-pattern: /*

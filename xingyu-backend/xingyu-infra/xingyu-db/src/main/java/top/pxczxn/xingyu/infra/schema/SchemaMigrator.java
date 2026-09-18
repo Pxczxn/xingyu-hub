@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,6 +28,8 @@ import java.util.stream.Stream;
         name = "xingyu.schema.migration.enabled",
         havingValue = "true",
         matchIfMissing = true)
+// 必须早于其它 ApplicationRunner：后续启动逻辑（含默认口令守卫）都依赖 schema 已就绪。
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class SchemaMigrator implements ApplicationRunner {
 
     private static final Pattern VERSION_PATTERN = Pattern.compile("V(\\d+)__.*\\.sql");
@@ -154,13 +158,20 @@ public class SchemaMigrator implements ApplicationRunner {
         }
     }
 
+    /**
+     * 判断 schema_migration 台账表是否存在。
+     *
+     * <p>刻意<b>不</b>捕获异常：只有"表确实不存在"才返回 false（进入首次迁移路径）。
+     * 数据库连接失败、权限不足、SQL 语法/执行错误等任何其它异常都必须直接向上抛出
+     * 让应用 fail-fast —— 否则会被误判成"这是个新库"，从而在新库路径上重复执行
+     * 已应用的迁移，或在真正的故障下静默继续启动。
+     */
     private boolean migrationTableExists() {
-        try {
-            jdbcTemplate.queryForObject("SELECT COUNT(*) FROM schema_migration", Integer.class);
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.TABLES "
+                        + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schema_migration'",
+                Integer.class);
+        return count != null && count > 0;
     }
 
     private boolean tryLock() {
