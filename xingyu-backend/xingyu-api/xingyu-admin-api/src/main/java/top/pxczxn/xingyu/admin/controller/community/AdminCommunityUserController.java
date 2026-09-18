@@ -36,6 +36,15 @@ public class AdminCommunityUserController {
         return Result.ok(communityUserAdminService.statistics());
     }
 
+    /**
+     * 按 ID 获取社区用户详情，供 /community/users/:userId deep link 直接打开详情使用。
+     * 字面量路径 /statistics 的匹配优先级高于本 URI 模板，二者不会冲突。
+     */
+    @GetMapping("/{userId}")
+    public Result<CommunityUserAdminView> detail(@PathVariable String userId) {
+        return Result.ok(communityUserAdminService.detail(userId));
+    }
+
     @PostMapping("/{userId}/approve")
     public Result<Void> approve(@PathVariable String userId) {
         communityUserAdminService.approve(userId);

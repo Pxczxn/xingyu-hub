@@ -35,6 +35,14 @@ export const communityUsersApi = {
     return request({ url: '/community/users/statistics', method: 'get' })
       .then(asApiRecord<CommunityUserStatistics & Record<string, unknown>>)
   },
+  /** 按 ID 获取单个用户详情（deep link /community/users/:userId 直接打开抽屉用）。 */
+  detail(userId: string, options?: { silent?: boolean }): Promise<CommunityUserItem> {
+    return request({
+      url: `/community/users/${userId}`,
+      method: 'get',
+      silentError: options?.silent
+    }).then(asApiRecord<CommunityUserItem & Record<string, unknown>>)
+  },
   approve(userId: string): Promise<void> {
     return request({ url: `/community/users/${userId}/approve`, method: 'post' })
   },

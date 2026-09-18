@@ -18,8 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -44,17 +47,47 @@ public class CommunityUserAdminService {
                 ? null
                 : status.trim().toUpperCase(Locale.ROOT);
         String normalizedKeyword = normalizeSearchValue(keyword);
-        String normalizedRole = normalizeSearchValue(role);
+        String normalizedRole = normalizeRole(role);
         long safePage = Math.max(page, 1);
         long safeSize = Math.min(Math.max(pageSize, 1), 100);
         IPage<CommunityUser> pageParam = new Page<>(safePage, safeSize);
         IPage<CommunityUser> paged = userMapper.listForAdmin(pageParam, normalizedStatus, normalizedKeyword, normalizedRole);
-        List<CommunityUserAdminView> views = new ArrayList<>(paged.getRecords().size());
-        for (CommunityUser user : paged.getRecords()) {
-            CommunityProfile profile = profileMapper.findByUserId(user.getId());
-            views.add(toView(user, profile));
+        List<CommunityUser> records = paged.getRecords();
+        // 一次性批量取回当前页所有 profiles，按 userId 建 Map 后组装，避免逐行 findByUserId 造成 N+1
+        Map<String, CommunityProfile> profileByUserId = loadProfilesByUserId(records);
+        List<CommunityUserAdminView> views = new ArrayList<>(records.size());
+        for (CommunityUser user : records) {
+            views.add(toView(user, profileByUserId.get(user.getId())));
         }
         return PageResult.of(views, paged.getTotal(), paged.getCurrent(), paged.getSize());
+    }
+
+    /**
+     * 管理端按 ID 获取单个社区用户详情，供 deep link（/community/users/:userId）直接打开抽屉使用，
+     * 不依赖列表当前分页，且与列表复用同一套 toView 语义。
+     */
+    public CommunityUserAdminView detail(String userId) {
+        CommunityUser user = requireUser(userId);
+        return toView(user, profileMapper.findByUserId(userId));
+    }
+
+    /**
+     * 批量取回给定用户集合的 profiles。pageSize=100 时也只产生 1 条 profile SQL。
+     */
+    private Map<String, CommunityProfile> loadProfilesByUserId(List<CommunityUser> users) {
+        if (users.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<String> userIds = users.stream().map(CommunityUser::getId).toList();
+        List<CommunityProfile> profiles = profileMapper.findByUserIds(userIds);
+        if (profiles.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, CommunityProfile> profileByUserId = new HashMap<>(profiles.size());
+        for (CommunityProfile profile : profiles) {
+            profileByUserId.put(profile.getUserId(), profile);
+        }
+        return profileByUserId;
     }
 
     /**
@@ -109,6 +142,14 @@ public class CommunityUserAdminService {
 
     private static String normalizeSearchValue(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    /**
+     * role 统一规范为小写，保证 user/USER、creator/CREATOR、admin/ADMIN 语义一致；
+     * 与 Mapper 中小写的 <choose> 分支（含 user 覆盖 user/member 及 null/空）保持一致。
+     */
+    private static String normalizeRole(String role) {
+        return role == null || role.isBlank() ? null : role.trim().toLowerCase(Locale.ROOT);
     }
 
     private CommunityUserAdminView toView(CommunityUser user, CommunityProfile profile) {

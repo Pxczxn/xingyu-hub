@@ -32,18 +32,18 @@
           </div>
 
           <div class="page-list-table-region">
-            <!-- remote：服务端分页。必须显式开启，否则 naive-ui 会按本地 data 推导 pageCount（每页仅 1 页，无法翻页） -->
+            <!-- remote：服务端分页。必须显式开启，否则 naive-ui 会按本地 data 推导 pageCount（每页仅 1 页，无法翻页）。
+                 列表排序唯一来源为服务端 created_at DESC, id DESC，故列上不挂 sorter，避免出现“表头像全局排序、实际只排序当前页”的伪语义。 -->
             <n-data-table
               v-bind="communityUsersTableProps"
               class="community-users-table"
-              :columns="displayColumns"
-              :data="tableData"
+              :columns="userColumns"
+              :data="items"
               :loading="loading"
               :remote="true"
               :pagination="pagination"
               :row-key="(row: CommunityUserItem) => row.id"
               :row-props="rowProps"
-              @update:sorter="handleSorterChange"
             />
           </div>
         </div>
@@ -62,7 +62,6 @@ import { CopyOutline, ChevronDownOutline } from '@vicons/ionicons5'
 import { communityUsersApi, type CommunityUserItem, type CommunityUserStatistics } from '@/api/community-users'
 import AuthorDetailDrawer from '@/components/community/AuthorDetailDrawer.vue'
 import { useAuthorDetailDrawer } from '@/composables/useCommunityDrawers'
-import { useTableSort } from '@/composables/useTableSort'
 import { COMMUNITY_USER_STATUS_META, COMMUNITY_USER_ROLE_FILTER_OPTIONS, formatAuthorLabel, formatCommunityUserRole } from '@/utils/community-display'
 import { renderDateTime, renderEllipsisText, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
 import { cellText, colLayout, tableListFlexProps, tableScrollFromColumns } from '@/utils/table-layout'
@@ -209,38 +208,11 @@ const renderUserActions = (row: CommunityUserItem) => {
   ])
 }
 
-function compareAuthor(a: CommunityUserItem, b: CommunityUserItem) {
-  return userLabel(a).localeCompare(userLabel(b), 'zh-CN', { sensitivity: 'base' })
-}
-
-function compareRole(a: CommunityUserItem, b: CommunityUserItem) {
-  return formatCommunityUserRole(a.role).localeCompare(formatCommunityUserRole(b.role), 'zh-CN', { sensitivity: 'base' })
-}
-
-function compareCreatedAt(a: CommunityUserItem, b: CommunityUserItem) {
-  const left = a.createdAt ? Date.parse(a.createdAt) : 0
-  const right = b.createdAt ? Date.parse(b.createdAt) : 0
-  return (Number.isNaN(left) ? 0 : left) - (Number.isNaN(right) ? 0 : right)
-}
-
-const STATUS_SORT_ORDER: Record<string, number> = {
-  PENDING_REVIEW: 0,
-  ACTIVE: 1,
-  REJECTED: 2,
-  SUSPENDED: 3,
-  DELETED: 4
-}
-
-function compareStatus(a: CommunityUserItem, b: CommunityUserItem) {
-  return (STATUS_SORT_ORDER[a.status] ?? 99) - (STATUS_SORT_ORDER[b.status] ?? 99)
-}
-
 const userColumns: DataTableColumns<CommunityUserItem> = [
   {
     title: '用户',
     key: 'username',
     ...colLayout('author'),
-    sorter: compareAuthor,
     render: row => h('div', { class: 'user-cell' }, [
       h(NAvatar, { round: true, size: 34, class: 'user-avatar' }, { default: () => avatarLabel(row) }),
       h('div', { class: 'user-copy' }, [
@@ -249,9 +221,9 @@ const userColumns: DataTableColumns<CommunityUserItem> = [
       ])
     ])
   },
-  { title: '身份', key: 'role', ...colLayout('role'), sorter: compareRole, render: row => cellText(formatCommunityUserRole(row.role)) },
-  { title: '加入时间', key: 'createdAt', ...colLayout('datetime'), sorter: compareCreatedAt, render: row => renderDateTime(row.createdAt) },
-  { title: '账号状态', key: 'status', ...colLayout('accountStatus'), sorter: compareStatus, render: row => renderStatusTag(row.status, COMMUNITY_USER_STATUS_META) },
+  { title: '身份', key: 'role', ...colLayout('role'), render: row => cellText(formatCommunityUserRole(row.role)) },
+  { title: '加入时间', key: 'createdAt', ...colLayout('datetime'), render: row => renderDateTime(row.createdAt) },
+  { title: '账号状态', key: 'status', ...colLayout('accountStatus'), render: row => renderStatusTag(row.status, COMMUNITY_USER_STATUS_META) },
   {
     title: '邮箱',
     key: 'email',
@@ -268,57 +240,33 @@ const userColumns: DataTableColumns<CommunityUserItem> = [
 
 const communityUsersTableProps = tableListFlexProps(tableScrollFromColumns(userColumns))
 
-const { columns: displayColumns, handleSorterChange, sortKey, sortOrder } = useTableSort<CommunityUserItem>({
-  columns: userColumns,
-  defaultKey: 'createdAt',
-  defaultOrder: 'descend'
-})
-
-/**
- * 服务端分页（n-data-table remote）下 naive-ui 不再执行本地排序，
- * 这里复用同一套列比较器对当前页排序，避免排序表头变成死交互。
- * 默认 createdAt descend 与服务端 ORDER BY created_at DESC 一致，故默认顺序不变；
- * 跨页全局排序需后续把 sortField/sortOrder 下推后端（见本轮遗留项）。
- */
-const columnComparators = new Map<string, (a: CommunityUserItem, b: CommunityUserItem) => number>()
-for (const column of userColumns) {
-  const { key, sorter } = column as { key?: string | number; sorter?: unknown }
-  if (key != null && typeof sorter === 'function') {
-    columnComparators.set(String(key), sorter as (a: CommunityUserItem, b: CommunityUserItem) => number)
-  }
-}
-
-const tableData = computed(() => {
-  const comparator = sortKey.value ? columnComparators.get(sortKey.value) : undefined
-  if (!comparator || !sortOrder.value) return items.value
-  const rows = [...items.value]
-  rows.sort(sortOrder.value === 'ascend' ? comparator : (a, b) => comparator(b, a))
-  return rows
-})
-
 // 请求序号：快速搜索/筛选时的异步竞态保护，旧请求结果不得覆盖后发的新请求
 let requestSeq = 0
 
-async function load() {
+async function load(): Promise<void> {
   const seq = ++requestSeq
   loading.value = true
   const keyword = searchForm.keyword.trim()
+  const buildQuery = () => ({
+    page: pagination.page,
+    pageSize: pagination.pageSize,
+    status: status.value || undefined,
+    keyword: keyword || undefined,
+    role: role.value || undefined
+  })
   try {
-    const data = await communityUsersApi.list({
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-      status: status.value || undefined,
-      keyword: keyword || undefined,
-      role: role.value || undefined
-    })
+    let data = await communityUsersApi.list(buildQuery())
     if (seq !== requestSeq) return
-    items.value = data.list
     pagination.itemCount = data.total
-    // 审核等操作后当前页可能变空，若已非首页则回退上一页重新获取，避免停留在空白页
-    if (data.list.length === 0 && pagination.page > 1) {
+    // 审核等操作后当前页可能变空：回退上一页并「等待」重取完成后才算结束，
+    // 这样外层审核流程 await load() 返回时列表已回退到位，loading 全程保持 true，不会出现空白页或提前收尾。
+    while (data.list.length === 0 && pagination.page > 1) {
       pagination.page -= 1
-      void load()
+      data = await communityUsersApi.list(buildQuery())
+      if (seq !== requestSeq) return
+      pagination.itemCount = data.total
     }
+    items.value = data.list
   } catch {
     if (seq !== requestSeq) return
     message.error('社区用户暂时无法加载，请检查服务连接后重试')
@@ -414,13 +362,29 @@ function confirmResetPassword(row: CommunityUserItem) {
     }
   })
 }
+/**
+ * deep link：/community/users/:userId 必须能打开不在当前分页内的用户。
+ * 服务端分页后该用户可能不在当前 items 里，故按 ID 直接拉详情，不依赖 list 结果；
+ * 列表内点击用户仍复用已有 row（openUser(row)），不会产生多余请求。
+ */
+async function openUserFromRoute() {
+  const userId = route.params.userId
+  if (typeof userId !== 'string' || !userId) return
+  try {
+    const detail = await communityUsersApi.detail(userId, { silent: true })
+    openUser(detail)
+  } catch {
+    message.error('用户详情加载失败，请确认该用户是否存在')
+  }
+}
+
 onMounted(async () => {
-  await Promise.all([load(), loadStatistics()])
-  const userId = route.params.userId as string | undefined
-  if (!userId) return
-  const row = items.value.find(item => item.id === userId)
-  if (row) openUser(row)
+  await Promise.all([load(), loadStatistics(), openUserFromRoute()])
 })
+
+// /community/users 与 /community/users/:userId 复用同一组件，路由切换时实例不一定重建，
+// 故除 onMounted 外还需监听 userId，保证从列表跳转到详情链接也能打开抽屉。
+watch(() => route.params.userId, () => { void openUserFromRoute() })
 </script>
 
 <style scoped lang="scss">

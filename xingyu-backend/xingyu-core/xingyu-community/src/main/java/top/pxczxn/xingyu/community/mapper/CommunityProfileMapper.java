@@ -3,8 +3,10 @@ package top.pxczxn.xingyu.community.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.Collection;
 import java.util.List;
 
 @Mapper
@@ -15,6 +17,21 @@ public interface CommunityProfileMapper extends BaseMapper<CommunityProfile> {
 
     @Select("SELECT * FROM community_profile WHERE user_id = #{userId} LIMIT 1")
     CommunityProfile findByUserId(String userId);
+
+    /**
+     * 批量按 userId 获取 profiles，供列表页一次性组装视图使用，避免逐行 N+1 查询。
+     * 调用方需保证 userIds 非空（空集合会生成非法 IN () 语句）。
+     */
+    @Select("""
+            <script>
+            SELECT * FROM community_profile
+            WHERE user_id IN
+            <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+              #{userId}
+            </foreach>
+            </script>
+            """)
+    List<CommunityProfile> findByUserIds(@Param("userIds") Collection<String> userIds);
 
     @Select("""
             SELECT * FROM community_profile
