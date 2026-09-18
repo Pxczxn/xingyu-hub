@@ -109,7 +109,16 @@ public class SchemaMigrator implements ApplicationRunner {
                         String.class,
                         version);
                 if (!checksum.equals(existingChecksum)) {
-                    throw new IllegalStateException("Checksum mismatch for migration " + version);
+                    // 唯一豁免：version=001 的原始文件已丢失，当前文件是按执行记录恢复的等价迁移。
+                    // 兼容条件必须是"台账值 == 已登记历史 checksum"且"文件值 == 已固定新 checksum"，
+                    // 二者同时成立才放行；其余任何版本或任何取值一律 fail-fast（见 LegacyMigrationChecksums）。
+                    if (LegacyMigrationChecksums.isEquivalent(version, checksum, existingChecksum)) {
+                        log.warn("schema version {} 命中 legacy checksum 兼容映射"
+                                        + "（台账遗留 checksum={}，当前文件 checksum={}），视为同一历史迁移",
+                                version, existingChecksum, checksum);
+                    } else {
+                        throw new IllegalStateException("Checksum mismatch for migration " + version);
+                    }
                 }
                 if ("SUCCESS".equals(statuses.get(0))) {
                     log.info("skipped schema version {}", version);

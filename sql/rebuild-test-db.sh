@@ -18,12 +18,12 @@
 # 用法：
 #   TEST_DB_ADMIN_PASSWORD='<pwd>' bash sql/rebuild-test-db.sh
 #
-# ⚠️ 已知阻塞（需先解决，否则本脚本会失败并以 exit 1 结束）：
-#   仓库缺少 V001 迁移文件（Mars 基础 schema：sys_*/qrtz_*/gen_* 等 39 张表）。
-#   开发库的 schema_migration 里仍有 V001 = SUCCESS 记录，但文件已不在仓库中。
-#   直接按仓库基线重建会得到"缺 39 张基础表"的半成品库 —— 本脚本会在结束时显式失败，
-#   且**不会写入任何 schema_migration 成功台账**，避免把不完整状态登记为成功。
-#   修复方式（需人工决策）：恢复 V001__*.sql 到 sql/ 目录，或新增等价的基础 schema 迁移。
+# ⚠️ V001 为「历史兼容恢复」文件，不是原始文件的字节副本：
+#   原始 V001__*.sql 已丢失（开发库 schema_migration 仍保留其历史记录，见下方常量），
+#   现行 V001__mars_base_schema_and_seed.sql 按 MySQL binlog 中 2026-08-26 实际执行记录
+#   + mars-system.sql 种子数据恢复而成，checksum 与历史值不同。
+#   应用侧由 SchemaMigrator + LegacyMigrationChecksums 对 version=001 做精确兼容映射；
+#   本脚本直接灌文件、不读兼容映射，因此会把**新** checksum 写入测试库台账（正确行为）。
 set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -65,8 +65,20 @@ TEST_DB_USERNAME="${TEST_DB_USERNAME:-xingyu_test}"
 
 MYSQL=(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$ADMIN_USER" -p"$ADMIN_PASSWORD" --default-character-set=utf8mb4)
 
-# 断言测试库必须存在的基础表（这些表当前只能来自缺失的 V001）
-REQUIRED_BASE_TABLES=(sys_user sys_role sys_menu sys_role_menu sys_dept sys_post sys_dict_type sys_dict_data sys_config_group)
+# 断言测试库必须存在的 V001 基础表（全部来自 V001__mars_base_schema_and_seed.sql，
+# 且未被后续迁移删除）。V001 原有 45 张，其中 coder_banner / student / sys_chat_* 共 6 张
+# Mars 演示对象由 V019__drop_mars_demo.sql 删除，故最终库应存在其余 39 张。
+REQUIRED_BASE_TABLES=(
+  sys_user sys_role sys_menu sys_role_menu sys_role_dept sys_user_role sys_user_post
+  sys_dept sys_post sys_dict_type sys_dict_data sys_config_group
+  sys_file sys_file_group sys_file_config sys_server sys_job sys_job_log
+  sys_login_log sys_oper_log sys_api_access_log sys_sms_log
+  sys_notice sys_notice_send_log sys_user_notice sys_user_blacklist
+  gen_table gen_table_column
+  qrtz_triggers qrtz_cron_triggers qrtz_simple_triggers qrtz_simprop_triggers
+  qrtz_blob_triggers qrtz_calendars qrtz_fired_triggers qrtz_job_details
+  qrtz_locks qrtz_paused_trigger_grps qrtz_scheduler_state
+)
 
 # ============================================================================
 # 目标确认输出（执行前让人看清将要对谁执行破坏性操作）
