@@ -9,7 +9,7 @@
 #   3. 只复用测试确实需要的非 datasource 配置（jackson / multipart / redis / mybatis-plus /
 #      demo-mode / community.public-base-url）；与数据库无关的开发期开关（sql-monitor、
 #      druid stat-view 等）显式关闭，减少测试噪声。
-#   4. 测试库请勿手工维护，统一用 `bash scripts/rebuild-test-db.sh` 从仓库迁移基线重建。
+#   4. 测试库请勿手工维护，统一用 `bash sql/rebuild-test-db.sh` 从仓库迁移基线重建。
 #
 # 库与账号（本地开发基线，可用环境变量覆盖；生产/CI 必须走外部注入）：
 #   库   : xingyu_hub_test（仅测试用，禁止指向 xingyu_hub）
@@ -37,7 +37,10 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/xingyu_hub_test?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8}
     username: ${TEST_DB_USERNAME:xingyu_test}
-    password: ${TEST_DB_PASSWORD:xingyu_test_pwd}
+    # 仓库不提交任何可用密码：这里的默认值是明确无效的占位符（不对应任何真实账号），
+    # 必须通过环境变量 TEST_DB_PASSWORD 提供真实密码，否则连接会认证失败。
+    # 本地可把凭据放在被 gitignore 的 scripts/local-test-db.env 中，运行前 source 一下。
+    password: ${TEST_DB_PASSWORD:__SET_TEST_DB_PASSWORD__}
     druid:
       initial-size: 2
       min-idle: 2
@@ -90,7 +93,7 @@ xingyu:
     migration:
       # 【必须显式设为 false】SchemaMigrator 标注了 matchIfMissing = true，
       # 若此处省略该属性，应用启动时会尝试执行迁移并因找不到迁移目录而启动失败。
-      # 测试库结构由 scripts/rebuild-test-db.sh 从迁移基线预先建好。
+      # 测试库结构由 sql/rebuild-test-db.sh 从迁移基线预先建好。
       enabled: false
       dir: ../sql
   community:

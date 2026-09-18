@@ -81,7 +81,7 @@ public class TestDatabaseGuard implements ApplicationRunner {
                 处理方式：
                   1. 确认测试类使用 @ActiveProfiles("test")（而不是 "dev"）；
                   2. 确认 src/test/resources/application-test.yml 的 datasource 指向 %s；
-                  3. 用 `bash scripts/rebuild-test-db.sh` 从迁移基线重建测试库。
+                  3. 用 `bash sql/rebuild-test-db.sh` 从迁移基线重建测试库。
                 """.formatted(EXPECTED_DATABASE, catalog, actualDatabase, jdbcUrl, reason, EXPECTED_DATABASE);
     }
 }
