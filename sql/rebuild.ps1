@@ -1,11 +1,26 @@
 param(
     [string]$User = "pxczxn",
-    [string]$Password = "root",
+    # 仓库不提交任何可用密码：默认留空，必须由参数或环境变量 DB_PASSWORD 提供，否则立即退出。
+    [string]$Password = $env:DB_PASSWORD,
     [string]$Database = "xingyu_hub",
     [string]$MySql = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
 )
 
 $ErrorActionPreference = "Stop"
+
+# 破坏性操作前硬保护：没有密码、或目标库名不是预期值，一律不执行任何 SQL
+if ([string]::IsNullOrWhiteSpace($Password)) {
+    Write-Error "缺少数据库密码。请通过 -Password 参数或环境变量 DB_PASSWORD 提供（本地可 source scripts/local-db.env）。已终止，未执行任何 SQL。"
+    exit 1
+}
+if ($Database -ne "xingyu_hub") {
+    Write-Error "本脚本仅服务开发库 xingyu_hub，当前 -Database=$Database。已终止，未执行任何 SQL。"
+    exit 1
+}
+
+Write-Host "即将 DROP 并重建开发库：host=localhost  user=$User  database=$Database" -ForegroundColor Yellow
+Write-Host "（该库所有数据将被清空；测试库请改用 sql/rebuild-test-db.sh）" -ForegroundColor Yellow
+
 $versionsDir = $PSScriptRoot
 
 Write-Host "Dropping and creating database $Database..."

@@ -15,8 +15,10 @@ spring:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/xingyu_hub?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
-    username: pxczxn
-    password: root
+    username: ${DB_USERNAME:pxczxn}
+    # 仓库不提交任何可用密码：默认值是明确无效的占位符，必须通过环境变量 DB_PASSWORD 提供，
+    # 否则连接必然认证失败（fail-fast，不会静默连上）。本地凭据放 gitignore 的 scripts/local-db.env。
+    password: ${DB_PASSWORD:__SET_DB_PASSWORD__}
     druid:
       initial-size: 5
       min-idle: 5
