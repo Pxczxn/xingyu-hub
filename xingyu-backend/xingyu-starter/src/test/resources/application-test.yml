@@ -1,0 +1,101 @@
+# ============================================================================
+# 集成测试专用 profile（@ActiveProfiles("test")）
+#
+# 设计原则：
+#   1. datasource 由本文件【独占】。集成测试不再使用 dev profile，因此不会继承
+#      application-dev.yml 的 datasource；本文件里的每一项都是显式声明，不做隐式继承假设。
+#   2. 运行期由 top.pxczxn.xingyu.TestDatabaseGuard 校验实际连接的 database
+#      必须是 xingyu_hub_test，否则 fail-fast 终止测试，防止污染开发库 xingyu_hub。
+#   3. 只复用测试确实需要的非 datasource 配置（jackson / multipart / redis / mybatis-plus /
+#      demo-mode / community.public-base-url）；与数据库无关的开发期开关（sql-monitor、
+#      druid stat-view 等）显式关闭，减少测试噪声。
+#   4. 测试库请勿手工维护，统一用 `bash scripts/rebuild-test-db.sh` 从仓库迁移基线重建。
+#
+# 库与账号（本地开发基线，可用环境变量覆盖；生产/CI 必须走外部注入）：
+#   库   : xingyu_hub_test（仅测试用，禁止指向 xingyu_hub）
+#   用户 : xingyu_test（仅被授予 xingyu_hub_test.* 权限，访问 xingyu_hub 会被拒绝）
+# ============================================================================
+
+server:
+  # 集成测试统一用 @SpringBootTest(RANDOM_PORT)，这里给 0 避免与 7779 开发实例冲突
+  port: 0
+
+spring:
+  application:
+    name: xingyu-hub
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+
+  # ---------------- 数据源：test profile 独占 ----------------
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/xingyu_hub_test?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8}
+    username: ${TEST_DB_USERNAME:xingyu_test}
+    password: ${TEST_DB_PASSWORD:xingyu_test_pwd}
+    druid:
+      initial-size: 2
+      min-idle: 2
+      max-active: 8
+      max-wait: 60000
+      test-while-idle: true
+      validation-query: SELECT 1
+      # 测试环境不需要 Druid 监控页/统计，避免多余端点与噪声
+      stat-view-servlet:
+        enabled: false
+      web-stat-filter:
+        enabled: false
+      filter:
+        stat:
+          enabled: false
+        wall:
+          enabled: false
+
+  # ---------------- Redis：与 dev 的 db6 隔离 ----------------
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      # dev 用 db6；测试用 db7，避免测试写入影响开发实例的 session 与配置缓存
+      database: 7
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1
+          max-idle: 8
+          min-idle: 0
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: top.pxczxn.xingyu.common.entity,top.pxczxn.xingyu.system.entity,top.pxczxn.xingyu.file.entity,top.pxczxn.xingyu.gen.entity,top.pxczxn.xingyu.job.entity,top.pxczxn.xingyu.community.entity
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+xingyu:
+  # 显式声明：演示模式会拦截写操作，测试必须关闭
+  demo-mode: false
+  schema:
+    migration:
+      # 【必须显式设为 false】SchemaMigrator 标注了 matchIfMissing = true，
+      # 若此处省略该属性，应用启动时会尝试执行迁移并因找不到迁移目录而启动失败。
+      # 测试库结构由 scripts/rebuild-test-db.sh 从迁移基线预先建好。
+      enabled: false
+      dir: ../sql
+  community:
+    public-base-url: http://localhost:3000
+
+logging:
+  level:
+    top.pxczxn.xingyu: debug
