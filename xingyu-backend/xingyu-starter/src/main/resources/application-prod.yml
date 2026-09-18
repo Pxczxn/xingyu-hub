@@ -15,8 +15,11 @@ spring:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/xingyu_hub?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
+    # 生产环境不提供任何可用的默认数据库凭据：默认值是明确无效的占位符，
+    # 必须由环境变量 DB_USERNAME / DB_PASSWORD 显式提供，否则连接必然认证失败
+    # （原先的 root + 空密码默认值会在凭据缺失时静默尝试以 root 空口令连接）。
+    username: ${DB_USERNAME:__SET_DB_USERNAME__}
+    password: ${DB_PASSWORD:__SET_DB_PASSWORD__}
     druid:
       initial-size: 5
       min-idle: 5

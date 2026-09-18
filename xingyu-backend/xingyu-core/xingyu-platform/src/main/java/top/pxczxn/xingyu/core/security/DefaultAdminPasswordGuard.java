@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -37,6 +38,9 @@ import java.util.List;
 @Slf4j
 @Component
 @Profile("prod")
+// 只在 Web 应用（对外提供服务的实例）启动时做守卫。Bootstrap CLI 是 WebApplicationType.NONE，
+// 不对外提供服务，且它本身就是"设置强口令"的执行入口 —— 若在这里也拦截，init 将永远无法执行。
+@ConditionalOnWebApplication
 @Order(Ordered.LOWEST_PRECEDENCE)
 @RequiredArgsConstructor
 public class DefaultAdminPasswordGuard implements ApplicationRunner {
@@ -62,10 +66,20 @@ public class DefaultAdminPasswordGuard implements ApplicationRunner {
         }
         List<String> offenders = detectDefaultPasswordAccounts();
         if (!offenders.isEmpty()) {
+            // 注意：此时应用已经停止对外提供服务，"进管理端改口令"是**不可达路径**，
+            // 必须给出可直接在机器上执行的 Bootstrap CLI 命令。
             throw new IllegalStateException(
-                    "生产环境启动中止：检测到仍在使用已知默认口令的账号 -> " + String.join(", ", offenders)
-                            + "。请通过管理端或首次初始化机制（XINGYU_BOOTSTRAP_PASSWORD）修改口令后重启；"
-                            + "确需临时放行可设置 XINGYU_ALLOW_DEFAULT_ADMIN_PASSWORD=true。");
+                    "生产环境启动中止：检测到仍在使用已知默认口令的账号 -> " + String.join(", ", offenders) + "。\n"
+                            + "  应用当前未对外提供服务，管理端不可达，请改用 Bootstrap CLI 初始化口令后重启：\n"
+                            + "    SPRING_PROFILES_ACTIVE=prod \\\n"
+                            + "    XINGYU_DEPLOY_SECRET=<部署密钥> \\\n"
+                            + "    XINGYU_BOOTSTRAP_PASSWORD=<强口令> \\\n"
+                            + "    java -jar xingyu-starter.jar --spring.profiles.active=prod init\n"
+                            + "  说明：该命令会用强口令更新 sys_user 中对应账号、写入 admin_account 并关闭\n"
+                            + "  bootstrap_state；XINGYU_DEPLOY_SECRET 首次运行会写入 system_parameter，之后须保持一致。\n"
+                            + "  若此前已初始化过（admin_account 中已有 PLATFORM/ACTIVE 记录），init 会被跳过，\n"
+                            + "  此时请直接用已设置的口令登录管理端修改，或用 recover 生成一次性恢复管理员。\n"
+                            + "  确需临时放行可设置 XINGYU_ALLOW_DEFAULT_ADMIN_PASSWORD=true（不建议用于生产）。");
         }
         log.info("默认口令守卫通过：未发现仍使用已知默认口令的管理员账号");
     }
