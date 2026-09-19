@@ -125,7 +125,9 @@ qa/
 tools/
 
 # 根目录开发脚本（/ 锚定仓库根；xingyu-admin/scripts/ 由 package.json 引用，不受影响）
-/scripts/
+# 注意：必须写成 /scripts/* 而不是 /scripts/ —— 目录被整体排除后 git 不会进入该目录，
+# 下面的 ! 例外会失效（`git add scripts/ci-apply-migrations.sh` 会报 "paths are ignored"）。
+/scripts/*
 !/scripts/ci-apply-migrations.sh
 
 # 页面布局规格（开发资料）
