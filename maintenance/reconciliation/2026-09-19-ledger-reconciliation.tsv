@@ -1,0 +1,35 @@
+# xingyu_hub schema_migration ledger reconciliation matrix
+# 生成日期: 2026-09-19
+# 范围: dev 库 xingyu_hub 台账缺失的 18 个版本 (021-025, 028-040)
+# 口径: checksum 一律为 sql/V<ver>__*.sql 的「仓库规范 LF 原始字节」SHA-256,
+#       与 SchemaMigrator.sha256(file bytes) 完全同口径; 已在 fresh 库 xingyu_hub_test 台账中逐版本验证一致。
+# 证据: dev 与 fresh 全结构指纹均为 a8e7377274b99ec885c5066b3cb40d36c33fd1f2fbc50f11fdf3502271a0842b (0 diff)
+# 说明: 本文件为 backfill-missing-ledger.sh 的唯一输入; 以 '#' 开头的行为注释, 解析时跳过。
+# 证据口径: 下表结论一律只到「最终语义已满足」, 不声称「该 migration 在历史上确实执行过」——
+#          这也是补录状态用 RECONCILED 而非 SUCCESS 的原因。
+# 列: version <TAB> checksum_sha256_lf <TAB> provenance_class <TAB> non_idempotent <TAB> v041_compensated <TAB> evidence <TAB> note
+#
+# provenance_class:
+#   A = 对象由该迁移自身创建/变更, dev 与 fresh 的 DDL/DML 后置条件均可观测成立
+#   B = 对象先被测试侧自愈 DDL 抢先创建(精简定义), 索引/注释由 V041 forward fix 补偿到最终等价
+#   C = 被更早的 V001 完全抢先, 在 dev 与 fresh 的可观测效果均为零 (no-op)
+#
+#version	checksum_sha256_lf	provenance_class	non_idempotent	v041_compensated	evidence	note
+021	9b56ffa22d82b1c76bff98a4995fa028b0ef12501808fd67dfd16a8937e6836c	A	no	no	community_event(id ...201, slug welcome-writing) 与 guide_page(id ...301/302) 在 dev 与 fresh 均在	CREATE TABLE IF NOT EXISTS + INSERT IGNORE
+022	7225a73e4da4e1cacfe0204f0f197334676398258286ef0b12c82998ff440eb2	A	yes	no	群管理/用户偏好相关表列在 dev 与 fresh 形状一致	无守卫 ALTER, 重跑必报错
+023	2d30c8a9b3f3a54d05fd3a3f85b84d3d0afd752f8590ab5b7aeee58689347752	A	yes	no	消息附件/收藏相关表列在 dev 与 fresh 形状一致	无守卫 ALTER, 重跑必报错
+024	269930938b6ae068acb62e160b497816050318615e57a0ac7b14ee4ce0507b2e	A	yes	no	剩余特性相关表列在 dev 与 fresh 形状一致	无守卫 ALTER, 重跑必报错
+025	56b1dbd0f2ad87240858a0c22dbd786e88437b120f00b99472530b650d2f16c6	A	no	no	V004 播种的 4 行 system_parameter 被本迁移删除; 两库该表行数均为 0, 无第三个删除者	V004 已在 dev 台账且 checksum 一致 -> 判定 V025 最终语义已满足(非"历史确曾执行"的证明)
+028	1ca2cd5f40f7d698227c47e60270ce16ed7cbe188733ddbdad2c06d5e82bcc4e	A	yes	no	topic.description 在 dev 与 fresh 精确等于迁移字面量; 7 个种子话题齐备	ADD COLUMN 无守卫 + UPDATE + INSERT IGNORE
+029	12eab89f0b7fbe94525b627fb891c2291a87ab9c774613152da56fcaa53d3917	A	no	no	两库无 TRASHED 残留、无 NULL/空 lifecycle_status, 取值集仅 ACTIVE	UPDATE 作用域不可回放, 但不存在反例
+030	645d013092a2708ef22cb61be4cf7378248f16762d16187b52c541a262178979	A	no	no	V004 播种时 status=ENABLED, 本迁移改为 ACTIVE; 两库均无 ENABLED -> 最终语义已满足	列/索引/表均走存在性守卫, 幂等
+031	50fe18576670f290512306b7c464b1faea881b011cfcd3fbf24c11ab03a4b701	B	no	yes	对象由测试自愈 DDL 抢先建出(无 COMMENT); 索引/注释由 V041 补齐到与 fresh 等价	CREATE TABLE IF NOT EXISTS 退化为空操作
+032	596ddb405d7e57f2f7901bedbb27024426fcb5fced645a7433932fcc62f5a480	C	no	yes	V001 已建 sys_file_config(ruoyi 形状) 并 INSERT id=1; 本迁移的 IF NOT EXISTS/INSERT IGNORE 在 dev 与 fresh 均为零效果	死迁移: 表形状/索引/种子行全部归属 V001
+033	8245d494ae3c1ebc849cf6bfcc2a1d2a14aae82c0f6c5def91885d71d26e01d5	B	yes	yes	对象由测试自愈 DDL 抢先建出; V041 补齐索引与注释到最终等价	无守卫 ALTER, 重跑必报错
+034	d0c13e2234394435cc11753706e93e1fd748301f5736763f0f2d968e32c7baa2	B	yes	yes	对象由测试自愈 DDL 抢先建出; V041 补齐注释到最终等价	无守卫 ALTER, 重跑必报错
+035	b1581fbcfa72789a0aaa298e5b97f7e3ea847ee5419a28c8d4e18e4050b80901	B	no	yes	对象由测试自愈 DDL 抢先建出; 重跑虽幂等但不会补索引, 索引由 V041 补齐	CREATE TABLE IF NOT EXISTS, 重跑不补索引
+036	d4cb638524decb7f460a3323713d2a08e51ea85e43e0dac5f2e6edce9e163fdf	A	yes	no	creator_follow -> user_follow 的 RENAME/CHANGE/DROP INDEX 结果在 dev 与 fresh 一致	RENAME, 重跑必报错
+037	2d9ea3a86a9ccc26a90f90a66747d3f9e41522630ba0b04feb42f3deacaaa41d	A	no	no	索引优化结果与 fresh 一致(列顺序已由结构指纹覆盖)	索引类变更
+038	37151d6a81880351ebe9f34262f1cd7e1df1119107c77cdc7e5559b81ea6a56b	A	no	no	explore_domain 24 / content_tag 18 / domain_tag_relation 21, seed_key 集合两库一致	种子幂等
+039	57714c3c6ef094210a72cc22674205f38dd88af6685435859fcf44f0ca394b52	A	no	no	创作空间置顶文章相关列/索引在 dev 与 fresh 一致	索引/列变更
+040	ac698093ab82743b3eb0a456f07cd714469aec6b6133ccdf290bf865cfb630a7	A	no	no	working_draft.cover_url 与 formal_revision.cover_url 在 dev 与 fresh 均在	带 information_schema 守卫, 幂等; 来源可能是 V040 或历史等价的测试 DDL, 最终定义一致

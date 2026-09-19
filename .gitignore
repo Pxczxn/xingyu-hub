@@ -117,6 +117,8 @@ docs/
 doc/
 *.md
 !/README.md
+# 例外：台账补偿记账的事实来源必须入库（否则 *.md 会把它吞掉）
+!maintenance/reconciliation/*.md
 
 # 个人 QA / AI 分析脚本
 qa/
