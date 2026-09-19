@@ -124,12 +124,31 @@ public class SchemaMigrator implements ApplicationRunner {
                         throw new IllegalStateException("Checksum mismatch for migration " + version);
                     }
                 }
-                if ("SUCCESS".equals(statuses.get(0))) {
-                    log.info("skipped schema version {}", version);
-                    return;
-                }
-                if ("FAILED".equals(statuses.get(0))) {
-                    throw new IllegalStateException("Migration " + version + " previously failed");
+                // checksum 校验**先于**状态短路判断：否则"RECONCILED + 错 checksum"会被静默放过。
+                //
+                // 状态语义（三种，缺一不可）：
+                //   SUCCESS    —— 该迁移确实被完整执行且未报错。
+                //   RECONCILED —— 台账补偿记账：该迁移的**最终语义**经审计确认已满足
+                //                 （dev 与 fresh 结构 0 diff + 关键 DML 后置条件成立），
+                //                 但历史执行本身未经证实（原始 ledger 记录缺失，binlog 为 ROW 格式
+                //                 无法还原 SQL 文本）。因此它**不是** SUCCESS 的同义词。
+                //   FAILED     —— 曾经执行失败，必须人工处置。
+                //
+                // 其余任何取值一律 fail-fast：未知状态绝不允许进入锁、执行迁移，
+                // 更不能落进下面的 catch 分支被改写成 FAILED（那会把审计结论污染成失败事实）。
+                switch (statuses.get(0)) {
+                    case "SUCCESS" -> {
+                        log.info("skipped schema version {}", version);
+                        return;
+                    }
+                    case "RECONCILED" -> {
+                        log.info("skipped reconciled schema version {}", version);
+                        return;
+                    }
+                    case "FAILED" -> throw new IllegalStateException(
+                            "Migration " + version + " previously failed");
+                    default -> throw new IllegalStateException(
+                            "Unknown migration status '" + statuses.get(0) + "' for version " + version);
                 }
             }
         }
