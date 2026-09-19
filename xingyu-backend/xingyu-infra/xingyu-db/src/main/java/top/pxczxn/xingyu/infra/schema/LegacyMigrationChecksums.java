@@ -19,6 +19,20 @@ import java.util.Map;
  *
  * <p>维护约束：若 {@code sql/V001__mars_base_schema_and_seed.sql} 内容发生变化，
  * {@link #currentChecksum(String)} 的取值必须同步更新（自动化测试会校验二者一致）。
+ *
+ * <p><b>校验口径必须是"仓库规范字节"，而不是"某台机器的工作区字节"。</b>
+ * {@link SchemaMigrator} 按文件原始字节做 sha256，因此工作区落盘的行尾符会直接改变
+ * 计算结果：同一份内容以 LF 落盘与以 CRLF 落盘会得到两个不同的 checksum。
+ * 迁移文件在版本库中的规范形式统一为 <b>LF</b>（见仓库根目录 {@code .gitattributes}），
+ * 所以此处登记的 {@code CURRENT_CHECKSUMS} 一律取<b>规范 LF 内容</b>的哈希。
+ *
+ * <p>历史事故：该常量曾登记成某台 Windows 机器上 CRLF 工作区的哈希，导致同一份迁移
+ * 在 Linux / CI 结出（LF）时 {@link #isEquivalent} 必然失配、{@code SchemaMigrator} 对
+ * version=001 fail-fast。请勿再次把工作区字节当成规范字节。
+ *
+ * <p>替代方案（已否决）：不要改成"把 CRLF/LF 归一化后再比对"。台账里存的是各版本
+ * <b>历史原始字节</b>的 checksum，统一归一化会同时改变所有版本的 checksum 语义，
+ * 相当于一次全局的兼容性破坏。正确做法是保证迁移文件自身的规范字节稳定。
  */
 public final class LegacyMigrationChecksums {
 
@@ -26,9 +40,12 @@ public final class LegacyMigrationChecksums {
     private static final Map<String, String> LEGACY_CHECKSUMS = Map.of(
             "001", "63a670b7132520cdded2be9d3ec22fa0be4971608d13abbf57207dc3f88abe78");
 
-    /** version -> 当前仓库恢复文件的固定 checksum（sha256 of sql/V001__mars_base_schema_and_seed.sql）。 */
+    /**
+     * version -> 当前仓库恢复文件的固定 checksum，取<b>仓库规范 LF 字节</b>
+     * （sha256 of {@code git show HEAD:sql/V001__mars_base_schema_and_seed.sql}）。
+     */
     private static final Map<String, String> CURRENT_CHECKSUMS = Map.of(
-            "001", "a104e938b5dc88a42801b8b2d58981bb88a717b1b965feca20ae2f80f99a6171");
+            "001", "8633753cbe3b80538fe17e34adc04e89923426c9ab545aebb38891921304f72b");
 
     private LegacyMigrationChecksums() {
     }

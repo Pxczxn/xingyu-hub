@@ -38,26 +38,10 @@ class FileConfigIntegrationTest {
     @BeforeEach
     void setUp() {
         CommunityTestSupport.ensureRegistrationOpen(configGroupService);
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS `sys_file_config` (
-                  `id` bigint NOT NULL AUTO_INCREMENT,
-                  `name` varchar(128) NOT NULL,
-                  `storage_type` varchar(32) NOT NULL,
-                  `master` tinyint NOT NULL DEFAULT 0,
-                  `domain` varchar(512) NOT NULL DEFAULT '',
-                  `base_path` varchar(512) DEFAULT NULL,
-                  `bucket_name` varchar(128) DEFAULT NULL,
-                  `access_key` varchar(256) DEFAULT NULL,
-                  `secret_key` varchar(512) DEFAULT NULL,
-                  `endpoint` varchar(512) DEFAULT NULL,
-                  `region` varchar(64) DEFAULT NULL,
-                  `status` tinyint NOT NULL DEFAULT 1,
-                  `remark` varchar(512) DEFAULT NULL,
-                  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                  PRIMARY KEY (`id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
+        // 结构前置断言：sys_file_config 来自 sql/V001__mars_base_schema_and_seed.sql 基线。
+        // 这里以前是 CREATE TABLE IF NOT EXISTS，会在结构缺失时静默补表、掩盖漂移；
+        // 现在结构不对就直接失败，不允许测试自愈。
+        TestSchemaAssertions.of(jdbcTemplate).assertDriftProneBaseline();
     }
 
     @Test

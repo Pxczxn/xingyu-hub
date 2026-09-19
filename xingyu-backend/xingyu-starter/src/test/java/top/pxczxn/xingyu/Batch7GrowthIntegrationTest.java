@@ -44,7 +44,9 @@ class Batch7GrowthIntegrationTest {
     @BeforeEach
     void setUp() {
         CommunityTestSupport.ensureRegistrationOpen(configGroupService);
-        CommunityTestSupport.ensureGrowthSchema(jdbcTemplate);
+        // 结构前置断言：featured_content / community_api_token 由 V031 迁移提供。
+        // 以前这里调用 ensureGrowthSchema 静默建表，现改为只读断言，结构不对即失败。
+        TestSchemaAssertions.of(jdbcTemplate).assertDriftProneBaseline();
     }
 
     @Test

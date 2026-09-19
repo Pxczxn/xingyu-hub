@@ -1,16 +1,30 @@
 package top.pxczxn.xingyu;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
 /**
- * 集成测试辅助：确保社区注册开关处于开启状态。
+ * 集成测试辅助：只负责"测试数据/配置 fixture"，<b>不负责 schema</b>。
+ *
+ * <p>本类曾经承担过 schema 自愈职责（{@code ensureGrowthSchema} / {@code ensureSocialGapSchema}
+ * 用精简 DDL 建表、再用裸 {@code ALTER TABLE} 补列）。那段历史留下了一处真实事故：
+ * 测试代码抢先落地的精简表让后续迁移的建表语句（{@code IF NOT EXISTS} 形式）全部退化成空操作，
+ * 索引与注释永久缺失，而迁移台账仍显示"已应用"——即"测试全绿但结构已偏离 baseline"。
+ *
+ * <p>因此约定：<b>测试源码不得包含任何 schema 修改语句</b>。结构是否正确由
+ * {@link TestSchemaAssertions} 以只读方式断言，结构不对就失败，绝不自动修表。
+ * 该约定由 {@code TestSourceSchemaMutationGuardTest} 静态扫描强制保证，防止被重新写回。
  */
 final class CommunityTestSupport {
 
     private CommunityTestSupport() {
     }
 
+    /**
+     * 确保社区注册/登录开关处于测试所需状态。
+     *
+     * <p>这是<b>测试配置 fixture</b>，操作的是 {@code sys_config_group} 的业务数据，
+     * 不涉及 schema，因此继续保留。
+     */
     static void ensureRegistrationOpen(SysConfigGroupService configGroupService) {
         configGroupService.saveConfig(
                 "register",
@@ -19,110 +33,5 @@ final class CommunityTestSupport {
                 "login",
                 "{\"captchaEnabled\":false,\"captchaType\":\"image\",\"maxRetryCount\":5,\"lockTime\":30,\"rememberMe\":true,\"singleLogin\":false}");
         configGroupService.refreshCache();
-    }
-
-    static void ensureGrowthSchema(JdbcTemplate jdbcTemplate) {
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS `featured_content` (
-                  `id` varchar(36) NOT NULL,
-                  `object_type` varchar(32) NOT NULL,
-                  `object_id` varchar(36) NOT NULL,
-                  `sort_order` int NOT NULL DEFAULT 0,
-                  `status` varchar(32) NOT NULL DEFAULT 'ACTIVE',
-                  `created_at` timestamp NOT NULL,
-                  PRIMARY KEY (`id`),
-                  UNIQUE KEY `uk_featured_content_object` (`object_type`,`object_id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS `community_api_token` (
-                  `id` varchar(36) NOT NULL,
-                  `user_id` varchar(36) NOT NULL,
-                  `name` varchar(128) NOT NULL,
-                  `token_prefix` varchar(16) NOT NULL,
-                  `token_hash` varchar(64) NOT NULL,
-                  `scopes` varchar(256) NOT NULL,
-                  `status` varchar(32) NOT NULL DEFAULT 'ACTIVE',
-                  `last_used_at` timestamp NULL,
-                  `created_at` timestamp NOT NULL,
-                  `revoked_at` timestamp NULL,
-                  PRIMARY KEY (`id`),
-                  UNIQUE KEY `uk_community_api_token_hash` (`token_hash`),
-                  KEY `idx_community_api_token_user` (`user_id`,`status`,`created_at`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
-    }
-
-    static void ensureSocialGapSchema(JdbcTemplate jdbcTemplate) {
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS `user_block` (
-                  `id` varchar(36) NOT NULL,
-                  `blocker_id` varchar(36) NOT NULL,
-                  `blocked_id` varchar(36) NOT NULL,
-                  `created_at` timestamp NOT NULL,
-                  PRIMARY KEY (`id`),
-                  UNIQUE KEY `uk_user_block` (`blocker_id`,`blocked_id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS `series_subscription` (
-                  `id` varchar(36) NOT NULL,
-                  `user_id` varchar(36) NOT NULL,
-                  `series_id` varchar(36) NOT NULL,
-                  `created_at` timestamp NOT NULL,
-                  PRIMARY KEY (`id`),
-                  UNIQUE KEY `uk_series_subscription` (`user_id`,`series_id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS `report_supplement` (
-                  `id` varchar(36) NOT NULL,
-                  `report_id` varchar(36) NOT NULL,
-                  `author_id` varchar(36) NOT NULL,
-                  `body` text NOT NULL,
-                  `created_at` timestamp NOT NULL,
-                  PRIMARY KEY (`id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS `galaxy_join_request` (
-                  `id` varchar(36) NOT NULL,
-                  `galaxy_id` varchar(36) NOT NULL,
-                  `user_id` varchar(36) NOT NULL,
-                  `message` varchar(512) DEFAULT NULL,
-                  `status` varchar(32) NOT NULL DEFAULT 'PENDING',
-                  `created_at` timestamp NOT NULL,
-                  `resolved_at` timestamp NULL,
-                  PRIMARY KEY (`id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS `event_registration` (
-                  `id` varchar(36) NOT NULL,
-                  `event_id` varchar(36) NOT NULL,
-                  `user_id` varchar(36) NOT NULL,
-                  `status` varchar(32) NOT NULL DEFAULT 'REGISTERED',
-                  `created_at` timestamp NOT NULL,
-                  `cancelled_at` timestamp NULL,
-                  PRIMARY KEY (`id`),
-                  UNIQUE KEY `uk_event_registration` (`event_id`,`user_id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
-        try {
-            jdbcTemplate.execute("""
-                    ALTER TABLE `galaxy`
-                      ADD COLUMN `join_mode` varchar(32) NOT NULL DEFAULT 'OPEN' AFTER `official`
-                    """);
-        } catch (Exception ignored) {
-            // column may already exist
-        }
-        try {
-            jdbcTemplate.execute("""
-                    ALTER TABLE `chat_message`
-                      ADD COLUMN `recalled_at` timestamp NULL DEFAULT NULL AFTER `created_at`
-                    """);
-        } catch (Exception ignored) {
-            // column may already exist
-        }
     }
 }

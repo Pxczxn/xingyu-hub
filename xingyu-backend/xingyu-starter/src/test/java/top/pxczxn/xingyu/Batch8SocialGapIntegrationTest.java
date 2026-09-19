@@ -43,7 +43,10 @@ class Batch8SocialGapIntegrationTest {
     @BeforeEach
     void setUp() {
         CommunityTestSupport.ensureRegistrationOpen(configGroupService);
-        CommunityTestSupport.ensureSocialGapSchema(jdbcTemplate);
+        // 结构前置断言：user_block / series_subscription / report_supplement / galaxy_join_request
+        // 由 V033 迁移提供（event_registration 见 V035）。以前这里调用 ensureSocialGapSchema
+        // 静默建表并裸 ALTER 补列，现改为只读断言，结构不对即失败。
+        TestSchemaAssertions.of(jdbcTemplate).assertDriftProneBaseline();
     }
 
     @Test
