@@ -277,7 +277,7 @@ checksum 由测试自己按文件字节算出来，保证与被测代码同口�
 
 ---
 
-## W5 — 先在 dev 副本验证完整闭环（**5A 已预演，5B 未做**）
+## W5 — dev 副本闭环验证（**5A / 5B 均已完成**）
 
 **目标**：在真实 dev 之前，用一份 dev 副本把"补录 + 应用启动"整条链路走通。
 
@@ -309,18 +309,32 @@ mysql -e "DROP DATABASE xingyu_hub_recon_probe;"
 | 5 | `applied_at` | 全部等于本次 reconciliation 时间，**无一条早于当天** |
 | 6 | 脚本退出码 | 0，且四个 `POST_*` 标记全部达标 |
 
-> **本轮已提前预演（2026-09-19 16:40:32）**：以上 6 项全部通过，随后探针库已删除。
-> 正式验收运行时**重跑一遍**即可（副本可由上面 3 条命令随时重建）。
+> **已正式执行（2026-09-19 21:06 前后，探针库事后已销毁）**：以上 6 项全部通过。
+
+**实测结果**
+
+| # | 项 | 实测 |
+|---|---|---|
+| 1 | 副本台账行数 | `24 → 42` ✅ |
+| 2 | 新增行 status | 18 条全部 `RECONCILED` ✅ |
+| 3 | 原 24 行 | 消失行数 **0**、新增行数 **18**；`version/checksum/status/applied_at` 逐字节未变 ✅ |
+| 4 | 结构指纹 | 前后完全一致（`3a6e6f03cdceded6…`）✅ |
+| 5 | `applied_at` | 18 条共 **1 个**去重值 = 本次 reconciliation 时刻；早于当天的行数 **0** ✅ |
+| 6 | 脚本退出码 / 标记 | 退出码 0；`APPLY_OK=1 SAME_CONNECTION=1 LOCK_OWNED_BY_US=1 POST_TOTAL=42 POST_RECONCILED=18 POST_ORIG_BAD=0 POST_EXTRA=0 RELEASED=1` ✅ |
+| 7 | 业务数据指纹（附加） | 115 张表逐表行数指纹前后完全一致 ✅ |
 
 ### 5B：副本上启用 `SchemaMigrator` 的应用启动验证
 
 **前置**：W3 必须已完成（见 §1 危险点）。
 
 ```bash
-# 在副本库上临时启用迁移开关，指向副本
+# 在副本库上临时启用迁移开关，指向副本（7779 被 dev 后端占用，故用 7780）
 xingyu.schema.migration.enabled=true
 spring.datasource.url=jdbc:mysql://127.0.0.1:3306/xingyu_hub_recon_probe
-# 启动应用（注意宿主注入的 SERVER__PORT 会覆盖 server.port，需显式传参）
+# 启动应用（宿主注入的 SERVER__PORT 会覆盖 server.port，需 env -u + 显式传参）
+java -jar xingyu-starter/target/xingyu-starter-1.0.0.jar \
+  --spring.profiles.active=dev --server.port=7780 --server.address=0.0.0.0 \
+  --xingyu.schema.migration.enabled=true '--spring.datasource.url=…xingyu_hub_recon_probe…'
 ```
 
 **验收标准**
@@ -328,19 +342,38 @@ spring.datasource.url=jdbc:mysql://127.0.0.1:3306/xingyu_hub_recon_probe
 | # | 项 | 期望 |
 |---|---|---|
 | 1 | 启动结果 | 应用**正常启动**（无 `Checksum mismatch` / `Unknown migration status` / `previously failed`） |
-| 2 | 000–041 全部识别为已满足 | 日志出现 42 条 skip：23 条 `skipped schema version …`（原 SUCCESS 的 000–020/026/027 共 23 条）+ 18 条 `skipped reconciled schema version …` + 041 的 skip |
+| 2 | 000–041 全部识别为已满足 | 日志 42 条 skip：**24** 条 `skipped schema version …`（`000–020`、`026`、`027`、`041`）+ **18** 条 `skipped reconciled schema version …` |
 | 3 | **不执行任何历史 DDL/DML** | 无 `applied schema version …` 日志；`schema_migration` 无任何 INSERT/UPDATE（行数仍 42、`applied_at` 未变） |
 | 4 | schema 指纹 | 启动前后**完全不变** |
-| 5 | data 指纹 | 启动前后**完全不变**（建议用 `CHECKSUM TABLE` + 行数逐表比对） |
-| 6 | 反证（可选但强烈建议） | 临时把副本台账某行 checksum 改错 → 启动必须 fail-fast 报 `Checksum mismatch`；把某行 status 改成 `PENDING` → 启动必须 fail-fast 报 `Unknown migration status` |
+| 5 | data 指纹 | 启动前后**完全不变**（115 张表逐表行数指纹） |
+| 6 | 反证 A | 把副本台账某行 checksum 改错 → 启动必须 fail-fast 报 `Checksum mismatch` |
+| 7 | 反证 B | 把某行 status 改成 `PENDING` → 启动必须 fail-fast 报 `Unknown migration status` |
 
-> 期望日志样例：
+**实测结果**
+
+| # | 项 | 实测 |
+|---|---|---|
+| 1 | 启动结果 | `Started XingyuHubApplication in 20.208 seconds`，0 条 ERROR ✅ |
+| 2 | skip 计数 | `skipped schema version` = **24**、`skipped reconciled schema version` = **18**（合计 42）✅ |
+| 3 | 未执行迁移 | `applied schema version` = **0** ✅ |
+| 4 | ledger | 42 → 42，**逐字节不变**；`applied_at` 逐字节不变 ✅ |
+| 5 | schema 指纹 | 前后完全一致 ✅ |
+| 6 | 业务数据指纹 | 115 张表逐表行数前后完全一致 ✅ |
+| 7 | `001` legacy 映射 | 按预期打出 `命中 legacy checksum 兼容映射` 警告后 skip（未放宽校验）✅ |
+| 8 | **反证 A（错 checksum）** | `IllegalStateException: Checksum mismatch for migration 029`；进程退出码 **1**；台账未被改动 ✅ |
+| 9 | **反证 B（PENDING）** | `IllegalStateException: Unknown migration status 'PENDING' for version 029`；进程退出码 **1**；该行**没有**被改写成 `FAILED`（`FAILED` 行数 0）✅ |
+
+> 期望日志样例（实测一致）：
 > ```
-> skipped reconciled schema version 029
-> skipped reconciled schema version 031
+> WARN  schema version 001 命中 legacy checksum 兼容映射（…），视为同一历史迁移
+> INFO  skipped schema version 020
+> INFO  skipped reconciled schema version 021
 > …
-> skipped schema version 041
+> INFO  skipped reconciled schema version 040
+> INFO  skipped schema version 041
 > ```
+>
+> **收尾**：探针库已 `DROP`；真实 dev 台账仍为 24 行 / 0 条 `RECONCILED`，结构指纹仍等于基线。
 
 ---
 
@@ -357,9 +390,10 @@ spring.datasource.url=jdbc:mysql://127.0.0.1:3306/xingyu_hub_recon_probe
 
 **验收标准**
 
-- [x] 真实 dev 台账仍为 **24 行**、**0 条** `RECONCILED`（本轮已复核）
-- [x] 除 `xingyu_hub` / `xingyu_hub_test` 外无遗留探针库（本轮已删除 `xingyu_hub_recon_probe`）
-- [ ] 汇报内容包含：W1/W3/W5 的实际结果、W5 的指纹前后值、下一步待确认项
+- [x] 真实 dev 台账仍为 **24 行**、**0 条** `RECONCILED`（W5 前后逐字节一致，结构指纹仍等于基线）
+- [x] 除 `xingyu_hub` / `xingyu_hub_test` 外无遗留探针库（`xingyu_hub_recon_probe` 已 `DROP`）
+- [x] 汇报内容包含：W1/W3/W5 的实际结果、W5 的指纹前后值、下一步待确认项
+- [x] W1（`4ea9675`）与 W3（`ceeef9f`）已分别提交并推送到 `pxczxn` 远端
 
 ---
 
