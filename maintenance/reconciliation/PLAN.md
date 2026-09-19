@@ -431,3 +431,15 @@ WHERE status = 'RECONCILED'
 | B 类补偿关系被后续改动破坏 | B 类 4 个版本的语义不再等价 | 脚本第 7 道门槛断言 V041 = SUCCESS 且 checksum 正确 |
 | `V032` 被误认为"真的建了表" | 误判 V001 基线 | README §4 C 类已明确定性为 no-op；脚本第 8 道门槛断言 V001 形状 |
 | 台账出现 `RECONCILED` 但语义漂移 | 未来误信 | `RECONCILED` 语义写死为"最终语义经审计满足，执行未经证实"；B 类附 `historical migration missing; final semantics reconciled by V041` |
+| **`scripts/ci-apply-migrations.sh` 会重放全部迁移并覆盖台账** | 该脚本**无条件重放** `sql/V*.sql`，最后用 `ON DUPLICATE KEY UPDATE status='SUCCESS'` 写台账；且 `DB_NAME` 默认就是 `xingyu_hub`。对 dev 运行会重放历史迁移（禁止），并把 `RECONCILED` 静默改写成 `SUCCESS`（把审计推断伪装成执行事实） | **已加防护（本轮）**：目标台账含任何 `RECONCILED` 记录时，脚本在任何 SQL 之前拒绝执行（退出码 1）；目标为 `xingyu_hub` 时额外打印警告。实测：含 `RECONCILED` 的库被拒绝、无 `RECONCILED` 的库正常放行 |
+| 其它入口误把 dev 当新库重建 | 全量 DROP/重建会丢失 `RECONCILED` 及其全部业务数据 | `sql/rebuild.ps1` 显式声明会 DROP dev；`sql/rebuild-test-db.sh` 强制目标必须严格等于 `xingyu_hub_test`，其余取值一律拒绝。两者均已有守卫 |
+
+### 台账写入入口盘点（2026-09-19）
+
+| 入口 | 目标库 | 是否重放迁移 | 台账写入 | 结论 |
+|---|---|---|---|---|
+| `SchemaMigrator` | 配置决定 | 仅执行**未登记**版本 | `SUCCESS` / `FAILED` | 已按 W3 改造；`RECONCILED` 只 skip，不覆盖 |
+| `maintenance/reconciliation/backfill-missing-ledger.sh` | 严格 `xingyu_hub`（或受限探针库） | **从不** | 单事务插入 18 行 `RECONCILED`，禁用 ODKU | 本轮新增 |
+| `scripts/ci-apply-migrations.sh` | 默认 `xingyu_hub` ⚠️ | **全部重放** | ODKU `status='SUCCESS'` | **已加 `RECONCILED` 防护 + dev 警告** |
+| `sql/rebuild-test-db.sh` | 强制 `xingyu_hub_test` | 全部重放（预期） | ODKU `status='SUCCESS'` | 守卫完备，无需改 |
+| `sql/rebuild.ps1` | 仅 `xingyu_hub`（显式 DROP） | 全部重放（预期） | ODKU `status='SUCCESS'` | 显式破坏性操作，无需改 |
