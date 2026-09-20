@@ -397,7 +397,7 @@ java -jar xingyu-starter/target/xingyu-starter-1.0.0.jar \
 
 ---
 
-## 附录 A：真实 dev backfill 的执行清单（**待确认后才执行**）
+## 附录 A：真实 dev backfill 的执行清单（**已于 2026-09-20 执行完毕**）
 
 1. 确认 W3 已完成并通过测试（否则见 §1 危险点）。
 2. 停 **7779 业务服务**（避免应用并发写库）；**MySQL 保持运行**——补录脚本要连库，且 `GET_LOCK` 语义依赖同一实例。
@@ -406,6 +406,22 @@ java -jar xingyu-starter/target/xingyu-starter-1.0.0.jar \
 5. `bash maintenance/reconciliation/backfill-missing-ledger.sh --apply`。
 6. 独立复核：台账 42 行、18 条 `RECONCILED`、原 24 行逐字段未变、结构指纹不变。
 7. 备份文件保留到确认稳定后再清理。
+
+### 执行记录（2026-09-20）
+
+| # | 步骤 | 实测 |
+|---|---|---|
+| 2 | 7779 业务服务 | 执行时**未在监听**（天然满足）；MySQL 3306 正常 |
+| 3 | 备份 | `.tmp-xingyu_hub_before_reconciliation_20260920-170556.sql`，3,553,332 bytes，sha256 `4aaff880fd60e463…`；含 116 条 `CREATE TABLE` 与 `schema_migration` 数据 |
+| 4 | dry-run | 7 道门槛全绿、退出码 0、未写入任何数据 |
+| 5 | `--apply` | `APPLY_OK=1 SAME_CONNECTION=1 LOCK_OWNED_BY_US=1 POST_TOTAL=42 POST_RECONCILED=18 POST_ORIG_BAD=0 POST_EXTRA=0 RELEASED=1`，退出码 0 |
+| 6 | 独立复核 | 台账 24 → **42**；`RECONCILED` **18** 条；原有 24 行消失 **0**、新增 **18**；结构指纹**不变**；业务数据指纹**不变**；`applied_at` 早于当天 **0** 条、去重值 **1** 个（`2026-09-20 17:07:33`）；18 条新记录的 checksum 与文件 LF SHA-256 **18/18 一致** |
+| 6b | 与 fresh 对齐 | dev 与 fresh 登记的版本集合**完全相同**（`000–041`，各 42 行）；dev 状态分布 `SUCCESS: 24 / RECONCILED: 18` |
+| 6c | 未触碰项确认 | `001`（legacy `63a670b7…`）、`020`、`026`、`027`、`041` 的 checksum / status / `applied_at` **逐字节未变** |
+| 7 | 备份保留 | 备份文件仍在，待确认稳定后再清理 |
+
+> **注意**：本步骤只补台账，**未执行任何历史 migration 的 DDL/DML**。
+> 补录后结构指纹仍等于基线 `3a6e6f03…`，即 schema 与补录前完全一致。
 
 ## 附录 B：回滚
 
