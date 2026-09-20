@@ -1,9 +1,12 @@
 # Ledger reconciliation 实施与验证规划
 
-> 目标：**进入 ledger reconciliation 实施准备阶段，但暂不修改真实 dev ledger。**
+> **状态：CLOSED（2026-09-20）** —— 全部工作流已完成：dev 台账补录 18 条 `RECONCILED`（24 → 42 行），
+> 并以真实 dev 启动应用完成验收（**42/42 skip**、`applied schema version` = 0、台账/schema/业务数据前后不变）。
+> 见附录 A（补录执行记录）与附录 D（启动验收记录）。
+>
 > 范围：dev 库 `xingyu_hub` 台账缺失的 18 个版本（`021–025`、`028–040`）。
 > 本规划覆盖 6 个工作流（W1–W6），每个工作流给出 **目标 / 约束 / 验收标准**。
-> 日期：2026-09-19
+> 日期：2026-09-19 起，2026-09-20 关闭。
 
 ---
 
@@ -459,3 +462,79 @@ WHERE status = 'RECONCILED'
 | `scripts/ci-apply-migrations.sh` | **必须显式提供，硬拒绝 `xingyu_hub`** | 全部重放（仅限 fresh 库） | 普通 `INSERT`（无 ODKU） | **已改造为 fresh-only** |
 | `sql/rebuild-test-db.sh` | 强制 `xingyu_hub_test` | 全部重放（预期） | ODKU `status='SUCCESS'` | 守卫完备，无需改 |
 | `sql/rebuild.ps1` | 仅 `xingyu_hub`（显式 DROP） | 全部重放（预期） | ODKU `status='SUCCESS'` | 显式破坏性操作，无需改 |
+
+---
+
+## 附录 D：真实 dev 启动验收（2026-09-20，42/42 skip）
+
+**目的**：确认补录后，以真实 `xingyu_hub` 启动一次**普通 Web 应用**（`XingyuHubApplication`，
+**不是** Bootstrap CLI），在 `xingyu.schema.migration.enabled=true` 下 `000–041` 全部被识别为已满足、
+**不执行任何历史 DDL/DML**。
+
+**约束**：全程未修改任何 migration、未修改台账数据、未执行 maintenance backfill。
+
+### 启动前四项基线
+
+| # | 项 | 值 |
+|---|---|---|
+| ① | `schema_migration` 42 行完整快照 | 行数 42，整表 sha256 `f6c57596e4bee12b7c361bfe9b93c7a4…` |
+| ② | 18 条 `RECONCILED` 逐字段 | checksum / status / `applied_at`（全部 `2026-09-20 17:07:33`） |
+| ③ | schema 指纹 | `3a6e6f03cdceded634e0c308b6881203…`（1592 行） |
+| ④ | 业务数据行数指纹（115 张表） | `a4af71570b260e1e5e0437a84c8113c2…` |
+
+### 启动参数
+
+```
+--spring.profiles.active=dev  --server.port=7780  --server.address=0.0.0.0
+--xingyu.schema.migration.enabled=true
+```
+
+### 验收结果
+
+| 项 | 期望 | 实测 |
+|---|---|---|
+| 应用启动 | 正常 | `Started XingyuHubApplication in 12.658 seconds`；全日志 ERROR = **0** |
+| 普通 skip | 24 | **24** |
+| `skipped reconciled schema version` | 18 | **18**（`021–025`、`028–040` 逐条） |
+| skip 合计 | 42 | **42**（SchemaMigrator 日志 43 行 = 42 skip + 1 legacy warn） |
+| `applied schema version` | 0 | **0** |
+| `Checksum mismatch` | 0 | **0** |
+| `Unknown migration status` | 0 | **0** |
+| `previously failed` | 0 | **0** |
+| `001` legacy 兼容 | 命中并 skip | `命中 legacy checksum 兼容映射（…63a670b7… → …8633753c…），视为同一历史迁移` |
+| 7780 HTTP | 正常响应 | `/` → 200；`/druid/index.html` → 302；`/api/v1/appeals` → 405 + `application/json`；`/api/auth/login` → 404 + `application/json` |
+
+> 澄清：全日志中另有 20 处 `FAILED` 字样，全部来自定时任务轮询
+> `reliable_event WHERE status IN ('PENDING','FAILED')` 的 SQL，与 SchemaMigrator 无关。
+
+### 停止后比对
+
+| 项 | 结果 |
+|---|---|
+| ① ledger | 42 → 42，**逐字节完全一致**（sha256 仍 `f6c57596…`） |
+| ② 18 条 `RECONCILED` | checksum / status / applied_at **逐字段不变** |
+| ③ 原 24 条 | **逐字段不变** |
+| ④ schema 指纹 | **不变** |
+| ⑤ 业务数据行数指纹 | 仅 `sys_api_access_log` 28614 → 28622（+8） |
+
+> ⑤ 的 8 行来自**本次验收自身的 8 次 HTTP 探测**（19:31:10–19:31:43，`api_path` 可逐条对上）。
+> `sys_api_access_log` 由 **V001** 创建、**不在 18 个补录版本内**，其表结构也未变。
+> 即 **migration 涉及的业务表零变化**；⑤ 是"HTTP 验收"动作自身的访问日志副作用。
+
+### 验收后恢复
+
+恢复开发后端 `--spring.profiles.active=dev --server.port=7779`，**不显式开启 migration**，
+沿用 dev 默认 `enabled=false`。实测 `SchemaMigrator` 日志 **0 行**（bean 未创建）、`/` → 200、7780 已释放。
+
+---
+
+## 附录 E：CLOSED
+
+**ledger reconciliation 已于 2026-09-20 正式关闭。** 关闭判据：
+
+1. dev 台账 `000–041` 全量登记（42 行 = `SUCCESS` 24 + `RECONCILED` 18），与 fresh 版本集合完全一致。
+2. 真实 dev 启动验收通过：**42/42 全部 skip**，`applied schema version` = 0，无 mismatch / 无 unknown status / 无 FAILED。
+3. 台账、schema、migration 涉及的业务数据在验收前后**完全不变**。
+4. 台账写入入口已全部收口（见附录 C 盘点）。
+
+**不再继续扩展迁移基础设施审计。** 回滚方式见附录 B。
