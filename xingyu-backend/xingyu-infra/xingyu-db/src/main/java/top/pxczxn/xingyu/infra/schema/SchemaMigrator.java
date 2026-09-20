@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,6 +28,8 @@ import java.util.stream.Stream;
         name = "xingyu.schema.migration.enabled",
         havingValue = "true",
         matchIfMissing = true)
+// 必须早于其它 ApplicationRunner：后续启动逻辑（含默认口令守卫）都依赖 schema 已就绪。
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class SchemaMigrator implements ApplicationRunner {
 
     private static final Pattern VERSION_PATTERN = Pattern.compile("V(\\d+)__.*\\.sql");
@@ -120,12 +124,31 @@ public class SchemaMigrator implements ApplicationRunner {
                         throw new IllegalStateException("Checksum mismatch for migration " + version);
                     }
                 }
-                if ("SUCCESS".equals(statuses.get(0))) {
-                    log.info("skipped schema version {}", version);
-                    return;
-                }
-                if ("FAILED".equals(statuses.get(0))) {
-                    throw new IllegalStateException("Migration " + version + " previously failed");
+                // checksum 校验**先于**状态短路判断：否则"RECONCILED + 错 checksum"会被静默放过。
+                //
+                // 状态语义（三种，缺一不可）：
+                //   SUCCESS    —— 该迁移确实被完整执行且未报错。
+                //   RECONCILED —— 台账补偿记账：该迁移的**最终语义**经审计确认已满足
+                //                 （dev 与 fresh 结构 0 diff + 关键 DML 后置条件成立），
+                //                 但历史执行本身未经证实（原始 ledger 记录缺失，binlog 为 ROW 格式
+                //                 无法还原 SQL 文本）。因此它**不是** SUCCESS 的同义词。
+                //   FAILED     —— 曾经执行失败，必须人工处置。
+                //
+                // 其余任何取值一律 fail-fast：未知状态绝不允许进入锁、执行迁移，
+                // 更不能落进下面的 catch 分支被改写成 FAILED（那会把审计结论污染成失败事实）。
+                switch (statuses.get(0)) {
+                    case "SUCCESS" -> {
+                        log.info("skipped schema version {}", version);
+                        return;
+                    }
+                    case "RECONCILED" -> {
+                        log.info("skipped reconciled schema version {}", version);
+                        return;
+                    }
+                    case "FAILED" -> throw new IllegalStateException(
+                            "Migration " + version + " previously failed");
+                    default -> throw new IllegalStateException(
+                            "Unknown migration status '" + statuses.get(0) + "' for version " + version);
                 }
             }
         }
@@ -154,13 +177,20 @@ public class SchemaMigrator implements ApplicationRunner {
         }
     }
 
+    /**
+     * 判断 schema_migration 台账表是否存在。
+     *
+     * <p>刻意<b>不</b>捕获异常：只有"表确实不存在"才返回 false（进入首次迁移路径）。
+     * 数据库连接失败、权限不足、SQL 语法/执行错误等任何其它异常都必须直接向上抛出
+     * 让应用 fail-fast —— 否则会被误判成"这是个新库"，从而在新库路径上重复执行
+     * 已应用的迁移，或在真正的故障下静默继续启动。
+     */
     private boolean migrationTableExists() {
-        try {
-            jdbcTemplate.queryForObject("SELECT COUNT(*) FROM schema_migration", Integer.class);
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.TABLES "
+                        + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schema_migration'",
+                Integer.class);
+        return count != null && count > 0;
     }
 
     private boolean tryLock() {

@@ -1,107 +1,151 @@
 # ============================================================
-# 原则：只提交项目源码 + 正式插图；其余忽略
+# 星语 xingyu-hub .gitignore
 #
-# 插图 vs 原型图：只按路径判断（不看内容、不看代码是否引用）
-#
-# 插图路径（提交）：
-#   **/public/images/**  **/public/brand/**  **/src/assets/**  **/static/**
-# 原型路径（忽略）：
-#   **/.prototype-review/**  **/prototype-assets/**  **/prototype-specs/**
+# 原则：
+#   - 默认允许进入 Git：项目源码、正式文档(*.md)、正式脚本(scripts/)、
+#     测试代码、数据库 migration(sql/Vxxx__*.sql)、品牌/静态资源
+#     (**/public/images/**、**/public/brand/**、**/src/assets/**、**/static/**)
+#   - 只忽略：密钥/本地配置、构建产物、依赖、缓存、日志、运行时数据、
+#     数据库备份、IDE/OS 垃圾、AI 工具本地数据、原型 QA 临时文件
+#   - 不再使用 *.md / /scripts/* 这类过宽规则
+#   - 不忽略 .mvn/（Maven Wrapper 需提交）；不全局忽略 *.jar
+#   - 不忽略任何 *.sql（sql/Vxxx__*.sql 为正式迁移）
 # ============================================================
 
 
-# 依赖（凭 lock / pom 恢复）
+# ---------- 依赖（凭 lock / pom 恢复） ----------
 node_modules/
-.mvn/
+.npm/
+.yarn/
+.pnpm-store/
+# 注意：.mvn/ 不忽略，未来 Maven Wrapper 需要正常提交
 .gradle/
 
-# 构建产物（凭源码重新生成）
-target/
+
+# ---------- 构建产物（凭源码重新生成） ----------
 dist/
+dist-*/
 build/
 out/
 .next/
-.vinext/
-.wrangler/
+.nuxt/
+.output/
+.vite/
 .turbo/
-*.class
-*.war
 *.tsbuildinfo
 *.hprof
-*.jar
-!gradle/wrapper/gradle-wrapper.jar
+*.war
+*.ear
+*.class
+target/
+**/target/
+vite.config.ts.timestamp-*.mjs
 
-# 缓存与测试输出
+
+# ---------- 密钥与本地配置（P0） ----------
+.env
+.env.*
+*.env
+!.env.example
+application-local.yml
+application-*-local.yml
+application-secret.yml
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_dsa
+id_dsa.*
+id_ed25519
+id_ed25519.*
+*.ssh
+
+
+# ---------- 数据库备份（P1；禁止使用 *.sql） ----------
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+*.sql.zip
+*.sql.bak
+*_backup*.sql
+*_dump*.sql
+/database/data/
+/database/backup/
+
+
+# ---------- 运行时与临时文件 ----------
+/uploads/
+**/runtime/
+tmp/
+temp/
+*.tmp
+.tmp-*
+*.pid
+*.bak
+*.swp
+*.swo
+*~
+xingyu-backend/xingyu-starter/src/main/resources/static/
+
+
+# ---------- 缓存与测试输出 ----------
 .cache/
 coverage/
 playwright-report/
 test-results/
+reports/
 .eslintcache
 work/
 outputs/
 
-# 运行时与临时文件
-.run/
-runtime/
+
+# ---------- 日志 ----------
 logs/
-uploads/
-tmp/
-temp/
 *.log
-*.pid
-*.tmp
-# 会话内临时脚本/快照（.tmp- 前缀），避免误入库
-.tmp-*
 
-# 本地环境与密钥
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.p12
-*.jks
-application-secret.yml
 
-# 本地数据库文件
-*.db
-*.sqlite
-*.sqlite3
-database/data/
-database/backup/
-*.sql.gz
-
-# IDE
+# ---------- IDE ----------
 .idea/
 .vscode/
 *.iml
 .classpath
 .project
 .settings/
+.factorypath
 
-# AI / Agent 产出
-.agents/
+
+# ---------- 操作系统 ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+
+# ---------- AI / Agent 工具本地数据 ----------
 .agent/
-.codex/
+.agents/
 .claude/
 .cursor/
+.codex/
+.codex-mobile-audit/
 .reasonix/
 .workbuddy/
+.workbuddy-ai/
+.plan/
+.run/
 .ai/
 ai-notes/
 ai-output/
 rollout-*.jsonl
 .codex-*.png
 
-# 页面分析临时脚本与产出（个人 AI 流程，非项目资产）
-analyze-pages.py
-page-analysis.json
-page-summaries.txt
 
-# 本地验收截图（浏览器 smoke 证据，仅本地留存，不入库）
-/p1*-smoke*.png
-
-# 原型路径（忽略；与 public/images/、public/brand/ 插图路径无关）
+# ---------- 原型 / QA 临时资产（不波及正式品牌资源） ----------
 .prototype-review/
 prototype/
 prototypes/
@@ -110,31 +154,27 @@ prototype-assets/
 mockup/
 wireframe/
 figma/
-design/
+# 验收 / 测试截图（仅按命名匹配，不影响正式品牌/静态资源）
+/p1*-smoke*.png
+**/*-smoke*.png
+**/screenshots/**
+# 保护正式品牌 / 静态资源路径（即使上方截图规则命中也不忽略）
+!**/public/images/**
+!**/public/brand/**
+!**/src/assets/**
+!**/static/**
 
-# 开发资料（非项目源码）
-docs/
+
+# ---------- 本地资料（个人 AI 流程，非项目资产；docs/ 视为正式文档，不再忽略） ----------
+# doc/ 不锚定根，忽略任意层级的本地开发资料目录；/docs/ 为正式文档目录，不忽略
 doc/
-*.md
-!/README.md
+/qa/
+/tools/
+/ui+layout/
+analyze-pages.py
+page-analysis.json
+page-summaries.txt
 
-# 个人 QA / AI 分析脚本
-qa/
-tools/
 
-# 根目录开发脚本（/ 锚定仓库根；xingyu-admin/scripts/ 由 package.json 引用，不受影响）
-/scripts/
-!/scripts/ci-apply-migrations.sh
-
-# 页面布局规格（开发资料）
-ui+layout/
-
-# 项目专属生成目录
-mars-admin/
-xingyu-backend/xingyu-starter/src/main/resources/static/
+# ---------- 项目专属生成目录 ----------
 xingyu-uniapp/unpackage/
-
-# 操作系统
-.DS_Store
-Thumbs.db
-Desktop.ini

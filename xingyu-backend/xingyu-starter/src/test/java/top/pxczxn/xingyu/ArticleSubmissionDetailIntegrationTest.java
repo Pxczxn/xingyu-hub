@@ -43,7 +43,10 @@ class ArticleSubmissionDetailIntegrationTest {
     @BeforeEach
     void setUp() {
         CommunityTestSupport.ensureRegistrationOpen(configGroupService);
-        ensureCoverUrlColumns();
+        // 结构前置断言：working_draft.cover_url / formal_revision.cover_url 由 V040 迁移提供。
+        // 这里以前是 ALTER TABLE ADD COLUMN 自愈补列，会在结构缺失时静默补上、掩盖漂移；
+        // 现在结构不对就直接失败，不允许测试自愈。
+        TestSchemaAssertions.of(jdbcTemplate).assertDriftProneBaseline();
     }
 
     @Test
@@ -106,25 +109,5 @@ class ArticleSubmissionDetailIntegrationTest {
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.title").value("提交审核测试"))
                 .andExpect(jsonPath("$.coverUrl").value("/api/v1/admin/files/community/messages/test.png"));
-    }
-
-    private void ensureCoverUrlColumns() {
-        addColumnIfMissing("working_draft", "cover_url", "varchar(1024) DEFAULT NULL COMMENT '封面图 URL'");
-        addColumnIfMissing("formal_revision", "cover_url", "varchar(1024) DEFAULT NULL COMMENT '封面图 URL'");
-    }
-
-    private void addColumnIfMissing(String table, String column, String definition) {
-        Integer count = jdbcTemplate.queryForObject(
-                """
-                        SELECT COUNT(*) FROM information_schema.COLUMNS
-                        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
-                        """,
-                Integer.class,
-                table,
-                column);
-        if (count != null && count > 0) {
-            return;
-        }
-        jdbcTemplate.execute("ALTER TABLE `" + table + "` ADD COLUMN `" + column + "` " + definition + " AFTER `summary`");
     }
 }

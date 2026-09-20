@@ -41,7 +41,7 @@
 *.scss text
 *.less text
 
-*.sql text
+*.sql text eol=lf
 *.sh text eol=lf
 *.ps1 text eol=lf
 
