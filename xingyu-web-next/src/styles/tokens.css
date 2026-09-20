@@ -1,0 +1,45 @@
+/*
+ * Design tokens for Xingyu Web V2.
+ * Source: docs/design-system/MASTER.md (confirmed brand baseline).
+ *
+ * Brand:
+ *   Navy   #1A2138  -> primary text, navigation, headings, primary buttons
+ *   Cream  #F9F7F2  -> page background, shell canvas
+ *   Gold   #F59E0B  -> CTAs, active nav, highlights, save/publish accents
+ *
+ * All component colors MUST reference these semantic CSS variables.
+ * No raw hex values are allowed in components.
+ */
+:root {
+  /* raw brand references (for documentation / one-off needs) */
+  --brand-navy: #1a2138;
+  --brand-cream: #f9f7f2;
+  --brand-gold: #f59e0b;
+
+  /* semantic tokens (HSL channels, consumed via hsl(var(--x))) */
+  --background: 44 33% 96%; /* cream */
+  --foreground: 226 37% 16%; /* navy */
+
+  --card: 0 0% 100%; /* white surface on cream */
+  --card-foreground: 226 37% 16%;
+
+  --muted: 40 14% 91%;
+  --muted-foreground: 226 12% 38%;
+
+  --primary: 226 37% 16%; /* navy */
+  --primary-foreground: 44 33% 96%; /* cream on navy */
+
+  --accent: 38 92% 50%; /* gold */
+  --accent-foreground: 226 37% 16%; /* navy on gold for contrast */
+
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 40 14% 87%;
+  --input: 40 14% 87%;
+  --ring: 38 92% 50%; /* gold focus ring */
+
+  --radius: 0.5rem;
+}
+
+/* Dark shell is out of scope for Phase 0; keep a single light theme. */
