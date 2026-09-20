@@ -12,7 +12,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   // While the session is being restored we must not redirect prematurely.
-  if (status === "idle" || status === "loading") {
+  if (status === "initializing") {
     return <div role="status" aria-live="polite" data-testid="auth-guard-loading">正在加载…</div>;
   }
 

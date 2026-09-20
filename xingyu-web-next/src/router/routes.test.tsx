@@ -1,9 +1,52 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { AppRoutes } from "@/router/routes";
 import { AppProviders } from "@/app/providers/AppProviders";
 import { buildRedirectPath, LEGACY_REDIRECTS } from "@/router/redirects";
+
+/*
+ * Route smoke tests render the real pages, so the network layer is mocked.
+ * This keeps assertions deterministic (no act() warnings from async fetches).
+ */
+vi.mock("@/api/home/home.api", () => ({
+  homeApi: {
+    getGuestHome: vi.fn(async () => ({
+      unreadNotifications: 0,
+      continueReading: [],
+      followingUpdates: [],
+      discoveries: [],
+    })),
+    getMyHome: vi.fn(async () => ({
+      continueReading: [],
+      followUpdates: [],
+      recommendations: [],
+      draftArticles: [],
+      pendingActions: [],
+    })),
+    getAnnouncements: vi.fn(async () => []),
+  },
+}));
+
+vi.mock("@/api/topics/topics.api", () => ({
+  topicsApi: {
+    getTopics: vi.fn(async () => []),
+    getTopic: vi.fn(async () => ({ id: "1", slug: "demo", name: "演示话题" })),
+    getTopicContent: vi.fn(async () => []),
+    getTopicCreators: vi.fn(async () => []),
+    followTopic: vi.fn(async () => undefined),
+    unfollowTopic: vi.fn(async () => undefined),
+  },
+}));
+
+vi.mock("@/api/discover/discover.api", () => ({
+  discoverApi: {
+    getDiscoverNav: vi.fn(async () => ({ mode: "official", domainTabs: [], sortTabs: [] })),
+    getExploreFeed: vi.fn(async () => []),
+    getDiscover: vi.fn(async () => ({ items: [], total: 0 })),
+    search: vi.fn(async () => ({ items: [], total: 0 })),
+  },
+}));
 
 /**
  * Router smoke tests: every Phase 0 route resolves, the 404 fallback works,
@@ -94,5 +137,48 @@ describe("legacy redirect table", () => {
 
   it("encodes param values", () => {
     expect(buildRedirectPath("/u/:username", { username: "a b" })).toBe("/u/a%20b");
+  });
+});
+
+describe("phase 1A routes", () => {
+  it("renders the discover page at /discover", async () => {
+    renderAt("/discover");
+    expect(screen.getByRole("heading", { name: "发现" })).toBeInTheDocument();
+    // Wait for the (mocked, empty) feed so no state update lands after the test.
+    await waitFor(() => expect(screen.getByTestId("page-state-empty")).toBeInTheDocument());
+  });
+
+  it("renders the search page at /search", () => {
+    renderAt("/search");
+    expect(screen.getByRole("search")).toBeInTheDocument();
+  });
+
+  it("renders the topics plaza at /topics", async () => {
+    renderAt("/topics");
+    expect(screen.getByRole("heading", { name: "话题广场" })).toBeInTheDocument();
+    // Wait for the (mocked, empty) topics request so no state update lands after the test.
+    await waitFor(() => expect(screen.getByTestId("page-state-empty")).toBeInTheDocument());
+  });
+
+  it("renders topic detail at /topics/:slug", async () => {
+    renderAt("/topics/demo");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "演示话题" })).toBeInTheDocument();
+    });
+  });
+
+  it("renders the register page at /register", () => {
+    renderAt("/register");
+    expect(screen.getByRole("heading", { name: "注册星语" })).toBeInTheDocument();
+  });
+
+  it("renders the forgot-password page", () => {
+    renderAt("/forgot-password");
+    expect(screen.getByRole("heading", { name: "找回密码" })).toBeInTheDocument();
+  });
+
+  it("renders the pending-audit page", () => {
+    renderAt("/register/pending-audit?registered=1");
+    expect(screen.getByRole("heading", { name: "注册已提交" })).toBeInTheDocument();
   });
 });

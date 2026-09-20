@@ -1,21 +1,20 @@
 import { Link, Outlet } from "react-router-dom";
+import { Compass, Hash, Home, LogOut, PenLine, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
 
 /*
  * App shell for Web V2.
- * Follows docs/design-system/MASTER.md "Shell": global nav, centre search,
- * 创作 -> /studio, notification/message placeholders, avatar -> profile or login.
- * All navigation uses React Router <Link> (no Next.js shim, no Legacy custom router).
+ * Follows docs/design-system/MASTER.md "Shell": global nav, search,
+ * 创作 -> /studio, user entry -> profile. Navigation uses React Router <Link>.
+ * Icons come from lucide-react (no emoji used as real icons).
+ * Message/notification panels are deliberately NOT implemented this round.
  */
 
 const NAV_ITEMS = [
-  { label: "首页", to: "/" },
-  { label: "发现", to: "/discover" },
-  { label: "话题", to: "/topics" },
-  { label: "系列", to: "/series" },
-  { label: "星系", to: "/galaxies" },
-  { label: "指南", to: "/guide" },
+  { label: "首页", to: "/", icon: Home },
+  { label: "发现", to: "/discover", icon: Compass },
+  { label: "话题", to: "/topics", icon: Hash },
 ];
 
 export function AppLayout() {
@@ -30,49 +29,40 @@ export function AppLayout() {
           </Link>
 
           <nav aria-label="主导航" className="hidden items-center gap-1 md:flex">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors",
-                  "hover:bg-muted hover:text-foreground",
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors",
+                    "hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4" aria-hidden />
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
 
-          <div className="mx-auto hidden max-w-sm flex-1 lg:block">
-            {/* Phase 0 placeholder: search is not wired to any API yet. */}
+          <form action="/search" method="get" className="mx-auto hidden max-w-sm flex-1 lg:block">
             <input
               type="search"
+              name="q"
               placeholder="搜索文章、话题、用户"
               aria-label="搜索"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-          </div>
+          </form>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* Notification & message placeholders (not implemented in Phase 0). */}
-            <span
-              aria-hidden
-              className="hidden rounded-md px-2 py-2 text-sm text-muted-foreground sm:inline"
-            >
-              通知
-            </span>
-            <span
-              aria-hidden
-              className="hidden rounded-md px-2 py-2 text-sm text-muted-foreground sm:inline"
-            >
-              消息
-            </span>
-
             <Link
               to="/studio"
-              className="hidden rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 sm:inline-flex"
+              className="hidden items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 sm:inline-flex"
             >
+              <PenLine className="h-4 w-4" aria-hidden />
               创作
             </Link>
 
@@ -81,26 +71,33 @@ export function AppLayout() {
                 {user?.username ? (
                   <Link
                     to={`/u/${user.username}`}
-                    className="rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
+                    className="flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
                   >
+                    <UserIcon className="h-4 w-4" aria-hidden />
                     {user.username}
                   </Link>
                 ) : null}
                 <button
                   type="button"
                   onClick={() => void logout()}
-                  className="rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
+                  <LogOut className="h-4 w-4" aria-hidden />
                   退出
                 </button>
               </div>
             ) : (
-              <Link
-                to="/login"
-                className="rounded-md px-3 py-2 text-sm text-primary hover:bg-muted"
-              >
-                登录
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link to="/login" className="rounded-md px-3 py-2 text-sm text-primary hover:bg-muted">
+                  登录
+                </Link>
+                <Link
+                  to="/register"
+                  className="rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted"
+                >
+                  注册
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -112,7 +109,7 @@ export function AppLayout() {
 
       <footer className="border-t border-border">
         <div className="content-shell py-4 text-xs text-muted-foreground">
-          星语 · Web V2 Phase 0 地基
+          星语 · Web V2 Phase 1A
         </div>
       </footer>
     </div>

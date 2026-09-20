@@ -1,11 +1,11 @@
 /*
- * Auth store (Phase 0 — infrastructure only; no register / forgot-password /
- * reset-password / force-change-password / verify-email yet).
+ * Auth store (Phase 1A) — the single auth infrastructure for Web V2.
+ * Pages must read auth state from here, never from localStorage directly.
  *
- * Responsibilities:
- *  - hold the current MeAccount and auth status
- *  - restore a session on boot if a token is already stored
- *  - expose login() / logout() that persist the sa-token via api/client.ts
+ * Status model:
+ *   initializing  — session restore still in flight
+ *   authenticated — token present and /api/v1/me resolved
+ *   unauthenticated — no token, or restore failed
  */
 import {
   createContext,
@@ -18,57 +18,66 @@ import {
   type ReactNode,
 } from "react";
 import { authApi } from "@/api/auth/auth.api";
-import type { LoginPayload, MeAccount } from "@/api/auth/auth.types";
+import type { LoginPayload, LoginResult, MeAccount } from "@/api/auth/auth.types";
 import { getStoredToken, setStoredToken } from "@/lib/storage";
 
-export type AuthStatus = "idle" | "loading" | "authenticated" | "anonymous";
+export type AuthStatus = "initializing" | "authenticated" | "unauthenticated";
 
 type AuthContextValue = {
-  user: MeAccount | null;
   status: AuthStatus;
+  user: MeAccount | null;
+  token: string | null;
   isAuthenticated: boolean;
-  login: (payload: LoginPayload) => Promise<MeAccount>;
+  login: (payload: LoginPayload) => Promise<LoginResult>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<MeAccount | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<MeAccount | null>(null);
-  const [status, setStatus] = useState<AuthStatus>("idle");
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
+  const [status, setStatus] = useState<AuthStatus>("initializing");
 
-  // Restore session if a token already exists.
+  // Restore session on boot when a token is already stored.
   useEffect(() => {
     let active = true;
-    if (!getStoredToken()) {
-      setStatus("anonymous");
+    const stored = getStoredToken();
+    if (!stored) {
+      setToken(null);
+      setStatus("unauthenticated");
       return;
     }
-    setStatus("loading");
+    setStatus("initializing");
     authApi
       .getMe()
       .then((me) => {
         if (!active) return;
         setUser(me);
+        setToken(getStoredToken());
         setStatus("authenticated");
       })
       .catch(() => {
         if (!active) return;
         setStoredToken(null);
         setUser(null);
-        setStatus("anonymous");
+        setToken(null);
+        setStatus("unauthenticated");
       });
     return () => {
       active = false;
     };
   }, []);
 
-  const login = useCallback(async (payload: LoginPayload): Promise<MeAccount> => {
-    await authApi.login(payload); // stores the sa-token via api/client.ts
+  const login = useCallback(async (payload: LoginPayload): Promise<LoginResult> => {
+    // api/client.ts persists the sa-token from the response header or body.
+    const result = await authApi.login(payload);
     const me = await authApi.getMe();
     setUser(me);
+    setToken(getStoredToken());
     setStatus("authenticated");
-    return me;
+    return result;
   }, []);
 
   const logout = useCallback(async (): Promise<void> => {
@@ -77,19 +86,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setStoredToken(null);
       setUser(null);
-      setStatus("anonymous");
+      setToken(null);
+      setStatus("unauthenticated");
+    }
+  }, []);
+
+  const refreshUser = useCallback(async (): Promise<MeAccount | null> => {
+    try {
+      const me = await authApi.getMe();
+      setUser(me);
+      setStatus("authenticated");
+      return me;
+    } catch {
+      return null;
     }
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user,
       status,
+      user,
+      token,
       isAuthenticated: status === "authenticated" && user !== null,
       login,
       logout,
+      refreshUser,
     }),
-    [user, status, login, logout],
+    [status, user, token, login, logout, refreshUser],
   );
 
   // NOTE: this file stays .ts (per the agreed structure), so we use
