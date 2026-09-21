@@ -34,6 +34,8 @@ type ArticleEditorBodyProps = {
   onModeChange: (mode: ArticleBodyMode, nextBody: string) => void;
   onControllerChange?: (controller: ArticleEditorBodyController | null) => void;
   onUploadError?: (message: string) => void;
+  /** Rich-text only: fires once after mount with the serializer's canonical markdown. */
+  onRichTextSettle?: (markdown: string) => void;
 };
 
 type LinkOverlayState = {
@@ -100,6 +102,7 @@ export function ArticleEditorBody({
   onModeChange,
   onControllerChange,
   onUploadError,
+  onRichTextSettle,
 }: ArticleEditorBodyProps) {
   const controllerRef = useRef<ArticleEditorBodyController | null>(null);
   const formatUnsubRef = useRef<(() => void) | null>(null);
@@ -228,6 +231,7 @@ export function ArticleEditorBody({
             onUploadError={onUploadError}
             onRegister={registerController}
             onUploadingChange={setUploading}
+            onSettle={onRichTextSettle}
           />
         )}
       </EditorField>

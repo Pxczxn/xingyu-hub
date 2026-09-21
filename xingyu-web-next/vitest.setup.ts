@@ -1,6 +1,20 @@
 import "@testing-library/jest-dom/vitest";
-import { afterEach } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { afterEach, vi } from "vitest";
+import { cleanup, configure } from "@testing-library/react";
+
+/*
+ * Raise Testing Library's async-utility budget.
+ *
+ * Phase 1C-1 made /articles/:articleId and /studio/content/:articleId route-level
+ * `lazy()` chunks. In the test environment those chunks are transformed on demand
+ * — the article chunk carries micromark/remark/rehype/turndown, the editor chunk
+ * carries Milkdown/Crepe/CodeMirror. Under a 30-file parallel run that transform
+ * can exceed the 1000 ms default, so `findBy*` intermittently observed the
+ * Suspense fallback and failed ("Unable to find role=heading"), even though the
+ * route works. That was a flaky-test defect in the 1C-1 test setup, not a product
+ * bug: the assertion still fails if the element never appears.
+ */
+configure({ asyncUtilTimeout: 5000 });
 
 /*
  * jsdom does not implement IntersectionObserver. Milkdown's code-block node
@@ -72,4 +86,10 @@ afterEach(() => {
   cleanup();
   // Reset persisted auth between tests.
   if (typeof localStorage !== "undefined") localStorage.clear();
+  /*
+   * Safety net: a test that enables fake timers and then times out can skip its
+   * own `finally { useRealTimers() }`, which would deadlock every later test in
+   * the file (Testing Library polls with timers). Always restore.
+   */
+  vi.useRealTimers();
 });

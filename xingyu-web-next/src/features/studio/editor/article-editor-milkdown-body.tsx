@@ -57,6 +57,19 @@ type ArticleEditorMilkdownBodyProps = {
   onUploadError?: (message: string) => void;
   onRegister?: (controller: ArticleEditorBodyController | null) => void;
   onUploadingChange?: (uploading: boolean) => void;
+  /**
+   * Fired ONCE, right after the editor mounts, with the markdown the ProseMirror
+   * serializer produces for the loaded document.
+   *
+   * Mounting a rich-text document is lossy in the harmless direction: the
+   * serializer re-escapes plain-text specials (`[` -> `\[`, `_` -> `\_`), so the
+   * first `markdownUpdated` differs from the stored body even though the user has
+   * not typed anything. Without this signal the page would treat that
+   * normalization as a user edit and open every RICH_TEXT draft already dirty.
+   * The page uses it to adopt the normalized body into BOTH the fields and the
+   * clean baseline.
+   */
+  onSettle?: (markdown: string) => void;
 };
 
 function MilkdownEditorInner({
@@ -66,12 +79,14 @@ function MilkdownEditorInner({
   onUploadError,
   onRegister,
   onUploadingChange,
+  onSettle,
 }: ArticleEditorMilkdownBodyProps) {
   const crepeRef = useRef<Crepe | null>(null);
   const editorReadyRef = useRef(false);
   const onChangeRef = useRef(onChange);
   const onUploadErrorRef = useRef(onUploadError);
   const onUploadingChangeRef = useRef(onUploadingChange);
+  const onSettleRef = useRef(onSettle);
   const valueRef = useRef(value);
   const initialValueRef = useRef(ensureCanonicalMarkdownBody(value));
   const formatListenersRef = useRef(new Set<(state: EditorFormatState) => void>());
@@ -81,6 +96,7 @@ function MilkdownEditorInner({
   onChangeRef.current = onChange;
   onUploadErrorRef.current = onUploadError;
   onUploadingChangeRef.current = onUploadingChange;
+  onSettleRef.current = onSettle;
   valueRef.current = value;
 
   const readMarkdownSnapshot = useCallback(() => {
@@ -142,6 +158,14 @@ function MilkdownEditorInner({
         listener.mounted((ctx) => {
           editorReadyRef.current = true;
           notifyUi(ctx);
+          // Report the serializer's canonical markdown once so the page can treat
+          // mount-time normalization as part of loading, not as a user edit.
+          try {
+            onSettleRef.current?.(ensureCanonicalMarkdownBody(crepe.getMarkdown()));
+          } catch {
+            // The editor may not be serialisable this early; markdownUpdated will
+            // still deliver the canonical value.
+          }
         });
         listener.selectionUpdated((ctx) => {
           if (!editorReadyRef.current) return;

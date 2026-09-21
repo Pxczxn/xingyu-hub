@@ -123,8 +123,12 @@ describe("router", () => {
 
   it("renders the real article page at /articles/:articleId", async () => {
     renderAt("/articles/abc-123");
-    expect(await screen.findByRole("heading", { name: "路由测试文章" })).toBeInTheDocument();
-  });
+    // Phase 1C-1 made this a route-level lazy chunk; the on-demand transform of
+    // the Markdown reading pipeline needs a real budget in the test environment.
+    expect(
+      await screen.findByRole("heading", { name: "路由测试文章" }, { timeout: 15000 }),
+    ).toBeInTheDocument();
+  }, 30000);
 
   it("renders the real public profile at /u/:username", async () => {
     renderAt("/u/tester");

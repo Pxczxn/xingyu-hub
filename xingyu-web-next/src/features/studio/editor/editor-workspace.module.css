@@ -22,6 +22,7 @@
 .editorPage {
   --xy-editor-toolbar-h: 52px;
   --xy-editor-outline-w: 160px;
+  --xy-editor-settings-w: 300px;
   --xy-editor-canvas-w: 90%;
   min-height: 100vh;
   scrollbar-gutter: stable;
@@ -87,6 +88,24 @@
   box-sizing: border-box;
 }
 
+/* Save pipeline status (Phase 1C-2). Legacy rules restored, colours tokenised. */
+.toolbarStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.toolbarStatus.isSaved {
+  color: hsl(var(--muted-foreground));
+}
+
+.toolbarStatus.isError {
+  color: hsl(var(--destructive));
+}
+
 .devNotice {
   display: flex;
   align-items: center;
@@ -101,7 +120,7 @@
 
 .shell {
   display: grid;
-  grid-template-columns: var(--xy-editor-outline-w) minmax(0, 1fr);
+  grid-template-columns: var(--xy-editor-outline-w) minmax(0, 1fr) var(--xy-editor-settings-w);
   min-height: calc(100vh - var(--xy-editor-toolbar-h));
 }
 
@@ -925,4 +944,176 @@ textarea.bodySurface {
 
 :global(.xy-editor-milkdown .milkdown .milkdown-code-block .milkdown-code-block-placeholder) {
   color: var(--xy-editor-pre-color);
+}
+
+/*
+ * Settings panel (Phase 1C-2) — Legacy `.settings*` block, tokenised.
+ * Only the sections this round actually persists are styled here; the Legacy
+ * cover / schedule / trash rules are not migrated with their controls.
+ */
+.settings {
+  position: sticky;
+  top: var(--xy-editor-toolbar-h);
+  align-self: start;
+  display: grid;
+  gap: 0.75rem;
+  width: var(--xy-editor-settings-w);
+  max-height: calc(100vh - var(--xy-editor-toolbar-h));
+  padding: 1rem 0.875rem 1.5rem;
+  overflow-y: auto;
+  border-left: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+}
+
+.settingsCard {
+  padding: 0.875rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+}
+
+.settingsCard h2 {
+  margin: 0 0 0.75rem;
+  color: hsl(var(--foreground));
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.settingsGroup + .settingsGroup {
+  margin-top: 0.875rem;
+}
+
+.settingsSubhead {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.5rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+.settingsHint {
+  margin: 0 0 0.625rem;
+  color: hsl(var(--muted-foreground) / 0.8);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
+.settingsPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.settingsPills button {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--muted) / 0.5);
+  color: hsl(var(--muted-foreground));
+  font-size: 0.6875rem;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  cursor: pointer;
+}
+
+.settingsPills button:hover {
+  border-color: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.settingsPills button.isActive {
+  border-color: hsl(var(--accent));
+  background: hsl(var(--accent) / 0.2);
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+/*
+ * Unsaved-changes dialog. React Router's useBlocker only reports a pending
+ * navigation; the app renders the confirmation itself (see editor-leave-guard).
+ */
+.leaveGuard {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: hsl(var(--foreground) / 0.4);
+}
+
+.leaveGuardCard {
+  width: min(24rem, 100%);
+  padding: 1.25rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 18px 40px hsl(var(--foreground) / 0.2);
+}
+
+.leaveGuardCard h2 {
+  margin: 0 0 0.5rem;
+  color: hsl(var(--foreground));
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.leaveGuardCard p {
+  margin: 0 0 1rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.leaveGuardActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Legacy responsive behaviour for the three-column shell. */
+@media (max-width: 1100px) {
+  .shell {
+    grid-template-columns: var(--xy-editor-outline-w) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .settings {
+    position: static;
+    grid-column: 1 / -1;
+    width: 100%;
+    max-height: none;
+    border-left: 0;
+    border-top: 1px solid hsl(var(--border));
+  }
+}
+
+@media (max-width: 768px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .outline {
+    display: none;
+  }
+  .toolbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  .toolbarTitle {
+    display: none;
+  }
+  .main {
+    padding: 1.25rem 1rem 4.5rem;
+  }
+  .titleInput {
+    font-size: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbarBack,
+  .outlineItem,
+  .settingsPills button {
+    transition: none;
+  }
 }
