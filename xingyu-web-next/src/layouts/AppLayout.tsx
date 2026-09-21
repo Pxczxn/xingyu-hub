@@ -68,15 +68,15 @@ export function AppLayout() {
 
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
-                {user?.username ? (
-                  <Link
-                    to={`/u/${user.username}`}
-                    className="flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
-                  >
-                    <UserIcon className="h-4 w-4" aria-hidden />
-                    {user.username}
-                  </Link>
-                ) : null}
+                {/* /api/v1/me does not expose a username, so link to /me, which
+                    resolves the real username via /api/v1/me/profile. Never hardcode. */}
+                <Link
+                  to="/me"
+                  className="flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
+                >
+                  <UserIcon className="h-4 w-4" aria-hidden />
+                  {user?.username ?? "我的主页"}
+                </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}

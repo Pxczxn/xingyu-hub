@@ -42,9 +42,47 @@ vi.mock("@/api/topics/topics.api", () => ({
 vi.mock("@/api/discover/discover.api", () => ({
   discoverApi: {
     getDiscoverNav: vi.fn(async () => ({ mode: "official", domainTabs: [], sortTabs: [] })),
-    getExploreFeed: vi.fn(async () => []),
     getDiscover: vi.fn(async () => ({ items: [], total: 0 })),
     search: vi.fn(async () => ({ items: [], total: 0 })),
+  },
+}));
+
+// Phase 1B: /articles/:id and /u/:username are now real pages.
+vi.mock("@/api/articles/articles.api", () => ({
+  articlesApi: {
+    getArticle: vi.fn(async () => ({
+      id: "abc-123",
+      title: "路由测试文章",
+      summary: null,
+      body: "正文",
+      slug: null,
+      visibility: "PUBLIC",
+      spaceSlug: "default",
+      ownerUsername: "tester",
+      publishedAt: null,
+      owner: false,
+    })),
+  },
+}));
+
+vi.mock("@/api/users/users.api", () => ({
+  usersApi: {
+    getProfile: vi.fn(async () => ({ username: "tester", displayName: "Tester", owner: false })),
+    getUserWorks: vi.fn(async () => ({ username: "tester", spaceSlug: "default", owner: false, categories: [], works: [] })),
+    followUser: vi.fn(),
+    unfollowUser: vi.fn(),
+    getMyProfile: vi.fn(),
+  },
+}));
+
+vi.mock("@/api/interactions/interactions.api", () => ({
+  interactionsApi: {
+    getLikeStatus: vi.fn(async () => ({ liked: false })),
+    getLikeCount: vi.fn(async () => ({ count: 0 })),
+    like: vi.fn(),
+    unlike: vi.fn(),
+    getComments: vi.fn(async () => []),
+    createComment: vi.fn(),
   },
 }));
 
@@ -83,14 +121,21 @@ describe("router", () => {
     expect(screen.getByLabelText("密码")).toBeInTheDocument();
   });
 
-  it("renders the article host and exposes :articleId", () => {
+  it("renders the real article page at /articles/:articleId", async () => {
     renderAt("/articles/abc-123");
-    expect(screen.getByText("abc-123")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "路由测试文章" })).toBeInTheDocument();
   });
 
-  it("renders the profile host and exposes :username", () => {
+  it("renders the real public profile at /u/:username", async () => {
     renderAt("/u/tester");
-    expect(screen.getByText("tester")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Tester" })).toBeInTheDocument();
+  });
+
+  it("sends guests from /me to login", async () => {
+    renderAt("/me");
+    await waitFor(() => {
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/login");
+    });
   });
 
   it("renders the 404 fallback for unknown paths", () => {

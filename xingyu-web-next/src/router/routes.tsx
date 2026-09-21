@@ -15,6 +15,7 @@ import { TopicsPage } from "@/features/topics/pages/TopicsPage";
 import { TopicDetailPage } from "@/features/topics/pages/TopicDetailPage";
 import { ArticleDetailPage } from "@/features/article/pages/ArticleDetailPage";
 import { UserProfilePage } from "@/features/profile/pages/UserProfilePage";
+import { MeRedirectPage } from "@/features/profile/pages/MeRedirectPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { RequireAuth } from "./guards";
@@ -40,9 +41,11 @@ export function AppRoutes() {
         <Route path="/topics" element={<TopicsPage />} />
         <Route path="/topics/:slug" element={<TopicDetailPage />} />
 
-        {/* Phase 0 route hosts — intentionally not expanded this round. */}
+        {/* Phase 1B: real article + public profile */}
         <Route path="/articles/:articleId" element={<ArticleDetailPage />} />
         <Route path="/u/:username" element={<UserProfilePage />} />
+        {/* /me is only an entry point to the current user's own profile. */}
+        <Route path="/me" element={<MeRedirectPage />} />
         <Route
           path="/studio"
           element={

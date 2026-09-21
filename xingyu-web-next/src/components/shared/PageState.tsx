@@ -15,11 +15,18 @@ const CONTENT: Record<PageStateKind, { title: string; hint: string }> = {
 export function PageState({
   kind,
   className,
+  title,
+  description,
 }: {
   kind: PageStateKind;
   className?: string;
+  /** Optional overrides so feature pages can explain their own state. */
+  title?: string;
+  description?: string;
 }) {
-  const { title, hint } = CONTENT[kind];
+  const fallback = CONTENT[kind];
+  const heading = title ?? fallback.title;
+  const hint = description ?? fallback.hint;
   return (
     <div
       role={kind === "error" ? "alert" : "status"}
@@ -27,7 +34,7 @@ export function PageState({
       data-testid={`page-state-${kind}`}
       className={cn("rounded-lg border border-border bg-card p-6 text-center", className)}
     >
-      <p className="text-sm font-medium text-foreground">{title}</p>
+      <p className="text-sm font-medium text-foreground">{heading}</p>
       {hint ? <p className="mt-1 text-sm text-muted-foreground">{hint}</p> : null}
     </div>
   );
