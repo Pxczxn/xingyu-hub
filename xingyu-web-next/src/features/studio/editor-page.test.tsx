@@ -33,6 +33,8 @@ vi.mock("@/api/articles/articles.api", () => ({
     createDraft: vi.fn(),
     getDraft: vi.fn(),
     saveDraft: vi.fn(),
+    submitForReview: vi.fn(),
+    getMyArticleStatus: vi.fn(async () => "DRAFT"),
   },
 }));
 
@@ -50,6 +52,8 @@ vi.mock("@/api/topics/topics.api", () => ({
 const getDraftMock = vi.mocked(articlesApi.getDraft);
 const createDraftMock = vi.mocked(articlesApi.createDraft);
 const saveDraftMock = vi.mocked(articlesApi.saveDraft);
+const submitForReviewMock = vi.mocked(articlesApi.submitForReview);
+const getMyArticleStatusMock = vi.mocked(articlesApi.getMyArticleStatus);
 const getTopicsMock = vi.mocked(topicsApi.getTopics);
 
 const DRAFT_ID = "draft-1";
@@ -159,6 +163,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   getDraftMock.mockResolvedValue(draftFixture());
   saveDraftMock.mockResolvedValue(draftFixture({ lockVersion: 4 }));
+  submitForReviewMock.mockResolvedValue({ submissionId: "sub-1" });
+  getMyArticleStatusMock.mockResolvedValue("DRAFT");
   getTopicsMock.mockResolvedValue(TOPICS);
 });
 
@@ -883,13 +889,251 @@ describe("unsaved-changes protection", () => {
   });
 });
 
-describe("scope guards", () => {
-  it("exposes no publish / review / trash control and no schedule or revision UI", async () => {
+describe("submit for review (the real creator-side lifecycle action)", () => {
+  /*
+   * The backend has no creator-facing publish endpoint, so the action under test
+   * is POST /api/v1/me/articles/{id}/submit -> DRAFT becomes IN_REVIEW. Nothing
+   * here may claim the article is published.
+   */
+  function submitButton() {
+    return screen.getByRole("button", { name: "提交审核" });
+  }
+
+  async function confirmSubmit() {
+    const dialog = await screen.findByRole("alertdialog", { name: "确认提交审核" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "确认提交" }));
+    return dialog;
+  }
+
+  it("asks for confirmation before submitting", async () => {
     await renderLoaded();
 
-    expect(screen.queryByRole("button", { name: /发布|提交审核|回收站|删除草稿/ })).toBeNull();
+    fireEvent.click(submitButton());
+
+    const dialog = await screen.findByRole("alertdialog", { name: "确认提交审核" });
+    expect(within(dialog).getByText(/审核期间不可再编辑/)).toBeInTheDocument();
+    // Nothing is sent until the user confirms.
+    expect(submitForReviewMock).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "取消" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog", { name: "确认提交审核" })).toBeNull(),
+    );
+    expect(submitForReviewMock).not.toHaveBeenCalled();
+  });
+
+  it("submits a CLEAN draft directly, without an extra save", async () => {
+    await renderLoaded();
+
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    await waitFor(() => expect(submitForReviewMock).toHaveBeenCalledTimes(1));
+    expect(submitForReviewMock).toHaveBeenCalledWith(DRAFT_ID);
+    expect(saveDraftMock).not.toHaveBeenCalled();
+    expect(createDraftMock).not.toHaveBeenCalled();
+  });
+
+  it("saves first when the draft is dirty, then submits", async () => {
+    await renderLoaded();
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "提交前的修改" } });
+
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    await waitFor(() => expect(submitForReviewMock).toHaveBeenCalledTimes(1));
+    expect(saveDraftMock).toHaveBeenCalledTimes(1);
+    expect(saveDraftMock.mock.calls[0][1].title).toBe("提交前的修改");
+    // Save must land before submit — never submit a stale body.
+    expect(saveDraftMock.mock.invocationCallOrder[0]).toBeLessThan(
+      submitForReviewMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not submit when the pre-submit save fails", async () => {
+    saveDraftMock.mockRejectedValueOnce(problem(500, "保存炸了"));
+    const { container } = await renderLoaded();
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "不会被提交" } });
+
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    expect(await screen.findByText("保存炸了")).toBeInTheDocument();
+    expect(submitForReviewMock).not.toHaveBeenCalled();
+    // Local content and page are intact.
+    expect(screen.getByLabelText("标题")).toHaveValue("不会被提交");
+    expect(bodyTextarea(container)).toHaveValue(DRAFT_BODY);
+    expect(screen.getByRole("button", { name: "提交审核" })).toBeEnabled();
+  });
+
+  it("blocks submit until the local validation passes (mirrors the backend rule)", async () => {
+    getDraftMock.mockResolvedValue(draftFixture({ title: null, body: null }));
+    await renderLoaded();
+
+    fireEvent.click(submitButton());
+
+    expect(await screen.findByText("提交审核前必须填写标题")).toBeInTheDocument();
+    expect(submitForReviewMock).not.toHaveBeenCalled();
+    // No confirmation dialog is opened for an invalid draft.
+    expect(screen.queryByRole("alertdialog", { name: "确认提交审核" })).toBeNull();
+  });
+
+  it("shows a submitting state and ignores duplicate clicks", async () => {
+    const pending = deferred<{ submissionId: string }>();
+    submitForReviewMock.mockReturnValue(pending.promise);
+    await renderLoaded();
+
+    fireEvent.click(submitButton());
+    const dialog = await confirmSubmit();
+
+    const toolbarSubmit = () => document.querySelector<HTMLButtonElement>("[data-editor-submit]");
+    expect(await within(dialog).findByRole("button", { name: "提交中…" })).toBeDisabled();
+    expect(toolbarSubmit()).toBeDisabled();
+    expect(toolbarSubmit()?.textContent).toContain("提交中…");
+
+    // Duplicate clicks must not fire a second request.
+    fireEvent.click(toolbarSubmit() as HTMLButtonElement);
+    fireEvent.click(within(dialog).getByRole("button", { name: "提交中…" }));
+    expect(submitForReviewMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      pending.resolve({ submissionId: "sub-9" });
+    });
+    expect(await screen.findByRole("button", { name: "已提交审核" })).toBeInTheDocument();
+  });
+
+  it("keeps the editor usable when the submit request fails, and allows a retry", async () => {
+    submitForReviewMock.mockRejectedValueOnce(problem(500, "提交炸了"));
+    const { container } = await renderLoaded();
+    const before = bodyTextarea(container).value;
+
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    expect(await screen.findByText("提交炸了")).toBeInTheDocument();
+    expect(screen.getByTestId("path")).toHaveTextContent(`/studio/content/${DRAFT_ID}`);
+    expect(bodyTextarea(container)).toHaveValue(before);
+    expect(screen.getByRole("button", { name: "提交审核" })).toBeEnabled();
+
+    submitForReviewMock.mockResolvedValue({ submissionId: "sub-2" });
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+    await waitFor(() => expect(submitForReviewMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("surfaces a 409 conflict (already under review) without leaving the page", async () => {
+    submitForReviewMock.mockRejectedValue(problem(409, "文章已在审核中", "CONFLICT"));
+    await renderLoaded();
+
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    expect(await screen.findByText("文章已在审核中")).toBeInTheDocument();
+    expect(screen.getByTestId("path")).toHaveTextContent(`/studio/content/${DRAFT_ID}`);
+    expect(screen.getByRole("toolbar", { name: "正文编辑工具" })).toBeInTheDocument();
+  });
+
+  it("on /new: create, save, then submit — in that order, one create only", async () => {
+    createDraftMock.mockResolvedValue(draftFixture({ articleId: "fresh-9", lockVersion: 0 }));
+    saveDraftMock.mockResolvedValue(draftFixture({ articleId: "fresh-9", lockVersion: 1 }));
+    submitForReviewMock.mockResolvedValue({ submissionId: "sub-3" });
+
+    const { container } = renderEditor(NEW_DRAFT_ROUTE_ID);
+    await screen.findByRole("toolbar", { name: "正文编辑工具" });
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "[WEB-V2 TEST] 新文章" } });
+    fireEvent.change(bodyTextarea(container), { target: { value: "# 新文章\n\n正文。\n" } });
+
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    await waitFor(() => expect(submitForReviewMock).toHaveBeenCalledWith("fresh-9"));
+    expect(createDraftMock).toHaveBeenCalledTimes(1);
+    expect(saveDraftMock).toHaveBeenCalledTimes(1);
+    expect(createDraftMock.mock.invocationCallOrder[0]).toBeLessThan(
+      saveDraftMock.mock.invocationCallOrder[0],
+    );
+    expect(saveDraftMock.mock.invocationCallOrder[0]).toBeLessThan(
+      submitForReviewMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("on /new: a failed create never reaches submit", async () => {
+    createDraftMock.mockRejectedValue(problem(500, "创建炸了"));
+    const { container } = renderEditor(NEW_DRAFT_ROUTE_ID);
+    await screen.findByRole("toolbar", { name: "正文编辑工具" });
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "[WEB-V2 TEST] 新文章" } });
+    fireEvent.change(bodyTextarea(container), { target: { value: "正文\n" } });
+
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    expect(await screen.findByText("创建炸了")).toBeInTheDocument();
+    expect(submitForReviewMock).not.toHaveBeenCalled();
+    expect(saveDraftMock).not.toHaveBeenCalled();
+    expect(bodyTextarea(container)).toHaveValue("正文\n");
+  });
+
+  it("after a successful submit the article is IN_REVIEW and no longer editable", async () => {
+    const { container } = await renderLoaded();
+
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    // Real lifecycle wording — never "已发布".
+    await waitFor(() =>
+      expect(container.querySelector("[data-editor-lifecycle='IN_REVIEW']")).not.toBeNull(),
+    );
+    expect(screen.getByRole("button", { name: "已提交审核" })).toBeDisabled();
+    expect(saveButton()).toBeDisabled();
+    // The backend rejects every save once IN_REVIEW, so the surface is read-only.
+    expect(bodyTextarea(container)).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("标题")).toHaveAttribute("readonly");
+    expect(within(settings()).getByRole("button", { name: "公开" })).toBeDisabled();
+    // There is no canonical public identifier to navigate to — the article 404s
+    // publicly until an admin approves it — so we stay on the editor.
+    expect(screen.getByTestId("path")).toHaveTextContent(`/studio/content/${DRAFT_ID}`);
+  });
+
+  it("opens an already-IN_REVIEW draft as read-only", async () => {
+    getMyArticleStatusMock.mockResolvedValue("IN_REVIEW");
+    const { container } = await renderLoaded();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "已提交审核" })).toBeInTheDocument(),
+    );
+    expect(bodyTextarea(container)).toHaveAttribute("readonly");
+    expect(saveButton()).toBeDisabled();
+    expect(container.querySelector("[data-editor-lifecycle='IN_REVIEW']")).not.toBeNull();
+  });
+
+  it("sends no lifecycle request until the user confirms", async () => {
+    await renderLoaded();
+
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "只改不提交" } });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(submitForReviewMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog", { name: "确认提交审核" })).toBeNull();
+  });
+});
+
+describe("scope guards", () => {
+  it("offers no publish / trash control and no schedule or revision UI", async () => {
+    await renderLoaded();
+
+    /*
+     * The real backend has NO creator-facing publish endpoint (POST/PUT
+     * /api/v1/me/articles/{id}/publish -> 404). A "发布" button would be a control
+     * that can never succeed, so it must not exist.
+     */
+    expect(screen.queryByRole("button", { name: /发布|回收站|删除草稿/ })).toBeNull();
     expect(screen.queryByText(/定时发布|版本历史/)).toBeNull();
-    // Manual save is the only write affordance.
+
+    // The creator-side lifecycle action that DOES exist is submit-for-review.
+    expect(screen.getByRole("button", { name: "提交审核" })).toBeInTheDocument();
+    // Manual save is the only other write affordance.
     expect(saveButton()).toBeInTheDocument();
   });
 });

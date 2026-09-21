@@ -53,6 +53,8 @@ import "@milkdown/crepe/theme/frame.css";
 type ArticleEditorMilkdownBodyProps = {
   value: string;
   previewEnabled?: boolean;
+  /** Phase 1C-3: IN_REVIEW drafts are not editable — the backend rejects saves. */
+  readOnly?: boolean;
   onChange: (value: string) => void;
   onUploadError?: (message: string) => void;
   onRegister?: (controller: ArticleEditorBodyController | null) => void;
@@ -75,6 +77,7 @@ type ArticleEditorMilkdownBodyProps = {
 function MilkdownEditorInner({
   value,
   previewEnabled = false,
+  readOnly = false,
   onChange,
   onUploadError,
   onRegister,
@@ -87,6 +90,7 @@ function MilkdownEditorInner({
   const onUploadErrorRef = useRef(onUploadError);
   const onUploadingChangeRef = useRef(onUploadingChange);
   const onSettleRef = useRef(onSettle);
+  const readOnlyRef = useRef(readOnly);
   const valueRef = useRef(value);
   const initialValueRef = useRef(ensureCanonicalMarkdownBody(value));
   const formatListenersRef = useRef(new Set<(state: EditorFormatState) => void>());
@@ -97,6 +101,7 @@ function MilkdownEditorInner({
   onUploadErrorRef.current = onUploadError;
   onUploadingChangeRef.current = onUploadingChange;
   onSettleRef.current = onSettle;
+  readOnlyRef.current = readOnly;
   valueRef.current = value;
 
   const readMarkdownSnapshot = useCallback(() => {
@@ -157,6 +162,13 @@ function MilkdownEditorInner({
         });
         listener.mounted((ctx) => {
           editorReadyRef.current = true;
+          // Apply the current read-only state to the freshly mounted editor.
+          try {
+            crepe.setReadonly(readOnlyRef.current);
+          } catch {
+            // Older/newer Crepe builds may not expose setReadonly; the toolbar and
+            // save button are disabled regardless.
+          }
           notifyUi(ctx);
           // Report the serializer's canonical markdown once so the page can treat
           // mount-time normalization as part of loading, not as a user edit.
@@ -192,6 +204,18 @@ function MilkdownEditorInner({
   );
 
   const [loading, getInstance] = useInstance();
+
+  // Keep the editor's read-only state in sync with the page (e.g. after submit).
+  useEffect(() => {
+    if (loading) return;
+    const crepe = crepeRef.current;
+    if (!crepe) return;
+    try {
+      crepe.setReadonly(readOnly);
+    } catch {
+      // See the mounted() listener — disabling the toolbar/save button still holds.
+    }
+  }, [readOnly, loading]);
 
   const uploadAndInsert = useCallback(
     async (file: File) => {
@@ -302,11 +326,13 @@ function MilkdownEditorInner({
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragging(false);
+    if (readOnly) return;
     const file = event.dataTransfer.files?.[0];
     if (file) void uploadAndInsert(file);
   }
 
   const previewMarkdown = ensureCanonicalMarkdownBody(value);
+  const dropDisabled = previewEnabled || readOnly;
 
   return (
     <div
@@ -316,22 +342,22 @@ function MilkdownEditorInner({
         previewEnabled && styles.isInlinePreview,
       )}
       onDragEnter={
-        previewEnabled
+        dropDisabled
           ? undefined
           : (event) => {
               event.preventDefault();
               setDragging(true);
             }
       }
-      onDragOver={previewEnabled ? undefined : (event) => event.preventDefault()}
+      onDragOver={dropDisabled ? undefined : (event) => event.preventDefault()}
       onDragLeave={
-        previewEnabled
+        dropDisabled
           ? undefined
           : (event) => {
               if (event.currentTarget === event.target) setDragging(false);
             }
       }
-      onDrop={previewEnabled ? undefined : handleDrop}
+      onDrop={dropDisabled ? undefined : handleDrop}
     >
       <div
         className={cn(

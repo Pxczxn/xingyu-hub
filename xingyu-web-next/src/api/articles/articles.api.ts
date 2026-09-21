@@ -20,7 +20,19 @@ import type {
   ArticleDetail,
   ArticleDraft,
   ArticleDraftSavePayload,
+  ArticleLifecycleStatus,
+  ArticleSubmission,
+  MyArticleSummary,
 } from "./articles.types";
+
+const LIFECYCLE_VALUES: ArticleLifecycleStatus[] = ["DRAFT", "IN_REVIEW", "PUBLISHED"];
+
+export function normalizeLifecycleStatus(value: string | null | undefined): ArticleLifecycleStatus {
+  const upper = (value ?? "").toUpperCase();
+  return (LIFECYCLE_VALUES as string[]).includes(upper)
+    ? (upper as ArticleLifecycleStatus)
+    : "DRAFT";
+}
 
 export const articlesApi = {
   getArticle: (articleId: string): Promise<ArticleDetail> =>
@@ -43,4 +55,29 @@ export const articlesApi = {
       method: "PUT",
       body: payload,
     }),
+
+  /**
+   * Submits the draft for review — the ONLY creator-facing lifecycle action.
+   * Returns the submission id, NOT a slug or an article identifier.
+   * Backend rejects with 409 when the article is already under review.
+   */
+  submitForReview: (articleId: string): Promise<ArticleSubmission> =>
+    apiRequest<ArticleSubmission>(
+      `/api/v1/me/articles/${encodeURIComponent(articleId)}/submit`,
+      { method: "POST" },
+    ),
+
+  /**
+   * Resolves one article's editorial status.
+   *
+   * The draft DTO (`WorkingDraftView`) deliberately does NOT carry status, so the
+   * owner list is the only contract source for it. This is a single-item status
+   * lookup, not a Studio content-list feature. Callers must treat a failure as
+   * "unknown" and fall back to DRAFT rather than blocking the editor.
+   */
+  getMyArticleStatus: async (articleId: string): Promise<ArticleLifecycleStatus | null> => {
+    const list = await apiRequest<MyArticleSummary[]>("/api/v1/me/articles");
+    const found = list.find((article) => article.id === articleId);
+    return found ? normalizeLifecycleStatus(found.status) : null;
+  },
 };

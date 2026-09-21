@@ -6,6 +6,7 @@ import {
   isDraftDirty,
   NEW_DRAFT_ROUTE_ID,
   toEditorDraftFields,
+  validateForReview,
   VISIBILITY_OPTIONS,
   type EditorDraftFields,
 } from "@/lib/article-editor-draft";
@@ -137,6 +138,29 @@ describe("buildDraftSavePayload", () => {
 
     fields.topicIds.push("t2");
     expect(payload.topicIds).toEqual(["t1"]);
+  });
+});
+
+describe("validateForReview", () => {
+  const valid = toEditorDraftFields(draft({ title: "标题", body: "正文", visibility: "PUBLIC" }));
+
+  it("accepts a draft that satisfies the backend rule", () => {
+    expect(validateForReview(valid)).toBeNull();
+  });
+
+  it("mirrors the backend messages verbatim", () => {
+    expect(validateForReview({ ...valid, title: "   " })).toBe("提交审核前必须填写标题");
+    expect(validateForReview({ ...valid, body: "" })).toBe("提交审核前必须填写正文");
+    expect(validateForReview({ ...valid, bodyMode: "" as never })).toBe(
+      "提交审核前必须选择正文模式",
+    );
+    expect(validateForReview({ ...valid, visibility: "" as never })).toBe(
+      "提交审核前必须设置可见性",
+    );
+  });
+
+  it("does NOT require summary, topics or category — the backend does not either", () => {
+    expect(validateForReview({ ...valid, summary: "", topicIds: [] })).toBeNull();
   });
 });
 

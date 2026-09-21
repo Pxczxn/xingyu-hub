@@ -82,6 +82,8 @@ vi.mock("@/api/articles/articles.api", () => ({
       scheduledPublishAt: null,
     })),
     saveDraft: vi.fn(),
+    submitForReview: vi.fn(async () => ({ submissionId: "sub-1" })),
+    getMyArticleStatus: vi.fn(async () => "DRAFT"),
   },
 }));
 

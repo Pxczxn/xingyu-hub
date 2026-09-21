@@ -106,3 +106,19 @@ export function buildDraftSavePayload(
     lockVersion,
   };
 }
+
+/**
+ * Submit-time validation, mirrored 1:1 from the backend
+ * (`ReviewService.validateDraftForSubmission`) so the frontend and backend agree
+ * on both the rules and the wording.
+ *
+ * Deliberately NOT required, because the backend does not require them either:
+ * summary, topics, category.
+ */
+export function validateForReview(fields: EditorDraftFields): string | null {
+  if (!fields.title.trim()) return "提交审核前必须填写标题";
+  if (!fields.bodyMode) return "提交审核前必须选择正文模式";
+  if (!fields.body.trim()) return "提交审核前必须填写正文";
+  if (!fields.visibility) return "提交审核前必须设置可见性";
+  return null;
+}

@@ -36,6 +36,8 @@ type ArticleEditorSettingsProps = {
   topics: TopicSummary[];
   topicIds: string[];
   visibility: ArticleVisibility;
+  /** Phase 1C-3: IN_REVIEW drafts are not editable — the backend rejects saves. */
+  readOnly?: boolean;
   onToggleTopic: (topicId: string) => void;
   onVisibilityChange: (value: ArticleVisibility) => void;
 };
@@ -44,6 +46,7 @@ export function ArticleEditorSettings({
   topics,
   topicIds,
   visibility,
+  readOnly = false,
   onToggleTopic,
   onVisibilityChange,
 }: ArticleEditorSettingsProps) {
@@ -59,6 +62,7 @@ export function ArticleEditorSettings({
                 <button
                   key={topic.id}
                   type="button"
+                  disabled={readOnly}
                   aria-pressed={topicIds.includes(topic.id)}
                   className={cn("cursor-pointer", topicIds.includes(topic.id) && styles.isActive)}
                   onClick={() => onToggleTopic(topic.id)}
@@ -82,6 +86,7 @@ export function ArticleEditorSettings({
               <button
                 key={option.value}
                 type="button"
+                disabled={readOnly}
                 aria-pressed={visibility === option.value}
                 className={cn("cursor-pointer", visibility === option.value && styles.isActive)}
                 onClick={() => onVisibilityChange(option.value)}

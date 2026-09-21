@@ -1029,6 +1029,12 @@ textarea.bodySurface {
   font-weight: 600;
 }
 
+/* Phase 1C-3: the settings become read-only once the article is under review. */
+.settingsPills button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /*
  * Unsaved-changes dialog. React Router's useBlocker only reports a pending
  * navigation; the app renders the confirmation itself (see editor-leave-guard).
@@ -1070,6 +1076,62 @@ textarea.bodySurface {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/*
+ * Submit-for-review confirmation (Phase 1C-3). Same chrome as the leave guard —
+ * deliberately plain, per the phase brief ("不要做夸张 modal").
+ */
+.submitConfirm {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: hsl(var(--foreground) / 0.4);
+}
+
+.submitConfirmCard {
+  width: min(24rem, 100%);
+  padding: 1.25rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 18px 40px hsl(var(--foreground) / 0.2);
+}
+
+.submitConfirmCard h2 {
+  margin: 0 0 0.5rem;
+  color: hsl(var(--foreground));
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.submitConfirmCard p {
+  margin: 0 0 1rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.submitConfirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Under-review notice: the article is no longer editable server-side. */
+.lifecycleNotice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--accent) / 0.16);
+  color: hsl(var(--foreground));
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
 /* Legacy responsive behaviour for the three-column shell. */

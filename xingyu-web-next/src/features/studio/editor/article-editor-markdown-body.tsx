@@ -46,6 +46,8 @@ import {
 type ArticleEditorMarkdownBodyProps = {
   value: string;
   previewEnabled?: boolean;
+  /** Phase 1C-3: IN_REVIEW drafts are not editable — the backend rejects saves. */
+  readOnly?: boolean;
   onChange: (value: string) => void;
   onUploadError?: (message: string) => void;
   onRegister?: (controller: ArticleEditorBodyController | null) => void;
@@ -63,6 +65,7 @@ function readSnapshot(textarea: HTMLTextAreaElement): MarkdownEditorSnapshot {
 export function ArticleEditorMarkdownBody({
   value,
   previewEnabled = false,
+  readOnly = false,
   onChange,
   onUploadError,
   onRegister,
@@ -252,6 +255,7 @@ export function ArticleEditorMarkdownBody({
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragging(false);
+    if (readOnly) return;
     const file = event.dataTransfer.files?.[0];
     if (file) void uploadAndInsert(file);
   }
@@ -263,14 +267,22 @@ export function ArticleEditorMarkdownBody({
         dragging && styles.isDragging,
         previewEnabled && styles.isInlinePreview,
       )}
-      onDragEnter={(event) => {
-        event.preventDefault();
-        setDragging(true);
-      }}
-      onDragOver={(event) => event.preventDefault()}
-      onDragLeave={(event) => {
-        if (event.currentTarget === event.target) setDragging(false);
-      }}
+      onDragEnter={
+        readOnly
+          ? undefined
+          : (event) => {
+              event.preventDefault();
+              setDragging(true);
+            }
+      }
+      onDragOver={readOnly ? undefined : (event) => event.preventDefault()}
+      onDragLeave={
+        readOnly
+          ? undefined
+          : (event) => {
+              if (event.currentTarget === event.target) setDragging(false);
+            }
+      }
       onDrop={handleDrop}
     >
       <div
@@ -304,6 +316,7 @@ export function ArticleEditorMarkdownBody({
             data-editor-body-input
             className={cn(styles.bodySurface, styles.bodyInput)}
             value={value}
+            readOnly={readOnly}
             placeholder="开始写作。可用上方工具栏排版，也可以把图片拖进来。"
             onChange={(event) => onChange(event.target.value)}
             onSelect={notifyFormatState}

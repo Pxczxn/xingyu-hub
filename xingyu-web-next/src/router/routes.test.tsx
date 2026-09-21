@@ -62,6 +62,13 @@ vi.mock("@/api/articles/articles.api", () => ({
       publishedAt: null,
       owner: false,
     })),
+    // Phase 1C-3: present so the editor route can never hit an undefined API if a
+    // future test navigates there.
+    createDraft: vi.fn(),
+    getDraft: vi.fn(),
+    saveDraft: vi.fn(),
+    submitForReview: vi.fn(),
+    getMyArticleStatus: vi.fn(async () => "DRAFT"),
   },
 }));
 

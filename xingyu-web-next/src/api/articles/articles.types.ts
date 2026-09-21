@@ -71,3 +71,37 @@ export type ArticleDraftSavePayload = {
   /** Optimistic-lock token from the last load/save. Backend sets expected + 1. */
   lockVersion: number;
 };
+
+/*
+ * Lifecycle (Phase 1C-3).
+ *
+ * IMPORTANT: the backend has NO creator-facing publish endpoint. Verified by
+ * reading CommunityArticleController + a live probe (POST/PUT
+ * /api/v1/me/articles/{id}/publish -> 404). The only creator-facing lifecycle
+ * action is `POST /api/v1/me/articles/{id}/submit`, which moves the article
+ * DRAFT -> IN_REVIEW. Publication (IN_REVIEW -> PUBLISHED) happens only through
+ * the ADMIN review decision (AdminReviewController -> PublicationService), and
+ * the scheduled-publish task also merely calls submitForReview.
+ *
+ * So the real creator-side machine is:
+ *   DRAFT --submit--> IN_REVIEW --[admin approval]--> PUBLISHED
+ */
+
+/** POST /api/v1/me/articles/{articleId}/submit response. */
+export type ArticleSubmission = {
+  submissionId: string;
+};
+
+/** Editorial status. Exposed on the OWNER LIST only — never on the draft DTO. */
+export type ArticleLifecycleStatus = "DRAFT" | "IN_REVIEW" | "PUBLISHED";
+
+/** Row shape of GET /api/v1/me/articles (owner list). Only the fields used here. */
+export type MyArticleSummary = {
+  id: string;
+  status: string;
+  lifecycleStatus?: string;
+  moderationStatus?: string;
+  title: string | null;
+  categoryId: string | null;
+  updatedAt: string;
+};

@@ -9,11 +9,15 @@ import { ArticleEditorBody } from "@/features/studio/editor/article-editor-body"
 import { ArticleEditorOutline } from "@/features/studio/editor/article-editor-outline";
 import { ArticleEditorSettings } from "@/features/studio/editor/article-editor-settings";
 import { EditorLeaveGuard } from "@/features/studio/editor/editor-leave-guard";
+import { EditorSubmitConfirm } from "@/features/studio/editor/editor-submit-confirm";
 import { extractEditorOutline } from "@/lib/article-editor-outline";
 import { ensureCanonicalMarkdownBody } from "@/lib/article-body-markdown";
 import type { ArticleBodyMode } from "@/lib/article-body-convert";
 import type { ArticleEditorBodyController } from "@/lib/article-editor-body-controller";
-import type { ArticleVisibility } from "@/api/articles/articles.types";
+import type {
+  ArticleLifecycleStatus,
+  ArticleVisibility,
+} from "@/api/articles/articles.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { articlesApi } from "@/api/articles/articles.api";
 import { topicsApi } from "@/api/topics/topics.api";
@@ -23,11 +27,13 @@ import {
   isDraftDirty,
   NEW_DRAFT_ROUTE_ID,
   toEditorDraftFields,
+  validateForReview,
   type EditorDraftFields,
 } from "@/lib/article-editor-draft";
 
 /*
- * EditorPage (Phase 1C-2) — real draft load + MANUAL save + settings + leave guard.
+ * EditorPage (Phase 1C-2 + 1C-3) — draft load, manual save, settings, leave
+ * guard, and the creator-side lifecycle action.
  *
  * Data lifecycle (verified against the real backend contract):
  *   /studio/content/:articleId -> GET /api/v1/me/articles/{id} on entry
@@ -35,16 +41,21 @@ import {
  *                                 The shell is created by the FIRST MANUAL SAVE:
  *                                 POST /api/v1/me/articles, then PUT .../{id}/draft,
  *                                 then replace the URL with the real id.
- *                                 (Creating on entry minted an orphan draft for every
- *                                 visit; deferring it is the same contract, and the
- *                                 backend has no "create with content" endpoint.)
  *
- * Still explicitly NOT here: publish, submit review, autosave / interval /
- * debounce / blur saves, scheduled publish, revisions, trash, delete, backend
- * image upload, series management, studio content list, collaboration.
+ * LIFECYCLE (Phase 1C-3) — the backend has NO creator-facing publish endpoint
+ * (POST/PUT /api/v1/me/articles/{id}/publish -> 404, verified live). The only
+ * creator-side action is POST /api/v1/me/articles/{id}/submit, which moves the
+ * article DRAFT -> IN_REVIEW. Publication (IN_REVIEW -> PUBLISHED) requires the
+ * ADMIN review decision. The UI therefore says 「已提交审核」 and never claims the
+ * article is published.
  *
- * Local editing state stays the single 1C-1 model (plain React state). No second
- * editor model, no global store.
+ * Once IN_REVIEW the backend rejects every save with 409 「文章当前不可编辑」, so the
+ * editing surface is disabled in that state instead of offering a control that
+ * can only fail.
+ *
+ * Still explicitly NOT here: autosave, scheduled publish, revision history,
+ * trash, delete, backend image upload, series management, studio content list,
+ * collaboration, review back-office.
  */
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
@@ -57,6 +68,19 @@ function describeSaveError(error: unknown): string {
     return error.problem.detail || "保存失败，请稍后重试";
   }
   return "保存失败，请稍后重试";
+}
+
+function describeSubmitError(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.problem.status === 409) {
+      // The only 409 sources are "文章已在审核中" and "文章当前不可编辑".
+      return error.problem.detail || "文章当前不可提交审核";
+    }
+    if (error.problem.status === 404) return "草稿不存在或无权编辑";
+    if (error.problem.status === 401) return "登录状态已失效，请重新登录";
+    return error.problem.detail || "提交审核失败，请稍后重试";
+  }
+  return "提交审核失败，请稍后重试";
 }
 
 function SaveStatusLabel({ status }: { status: SaveStatus }) {
@@ -99,6 +123,12 @@ export function EditorPage() {
   const [previewEnabled, setPreviewEnabled] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [activeOutline, setActiveOutline] = useState(0);
+  /** Editorial status; the draft DTO does not expose it (see articlesApi.getMyArticleStatus). */
+  const [lifecycle, setLifecycle] = useState<ArticleLifecycleStatus>("DRAFT");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
   /**
    * Id of a shell created by this page's own first save on /studio/content/new.
    * It is set as soon as POST succeeds — before the PUT — so a failed PUT can be
@@ -114,6 +144,7 @@ export function EditorPage() {
   /** One mount-time normalization per load is treated as loading, not as an edit. */
   const richTextSettledRef = useRef(false);
   const creating = articleId === NEW_DRAFT_ROUTE_ID;
+  const readOnly = lifecycle === "IN_REVIEW";
 
   // --- load ---------------------------------------------------------------
   useEffect(() => {
@@ -131,6 +162,11 @@ export function EditorPage() {
     setBaseline(null);
     setSaveStatus("idle");
     setSaveError(null);
+    setSubmitError(null);
+    setSubmitting(false);
+    setSubmitConfirmOpen(false);
+    setSubmissionId(null);
+    setLifecycle("DRAFT");
     richTextSettledRef.current = false;
 
     if (creating) {
@@ -168,6 +204,9 @@ export function EditorPage() {
       };
     }
 
+    // Status lookup runs alongside the draft read and never blocks it.
+    const statusPromise = articlesApi.getMyArticleStatus(articleId).catch(() => null);
+
     articlesApi
       .getDraft(articleId)
       .then((draft) => {
@@ -178,6 +217,9 @@ export function EditorPage() {
         setLockVersion(draft.lockVersion);
         setCreatedDraftId(draft.articleId);
         setLoadState("ready");
+        void statusPromise.then((status) => {
+          if (active && status) setLifecycle(status);
+        });
       })
       .catch((error) => {
         if (!active) return;
@@ -255,7 +297,6 @@ export function EditorPage() {
    * differ from the stored body (plain-text `[` / `_` get escaped). That first
    * report is part of LOADING, not an edit: adopt it into the fields AND the
    * clean baseline so a freshly opened RICH_TEXT draft is not born dirty.
-   * Later reports go through the normal onChange path.
    */
   const handleRichTextSettle = useCallback((markdown: string) => {
     if (richTextSettledRef.current) return;
@@ -264,36 +305,29 @@ export function EditorPage() {
     setBaseline((current) => (current ? { ...current, body: markdown } : current));
   }, []);
 
-  // --- manual save ---------------------------------------------------------
-  const handleSave = useCallback(async () => {
-    if (!fields || saveStatus === "saving") return;
-
-    // In rich-text mode the live ProseMirror document is the source of truth;
-    // read it before serialising, exactly like Legacy did.
-    let payloadFields = fields;
+  /** In rich-text mode the live ProseMirror document is the source of truth. */
+  const resolvePayloadFields = useCallback((): EditorDraftFields | null => {
+    if (!fields) return null;
     if (fields.bodyMode === "RICH_TEXT" && bodyControllerRef.current?.getMarkdown) {
       try {
         const live = ensureCanonicalMarkdownBody(bodyControllerRef.current.getMarkdown());
-        if (live !== fields.body) {
-          payloadFields = { ...fields, body: live };
-          setFields(payloadFields);
-        }
+        return live === fields.body ? fields : { ...fields, body: live };
       } catch {
-        payloadFields = fields;
+        return fields;
       }
     }
+    return fields;
+  }, [fields]);
 
-    setSaveStatus("saving");
-    setSaveError(null);
-
-    try {
-      /*
-       * First save of a brand-new draft: create the shell now, not on entry.
-       * The id is remembered the moment POST succeeds — BEFORE the PUT — so if
-       * the PUT fails the retry reuses it instead of minting a second draft.
-       * If the POST itself fails nothing was created, so a retry must POST again
-       * (there is no id to PUT against).
-       */
+  /**
+   * Creates the shell if needed, then PUTs the draft. Returns the article id.
+   * Throws on failure — callers decide how to surface it.
+   *
+   * The id is remembered the moment POST succeeds, BEFORE the PUT, so a failed
+   * PUT is retried against the same draft instead of minting a second one.
+   */
+  const persistDraft = useCallback(
+    async (payloadFields: EditorDraftFields): Promise<string> => {
       let targetId = creating ? createdDraftId : articleId;
       let expectedLockVersion = lockVersion;
 
@@ -311,17 +345,88 @@ export function EditorPage() {
       setLockVersion(saved.lockVersion);
       // The current values become the new clean baseline.
       setBaseline(payloadFields);
-      setSaveStatus("saved");
-      // Adopt the real id in the URL (see the effect below — it waits until the
-      // editor is clean so the leave guard cannot block our own navigation).
+      // Adopt the real id in the URL (see the effect below).
       if (creating) setAdoptDraftId(targetId);
+      return targetId;
+    },
+    [articleId, creating, createdDraftId, lockVersion],
+  );
+
+  // --- manual save ---------------------------------------------------------
+  const handleSave = useCallback(async () => {
+    if (!fields || saveStatus === "saving" || submitting || readOnly) return;
+    const payloadFields = resolvePayloadFields();
+    if (!payloadFields) return;
+
+    setSaveStatus("saving");
+    setSaveError(null);
+
+    try {
+      await persistDraft(payloadFields);
+      setSaveStatus("saved");
     } catch (error) {
       // A failed save must NOT touch the local content — it stays editable and
       // the user can press save again.
       setSaveStatus("error");
       setSaveError(describeSaveError(error));
     }
-  }, [articleId, creating, createdDraftId, fields, lockVersion, saveStatus]);
+  }, [fields, persistDraft, readOnly, resolvePayloadFields, saveStatus, submitting]);
+
+  // --- submit for review (the real creator-side lifecycle action) ----------
+  const handleRequestSubmit = useCallback(() => {
+    if (!fields || submitting || readOnly) return;
+    // Local check mirrors the backend rule exactly, so the user gets the same
+    // message without a round-trip. The backend stays authoritative.
+    const invalid = validateForReview(fields);
+    if (invalid) {
+      setSubmitError(invalid);
+      return;
+    }
+    setSubmitError(null);
+    setSubmitConfirmOpen(true);
+  }, [fields, readOnly, submitting]);
+
+  const handleConfirmSubmit = useCallback(async () => {
+    if (!fields || submitting || readOnly) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      let targetId = creating ? createdDraftId : articleId;
+      const payloadFields = resolvePayloadFields();
+      if (!payloadFields) throw new Error("editor not ready");
+
+      // Never submit a stale body: persist first when there is no draft yet or
+      // when the editor is dirty. A failed save aborts the submit entirely.
+      if (!targetId || isDraftDirty(payloadFields, baseline)) {
+        targetId = await persistDraft(payloadFields);
+        setSaveStatus("saved");
+      }
+
+      const result = await articlesApi.submitForReview(targetId);
+      setSubmissionId(result.submissionId);
+      setLifecycle("IN_REVIEW");
+      setSaveStatus("idle");
+      setSubmitConfirmOpen(false);
+    } catch (error) {
+      // Stay on the page, keep the local content, allow a retry.
+      setSubmitError(describeSubmitError(error));
+      setSubmitConfirmOpen(false);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    articleId,
+    baseline,
+    creating,
+    createdDraftId,
+    fields,
+    persistDraft,
+    readOnly,
+    resolvePayloadFields,
+    submitting,
+  ]);
 
   /*
    * Adopt the created draft's id in the URL once the editor has gone clean.
@@ -443,6 +548,7 @@ export function EditorPage() {
         <input
           className={cn(styles.toolbarTitle)}
           value={title}
+          readOnly={readOnly}
           onChange={(event) => handleTitleChange(event.target.value)}
           placeholder="输入文章标题"
           aria-label="文章标题"
@@ -472,18 +578,41 @@ export function EditorPage() {
           </Button>
           <Button
             type="button"
+            variant="outline"
             className="cursor-pointer"
-            disabled={saveStatus === "saving"}
+            disabled={saveStatus === "saving" || submitting || readOnly}
             onClick={() => void handleSave()}
           >
             保存草稿
           </Button>
+          <Button
+            type="button"
+            className="cursor-pointer"
+            disabled={submitting || readOnly}
+            data-editor-submit
+            onClick={handleRequestSubmit}
+          >
+            {readOnly ? "已提交审核" : submitting ? "提交中…" : "提交审核"}
+          </Button>
         </div>
       </header>
+
+      {readOnly ? (
+        <p className={cn(styles.lifecycleNotice)} data-editor-lifecycle="IN_REVIEW">
+          已提交审核，等待审核处理。审核期间文章不可编辑。
+          {submissionId ? `（审核单号 ${submissionId}）` : ""}
+        </p>
+      ) : null}
 
       {saveError ? (
         <p className={cn(styles.uploadAlert)} role="alert" data-editor-save-error>
           {saveError}
+        </p>
+      ) : null}
+
+      {submitError ? (
+        <p className={cn(styles.uploadAlert)} role="alert" data-editor-submit-error>
+          {submitError}
         </p>
       ) : null}
 
@@ -510,6 +639,7 @@ export function EditorPage() {
               title={title}
               summary={summary}
               value={body}
+              readOnly={readOnly}
               previewEnabled={previewEnabled}
               onTitleChange={handleTitleChange}
               onSummaryChange={handleSummaryChange}
@@ -528,10 +658,18 @@ export function EditorPage() {
           topics={topics}
           topicIds={topicIds}
           visibility={visibility}
+          readOnly={readOnly}
           onToggleTopic={handleToggleTopic}
           onVisibilityChange={handleVisibilityChange}
         />
       </div>
+
+      <EditorSubmitConfirm
+        open={submitConfirmOpen}
+        busy={submitting}
+        onCancel={() => setSubmitConfirmOpen(false)}
+        onConfirm={() => void handleConfirmSubmit()}
+      />
 
       <EditorLeaveGuard when={isDirty} />
     </div>

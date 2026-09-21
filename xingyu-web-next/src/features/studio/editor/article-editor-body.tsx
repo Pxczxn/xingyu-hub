@@ -36,6 +36,12 @@ type ArticleEditorBodyProps = {
   onUploadError?: (message: string) => void;
   /** Rich-text only: fires once after mount with the serializer's canonical markdown. */
   onRichTextSettle?: (markdown: string) => void;
+  /**
+   * Phase 1C-3: the backend rejects every save once an article is IN_REVIEW
+   * (`canEditDraft` -> 409). Rather than leave an editable surface whose save can
+   * only fail, the whole editing surface is disabled in that state.
+   */
+  readOnly?: boolean;
 };
 
 type LinkOverlayState = {
@@ -103,6 +109,7 @@ export function ArticleEditorBody({
   onControllerChange,
   onUploadError,
   onRichTextSettle,
+  readOnly = false,
 }: ArticleEditorBodyProps) {
   const controllerRef = useRef<ArticleEditorBodyController | null>(null);
   const formatUnsubRef = useRef<(() => void) | null>(null);
@@ -180,7 +187,7 @@ export function ArticleEditorBody({
         onImageSelect={(file) => void controllerRef.current?.uploadImage(file)}
         linkPopoverOpen={Boolean(linkOverlay)}
         onLinkOpen={openLinkPopover}
-        disabled={uploading}
+        disabled={uploading || readOnly}
       />
 
       <EditorField label="标题" htmlFor="article-editor-title" variant="title">
@@ -188,6 +195,7 @@ export function ArticleEditorBody({
           id="article-editor-title"
           className={cn(styles.titleInput)}
           value={title}
+          readOnly={readOnly}
           onChange={(event) => onTitleChange(event.target.value)}
           placeholder="输入文章标题"
           maxLength={120}
@@ -204,6 +212,7 @@ export function ArticleEditorBody({
           id="article-editor-summary"
           className={cn(styles.summaryInput)}
           value={summary}
+          readOnly={readOnly}
           onChange={(event) => onSummaryChange(event.target.value)}
           placeholder="用一两句话概括文章要点，会展示在列表与分享卡片中"
           rows={3}
@@ -216,6 +225,7 @@ export function ArticleEditorBody({
           <ArticleEditorMarkdownBody
             key="markdown"
             value={value}
+            readOnly={readOnly}
             previewEnabled={previewEnabled}
             onChange={onChange}
             onUploadError={onUploadError}
@@ -226,6 +236,7 @@ export function ArticleEditorBody({
           <ArticleEditorMilkdownBody
             key="rich"
             value={value}
+            readOnly={readOnly}
             previewEnabled={previewEnabled}
             onChange={onChange}
             onUploadError={onUploadError}
