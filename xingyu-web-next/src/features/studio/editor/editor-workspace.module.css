@@ -1134,6 +1134,29 @@ textarea.bodySurface {
   line-height: 1.5;
 }
 
+/*
+ * PUBLISHED notice (Phase 1.6) — informational, not alarming: the editor stays
+ * fully editable, the user just needs to know what saving does and does not do.
+ */
+.lifecycleNoticePublished {
+  background: hsl(var(--muted) / 0.6);
+  border-bottom-color: hsl(var(--border));
+}
+
+.lifecycleNoticePublished strong {
+  font-weight: 600;
+}
+
+/* Status lookup failed — a quiet note, deliberately not a lifecycle claim. */
+.statusNotice {
+  padding: 0.4rem 1.25rem;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.35);
+  color: hsl(var(--muted-foreground));
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
 /* Legacy responsive behaviour for the three-column shell. */
 @media (max-width: 1100px) {
   .shell {

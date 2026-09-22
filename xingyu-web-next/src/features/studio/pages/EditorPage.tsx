@@ -125,6 +125,14 @@ export function EditorPage() {
   const [activeOutline, setActiveOutline] = useState(0);
   /** Editorial status; the draft DTO does not expose it (see articlesApi.getMyArticleStatus). */
   const [lifecycle, setLifecycle] = useState<ArticleLifecycleStatus>("DRAFT");
+  /**
+   * True when the status lookup itself failed or came back empty.
+   *
+   * We then degrade silently: the editor stays fully usable and NO lifecycle
+   * banner is shown, because we must never guess that an article is (or is not)
+   * published. The only thing the user sees is a lightweight note.
+   */
+  const [statusUnavailable, setStatusUnavailable] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
@@ -167,6 +175,7 @@ export function EditorPage() {
     setSubmitConfirmOpen(false);
     setSubmissionId(null);
     setLifecycle("DRAFT");
+    setStatusUnavailable(false);
     richTextSettledRef.current = false;
 
     if (creating) {
@@ -204,8 +213,18 @@ export function EditorPage() {
       };
     }
 
-    // Status lookup runs alongside the draft read and never blocks it.
-    const statusPromise = articlesApi.getMyArticleStatus(articleId).catch(() => null);
+    /*
+     * Status lookup runs alongside the draft read and never blocks it.
+     *
+     * `getMyArticleStatus` resolves `null` when the article is missing from the
+     * owner list; it rejects when the request itself fails. BOTH mean "unknown",
+     * and an unknown status must never be rendered as a lifecycle claim — so the
+     * editor falls back to DRAFT internally and flags the status as unavailable.
+     */
+    const statusPromise = articlesApi
+      .getMyArticleStatus(articleId)
+      .then((status) => ({ resolved: true as const, status }))
+      .catch(() => ({ resolved: false as const, status: null }));
 
     articlesApi
       .getDraft(articleId)
@@ -217,8 +236,16 @@ export function EditorPage() {
         setLockVersion(draft.lockVersion);
         setCreatedDraftId(draft.articleId);
         setLoadState("ready");
-        void statusPromise.then((status) => {
-          if (active && status) setLifecycle(status);
+        void statusPromise.then((result) => {
+          if (!active) return;
+          if (result.resolved && result.status) {
+            setLifecycle(result.status);
+            setStatusUnavailable(false);
+          } else {
+            // Draft loaded fine, but we do not know the editorial status.
+            setLifecycle("DRAFT");
+            setStatusUnavailable(true);
+          }
         });
       })
       .catch((error) => {
@@ -601,6 +628,34 @@ export function EditorPage() {
         <p className={cn(styles.lifecycleNotice)} data-editor-lifecycle="IN_REVIEW">
           已提交审核，等待审核处理。审核期间文章不可编辑。
           {submissionId ? `（审核单号 ${submissionId}）` : ""}
+        </p>
+      ) : null}
+
+      {/*
+       * PUBLISHED (Phase 1.6). The public article already exists as a frozen
+       * PublishedRevision; what the user edits now is a NEW draft. The wording
+       * must never suggest that saving updates the public article, that changes
+       * sync immediately, or that the creator can publish directly — because the
+       * backend does none of those (public reads serve the PublishedRevision, and
+       * publishing requires a fresh submit + admin approval).
+       */}
+      {lifecycle === "PUBLISHED" ? (
+        <p
+          className={cn(styles.lifecycleNotice, styles.lifecycleNoticePublished)}
+          data-editor-lifecycle="PUBLISHED"
+        >
+          <strong>此文章已有公开版本。</strong>
+          当前修改只会保存到草稿，不会立即影响公开内容；完成修改后需要重新提交审核。
+        </p>
+      ) : null}
+
+      {/*
+       * Status unknown. Shown INSTEAD of a lifecycle claim, never alongside one:
+       * we do not guess whether the article is published.
+       */}
+      {statusUnavailable ? (
+        <p className={cn(styles.statusNotice)} data-editor-status-unknown>
+          未能获取文章状态，暂不显示发布状态提示。编辑与保存不受影响。
         </p>
       ) : null}
 

@@ -424,7 +424,7 @@ describe("image upload is an honest placeholder", () => {
       target: { files: [new File(["x"], "photo.png", { type: "image/png" })] },
     });
 
-    const alert = await screen.findByRole("alert");
+    const alert = await screen.findByRole("alert", {}, { timeout: 15000 });
     expect(alert.textContent).toContain("开发态占位");
     expect(bodyTextarea(container)).toHaveValue(before);
     expect(saveDraftMock).not.toHaveBeenCalled();
@@ -856,13 +856,16 @@ describe("unsaved-changes protection", () => {
 
     fireEvent.change(screen.getByLabelText("标题"), { target: { value: "已保存的修改" } });
     fireEvent.click(saveButton());
-    await screen.findByText("已保存");
+    // Under a fully parallel 32-file run the save→saved transition can outlive the
+    // default async budget, so give this wait a real one (same treatment as the
+    // heavy lazy-route waits).
+    await screen.findByText("已保存", {}, { timeout: 15000 });
 
     await act(async () => {
       await router.navigate("/studio");
     });
 
-    expect(await screen.findByTestId("studio-page")).toBeInTheDocument();
+    expect(await screen.findByTestId("studio-page", {}, { timeout: 15000 })).toBeInTheDocument();
     expect(screen.queryByRole("alertdialog", { name: "未保存的修改" })).toBeNull();
   });
 
@@ -1116,6 +1119,129 @@ describe("submit for review (the real creator-side lifecycle action)", () => {
 
     expect(submitForReviewMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog", { name: "确认提交审核" })).toBeNull();
+  });
+});
+
+describe("published state awareness (Phase 1.6)", () => {
+  /*
+   * A PUBLISHED article already has a frozen PublishedRevision. Re-opening it in
+   * the editor must tell the user that what they edit now is a NEW draft, and
+   * that nothing they do here changes the public article until a fresh submit +
+   * admin approval. The wording must never imply save-equals-publish.
+   */
+  function publishedBanner(container: HTMLElement) {
+    return container.querySelector("[data-editor-lifecycle='PUBLISHED']");
+  }
+
+  it("shows no published banner for a DRAFT article", async () => {
+    getMyArticleStatusMock.mockResolvedValue("DRAFT");
+    const { container } = await renderLoaded();
+
+    await waitFor(() => expect(getMyArticleStatusMock).toHaveBeenCalledWith(DRAFT_ID));
+    expect(publishedBanner(container)).toBeNull();
+    expect(screen.queryByText(/已有公开版本/)).toBeNull();
+  });
+
+  it("tells the user the public version exists and that edits go to a new draft", async () => {
+    getMyArticleStatusMock.mockResolvedValue("PUBLISHED");
+    const { container } = await renderLoaded();
+
+    await waitFor(() => expect(publishedBanner(container)).not.toBeNull());
+    const text = publishedBanner(container)?.textContent ?? "";
+
+    // The four claims the copy must make — and must not invert.
+    expect(text).toContain("此文章已有公开版本");
+    expect(text).toContain("只会保存到草稿");
+    expect(text).toContain("不会立即影响公开内容");
+    expect(text).toContain("需要重新提交审核");
+    // Must not claim a direct publish path.
+    expect(text).not.toContain("发布成功");
+    expect(text).not.toContain("已发布成功");
+  });
+
+  it("keeps a PUBLISHED article fully editable", async () => {
+    getMyArticleStatusMock.mockResolvedValue("PUBLISHED");
+    const { container } = await renderLoaded();
+    await waitFor(() => expect(publishedBanner(container)).not.toBeNull());
+
+    expect(screen.getByLabelText("文章标题")).not.toHaveAttribute("readonly");
+    expect(screen.getByLabelText("标题")).not.toHaveAttribute("readonly");
+    expect(bodyTextarea(container)).not.toHaveAttribute("readonly");
+    expect(saveButton()).toBeEnabled();
+  });
+
+  it("still saves a PUBLISHED article's changes through the draft PUT", async () => {
+    getMyArticleStatusMock.mockResolvedValue("PUBLISHED");
+    const { container } = await renderLoaded();
+    await waitFor(() => expect(publishedBanner(container)).not.toBeNull());
+
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "发布后的草稿修改" } });
+    fireEvent.change(bodyTextarea(container), { target: { value: "发布后的草稿正文" } });
+    fireEvent.click(saveButton());
+
+    expect(await screen.findByText("已保存")).toBeInTheDocument();
+    expect(saveDraftMock).toHaveBeenCalledTimes(1);
+    expect(saveDraftMock.mock.calls[0][0]).toBe(DRAFT_ID);
+    expect(saveDraftMock.mock.calls[0][1]).toMatchObject({
+      title: "发布后的草稿修改",
+      body: "发布后的草稿正文",
+    });
+    // Saving a draft is NOT a lifecycle action.
+    expect(submitForReviewMock).not.toHaveBeenCalled();
+    expect(createDraftMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps 提交审核 as the next lifecycle action and offers no publish control", async () => {
+    getMyArticleStatusMock.mockResolvedValue("PUBLISHED");
+    const { container } = await renderLoaded();
+    await waitFor(() => expect(publishedBanner(container)).not.toBeNull());
+
+    expect(screen.getByRole("button", { name: "提交审核" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /发布/ })).toBeNull();
+    expect(container.querySelector("[data-editor-lifecycle='IN_REVIEW']")).toBeNull();
+  });
+
+  it("does not regress IN_REVIEW: notice stays, editor stays read-only, no published banner", async () => {
+    getMyArticleStatusMock.mockResolvedValue("IN_REVIEW");
+    const { container } = await renderLoaded();
+
+    await waitFor(() =>
+      expect(container.querySelector("[data-editor-lifecycle='IN_REVIEW']")).not.toBeNull(),
+    );
+    expect(publishedBanner(container)).toBeNull();
+    expect(bodyTextarea(container)).toHaveAttribute("readonly");
+    expect(saveButton()).toBeDisabled();
+    expect(screen.getByRole("button", { name: "已提交审核" })).toBeDisabled();
+  });
+
+  it("degrades when the status request fails: editor usable, no lifecycle claim", async () => {
+    getMyArticleStatusMock.mockRejectedValue(problem(500, "status down"));
+    const { container } = await renderLoaded();
+
+    await waitFor(() =>
+      expect(container.querySelector("[data-editor-status-unknown]")).not.toBeNull(),
+    );
+    // No guessed lifecycle banner in either direction.
+    expect(publishedBanner(container)).toBeNull();
+    expect(container.querySelector("[data-editor-lifecycle='IN_REVIEW']")).toBeNull();
+
+    // The editor itself still works.
+    expect(screen.getByLabelText("标题")).toHaveValue("真实草稿标题");
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "状态未知也能改" } });
+    fireEvent.click(saveButton());
+    expect(await screen.findByText("已保存")).toBeInTheDocument();
+    expect(saveDraftMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("degrades the same way when the article is missing from the owner list", async () => {
+    getMyArticleStatusMock.mockResolvedValue(null);
+    const { container } = await renderLoaded();
+
+    await waitFor(() =>
+      expect(container.querySelector("[data-editor-status-unknown]")).not.toBeNull(),
+    );
+    expect(publishedBanner(container)).toBeNull();
+    expect(bodyTextarea(container)).not.toHaveAttribute("readonly");
   });
 });
 
