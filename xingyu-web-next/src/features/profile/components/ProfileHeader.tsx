@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { ProfileDetail } from "@/api/users/users.types";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,10 @@ import { Button } from "@/components/ui/button";
 /*
  * Profile header: avatar / display name / username / bio / follow control.
  * Follow is real (verified: POST|DELETE /api/v1/users/{username}/follow -> 204).
+ *
+ * `blockControl` is an optional slot for the Phase 2A-2a block entry. It is a
+ * slot rather than inline logic so this header keeps its existing structure —
+ * the block feature must not force a redesign of the profile header.
  */
 export function ProfileHeader({
   profile,
@@ -13,6 +18,7 @@ export function ProfileHeader({
   followError,
   onToggleFollow,
   canFollow,
+  blockControl,
 }: {
   profile: ProfileDetail;
   following: boolean;
@@ -20,6 +26,7 @@ export function ProfileHeader({
   followError: string | null;
   onToggleFollow: () => void;
   canFollow: boolean;
+  blockControl?: ReactNode;
 }) {
   const name = profile.displayName ?? profile.username;
 
@@ -78,6 +85,7 @@ export function ProfileHeader({
             {followError}
           </span>
         ) : null}
+        {blockControl}
       </div>
     </header>
   );

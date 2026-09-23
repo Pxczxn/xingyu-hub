@@ -12,10 +12,16 @@
  *   PATCH  /api/v1/me/profile                -> ProfileDetail   (200 / 409 / 400)
  *   PATCH  /api/v1/me/profile/privacy        -> ProfileDetail   (200 / 400)
  *
+ * Added in Phase 2A-2a (verified against the live backend 2026-09-23):
+ *   GET    /api/v1/me/blocks                 -> BlockedUser[]    (200)
+ *   POST   /api/v1/me/blocks/{username}      -> 204 (idempotent)
+ *   DELETE /api/v1/me/blocks/{username}      -> 204 (idempotent)
+ *
  * Unlike Topic follow (404), User follow genuinely works.
  */
 import { apiRequest } from "@/api/client";
 import type {
+  BlockedUser,
   ProfileDetail,
   SpaceWorks,
   UpdateMyPrivacyPayload,
@@ -51,4 +57,25 @@ export const usersApi = {
   /** Separate endpoint from updateMyProfile — it ignores lockVersion entirely. */
   updateMyPrivacy: (payload: UpdateMyPrivacyPayload): Promise<ProfileDetail> =>
     apiRequest<ProfileDetail>("/api/v1/me/profile/privacy", { method: "PATCH", body: payload }),
+
+  /*
+   * Phase 2A-2a: user blocking. These are the ONLY wrappers for the three
+   * `/me/blocks` endpoints — do not add a second one in another domain module.
+   *
+   * Verified against the live backend 2026-09-23 (UserBlockService):
+   *   - the path variable is a username
+   *   - blocking is idempotent: blocking an already-blocked user is a silent 204
+   *   - unblocking a non-blocked user is a silent 204
+   *   - blocking yourself is a 400 ("username: 不能屏蔽自己") — the UI never
+   *     offers that control (see ProfileBlockControl), the guard is just honest
+   *   - a missing target is a 404
+   */
+  listBlockedUsers: (): Promise<BlockedUser[]> =>
+    apiRequest<BlockedUser[]>("/api/v1/me/blocks"),
+
+  blockUser: (username: string): Promise<void> =>
+    apiRequest<void>(`/api/v1/me/blocks/${encodeURIComponent(username)}`, { method: "POST" }),
+
+  unblockUser: (username: string): Promise<void> =>
+    apiRequest<void>(`/api/v1/me/blocks/${encodeURIComponent(username)}`, { method: "DELETE" }),
 };

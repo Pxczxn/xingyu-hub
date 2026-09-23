@@ -21,6 +21,12 @@ vi.mock("@/api/users/users.api", () => ({
     followUser: vi.fn(),
     unfollowUser: vi.fn(),
     getMyProfile: vi.fn(),
+    // Phase 2A-2a: the profile page reads block state through the shared store,
+    // which calls listBlockedUsers. Block behaviour itself is covered by
+    // profile-block.test.tsx.
+    listBlockedUsers: vi.fn(async () => []),
+    blockUser: vi.fn(),
+    unblockUser: vi.fn(),
   },
 }));
 

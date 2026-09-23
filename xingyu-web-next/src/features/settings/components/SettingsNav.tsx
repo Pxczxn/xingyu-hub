@@ -1,9 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { MonitorSmartphone, ShieldCheck, UserRound } from "lucide-react";
+import { MonitorSmartphone, ShieldCheck, ShieldOff, UserRound } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /*
- * Settings navigation (Phase 2A-1).
+ * Settings navigation (Phase 2A-1, extended in 2A-2a).
  *
  * Only pages that genuinely exist this round are listed. Deliberately absent
  * (and NOT shown as disabled/"coming soon" entries — an entry that leads
@@ -12,13 +12,14 @@ import { cn } from "@/lib/cn";
  *   - 修改邮箱      requires an email verification link (human gate)
  *   - 通知设置      backend has no notification-preferences endpoint
  *   - 安全事件      backend has no security-events endpoint
- *   - 屏蔽列表 / API Token / 数据导出   real capabilities, deferred to 2A-2
+ *   - API Token / 数据导出   real capabilities, not part of 2A-2a
  *   - 头像          real capability via a side channel, deferred to its own stage
  */
 const SETTINGS_NAV = [
   { label: "资料", to: "/settings/profile", icon: UserRound },
   { label: "隐私", to: "/settings/privacy", icon: ShieldCheck },
   { label: "登录会话", to: "/settings/sessions", icon: MonitorSmartphone },
+  { label: "屏蔽", to: "/settings/blocks", icon: ShieldOff },
 ];
 
 export function SettingsNav() {

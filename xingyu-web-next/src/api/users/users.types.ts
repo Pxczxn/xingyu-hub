@@ -50,6 +50,32 @@ export type FollowUser = {
 };
 
 /*
+ * Block contract — verified against the live backend 2026-09-23 (Phase 2A-2a).
+ * Read from CommunityMeController + UserBlockService + BlockedUserView:
+ *
+ *   GET    /api/v1/me/blocks              -> BlockedUser[]  (200)
+ *   POST   /api/v1/me/blocks/{username}   -> 204
+ *   DELETE /api/v1/me/blocks/{username}   -> 204
+ *
+ * The path variable is a USERNAME, not a userId.
+ *
+ * Response shape is a bare array (no envelope) and `limit` is the only query
+ * parameter (default 50) — there is NO cursor/pagination. `blockedAt` is the
+ * `user_block.created_at` instant.
+ *
+ * ⚠️ CONTRACT GAP (Phase 2A-2a): neither `UserDetailView` (GET /users/{username})
+ * nor any other endpoint reports whether the viewer has blocked a user. The ONLY
+ * way to read block state is this list, so the UI reads it once per session
+ * through the shared store instead of re-downloading it on every profile view.
+ */
+export type BlockedUser = {
+  userId: string;
+  username: string;
+  displayName?: string | null;
+  blockedAt?: string | null;
+};
+
+/*
  * Profile write contract — verified against the live backend 2026-09-22
  * (Phase 2-0 §6.4.1) and re-read from CommunityProfileService.updateProfile.
  *

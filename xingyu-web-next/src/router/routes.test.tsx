@@ -83,6 +83,10 @@ vi.mock("@/api/users/users.api", () => ({
     // an undefined API if a future test navigates there.
     updateMyProfile: vi.fn(),
     updateMyPrivacy: vi.fn(),
+    // Phase 2A-2a block methods — same reason.
+    listBlockedUsers: vi.fn(async () => []),
+    blockUser: vi.fn(),
+    unblockUser: vi.fn(),
   },
 }));
 

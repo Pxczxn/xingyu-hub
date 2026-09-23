@@ -32,6 +32,10 @@ vi.mock("@/api/users/users.api", () => ({
     getUserWorks: vi.fn(),
     followUser: vi.fn(),
     unfollowUser: vi.fn(),
+    // Phase 2A-2a block methods.
+    listBlockedUsers: vi.fn(async () => []),
+    blockUser: vi.fn(),
+    unblockUser: vi.fn(),
   },
 }));
 
