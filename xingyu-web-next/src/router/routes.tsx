@@ -21,6 +21,7 @@ import { SettingsProfilePage } from "@/features/settings/pages/SettingsProfilePa
 import { SettingsPrivacyPage } from "@/features/settings/pages/SettingsPrivacyPage";
 import { SettingsSessionsPage } from "@/features/settings/pages/SettingsSessionsPage";
 import { SettingsBlocksPage } from "@/features/settings/pages/SettingsBlocksPage";
+import { SettingsApiTokensPage } from "@/features/settings/pages/SettingsApiTokensPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
@@ -39,6 +40,7 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2A-1:          /settings/profile , /settings/privacy , /settings/sessions
  *                      (shared SettingsLayout; `/settings` stays a Legacy redirect)
  * Phase 2A-2a:         /settings/blocks (same shell) + the block entry on /u/:username
+ * Phase 2A-2b:         /settings/api-tokens (same shell)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -112,6 +114,7 @@ export function AppRoutes() {
           <Route path="/settings/privacy" element={<SettingsPrivacyPage />} />
           <Route path="/settings/sessions" element={<SettingsSessionsPage />} />
           <Route path="/settings/blocks" element={<SettingsBlocksPage />} />
+          <Route path="/settings/api-tokens" element={<SettingsApiTokensPage />} />
         </Route>
 
         {/* Phase 1C-1: editor. One route covers both "existing draft" and

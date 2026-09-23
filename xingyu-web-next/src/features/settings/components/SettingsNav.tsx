@@ -1,9 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { MonitorSmartphone, ShieldCheck, ShieldOff, UserRound } from "lucide-react";
+import { KeyRound, MonitorSmartphone, ShieldCheck, ShieldOff, UserRound } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /*
- * Settings navigation (Phase 2A-1, extended in 2A-2a).
+ * Settings navigation (Phase 2A-1, extended in 2A-2a / 2A-2b).
  *
  * Only pages that genuinely exist this round are listed. Deliberately absent
  * (and NOT shown as disabled/"coming soon" entries — an entry that leads
@@ -12,7 +12,7 @@ import { cn } from "@/lib/cn";
  *   - 修改邮箱      requires an email verification link (human gate)
  *   - 通知设置      backend has no notification-preferences endpoint
  *   - 安全事件      backend has no security-events endpoint
- *   - API Token / 数据导出   real capabilities, not part of 2A-2a
+ *   - 数据导出      no backend capability
  *   - 头像          real capability via a side channel, deferred to its own stage
  */
 const SETTINGS_NAV = [
@@ -20,12 +20,16 @@ const SETTINGS_NAV = [
   { label: "隐私", to: "/settings/privacy", icon: ShieldCheck },
   { label: "登录会话", to: "/settings/sessions", icon: MonitorSmartphone },
   { label: "屏蔽", to: "/settings/blocks", icon: ShieldOff },
+  { label: "API Token", to: "/settings/api-tokens", icon: KeyRound },
 ];
 
 export function SettingsNav() {
   return (
-    <nav aria-label="设置导航">
-      {/* Horizontal tabs on small screens, a vertical rail from md up. */}
+    <nav aria-label="设置导航" className="min-w-0">
+      {/* Horizontal tabs on small screens, a vertical rail from md up.
+          `min-w-0` is load-bearing: without it the grid item takes its
+          max-content width, so the 5 tabs push the whole document wider than a
+          375px viewport (the strip below only scrolls once the item can shrink). */}
       <ul className="flex gap-1 overflow-x-auto border-b border-border pb-2 md:flex-col md:border-b-0 md:pb-0">
         {SETTINGS_NAV.map((item) => {
           const Icon = item.icon;

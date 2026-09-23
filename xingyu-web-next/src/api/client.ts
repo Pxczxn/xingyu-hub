@@ -40,6 +40,17 @@ type RequestOptions = {
   idempotencyKey?: string;
   token?: string | null;
   headers?: Record<string, string>;
+  /**
+   * Set to `false` to skip the "response carries a new session token" handling
+   * (the `satoken` response header and the body `token` field).
+   *
+   * Defaults to `true`, which is right for auth endpoints (login/register
+   * return the session token in the body). It is WRONG for any endpoint whose
+   * response happens to have a `token` field that is not a session token —
+   * e.g. `POST /me/api-tokens`, where `token` is the API secret. Persisting
+   * that would overwrite `xingyu-satoken` and log the user out. (Phase 2A-2b)
+   */
+  persistToken?: boolean;
 };
 
 function buildHeaders(options: RequestOptions): Record<string, string> {
@@ -85,7 +96,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   });
 
   const data = await response.json().catch(() => null);
-  persistTokenFromResponse(response, data);
+  if (options.persistToken !== false) persistTokenFromResponse(response, data);
 
   if (response.status === 204) {
     return undefined as T;

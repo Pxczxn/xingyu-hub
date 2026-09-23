@@ -67,6 +67,40 @@ describe("api client", () => {
     expect(getStoredToken()).toBe("body-token");
   });
 
+  /*
+   * Phase 2A-2b regression: `POST /me/api-tokens` answers with `{ ..., token }`
+   * where `token` is the API SECRET, not a session token. Without the opt-out
+   * the client would write it to `xingyu-satoken`, replacing the session (and
+   * the next 401 would log the user out).
+   */
+  it("does not touch the session when persistToken is false", async () => {
+    setStoredToken("real-session-token");
+    fetchMock.mockImplementation(async () =>
+      jsonResponse({ id: "t-1", name: "CI", token: "xy_api_secret_value", scopes: [] }),
+    );
+
+    const created = await apiRequest<{ token: string }>("/api/v1/me/api-tokens", {
+      method: "POST",
+      body: { name: "CI" },
+      persistToken: false,
+    });
+
+    // The secret still reaches the caller...
+    expect(created.token).toBe("xy_api_secret_value");
+    // ...but the login session is untouched.
+    expect(localStorage.getItem(TOKEN_KEY)).toBe("real-session-token");
+    expect(getStoredToken()).toBe("real-session-token");
+  });
+
+  it("still persists the session token when persistToken is omitted (auth endpoints)", async () => {
+    setStoredToken("old-session");
+    fetchMock.mockImplementation(async () => jsonResponse({ token: "new-session" }));
+
+    await apiRequest("/api/v1/auth/login", { method: "POST", body: {} });
+
+    expect(getStoredToken()).toBe("new-session");
+  });
+
   it("clears the stored token when the API responds 401", async () => {
     setStoredToken("expired-token");
     fetchMock.mockImplementation(async () =>
