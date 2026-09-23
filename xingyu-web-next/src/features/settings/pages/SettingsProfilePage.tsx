@@ -5,6 +5,7 @@ import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AvatarEditor } from "@/features/settings/components/AvatarEditor";
 import {
   PROFILE_FIELD_LABELS,
   VISIBILITY_OPTIONS,
@@ -22,15 +23,21 @@ import {
  *
  * Scope, per the Phase 2-0 capability map:
  *   displayName / bio / websiteUrl / visibility  -> PATCH /api/v1/me/profile
+ *   avatar                                       -> POST /api/v1/messages/upload
+ *                                                -> PUT  /api/v1/me/client-settings
  *
  * Explicitly NOT here:
- *   - avatar     : writable only through the client-settings side channel (2A-2)
- *   - username   : 30-day cooldown, scoped to 2A-2
+ *   - username   : 30-day cooldown, scoped to a later phase
  *   - password   : no self-service endpoint exists on this backend (B10)
  *   - email      : needs a verification link (human gate)
  *
  * Save is always explicit — there is no autosave. A failed save keeps whatever
  * the user typed (we never re-GET over their input).
+ *
+ * The avatar is deliberately NOT part of this form: it is stored in
+ * `settings_json`, written by its own two-request flow, and saving the text
+ * fields must never include it. AvatarEditor owns that loop and reports the
+ * persisted value back through `onAvatarSaved`.
  */
 
 type LoadState = "loading" | "error" | "ready";
@@ -41,6 +48,7 @@ export function SettingsProfilePage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const [username, setUsername] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [baseline, setBaseline] = useState<ProfileFormValues | null>(null);
   const [values, setValues] = useState<ProfileFormValues | null>(null);
   const [lockVersion, setLockVersion] = useState(0);
@@ -58,6 +66,7 @@ export function SettingsProfilePage() {
         if (!active) return;
         const next = toProfileFormValues(profile);
         setUsername(profile.username ?? "");
+        setAvatar(profile.avatar ?? null);
         setBaseline(next);
         setValues(next);
         setLockVersion(profile.lockVersion ?? 0);
@@ -144,6 +153,12 @@ export function SettingsProfilePage() {
 
   return (
     <div className="section-gap">
+      <AvatarEditor
+        avatar={avatar}
+        fallbackText={values.displayName || username}
+        onAvatarSaved={setAvatar}
+      />
+
       <section aria-labelledby="settings-profile-heading">
         <h2 id="settings-profile-heading" className="text-base font-semibold text-primary">
           资料
