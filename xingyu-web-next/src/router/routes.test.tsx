@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation, useSearchParams } from "react-router-dom";
 import { AppRoutes } from "@/router/routes";
 import { AppProviders } from "@/app/providers/AppProviders";
 import { buildRedirectPath, LEGACY_REDIRECTS } from "@/router/redirects";
@@ -79,7 +79,15 @@ vi.mock("@/api/users/users.api", () => ({
     followUser: vi.fn(),
     unfollowUser: vi.fn(),
     getMyProfile: vi.fn(),
+    // Phase 2A-1 write methods — present so the settings routes can never call
+    // an undefined API if a future test navigates there.
+    updateMyProfile: vi.fn(),
+    updateMyPrivacy: vi.fn(),
   },
+}));
+
+vi.mock("@/api/settings/sessions.api", () => ({
+  sessionsApi: { list: vi.fn(async () => []), revoke: vi.fn(), revokeOthers: vi.fn() },
 }));
 
 vi.mock("@/api/interactions/interactions.api", () => ({
@@ -100,7 +108,13 @@ vi.mock("@/api/interactions/interactions.api", () => ({
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="current-path">{location.pathname}</div>;
+  const [params] = useSearchParams();
+  return (
+    <>
+      <div data-testid="current-path">{location.pathname}</div>
+      <div data-testid="current-return-to">{params.get("returnTo") ?? ""}</div>
+    </>
+  );
 }
 
 function renderAt(path: string) {
@@ -168,11 +182,16 @@ describe("router", () => {
     });
   });
 
-  it("redirects /settings and /me/profile to /settings/profile", async () => {
+  it("redirects /settings and /me/profile to the auth-guarded settings profile", async () => {
+    // Phase 2A-1 built /settings/profile, so the redirect now lands on a real
+    // (auth-guarded) route instead of the 404 fallback. A guest is therefore
+    // forwarded one hop further, to login — and `returnTo` is the evidence that
+    // the legacy redirect resolved to /settings/profile and not somewhere else.
     renderAt("/settings");
     await waitFor(() => {
-      expect(screen.getByTestId("current-path")).toHaveTextContent("/settings/profile");
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/login");
     });
+    expect(screen.getByTestId("current-return-to")).toHaveTextContent("/settings/profile");
   });
 });
 

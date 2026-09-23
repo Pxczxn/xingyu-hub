@@ -16,6 +16,10 @@ import { TopicsPage } from "@/features/topics/pages/TopicsPage";
 import { TopicDetailPage } from "@/features/topics/pages/TopicDetailPage";
 import { UserProfilePage } from "@/features/profile/pages/UserProfilePage";
 import { MeRedirectPage } from "@/features/profile/pages/MeRedirectPage";
+import { SettingsLayout } from "@/features/settings/pages/SettingsLayout";
+import { SettingsProfilePage } from "@/features/settings/pages/SettingsProfilePage";
+import { SettingsPrivacyPage } from "@/features/settings/pages/SettingsPrivacyPage";
+import { SettingsSessionsPage } from "@/features/settings/pages/SettingsSessionsPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
@@ -31,6 +35,8 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      /force-change-password
  * Phase 0 hosts kept as-is: /articles/:articleId , /u/:username , /studio
  * Phase 1C-1:          /studio/content/:articleId  (articleId === "new" = blank doc)
+ * Phase 2A-1:          /settings/profile , /settings/privacy , /settings/sessions
+ *                      (shared SettingsLayout; `/settings` stays a Legacy redirect)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -88,6 +94,23 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
+
+        {/* Phase 2A-1: Settings.
+            The layout route is PATHLESS on purpose: `/settings` itself stays a
+            Legacy redirect (see redirects.tsx), and a pathless parent cannot
+            collide with it while still giving all three pages the shared shell. */}
+        <Route
+          element={
+            <RequireAuth>
+              <SettingsLayout />
+            </RequireAuth>
+          }
+        >
+          <Route path="/settings/profile" element={<SettingsProfilePage />} />
+          <Route path="/settings/privacy" element={<SettingsPrivacyPage />} />
+          <Route path="/settings/sessions" element={<SettingsSessionsPage />} />
+        </Route>
+
         {/* Phase 1C-1: editor. One route covers both "existing draft" and
             "new article" (Legacy used the same magic `new` id). */}
         <Route

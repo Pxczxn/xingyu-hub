@@ -4,8 +4,16 @@ import { Navigate, useParams } from "react-router-dom";
  * Phase 0 carries ONLY these five Legacy redirects.
  * The full Legacy table (~73 rules) is intentionally NOT migrated.
  *
- * Redirect targets /topics, /discover and /settings/profile are not built yet;
- * they are deliberately NOT created as pages — they fall through to the 404 route.
+ * Target status as of Phase 2A-1 — all five now resolve to a real route:
+ *   /topics           Phase 1B
+ *   /discover         Phase 1A
+ *   /u/:username      Phase 1B
+ *   /settings/profile Phase 2A-1  <- this round fixed the last dead target
+ *
+ * Before 2A-1, both `/me/profile` and `/settings` pointed at /settings/profile,
+ * which did not exist, so they silently landed on the 404 route. They are now
+ * genuinely working redirects. `/settings` stays in this table rather than
+ * becoming a route of its own so the approved redirect set is unchanged.
  */
 
 export type LegacyRedirect = {
