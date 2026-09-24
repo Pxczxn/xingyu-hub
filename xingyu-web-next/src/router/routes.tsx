@@ -22,6 +22,7 @@ import { SettingsPrivacyPage } from "@/features/settings/pages/SettingsPrivacyPa
 import { SettingsSessionsPage } from "@/features/settings/pages/SettingsSessionsPage";
 import { SettingsBlocksPage } from "@/features/settings/pages/SettingsBlocksPage";
 import { SettingsApiTokensPage } from "@/features/settings/pages/SettingsApiTokensPage";
+import { OnboardingAliasRedirect, OnboardingPage } from "@/features/onboarding/pages/OnboardingPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
@@ -41,6 +42,7 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      (shared SettingsLayout; `/settings` stays a Legacy redirect)
  * Phase 2A-2a:         /settings/blocks (same shell) + the block entry on /u/:username
  * Phase 2A-2b:         /settings/api-tokens (same shell)
+ * Phase 2A-3:          /onboarding (aliases /welcome /interests /follows /profile)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -98,6 +100,21 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
+
+        {/* Phase 2A-3: onboarding. Subpaths are aliases so Legacy bookmarks
+            land on the same step machine (the server `step` field). */}
+        <Route
+          path="/onboarding"
+          element={
+            <RequireAuth>
+              <OnboardingPage />
+            </RequireAuth>
+          }
+        />
+        <Route path="/onboarding/welcome" element={<OnboardingAliasRedirect />} />
+        <Route path="/onboarding/interests" element={<OnboardingAliasRedirect />} />
+        <Route path="/onboarding/follows" element={<OnboardingAliasRedirect />} />
+        <Route path="/onboarding/profile" element={<OnboardingAliasRedirect />} />
 
         {/* Phase 2A-1: Settings.
             The layout route is PATHLESS on purpose: `/settings` itself stays a
