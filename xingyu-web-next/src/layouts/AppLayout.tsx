@@ -77,6 +77,12 @@ export function AppLayout() {
                   <UserIcon className="h-4 w-4" aria-hidden />
                   {user?.username ?? "我的主页"}
                 </Link>
+                <Link to="/me/collections" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  收藏夹
+                </Link>
+                <Link to="/me/bookshelf" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  书架
+                </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}
