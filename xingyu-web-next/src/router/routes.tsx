@@ -23,6 +23,11 @@ import { SettingsSessionsPage } from "@/features/settings/pages/SettingsSessions
 import { SettingsBlocksPage } from "@/features/settings/pages/SettingsBlocksPage";
 import { SettingsApiTokensPage } from "@/features/settings/pages/SettingsApiTokensPage";
 import { OnboardingAliasRedirect, OnboardingPage } from "@/features/onboarding/pages/OnboardingPage";
+import { AnnouncementsPage } from "@/features/announcements/pages/AnnouncementsPage";
+import { AnnouncementDetailPage } from "@/features/announcements/pages/AnnouncementDetailPage";
+import { GuideIndexPage } from "@/features/guide/pages/GuideIndexPage";
+import { GuideDetailPage } from "@/features/guide/pages/GuideDetailPage";
+import { RulesPage } from "@/features/rules/pages/RulesPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
@@ -43,6 +48,8 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2A-2a:         /settings/blocks (same shell) + the block entry on /u/:username
  * Phase 2A-2b:         /settings/api-tokens (same shell)
  * Phase 2A-3:          /onboarding (aliases /welcome /interests /follows /profile)
+ * Phase 2B:            /announcements, /announcements/:id, /guide, /guide/:slug, /rules
+ *                      (public, read-only, no RequireAuth)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -79,6 +86,13 @@ export function AppRoutes() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/topics" element={<TopicsPage />} />
         <Route path="/topics/:slug" element={<TopicDetailPage />} />
+
+        {/* Phase 2B: public static info. Guest-reachable, no login gate. */}
+        <Route path="/announcements" element={<AnnouncementsPage />} />
+        <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
+        <Route path="/guide" element={<GuideIndexPage />} />
+        <Route path="/guide/:slug" element={<GuideDetailPage />} />
+        <Route path="/rules" element={<RulesPage />} />
 
         {/* Phase 1B: real article + public profile */}
         <Route

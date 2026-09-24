@@ -108,8 +108,19 @@ export function AppLayout() {
       </main>
 
       <footer className="border-t border-border">
-        <div className="content-shell py-4 text-xs text-muted-foreground">
-          星语 · Web V2 Phase 1A
+        <div className="content-shell flex flex-wrap items-center gap-x-4 gap-y-2 py-4 text-xs text-muted-foreground">
+          <span>星语</span>
+          <nav aria-label="站点信息" className="flex flex-wrap gap-x-4">
+            <Link to="/announcements" className="hover:text-foreground hover:underline">
+              公告
+            </Link>
+            <Link to="/guide" className="hover:text-foreground hover:underline">
+              指南
+            </Link>
+            <Link to="/rules" className="hover:text-foreground hover:underline">
+              社区规则
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>
