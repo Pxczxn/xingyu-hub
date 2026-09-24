@@ -163,7 +163,12 @@ export function HomePage() {
           <ul className="flex flex-col gap-2">
             {(announcements.data ?? []).map((item) => (
               <li key={item.id} className="rounded-lg border border-border bg-card p-4">
-                <p className="text-sm font-medium text-foreground">{item.title}</p>
+                <Link
+                  to={`/announcements/${encodeURIComponent(item.id)}`}
+                  className="text-sm font-medium text-foreground hover:text-accent"
+                >
+                  {item.title}
+                </Link>
                 {item.body ? (
                   <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.body}</p>
                 ) : null}
