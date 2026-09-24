@@ -32,6 +32,8 @@ import { CollectionsPage } from "@/features/collections/pages/CollectionsPage";
 import { CollectionManagePage } from "@/features/collections/pages/CollectionManagePage";
 import { CollectionPublicPage } from "@/features/collections/pages/CollectionPublicPage";
 import { BookshelfPage } from "@/features/bookshelf/pages/BookshelfPage";
+import { MomentsPage } from "@/features/moments/pages/MomentsPage";
+import { MomentDetailPage } from "@/features/moments/pages/MomentDetailPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
@@ -56,6 +58,7 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      (public, read-only, no RequireAuth)
  * Phase 2C:            /me/collections, /me/collections/:id, /me/bookshelf (RequireAuth)
  *                      /collections/:id (public, read-only)
+ * Phase 2D:            /moments, /moments/:id (public feed/detail; publish CTA login-gated)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -102,6 +105,12 @@ export function AppRoutes() {
 
         {/* Phase 2C: public collection detail. 404 hides PRIVATE/UNLISTED. */}
         <Route path="/collections/:id" element={<CollectionPublicPage />} />
+
+        {/* Phase 2D: public moments. The whole feed is guest-readable;
+            only the publish CTA sends guests to login. No /me/moments page,
+            no /moments/new, no /moments/:id/edit. */}
+        <Route path="/moments" element={<MomentsPage />} />
+        <Route path="/moments/:id" element={<MomentDetailPage />} />
 
         {/* Phase 1B: real article + public profile */}
         <Route

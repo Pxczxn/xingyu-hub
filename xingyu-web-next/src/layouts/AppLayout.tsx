@@ -1,5 +1,5 @@
 import { Link, Outlet } from "react-router-dom";
-import { Compass, Hash, Home, LogOut, PenLine, User as UserIcon } from "lucide-react";
+import { Compass, Hash, Home, LogOut, MessageCircle, PenLine, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
 
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { label: "首页", to: "/", icon: Home },
   { label: "发现", to: "/discover", icon: Compass },
   { label: "话题", to: "/topics", icon: Hash },
+  { label: "动态", to: "/moments", icon: MessageCircle },
 ];
 
 export function AppLayout() {
