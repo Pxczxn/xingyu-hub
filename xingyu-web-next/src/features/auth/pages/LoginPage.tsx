@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { resolvePostLoginPath } from "@/features/onboarding/post-login-routing";
 import { getPublicConfig } from "@/lib/public-config";
 import { setStoredToken } from "@/lib/storage";
 
@@ -78,7 +79,7 @@ export function LoginPage() {
         navigate("/force-change-password", { replace: true });
         return;
       }
-      navigate(returnTo, { replace: true });
+      navigate(await resolvePostLoginPath(returnTo), { replace: true });
     } catch (err) {
       setStoredToken(null);
       if (err instanceof ApiError) {
