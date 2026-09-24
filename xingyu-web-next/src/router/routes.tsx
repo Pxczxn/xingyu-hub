@@ -28,6 +28,10 @@ import { AnnouncementDetailPage } from "@/features/announcements/pages/Announcem
 import { GuideIndexPage } from "@/features/guide/pages/GuideIndexPage";
 import { GuideDetailPage } from "@/features/guide/pages/GuideDetailPage";
 import { RulesPage } from "@/features/rules/pages/RulesPage";
+import { CollectionsPage } from "@/features/collections/pages/CollectionsPage";
+import { CollectionManagePage } from "@/features/collections/pages/CollectionManagePage";
+import { CollectionPublicPage } from "@/features/collections/pages/CollectionPublicPage";
+import { BookshelfPage } from "@/features/bookshelf/pages/BookshelfPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
@@ -50,6 +54,8 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2A-3:          /onboarding (aliases /welcome /interests /follows /profile)
  * Phase 2B:            /announcements, /announcements/:id, /guide, /guide/:slug, /rules
  *                      (public, read-only, no RequireAuth)
+ * Phase 2C:            /me/collections, /me/collections/:id, /me/bookshelf (RequireAuth)
+ *                      /collections/:id (public, read-only)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -94,6 +100,9 @@ export function AppRoutes() {
         <Route path="/guide/:slug" element={<GuideDetailPage />} />
         <Route path="/rules" element={<RulesPage />} />
 
+        {/* Phase 2C: public collection detail. 404 hides PRIVATE/UNLISTED. */}
+        <Route path="/collections/:id" element={<CollectionPublicPage />} />
+
         {/* Phase 1B: real article + public profile */}
         <Route
           path="/articles/:articleId"
@@ -106,6 +115,30 @@ export function AppRoutes() {
         <Route path="/u/:username" element={<UserProfilePage />} />
         {/* /me is only an entry point to the current user's own profile. */}
         <Route path="/me" element={<MeRedirectPage />} />
+        <Route
+          path="/me/collections"
+          element={
+            <RequireAuth>
+              <CollectionsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/me/collections/:id"
+          element={
+            <RequireAuth>
+              <CollectionManagePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/me/bookshelf"
+          element={
+            <RequireAuth>
+              <BookshelfPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/studio"
           element={
