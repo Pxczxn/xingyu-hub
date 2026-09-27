@@ -117,10 +117,66 @@ describe("seriesApi", () => {
     });
   });
 
-  it("does not expose chapter REST or public series wrappers", () => {
+  it("lists public series via GET /api/v1/series?limit=", async () => {
+    mockedRequest.mockResolvedValue([]);
+
+    await seriesApi.listPublic(24);
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series?limit=24");
+  });
+
+  it("defaults the public list limit to 20", async () => {
+    mockedRequest.mockResolvedValue([]);
+
+    await seriesApi.listPublic();
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series?limit=20");
+  });
+
+  it("reads a public series by id", async () => {
+    mockedRequest.mockResolvedValue({});
+
+    await seriesApi.getPublicById("ser-1");
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series/ser-1");
+  });
+
+  it("reads a public series by username and slug", async () => {
+    mockedRequest.mockResolvedValue({});
+
+    await seriesApi.getPublicBySlug("alice", "my-series");
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series/alice/my-series");
+  });
+
+  it("subscribes with POST and unsubscribes with DELETE on the same path", async () => {
+    mockedRequest.mockResolvedValue(undefined);
+
+    await seriesApi.subscribe("ser-1");
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/series/ser-1/subscribe", {
+      method: "POST",
+    });
+
+    mockedRequest.mockClear();
+    await seriesApi.unsubscribe("ser-1");
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/series/ser-1/subscribe", {
+      method: "DELETE",
+    });
+  });
+
+  it("records reading progress at POST /api/v1/me/reading-progress", async () => {
+    mockedRequest.mockResolvedValue(undefined);
+
+    await seriesApi.recordReadingProgress("ser-1", "art-1");
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/reading-progress", {
+      method: "POST",
+      body: { seriesId: "ser-1", articleId: "art-1" },
+    });
+  });
+
+  it("does not expose chapter REST wrappers", () => {
     expect(seriesApi).not.toHaveProperty("listChapters");
     expect(seriesApi).not.toHaveProperty("createChapter");
-    expect(seriesApi).not.toHaveProperty("listPublic");
-    expect(seriesApi).not.toHaveProperty("getPublic");
   });
 });
