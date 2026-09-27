@@ -39,6 +39,9 @@ import { SeriesListPage } from "@/features/series/pages/SeriesListPage";
 import { SeriesNewPage } from "@/features/series/pages/SeriesNewPage";
 import { SeriesEditPage } from "@/features/series/pages/SeriesEditPage";
 import { SeriesArticlesPage } from "@/features/series/pages/SeriesArticlesPage";
+import { PublicSeriesListPage } from "@/features/series/pages/PublicSeriesListPage";
+import { PublicSeriesDetailPage } from "@/features/series/pages/PublicSeriesDetailPage";
+import { PublicSeriesReadPage } from "@/features/series/pages/PublicSeriesReadPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -63,7 +66,9 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2C:            /me/collections, /me/collections/:id, /me/bookshelf (RequireAuth)
  *                      /collections/:id (public, read-only)
  * Phase 2F:            /studio/series, /studio/series/new, /studio/series/:id/edit,
- *                      /studio/series/:id/articles (creator Series; no public reader)
+ *                      /studio/series/:id/articles (creator Series)
+ * Phase 2G:            /series, /series/:seriesId, /series/:seriesId/read
+ *                      (public Series square + detail + reader; guest-readable)
  * Phase 2D:            /moments, /moments/:id (public feed/detail; publish CTA login-gated)
  * plus the five approved Legacy redirects.
  *
@@ -117,6 +122,14 @@ export function AppRoutes() {
             no /moments/new, no /moments/:id/edit. */}
         <Route path="/moments" element={<MomentsPage />} />
         <Route path="/moments/:id" element={<MomentDetailPage />} />
+
+        {/* Phase 2G: public series. Guest-readable square + detail; the reader
+            needs no session either. Subscribing is the only signed-in action.
+            `/series/:id/read` must be declared after `/series` and `/series/:id`
+            is unnecessary here — react-router 7 ranks static "read" higher. */}
+        <Route path="/series" element={<PublicSeriesListPage />} />
+        <Route path="/series/:seriesId" element={<PublicSeriesDetailPage />} />
+        <Route path="/series/:seriesId/read" element={<PublicSeriesReadPage />} />
 
         {/* Phase 1B: real article + public profile */}
         <Route
