@@ -55,6 +55,7 @@ import { EventsPage } from "@/features/events/pages/EventsPage";
 import { EventDetailPage } from "@/features/events/pages/EventDetailPage";
 import { EventSubmitPage } from "@/features/events/pages/EventSubmitPage";
 import { MyEventsPage } from "@/features/events/pages/MyEventsPage";
+import { MyMomentsPage } from "@/features/moments/pages/MyMomentsPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -100,6 +101,9 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2I-4:          /events, /events/:eventId (public; guest-readable square +
  *                      detail), /events/:eventId/submit, /me/events (RequireAuth;
  *                      submission and the personal record both write under /me/*)
+ * Phase 2I-5:          /me/moments (RequireAuth; the owner's own moment history —
+ *                      distinct from the public feed at /moments, which stays the
+ *                      place publishing happens)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -148,8 +152,9 @@ export function AppRoutes() {
         <Route path="/collections/:id" element={<CollectionPublicPage />} />
 
         {/* Phase 2D: public moments. The whole feed is guest-readable;
-            only the publish CTA sends guests to login. No /me/moments page,
-            no /moments/new, no /moments/:id/edit. */}
+            only the publish CTA sends guests to login. Publishing lives here as
+            a form on the feed page (POST /moments), so there is no /moments/new
+            or /moments/:id/edit; the owner's history is /me/moments (Phase 2I-5). */}
         <Route path="/moments" element={<MomentsPage />} />
         <Route path="/moments/:id" element={<MomentDetailPage />} />
 
@@ -250,6 +255,18 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
+        {/* Phase 2I-5: the owner's own moment history. NOT the public feed —
+            `/moments` is guest-readable, `/me/moments` is scoped by the session
+            (GET /api/v1/me/moments). Publishing stays on `/moments`, which owns
+            the compose form; this route is read-only history. */}
+        <Route
+          path="/me/moments"
+          element={
+            <RequireAuth>
+              <MyMomentsPage />
+            </RequireAuth>
+          }
+        />
         {/* Phase 2I-2: the notification centre. The endpoint is /api/v1/notifications
             (session-scoped), so this needs a login like the follow lists. */}
         <Route
@@ -259,8 +276,7 @@ export function AppRoutes() {
               <NotificationsPage />
             </RequireAuth>
           }
-        />
-        {/* Phase 2I-3: the private message centre. Both hosts need a session —
+        />        {/* Phase 2I-3: the private message centre. Both hosts need a session —
             every /api/v1/messages endpoint is scoped by the community session.
             Declared as two flat routes (not a nested index/child pair) because
             MailboxPage renders the thread slot itself from the param. */}

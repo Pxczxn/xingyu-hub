@@ -6,7 +6,7 @@
  *   GET /me/moments is only for conservative owner-control detection
  */
 import { apiRequest } from "@/api/client";
-import type { MomentBodyPayload, MomentView } from "./moments.types";
+import type { InsightsView, MomentBodyPayload, MomentView } from "./moments.types";
 import { FEED_LIMIT, OWNER_LIST_LIMIT } from "./moments.types";
 
 export const momentsApi = {
@@ -30,4 +30,15 @@ export const momentsApi = {
 
   listMine: (limit: number = OWNER_LIST_LIMIT): Promise<MomentView[]> =>
     apiRequest<MomentView[]>(`/api/v1/me/moments?limit=${limit}`),
+};
+
+/*
+ * `GET /api/v1/me/insights` lives in this module because it is the counters
+ * panel of the same owner surface (/me/moments), not because it is a moment
+ * endpoint — it counts articles, comments and likes too. It is deliberately NOT
+ * merged into `momentsApi`: a caller wanting only the insights should not
+ * import a moments client to get them.
+ */
+export const meInsightsApi = {
+  get: (): Promise<InsightsView> => apiRequest<InsightsView>("/api/v1/me/insights"),
 };
