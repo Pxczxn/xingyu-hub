@@ -51,6 +51,10 @@ import { NotificationsPage } from "@/features/notifications/pages/NotificationsP
 import { MailboxPage } from "@/features/messages/pages/MailboxPage";
 import { ConversationAssetsPage } from "@/features/messages/pages/ConversationAssetsPage";
 import { SearchMessagesPage } from "@/features/messages/pages/SearchMessagesPage";
+import { EventsPage } from "@/features/events/pages/EventsPage";
+import { EventDetailPage } from "@/features/events/pages/EventDetailPage";
+import { EventSubmitPage } from "@/features/events/pages/EventSubmitPage";
+import { MyEventsPage } from "@/features/events/pages/MyEventsPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -93,6 +97,9 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2I-3b:         /messages/search (mailbox-wide; a static segment that
  *                      outranks :conversationId), /messages/:conversationId/media,
  *                      /messages/:conversationId/files (RequireAuth)
+ * Phase 2I-4:          /events, /events/:eventId (public; guest-readable square +
+ *                      detail), /events/:eventId/submit, /me/events (RequireAuth;
+ *                      submission and the personal record both write under /me/*)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -161,6 +168,32 @@ export function AppRoutes() {
         <Route path="/galaxies/:slug" element={<GalaxyDetailPage />} />
         <Route path="/galaxies/:slug/members" element={<GalaxyMembersPage />} />
         <Route path="/galaxies/:slug/content" element={<GalaxyContentPage />} />
+
+        {/* Phase 2I-4: community events. The square and the detail page are
+            public and guest-readable (GET /events is unauthenticated); only the
+            submit flow and 我的活动 need a session, because registration and
+            submission both write under /me/*.
+            `/events/:eventId/submit` is declared after `/events/:eventId` —
+            react-router 7 ranks the longer literal segment higher, and the test
+            file pins that so a future sibling route cannot shadow it. */}
+        <Route path="/events" element={<EventsPage />} />
+        <Route path="/events/:eventId" element={<EventDetailPage />} />
+        <Route
+          path="/events/:eventId/submit"
+          element={
+            <RequireAuth>
+              <EventSubmitPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/me/events"
+          element={
+            <RequireAuth>
+              <MyEventsPage />
+            </RequireAuth>
+          }
+        />
 
         {/* Phase 1B: real article + public profile */}
         <Route
