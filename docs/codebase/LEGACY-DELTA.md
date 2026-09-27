@@ -52,11 +52,11 @@
 
 | 功能 | Legacy 路由 | 后端 | 说明 |
 |---|---|---|---|
-| **活动 Events** | `events` 下 **8 条**（含报名/提交/结果/排行） | ✅ **200（公开可读！）** | 唯一探测到 **200** 的，说明是公开功能，优先级应上调 |
+| **活动 Events** | `events` 下 **8 条**（含报名/提交/结果/排行） | ✅ **200（公开可读！）** | → **已迁（Phase 2I-4，`6172aaa`）**：API 域 + 4 页面（`/events`、`/events/:eventId`、`/events/:eventId/submit`、`/me/events`）。**⚠️ 本行曾长期标为"待办"，是过期信息** —— 见 §三·补5 |
 | **榜单** | `/rankings` | ⚪ **无独立后端** | 页面是 `getDiscover`+`getGalaxies`+`getTopics`+`listSeries` 的**前端拼装**（已核实，4 处引用全是复用） |
 | **分类** | `/categories` | ⚪ **无独立后端** | 仅 `getDiscover`+`getTopics` 拼装 |
 | **精选** | `/features` | ⚪ **无独立后端** | `getDiscover`+`getSuggestedUsers`+`getTopics`+`listSeries` 拼装 |
-| **创作者** | `/creators` | ✅ 复用已有 | `getProfile`/`getTopicCreators`/`getUserWorks`/`followUser`/`unfollowUser`（探针均 200/401，存在） |
+| **创作者** | `/creators` | ✅ 复用已有 | `getProfile`/`getTopicCreators`/`getUserWorks`/`followUser`/`unfollowUser` → **已迁（Phase 2K-1）**，零后端改动，见 §三·补6 |
 | **举报 / 申诉** | `reports` 下 4 条、`appeals` | ✅ 401 | 读在 `/me/reports`·`/me/appeals`，**写在资源根** `/reports`·`/appeals` → **已迁（Phase 2J-2）**，见 §三·补4 |
 | **帮助中心** | `/help`、`/help/:slug` | ✅ 复用 `/guide` | `getGuidePages` 与 `/guide` **同一数据源** → 大概率**应并入 guide，不单独做** |
 
@@ -268,6 +268,126 @@ V2 只映射可发生的值（`SUBMITTED`→已提交、`TRIAGED`→已受理、
 
 与 `/me/likes`、`/me/comments`（都有 `limit`）不同，`listMyReports` 方法**没有 `@RequestParam`**。
 V2 的 `reportsApi.listMine()` 因此**不接受参数**；`appealsApi.listMine(limit = 20)` 才带。
+
+---
+
+## 三·补5 · ⚠️ 本文档的 P1「活动」行曾是过期信息（2026-09-27 实测，代价：一次错误的开工）
+
+**事实**：活动（Events）在 **Phase 2I-4（`6172aaa`）** 就已完整迁移完毕，包括：
+
+| 已交付 | 路径 |
+|---|---|
+| API 域 | `src/api/events/`（`events.types.ts` / `events.api.ts` / **`events.picker.ts`**） |
+| 页面 | `src/features/events/pages/` 4 个：`EventsPage`、`EventDetailPage`、`EventSubmitPage`、`MyEventsPage` |
+| 路由 | `/events`、`/events/:eventId`（公开可读）、`/events/:eventId/submit`、`/me/events` |
+| 测试 | 6 个测试文件（含 `events.types.test.ts` 22 项、`events.picker.test.ts` 18 项） |
+
+而本文档 P1 表格直到本轮之前仍把活动标为待办且写「优先级应上调」。
+
+**代价**：我据此开工，重写了 `events.types.ts` / `events.api.ts` / `events.api.test.ts`
+三个**已存在且已提交**的文件，覆盖了 `6172aaa` 的实现。多亏 `git status` 显示这三个文件是
+`M`（修改）而不是 `??`（新增），才发现它们是已跟踪文件 —— 否则会静默覆盖。
+已用 `git checkout --` 完整恢复，恢复后 `src/api/events/` **53 项测试全绿**。
+
+### 教训：**开工前必须先用 `git ls-files` 确认"这个模块是否已经存在"**
+
+```bash
+# 任何"要新建一个模块"的动作之前，先跑这一条：
+git ls-files | grep -iE "<模块名>"
+```
+
+如果命中已跟踪文件，**这个功能大概率已经实现了** —— 先读它，再决定做什么。
+
+配套判据（按可靠性排序）：
+
+1. **`git ls-files` / `git log -- <path>`** —— 最权威，直接说明有无历史实现；
+2. **`git status --short <dir>`** —— 看目标是 `M`（已跟踪，有原版可恢复）还是 `??`（真新增）；
+   在**写入前**跑，能救命；
+3. **读 `docs/codebase/LEGACY-DELTA.md` 的"已迁"标注 + 对照 `git log`** ——
+   但**本文档可能与代码脱节**，不能单独作为依据。
+
+⚠️ **`LEGACY-DELTA.md` 是认知快照，不是实时状态。** 判断"某功能有没有迁"时，
+它只能用来**缩小候选范围**，**最终必须由代码本身裁决**（`git ls-files` + 读实现）。
+本轮就是只信了文档、没查代码。
+
+### 同类错误已第四次发生（历史记录）
+
+| 轮次 | 差点/实际做了什么 | 真相 |
+|---|---|---|
+| 2I-4b | 以为"V2 不能发动态"，准备写发布页 | 发布早已在 `MomentsPage` 内 |
+| 2I-5 | 同上（承前） | 同上 |
+| 2J-1 | 以为 `/me/history` 是待迁页面 | 仅存在于 Legacy `screen-registry.ts` 标签，后端 0 命中 |
+| **2K-1** | **重写了整个 events API 域** | **Phase 2I-4 已迁完，文件已提交** |
+
+**四次的共同根因：拿二手信息（文档 / 屏幕清单 / 目录名）当事实，没查一手代码。**
+
+---
+
+## 三·补6 · Phase 2K-1 `/creators`：一个"永远为空"的页面（源码 + 真实数据实测，2026-09-27）
+
+### 6.1 它是纯前端聚合页，零后端改动
+
+`/creators` **没有对应的后端端点**。V2 复用了已迁的 topics/users API，扇出形状与 Legacy 一致：
+
+```
+GET /topics                        → 取前 8 个专题
+GET /topics/{slug}/creators        → 每专题前 8 位作者
+GET /users/{username}              → 装饰（头像、following）
+GET /users/{username}/works        → 装饰（最新公开作品）
+```
+
+因此**本阶段新增 0 条后端调用**。
+
+### 6.2 ⚠️ 真实数据下这个页面是空的 —— 而且不能归咎于筛选
+
+`listCreators`（`TopicService:203`）的实现是：
+
+```java
+return articleTopicMapper.listTopOwners(topic.getId(), limit)...
+```
+
+即**从 `article_topic` 关联「已发布文章」的作者**。实测（2026-09-27，本地 7779）：
+
+| 专题 slug | `/creators` 返回 |
+|---|---|
+| ai / announcement / design / general / life / opensource / reading / startup | **全部 `[]`（共 0 位）** |
+
+**8 个专题全部返回空数组。** 所以这个页面在**当前数据下必然渲染空态**，
+且原因**不是**用户筛选，而是**专题下还没有已发布内容**。
+
+V2 因此把空态拆成两条**措辞不同**的分支：
+
+| 条件 | 文案 | 含义 |
+|---|---|---|
+| `creators.length === 0` | 「暂无可推荐的作者 / 已收录的专题下暂时还没有已发布的内容」 | 数据层面就没有 |
+| 其余（筛选/搜索后为空） | 「暂无匹配作者 / 调整专题或关键词后再试」 | 是用户自己的筛选造成的 |
+
+**如果把这两条合并，就会把"社区还没内容"说成"你的筛选没匹配上"** —— 那是在骗用户。
+浏览器验收专门断言了「真实数据下渲染的是前者、且不含后者」。
+
+### 6.3 筛选与搜索是纯客户端的，UI 必须说明
+
+没有服务端创作者搜索。筛选 chips 只能作用于**已扇出的那 8 个专题**，
+搜索也只匹配**已收录的作者**。页面因此渲染一条 scope note：
+「本页收录来自前 N 个专题的作者；筛选与搜索仅作用于已收录的作者，**不是全站搜索**。」
+
+### 6.4 修正 Legacy 的乐观更新（与 2C 通知已读同一条纪律）
+
+Legacy 的 `toggleFollow` **先翻转按钮、再发请求，失败不回滚**：
+
+```tsx
+try { await communityApi.followUser(...); setCreators(rows => rows.map(... !following ...)) }
+catch { setError("关注操作未完成…") }   // ← 按钮已经翻转了，且不会翻回来
+```
+
+V2 改为**只在请求成功后才翻转**，失败保留原状态并提示。测试 `keeps the previous state and
+surfaces an error when follow fails` 钉住这一点。
+
+### 6.5 `following` 未知时不渲染按钮
+
+`following` 来自装饰性的 `GET /users/{username}`，该请求可能失败。
+此时 `profile.following` 为 `undefined` —— V2 **不渲染关注按钮**，
+因为一个状态可能反着的开关比没有开关更糟。测试覆盖该分支。
 
 ---
 

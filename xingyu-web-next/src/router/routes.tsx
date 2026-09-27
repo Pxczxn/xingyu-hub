@@ -14,6 +14,7 @@ import { DiscoverPage } from "@/features/discover/pages/DiscoverPage";
 import { SearchPage } from "@/features/discover/pages/SearchPage";
 import { TopicsPage } from "@/features/topics/pages/TopicsPage";
 import { TopicDetailPage } from "@/features/topics/pages/TopicDetailPage";
+import { CreatorsPage } from "@/features/creators/pages/CreatorsPage";
 import { UserProfilePage } from "@/features/profile/pages/UserProfilePage";
 import { MeRedirectPage } from "@/features/profile/pages/MeRedirectPage";
 import { SettingsLayout } from "@/features/settings/pages/SettingsLayout";
@@ -153,6 +154,14 @@ export function AppRoutes() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/topics" element={<TopicsPage />} />
         <Route path="/topics/:slug" element={<TopicDetailPage />} />
+
+        {/* Phase 2K-1: /creators is a PURE FRONT-END AGGREGATION page — there is
+            no /api/v1/creators endpoint. It fans out to /topics +
+            /topics/{slug}/creators + /users/{username}[/works], all of which are
+            already migrated. Guest-readable (every underlying call is public);
+            the follow button is the only signed-in action, and it simply fails
+            with an auth error for guests. */}
+        <Route path="/creators" element={<CreatorsPage />} />
 
         {/* Phase 2B: public static info. Guest-reachable, no login gate. */}
         <Route path="/announcements" element={<AnnouncementsPage />} />
