@@ -38,6 +38,9 @@ vi.mock("@/api/messages/messages.api", () => ({
     listMessages: vi.fn(),
     markRead: vi.fn(),
     recallMessage: vi.fn(),
+    listMedia: vi.fn(async () => []),
+    listFiles: vi.fn(async () => []),
+    search: vi.fn(async () => []),
   },
 }));
 
@@ -87,5 +90,35 @@ describe("phase 2I-3 message routes", () => {
       expect(screen.getByTestId("current-path")).toHaveTextContent("/login");
     });
     expect(screen.getByTestId("current-return-to")).toHaveTextContent("/messages/c-1");
+  });
+});
+
+/*
+ * Phase 2I-3b: search plus the two shared-attachment views. All three are
+ * session-scoped for the same reason as the thread.
+ */
+describe("phase 2I-3b message routes", () => {
+  it("guards /messages/search", async () => {
+    renderAt("/messages/search");
+    await waitFor(() => {
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/login");
+    });
+    expect(screen.getByTestId("current-return-to")).toHaveTextContent("/messages/search");
+  });
+
+  it("guards the shared-media view", async () => {
+    renderAt("/messages/c-1/media");
+    await waitFor(() => {
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/login");
+    });
+    expect(screen.getByTestId("current-return-to")).toHaveTextContent("/messages/c-1/media");
+  });
+
+  it("guards the shared-files view", async () => {
+    renderAt("/messages/c-1/files");
+    await waitFor(() => {
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/login");
+    });
+    expect(screen.getByTestId("current-return-to")).toHaveTextContent("/messages/c-1/files");
   });
 });

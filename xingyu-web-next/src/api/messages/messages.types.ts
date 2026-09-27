@@ -11,7 +11,8 @@
  *             ConversationMemberView {userId, username, displayName, role}
  *             PageResultView<T>  {items, nextCursor, total}
  *
- * ── Endpoints this phase uses (scope: send/receive core) ────────────────────
+ * ── Endpoints used ──────────────────────────────────────────────────────────
+ * Send/receive core (2I-3):
  *   GET    /api/v1/messages                                   -> ConversationView[]  BARE ARRAY
  *   GET    /api/v1/messages/direct/{conversationId}            -> ConversationView (incl. messages)
  *   POST   /api/v1/messages/direct/{otherUserId}               -> ConversationView  (open/create)
@@ -23,16 +24,25 @@
  *   PATCH  /api/v1/messages/{conversationId}/read              -> 204
  *   POST   /api/v1/messages/{conversationId}/messages/{messageId}/recall -> ChatMessageView
  *
- * Deliberately NOT in this phase (deferred to 2I-3b, endpoints confirmed to
- * exist and return 401): group create/settings/announcement/members/leave/
- * remove-member, join requests (list/submit/approve/reject), my join requests,
- * /media, /files, /search, /me/saved-messages, /messages/upload wiring.
+ * Attachments + search (2I-3b):
+ *   POST   /api/v1/messages/upload                            -> {url, name, mimeType}
+ *   GET    /api/v1/messages/{conversationId}/media?limit=50    -> ChatMessageView[]  BARE ARRAY
+ *   GET    /api/v1/messages/{conversationId}/files?limit=50    -> ChatMessageView[]  BARE ARRAY
+ *   GET    /api/v1/messages/search?q=&limit=50                 -> ChatMessageView[]  BARE ARRAY
+ *   (upload is not message-scoped on the backend: it stores a file and returns a
+ *    URL. It creates no message and touches no conversation. See files.api.ts.)
+ *
+ * Still deferred: group create/settings/announcement/members/leave/remove-member,
+ * join requests (list/submit/approve/reject), my join requests,
+ * /me/saved-messages.
  *
  * ── Shapes that will bite ───────────────────────────────────────────────────
  *
  * 1. THE CONVERSATION LIST IS A BARE ARRAY; THE MESSAGE LIST IS A PageResult.
  *    They are two different endpoints with two different shapes, and swapping
  *    them blanks the screen. `toConversations` / `toMessages` pin each one.
+ *    `/media`, `/files` and `/search` are ALSO bare arrays, not pages — only
+ *    `GET /{id}/messages` pages.
  *
  * 2. `POST /direct/{id}` IS OVERLOADED. The same path prefix takes EITHER a
  *    conversationId (returns a direct conversation) OR a userId/username (opens
@@ -63,6 +73,18 @@
  *    can be null for a freshly created DIRECT conversation (only `createdAt` is
  *    set). The list is pre-sorted `updated_at DESC` by the mapper, so the
  *    frontend must NOT re-sort — a null would sort unpredictably.
+ *
+ * 8. `/media` RETURNS ONLY `IMAGE` ROWS and `/files` ONLY `FILE` rows
+ *    (`listByConversationIdAndType`). Neither is a filter the client applies —
+ *    a TEXT message can never appear in either, and the two lists are disjoint.
+ *    `/media` is also capped at 200 server-side, `/files` likewise; `/search`
+ *    caps at 100.
+ *
+ * 9. `/search` IS MAILBOX-WIDE, NOT PER-CONVERSATION. `searchForUser` matches
+ *    across every conversation the caller belongs to, and the service fills
+ *    `conversationType` from the owning row — which is why that field exists on
+ *    a search hit at all. A blank query short-circuits to `[]` server-side (no
+ *    400), so the UI must not send an empty `q` and pretend it searched.
  */
 
 export type ConversationType = "DIRECT" | "GROUP";
@@ -143,6 +165,80 @@ export type SendMessagePayload = {
 };
 
 /*
+ * Attachment rules (Phase 2I-3b).
+ *
+ * The transport is `POST /api/v1/messages/upload` and its whitelist is
+ * `CommunityMessageController.COMMUNITY_ATTACHMENT_EXTENSIONS` — sixteen
+ * extensions, wider than the avatar flow's five. A bad extension is answered
+ * with 500 INTERNAL_ERROR, not 400, so pre-flight validation is the only way to
+ * give the user a real reason. See files.api.ts for the transport contract.
+ */
+
+/** Exactly the controller's whitelist, lower-cased. Keep in sync. */
+export const MESSAGE_ATTACHMENT_EXTENSIONS = [
+  "jpg", "jpeg", "png", "gif", "webp",
+  "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+  "txt", "md", "csv", "zip",
+] as const;
+
+/** The subset of the whitelist that is an image — these become IMAGE messages. */
+export const MESSAGE_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp"] as const;
+
+/** `sys_config_group.storage.maxSize`, in MB, converted to bytes. */
+export const MESSAGE_ATTACHMENT_MAX_BYTES = 100 * 1024 * 1024;
+
+/** Human-readable mirror of the byte limit for hint text. */
+export const MESSAGE_ATTACHMENT_MAX_LABEL = "100 MB";
+
+/** One message for every rejection — the reason is the same either way. */
+export const MESSAGE_ATTACHMENT_ERROR = "仅支持图片、PDF、Office 文档、TXT/MD/CSV、ZIP 附件";
+
+/**
+ * Which `messageType` an attachment should be sent as, or null when the file is
+ * not an accepted attachment at all.
+ *
+ * Images become IMAGE (so `/media` lists them and the thread renders a
+ * thumbnail); everything else in the whitelist becomes FILE. This mirrors the
+ * backend, which stores the type the caller declares and never re-derives it
+ * from the extension.
+ */
+export function attachmentMessageType(fileName: string): MessageType | null {
+  const extension = fileExtensionOf(fileName);
+  if ((MESSAGE_IMAGE_EXTENSIONS as readonly string[]).includes(extension)) return "IMAGE";
+  if ((MESSAGE_ATTACHMENT_EXTENSIONS as readonly string[]).includes(extension)) return "FILE";
+  return null;
+}
+
+/**
+ * Validate a candidate message attachment.
+ *
+ * Returns an error message to show the user, or `null` when acceptable. The
+ * extension is authoritative because the backend only looks at the extension;
+ * `file.type` is a secondary signal and an empty type is allowed through rather
+ * than blocking a file the browser simply did not label.
+ */
+export function validateMessageAttachment(file: File): string | null {
+  const extension = fileExtensionOf(file.name ?? "");
+  if (!(MESSAGE_ATTACHMENT_EXTENSIONS as readonly string[]).includes(extension)) {
+    return MESSAGE_ATTACHMENT_ERROR;
+  }
+  if (file.size <= 0) {
+    return "文件内容为空，请重新选择";
+  }
+  if (file.size > MESSAGE_ATTACHMENT_MAX_BYTES) {
+    return `附件不能超过 ${MESSAGE_ATTACHMENT_MAX_LABEL}`;
+  }
+  return null;
+}
+
+/** Lower-cased extension of a file name, or "" when there is none. */
+function fileExtensionOf(fileName: string): string {
+  const dot = fileName.lastIndexOf(".");
+  if (dot <= 0 || dot === fileName.length - 1) return "";
+  return fileName.slice(dot + 1).toLowerCase();
+}
+
+/*
  * Defensive unwraps + small derivations.
  */
 
@@ -161,6 +257,12 @@ export function toMessages(raw: MessagePage | ChatMessage[] | null | undefined):
   return Array.isArray(raw.items) ? raw.items : [];
 }
 
+/*
+ * `/media`, `/files` and `/search` also return bare arrays, which `toMessages`
+ * already tolerates — so they reuse it rather than growing a second unwrapper
+ * that could drift from this one.
+ */
+
 /** Sum of `unreadCount` across the mailbox. This is the only unread total. */
 export function countUnreadConversations(items: Conversation[]): number {
   return items.reduce((total, item) => total + (item.unreadCount ?? 0), 0);
@@ -172,11 +274,13 @@ export function isRecalled(message: ChatMessage): boolean {
 }
 
 /**
- * Display name for the other party of a DIRECT conversation.
+ * Display name for a conversation row.
  *
- * The backend's `title` for DIRECT is produced by `formatLastMessagePreview`'s
- * sibling logic and can be blank when neither profile nor username is known, so
- * fall back to something readable rather than an empty row.
+ * A DIRECT conversation has NO title on the backend: the column is documented
+ * as 「群聊标题」 (V016), `openDirect` never calls `setTitle`, and the only two
+ * `setTitle` call sites in ConversationService are both GROUP paths. Nothing
+ * derives the peer's name into it, so the fallback below is the normal path for
+ * DIRECT, not an edge case.
  */
 export function conversationLabel(conversation: Conversation): string {
   const title = conversation.title?.trim();
