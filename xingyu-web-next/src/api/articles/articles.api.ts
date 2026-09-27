@@ -67,6 +67,8 @@ export const articlesApi = {
       { method: "POST" },
     ),
 
+  listMine: (): Promise<MyArticleSummary[]> => apiRequest<MyArticleSummary[]>("/api/v1/me/articles"),
+
   /**
    * Resolves one article's editorial status.
    *
@@ -76,7 +78,7 @@ export const articlesApi = {
    * "unknown" and fall back to DRAFT rather than blocking the editor.
    */
   getMyArticleStatus: async (articleId: string): Promise<ArticleLifecycleStatus | null> => {
-    const list = await apiRequest<MyArticleSummary[]>("/api/v1/me/articles");
+    const list = await articlesApi.listMine();
     const found = list.find((article) => article.id === articleId);
     return found ? normalizeLifecycleStatus(found.status) : null;
   },

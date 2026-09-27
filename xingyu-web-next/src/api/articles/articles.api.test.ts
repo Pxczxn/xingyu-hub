@@ -38,6 +38,16 @@ describe("normalizeLifecycleStatus", () => {
   });
 });
 
+describe("listMine", () => {
+  it("lists GET /api/v1/me/articles", async () => {
+    apiRequestMock.mockResolvedValue([]);
+
+    await articlesApi.listMine();
+
+    expect(apiRequestMock).toHaveBeenCalledWith("/api/v1/me/articles");
+  });
+});
+
 describe("getMyArticleStatus", () => {
   it("reads the status of one article from the owner list", async () => {
     apiRequestMock.mockResolvedValue([
