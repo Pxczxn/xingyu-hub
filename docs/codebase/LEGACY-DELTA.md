@@ -45,7 +45,8 @@
 | **关注关系** | `/me/following`、`/me/followers` | ✅ 401 | 社交核心；`followUser`/`unfollowUser` 也已有 → **已迁（Phase 2I-1，`5605dd9`）** |
 | **通知中心** | (无独立页，Header 内) | ✅ 401 | `/api/v1/notifications`；V2 Header 的 `MessageCircle` 是 **placeholder** → **已迁（Phase 2I-2）**，见下方勘误 |
 | **关注动态 / 我的动态** | `/me/moments` | ✅ 401 | 2D 只做了公开 `/moments`，个人维度没做 → **已迁（Phase 2I-5）**，另补 `GET /me/insights` |
-| **我的互动**（赞/评论/历史） | `/me/likes`、`/me/comments`、`/me/history` | ✅ 401 | 三个独立页，都是「我留下的痕迹」 |
+| **我的互动**（赞/评论） | `/me/likes`、`/me/comments` | ✅ 401 | 「我留下的痕迹」→ **已迁（Phase 2J-1）** |
+| ~~阅读历史~~ `/me/history` | `/me/history` | ❌ **无后端路由** | 仅存在于 Legacy 的 `screen-registry.ts` 标签里；探针 **500**（无 handler），**不做** — 见 §三·补3 |
 
 ### 🟠 P1 — 内容生态补全
 
@@ -125,7 +126,68 @@ V2 用 5 个页面覆盖主干 + `SettingsLayout`。**这属于「设计取舍�
 
 ---
 
-## 三·补 · Phase 2I-2 通知中心的三条勘误（四源确认，2026-09-27）
+## 三·补3 · Phase 2J-1 「我的互动」契约与 `/me/history` 的证伪（源码 + 实测，2026-09-27）
+
+P0 表里「我的互动（赞/评论/历史）」三项，**只有两项该做**。
+
+### 1. `/me/history` 不存在 —— 它是 Legacy 的标签，不是功能
+
+判据（三条独立证据）：
+
+| 证据 | 结果 |
+|---|---|
+| 全后端 grep `me/history`、`HistoryView`、`ViewHistory` | **0 命中**（无 controller、无 DTO、无 service） |
+| 全后端 grep `listByAuthorId` 等历史类查询 | 只有 comment / moment / event-submission 的作者查询，**没有浏览历史表** |
+| 活体探针 `GET /api/v1/me/history` | **500**（无 handler，且未落入鉴权白名单） |
+
+它唯一的出处是 Legacy `lib/screen-registry.ts` 的一行标签
+（`["阅读历史", "/me/history"]`）—— 那是**屏幕清单**，不是路由实现。
+Legacy 也从未调用过它。
+
+> **不做。** 若将来要做「阅读历史」，那需要**后端先建表 + 建端点**，
+> 属于新功能而非迁移。V2 刻意不建这个页面：一个必然 500 的页面就是伪完成。
+
+### 2. `/me/likes` 与 `/me/comments` 契约（已迁）
+
+`CommunityMeController @RequestMapping("/me")`：
+
+| 端点 | 返回 | 说明 |
+|---|---|---|
+| `GET /me/likes?limit=20` | `MyLikeView[]` **裸数组** | 无 cursor、无 total → **前端无法分页** |
+| `GET /me/comments?limit=20` | `MyCommentView[]` **裸数组** | 同上 |
+
+四个会改变 UI 诚实度的细节：
+
+- **`MyLikeView` 没有 `id`** —— 复合键是 `objectType` + `objectId`，
+  React key 必须用两者拼接，否则同 id 不同类型的行会被合并。
+- **`title` / `objectTitle` 服务端会回落成 `objectId`**
+  （`document == null ? getObjectId() : getTitle()`）。
+  一个长得像 UUID 的标题是**真实数据**，不能替换成好看的占位文案。
+- **评论 SQL 过滤 `status = 'VISIBLE'`** —— 用户写过但后来被隐藏的评论**不会出现**。
+  所以文案**不能写「全部评论」**：缺行不等于用户没写过。
+- **点赞表没有 status 列** —— 取消点赞是 `DELETE` 行，所以这个列表恒等于
+  「**此刻**喜欢的内容」，不是「喜欢过的历史」。文案不能暗示历史。
+
+链接一律走共享的 `contentHref`（`components/shared/ContentCard.tsx`）：
+它只把 ARTICLE / SERIES / MOMENT 解析成真实路由，**其余一律降级到 `/discover`**，
+绝不猜 `/u/:id`。原始 `objectType` 会同时显示在行内，让未映射的类型**可见**
+而不是静默跳到错的地方。
+
+> 评论行链接的是**被评论的内容**，不是评论本身。
+> `MyCommentView.id` 是评论 id（Legacy 有 `/comments/:id`），但 V2 没有该路由，
+> 链到那里就是死链。
+
+### 3. 教训 · 再次确认「405/500 ≠ 路由存在」的读法
+
+这次是 `/me/history` 返 **500**（而不是 404/405）。
+500 的成因是**没有 handler 且未匹配到鉴权白名单**，属于框架层兜底，
+所以它和 404 一样**不能**用来判断「路由是否存在」的反面 ——
+真正的判据始终是**读 controller 源码**。探针只用来确认「活着的那条是不是我理解的样子」。
+（与 §三·补2 的 `405 ≠ 404` 是同一条纪律的两个落点。）
+
+---
+
+
 
 清点时按 Legacy 的调用推断的三个前提，写码前逐一核对后发现**都不准确**：
 

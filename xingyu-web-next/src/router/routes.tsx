@@ -56,6 +56,8 @@ import { EventDetailPage } from "@/features/events/pages/EventDetailPage";
 import { EventSubmitPage } from "@/features/events/pages/EventSubmitPage";
 import { MyEventsPage } from "@/features/events/pages/MyEventsPage";
 import { MyMomentsPage } from "@/features/moments/pages/MyMomentsPage";
+import { MyLikesPage } from "@/features/me-activity/pages/MyLikesPage";
+import { MyCommentsPage } from "@/features/me-activity/pages/MyCommentsPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -104,6 +106,8 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2I-5:          /me/moments (RequireAuth; the owner's own moment history —
  *                      distinct from the public feed at /moments, which stays the
  *                      place publishing happens)
+ * Phase 2J-1:          /me/likes, /me/comments (RequireAuth; the rest of 我的互动.
+ *                      `/me/history` is NOT shipped — no backend route exists)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -264,6 +268,28 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <MyMomentsPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 2J-1: the rest of "我的互动" — the trails the user left behind.
+            Both endpoints are /me/* and both return bare arrays, so these are
+            read-only, single-read pages behind a session.
+            NOTE: `/me/history` is deliberately absent. It exists only as a label
+            in Legacy's screen-registry; the backend has no such route (probe:
+            500, no handler), so shipping it would be a page that always fails. */}
+        <Route
+          path="/me/likes"
+          element={
+            <RequireAuth>
+              <MyLikesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/me/comments"
+          element={
+            <RequireAuth>
+              <MyCommentsPage />
             </RequireAuth>
           }
         />
