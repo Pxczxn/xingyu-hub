@@ -57,7 +57,7 @@
 | **分类** | `/categories` | ⚪ **无独立后端** | 仅 `getDiscover`+`getTopics` 拼装 |
 | **精选** | `/features` | ⚪ **无独立后端** | `getDiscover`+`getSuggestedUsers`+`getTopics`+`listSeries` 拼装 |
 | **创作者** | `/creators` | ✅ 复用已有 | `getProfile`/`getTopicCreators`/`getUserWorks`/`followUser`/`unfollowUser`（探针均 200/401，存在） |
-| **举报 / 申诉** | `reports` 下 4 条、`appeals` | ✅ 401 | `/api/v1/me/reports`、`/api/v1/me/appeals` 均存在（需登录） |
+| **举报 / 申诉** | `reports` 下 4 条、`appeals` | ✅ 401 | 读在 `/me/reports`·`/me/appeals`，**写在资源根** `/reports`·`/appeals` → **已迁（Phase 2J-2）**，见 §三·补4 |
 | **帮助中心** | `/help`、`/help/:slug` | ✅ 复用 `/guide` | `getGuidePages` 与 `/guide` **同一数据源** → 大概率**应并入 guide，不单独做** |
 
 > 这三条 ⚪「无独立后端」是本次核实出的**重要修正**：`rankings`/`categories`/`features`
@@ -205,6 +205,69 @@ Legacy 也从未调用过它。
   「恰好五条」断言钉死，且 Legacy 侧该路径本就废弃。
 - **标记已读有意不照搬 Legacy 的乐观更新**。Legacy 在 PATCH 失败时仍把行置为已读；
   V2 保持失败即不改状态（诚实优先），仅提示错误。
+
+---
+
+## 三·补4 · Phase 2J-2 「举报 / 申诉」契约与 Legacy 的错误状态映射（源码 + 实测，2026-09-27）
+
+### 4.1 读写在不同 Controller，且路径不同（本仓库第二次出现该模式）
+
+| 动作 | 方法 | 路径 | Controller |
+|---|---|---|---|
+| 列我的举报 | GET | `/me/reports` | `CommunityMeController @RequestMapping("/me")` |
+| 看举报详情 | GET | `/me/reports/{reportId}` | 同上 |
+| 追加补充说明 | POST | `/me/reports/{reportId}/supplements` | 同上 |
+| 列我的申诉 | GET | `/me/appeals?limit=20` | 同上 |
+| 看申诉详情 | GET | `/me/appeals/{appealId}` | 同上 |
+| **提交举报** | POST | **`/reports`** | `CommunityModerationController @RequestMapping("/reports")` |
+| **提交申诉** | POST | **`/appeals`** | `CommunityAppealController @RequestMapping("/appeals")` |
+
+**写在资源根、读在 `/me/*`**。V2 的路由因此挂在 `/reports`、`/appeals`（**不是** `/me/reports`），
+与 Legacy 的真实页面路径一致（`xingyu-web/app/me/reports`、`app/me/appeals` 是**空目录**）。
+
+### 4.2 ⚠️ Legacy 的状态标签映射是错的 —— 不要复制
+
+Legacy `app/reports/page.tsx` 映射：
+
+```
+PENDING / UNDER_REVIEW / RESOLVED / CLOSED
+```
+
+但全后端 `setStatus` 穷举后，**实际只会写入**：
+
+| 实体 | 真实状态 |
+|---|---|
+| report | `SUBMITTED` → `CLOSED` |
+| case | `OPEN` → `CLOSED`（守卫接受 `SUBMITTED`/`TRIAGED`） |
+| appeal | `SUBMITTED` → `DECIDED` |
+
+也就是说 Legacy 的 4 个标签里有 **3 个永远不会命中**，会把真实状态原样渲染成英文枚举。
+V2 只映射可发生的值（`SUBMITTED`→已提交、`TRIAGED`→已受理、`CLOSED`→已关闭；
+`SUBMITTED`→已提交、`DECIDED`→已裁定），**未知值原样回显**，并写测试
+`never renders Legacy's invented labels` 钉住该结论。
+
+### 4.3 DTO 的可空字段决定了 UI 的三处「拒绝伪完成」
+
+- `UserReportDetailView` 的 `caseId` / `caseStatus` / `measureId` **都可为空**。
+  `submitReport` 同事务会开一个 `case(OPEN)`，所以**新建的举报一定有 `caseId`**；
+  可空路径是给历史数据准备的。
+- 因此 V2 做了三处收敛，而不是渲染必然报错的控件：
+  1. `caseId` 为空 → **整个「关联案件」块不渲染**；
+  2. `measureId` 为空 → **不渲染申诉链接**，改为说明文案
+     「尚未对该案件作出处置，暂无可申诉的措施。」（后端 `submitAppeal` 解析不到 measure 会直接拒）；
+  3. `NewAppealPage` 在 `caseId`/`measureId` 都缺失时 → **不渲染表单**，改渲染空态 + 指路 `/reports`。
+- 补充说明表单仅在 report 为 `SUBMITTED`/`TRIAGED` 时显示（服务端 `ModerationService:322` 同样只在
+  这两个状态下接受），`CLOSED` 时不给输入框。
+
+### 4.4 `AppealDetailView` 没有 `caseStatus`
+
+申诉 DTO 只有 `{id, caseId, body, status, createdAt}`。V2 **不显示案件状态**，
+只展示 `caseId` 本身，不声称知道案件进展 —— 避免用前端推断代替后端事实。
+
+### 4.5 `GET /me/reports` 没有 `limit` 参数
+
+与 `/me/likes`、`/me/comments`（都有 `limit`）不同，`listMyReports` 方法**没有 `@RequestParam`**。
+V2 的 `reportsApi.listMine()` 因此**不接受参数**；`appealsApi.listMine(limit = 20)` 才带。
 
 ---
 
