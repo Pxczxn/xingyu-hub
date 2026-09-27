@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  MESSAGE_ATTACHMENT_MAX_BYTES,
+  attachmentMessageType,
   conversationLabel,
   countUnreadConversations,
   isRecalled,
@@ -7,6 +9,7 @@ import {
   sortBySequence,
   toConversations,
   toMessages,
+  validateMessageAttachment,
   type ChatMessage,
   type Conversation,
 } from "./messages.types";
@@ -144,5 +147,107 @@ describe("sortBySequence / mergeMessages", () => {
     mergeMessages(current, older);
     expect(current.map((m) => m.id)).toEqual(["m2"]);
     expect(older.map((m) => m.id)).toEqual(["m1"]);
+  });
+});
+
+/*
+ * Attachment rules (Phase 2I-3b). Every accepted extension and every limit here
+ * mirrors `CommunityMessageController.COMMUNITY_ATTACHMENT_EXTENSIONS` and
+ * `sys_config_group.storage.maxSize`, not a guess.
+ */
+describe("attachmentMessageType", () => {
+  it("classifies the whitelisted images as IMAGE", () => {
+    for (const name of ["a.png", "a.jpg", "a.jpeg", "a.gif", "a.webp"]) {
+      expect(attachmentMessageType(name)).toBe("IMAGE");
+    }
+  });
+
+  it("classifies every other whitelisted extension as FILE", () => {
+    for (const name of [
+      "a.pdf", "a.doc", "a.docx", "a.xls", "a.xlsx",
+      "a.ppt", "a.pptx", "a.txt", "a.md", "a.csv", "a.zip",
+    ]) {
+      expect(attachmentMessageType(name)).toBe("FILE");
+    }
+  });
+
+  it("is case-insensitive, because the backend lower-cases before comparing", () => {
+    expect(attachmentMessageType("PHOTO.PNG")).toBe("IMAGE");
+    expect(attachmentMessageType("Report.PDF")).toBe("FILE");
+  });
+
+  it("returns null for a type the backend would reject", () => {
+    // SVG is a real trap: it is a plausible image the whitelist does NOT accept.
+    for (const name of ["a.svg", "a.bmp", "a.ico", "a.tiff", "a.exe", "a.mp4"]) {
+      expect(attachmentMessageType(name)).toBeNull();
+    }
+  });
+
+  it("returns null when there is no usable extension", () => {
+    expect(attachmentMessageType("noext")).toBeNull();
+    expect(attachmentMessageType("trailing.")).toBeNull();
+    expect(attachmentMessageType(".hidden")).toBeNull();
+    expect(attachmentMessageType("")).toBeNull();
+  });
+
+  it("uses the LAST extension, so a double extension is judged by the tail", () => {
+    expect(attachmentMessageType("archive.zip.png")).toBe("IMAGE");
+    expect(attachmentMessageType("photo.png.exe")).toBeNull();
+  });
+});
+
+describe("validateMessageAttachment", () => {
+  /**
+   * A plain `{name, size, type}` stand-in: `validateMessageAttachment` reads
+   * exactly those three properties, and constructing a real File of 100 MB in a
+   * unit test would be wasteful.
+   */
+  function fakeFile(name: string, size: number, type = ""): File {
+    return { name, size, type } as unknown as File;
+  }
+
+  it("accepts a whitelisted file", () => {
+    expect(validateMessageAttachment(fakeFile("a.png", 1024))).toBeNull();
+    expect(validateMessageAttachment(fakeFile("a.pdf", 1024))).toBeNull();
+    expect(validateMessageAttachment(fakeFile("a.zip", 1024))).toBeNull();
+  });
+
+  it("rejects a type outside the whitelist with a readable reason", () => {
+    expect(validateMessageAttachment(fakeFile("a.svg", 1024))).toContain("附件");
+    expect(validateMessageAttachment(fakeFile("a.mp4", 1024))).toContain("附件");
+  });
+
+  it("rejects an empty file — the transport would happily store it", () => {
+    expect(validateMessageAttachment(fakeFile("a.png", 0))).toContain("空");
+  });
+
+  it("accepts exactly the limit and rejects one byte more", () => {
+    // `validateFileSize` compares `size > max`, so exactly 100 MB passes.
+    expect(validateMessageAttachment(fakeFile("a.png", MESSAGE_ATTACHMENT_MAX_BYTES))).toBeNull();
+    expect(validateMessageAttachment(fakeFile("a.png", MESSAGE_ATTACHMENT_MAX_BYTES + 1))).toContain(
+      "附件",
+    );
+  });
+
+  it("ignores an empty MIME type rather than blocking a good file", () => {
+    // Some platforms hand back "" for a perfectly valid file; the extension is
+    // what the backend checks, so an empty type must not fail validation.
+    expect(validateMessageAttachment(fakeFile("a.png", 1024, ""))).toBeNull();
+  });
+});
+
+describe("toMessages on the bare-array endpoints", () => {
+  it("passes a bare array through unchanged", () => {
+    const rows = [makeMessage({ id: "m1" }), makeMessage({ id: "m2" })];
+    expect(toMessages(rows)).toEqual(rows);
+  });
+
+  it("unwraps an envelope if one ever appears", () => {
+    expect(toMessages({ items: [makeMessage({ id: "m1" })] }).map((m) => m.id)).toEqual(["m1"]);
+  });
+
+  it("returns an empty array for null/undefined rather than throwing", () => {
+    expect(toMessages(null)).toEqual([]);
+    expect(toMessages(undefined)).toEqual([]);
   });
 });

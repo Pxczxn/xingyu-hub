@@ -160,9 +160,11 @@ describe("messagesApi.recallMessage", () => {
 });
 
 describe("messagesApi surface", () => {
-  it("exposes exactly the send/receive core, with group admin absent", () => {
-    // Guards against group administration (members/announcement/join-requests)
-    // or the search/saved-message reads creeping in before 2I-3b.
+  it("exposes the send/receive core plus attachments and search, with group admin absent", () => {
+    // 2I-3b added upload wiring, /media, /files and /search. Group
+    // administration (members/announcement/join-requests/leave/remove-member)
+    // and /me/saved-messages are still deliberately not here — that is the
+    // boundary this assertion keeps.
     expect(Object.keys(messagesApi)).toEqual([
       "listConversations",
       "getDirect",
@@ -173,6 +175,135 @@ describe("messagesApi surface", () => {
       "listMessages",
       "markRead",
       "recallMessage",
+      "sendAttachment",
+      "listMedia",
+      "listFiles",
+      "search",
     ]);
+  });
+});
+
+describe("messagesApi.sendAttachment", () => {
+  it("sends into a DIRECT conversation with the uploaded url and declared type", async () => {
+    mocked.mockResolvedValue({ id: "m1" });
+    await messagesApi.sendAttachment("c1", "DIRECT", {
+      url: "/api/v1/admin/files/community/messages/a.png",
+      name: "照片.png",
+      messageType: "IMAGE",
+    });
+
+    expect(mocked).toHaveBeenCalledWith(
+      "/api/v1/messages/direct/c1/messages",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.objectContaining({
+          type: "IMAGE",
+          attachmentUrl: "/api/v1/admin/files/community/messages/a.png",
+          attachmentName: "照片.png",
+        }),
+      }),
+    );
+  });
+
+  it("sends into a GROUP conversation when the conversation is a group", async () => {
+    mocked.mockResolvedValue({ id: "m1" });
+    await messagesApi.sendAttachment("c9", "GROUP", {
+      url: "/x.pdf",
+      name: "报告.pdf",
+      messageType: "FILE",
+    });
+
+    expect(mocked).toHaveBeenCalledWith(
+      "/api/v1/messages/group/c9/messages",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("attaches an idempotency key so a retry cannot double-post", async () => {
+    mocked.mockResolvedValue({ id: "m1" });
+    await messagesApi.sendAttachment("c1", "DIRECT", {
+      url: "/x.png",
+      name: "a.png",
+      messageType: "IMAGE",
+    });
+
+    const body = mocked.mock.calls[0][1]?.body as Record<string, unknown>;
+    expect(typeof body.clientMessageId).toBe("string");
+    expect(String(body.clientMessageId).length).toBeGreaterThan(0);
+  });
+
+  it("does not put the url in the body — the backend renders from attachmentUrl", async () => {
+    mocked.mockResolvedValue({ id: "m1" });
+    await messagesApi.sendAttachment("c1", "DIRECT", {
+      url: "/x.png",
+      name: "a.png",
+      messageType: "IMAGE",
+    });
+
+    const body = mocked.mock.calls[0][1]?.body as Record<string, unknown>;
+    expect(body.body).toBeUndefined();
+  });
+});
+
+describe("messagesApi.listMedia / listFiles", () => {
+  it("reads media as a BARE ARRAY, not a page", async () => {
+    const rows = [{ id: "m1", messageType: "IMAGE" }];
+    mocked.mockResolvedValue(rows);
+    await expect(messagesApi.listMedia("c1")).resolves.toEqual(rows);
+    expect(mocked).toHaveBeenCalledWith("/api/v1/messages/c1/media?limit=50");
+  });
+
+  it("reads files as a BARE ARRAY, with the same default cap", async () => {
+    mocked.mockResolvedValue([]);
+    await expect(messagesApi.listFiles("c1")).resolves.toEqual([]);
+    expect(mocked).toHaveBeenCalledWith("/api/v1/messages/c1/files?limit=50");
+  });
+
+  it("passes an explicit limit through", async () => {
+    mocked.mockResolvedValue([]);
+    await messagesApi.listMedia("c1", 100);
+    expect(mocked).toHaveBeenCalledWith("/api/v1/messages/c1/media?limit=100");
+  });
+
+  it("encodes the conversation id in both", async () => {
+    mocked.mockResolvedValue([]);
+    await messagesApi.listMedia("a/b");
+    await messagesApi.listFiles("a/b");
+    expect(mocked).toHaveBeenNthCalledWith(1, "/api/v1/messages/a%2Fb/media?limit=50");
+    expect(mocked).toHaveBeenNthCalledWith(2, "/api/v1/messages/a%2Fb/files?limit=50");
+  });
+
+  it("tolerates an envelope instead of a bare array", async () => {
+    mocked.mockResolvedValue({ items: [{ id: "m1" }] });
+    await expect(messagesApi.listMedia("c1")).resolves.toEqual([{ id: "m1" }]);
+  });
+});
+
+describe("messagesApi.search", () => {
+  it("reads results as a BARE ARRAY and passes the query", async () => {
+    const rows = [{ id: "m1", conversationType: "GROUP" }];
+    mocked.mockResolvedValue(rows);
+    await expect(messagesApi.search("你好")).resolves.toEqual(rows);
+    expect(mocked).toHaveBeenCalledWith("/api/v1/messages/search?q=%E4%BD%A0%E5%A5%BD&limit=50");
+  });
+
+  it("encodes a query with reserved characters", async () => {
+    mocked.mockResolvedValue([]);
+    await messagesApi.search("a&b=c");
+    expect(mocked).toHaveBeenCalledWith("/api/v1/messages/search?q=a%26b%3Dc&limit=50");
+  });
+
+  it("still calls the endpoint for a blank query — the server decides, not us", async () => {
+    // The service short-circuits a blank query to []. Suppressing the call here
+    // would hide that contract and make the page's "no query" state ambiguous.
+    mocked.mockResolvedValue([]);
+    await messagesApi.search("   ");
+    expect(mocked).toHaveBeenCalledWith("/api/v1/messages/search?q=+++&limit=50");
+  });
+
+  it("passes an explicit limit through", async () => {
+    mocked.mockResolvedValue([]);
+    await messagesApi.search("x", 10);
+    expect(mocked).toHaveBeenCalledWith("/api/v1/messages/search?q=x&limit=10");
   });
 });

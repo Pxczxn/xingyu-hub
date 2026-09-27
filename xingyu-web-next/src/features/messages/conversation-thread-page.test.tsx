@@ -287,6 +287,20 @@ describe("ConversationThreadPage — send", () => {
   });
 });
 
+describe("ConversationThreadPage — attachment entry points", () => {
+  it("links to the shared media and files views for the open conversation", async () => {
+    await renderConnected([message()]);
+
+    expect(screen.getByRole("link", { name: "图片" })).toHaveAttribute("href", "/messages/c1/media");
+    expect(screen.getByRole("link", { name: "文件" })).toHaveAttribute("href", "/messages/c1/files");
+  });
+
+  it("renders the attachment control so a file can be sent", async () => {
+    await renderConnected([]);
+    expect(screen.getByRole("button", { name: "添加附件" })).toBeInTheDocument();
+  });
+});
+
 describe("ConversationThreadPage — errors", () => {
   it("shows the backend's own reason when a send is rejected", async () => {
     await renderConnected([]);

@@ -11,8 +11,10 @@ import {
   type ChatMessage,
   type Conversation,
 } from "@/api/messages/messages.types";
-import { PageState } from "@/components/shared/PageState";import { Button } from "@/components/ui/button";
+import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
+import { AttachmentPicker } from "../AttachmentPicker";
 import { MessageBubble } from "../MessageBubble";
 
 /*
@@ -289,9 +291,25 @@ export function ConversationThreadPage() {
             群公告：{conversation.announcement}
           </p>
         ) : null}
-        <Link to="/messages" className="text-sm text-accent hover:underline lg:hidden">
-          返回会话列表
-        </Link>
+        <nav className="flex items-center gap-3 text-sm">
+          <Link to="/messages" className="text-accent hover:underline lg:hidden">
+            返回会话列表
+          </Link>
+          {/* Phase 2I-3b: shared media and files for this conversation. Both are
+              separate pages, not a drawer, so they are linkable and reloadable. */}
+          <Link
+            to={`/messages/${encodeURIComponent(conversation.id)}/media`}
+            className="text-muted-foreground hover:text-foreground hover:underline"
+          >
+            图片
+          </Link>
+          <Link
+            to={`/messages/${encodeURIComponent(conversation.id)}/files`}
+            className="text-muted-foreground hover:text-foreground hover:underline"
+          >
+            文件
+          </Link>
+        </nav>
       </header>
 
       <div className="flex flex-col gap-3">
@@ -339,6 +357,19 @@ export function ConversationThreadPage() {
       ) : null}
 
       <form onSubmit={onSend} className="flex items-end gap-2">
+        <AttachmentPicker
+          conversationId={conversation.id}
+          conversationType={conversation.type}
+          disabled={sending}
+          onSent={(created) =>
+            setState((current) =>
+              current.kind === "ready"
+                ? { ...current, messages: mergeMessages(current.messages, [created]) }
+                : current,
+            )
+          }
+          onError={(reason) => setActionError(reason)}
+        />
         <textarea
           value={draft}
           aria-label="消息内容"

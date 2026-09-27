@@ -49,6 +49,8 @@ import { GalaxyContentPage } from "@/features/galaxies/pages/GalaxyContentPage";
 import { MyFollowingPage, MyFollowersPage } from "@/features/social/pages/FollowListPage";
 import { NotificationsPage } from "@/features/notifications/pages/NotificationsPage";
 import { MailboxPage } from "@/features/messages/pages/MailboxPage";
+import { ConversationAssetsPage } from "@/features/messages/pages/ConversationAssetsPage";
+import { SearchMessagesPage } from "@/features/messages/pages/SearchMessagesPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -87,6 +89,10 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      and only rendered notifications in a header popover, so
  *                      there is no Legacy route to port. Deliberately NOT added
  *                      to LEGACY_REDIRECTS: that set is pinned at five.)
+ * Phase 2I-3:          /messages, /messages/:conversationId (RequireAuth)
+ * Phase 2I-3b:         /messages/search (mailbox-wide; a static segment that
+ *                      outranks :conversationId), /messages/:conversationId/media,
+ *                      /messages/:conversationId/files (RequireAuth)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -238,6 +244,40 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <MailboxPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 2I-3b: mailbox-wide message search and the two shared-media
+            views for one conversation. All three need a session for the same
+            reason as above.
+
+            `/messages/search` is declared alongside `/messages/:conversationId`
+            and NOT nested under it: it is a sibling page, and react-router 7
+            ranks a static segment above a dynamic one, so the literal "search"
+            wins over the param. That ranking is pinned by a test rather than
+            assumed — a future route added here could flip it and silently send
+            "search" down the conversation path. */}
+        <Route
+          path="/messages/search"
+          element={
+            <RequireAuth>
+              <SearchMessagesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/messages/:conversationId/media"
+          element={
+            <RequireAuth>
+              <ConversationAssetsPage kind="media" />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/messages/:conversationId/files"
+          element={
+            <RequireAuth>
+              <ConversationAssetsPage kind="files" />
             </RequireAuth>
           }
         />
