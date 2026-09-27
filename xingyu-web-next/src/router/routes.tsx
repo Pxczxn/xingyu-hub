@@ -58,6 +58,12 @@ import { MyEventsPage } from "@/features/events/pages/MyEventsPage";
 import { MyMomentsPage } from "@/features/moments/pages/MyMomentsPage";
 import { MyLikesPage } from "@/features/me-activity/pages/MyLikesPage";
 import { MyCommentsPage } from "@/features/me-activity/pages/MyCommentsPage";
+import { MyReportsPage } from "@/features/moderation/pages/MyReportsPage";
+import { ReportDetailPage } from "@/features/moderation/pages/ReportDetailPage";
+import { NewReportPage } from "@/features/moderation/pages/NewReportPage";
+import { MyAppealsPage } from "@/features/moderation/pages/MyAppealsPage";
+import { AppealDetailPage } from "@/features/moderation/pages/AppealDetailPage";
+import { NewAppealPage } from "@/features/moderation/pages/NewAppealPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -108,6 +114,9 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      place publishing happens)
  * Phase 2J-1:          /me/likes, /me/comments (RequireAuth; the rest of 我的互动.
  *                      `/me/history` is NOT shipped — no backend route exists)
+ * Phase 2J-2:          /reports, /reports/new, /reports/:reportId, /appeals,
+ *                      /appeals/new, /appeals/:appealId (all RequireAuth; 举报与申诉.
+ *                      Routes at the resource root to match the write endpoints)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -290,6 +299,65 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <MyCommentsPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 2J-2: 举报与申诉. Note the route shape mirrors Legacy's real
+            pages: the list/detail/create pages live at the RESOURCE ROOT
+            (/reports, /appeals), not under /me — even though the read endpoints
+            are /me/reports and /me/appeals. The write endpoints really are at
+            the root (POST /reports, POST /appeals), so the route names match
+            the API shape the user is acting on.
+            All six are RequireAuth: every endpoint is session-scoped.
+            Route order matters — /reports/new must precede /reports/:reportId,
+            otherwise "new" would be parsed as a report id. React Router 7
+            ranks the static segment higher, so the order below is safe either
+            way, but the intent is clearer written in this order. */}
+        <Route
+          path="/reports"
+          element={
+            <RequireAuth>
+              <MyReportsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/reports/new"
+          element={
+            <RequireAuth>
+              <NewReportPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/reports/:reportId"
+          element={
+            <RequireAuth>
+              <ReportDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/appeals"
+          element={
+            <RequireAuth>
+              <MyAppealsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/appeals/new"
+          element={
+            <RequireAuth>
+              <NewAppealPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/appeals/:appealId"
+          element={
+            <RequireAuth>
+              <AppealDetailPage />
             </RequireAuth>
           }
         />
