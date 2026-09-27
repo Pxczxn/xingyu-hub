@@ -11,19 +11,27 @@ import type { ContentSummary } from "@/api/common.types";
 /**
  * Resolve a card link from a content summary.
  *
- * Verified against the live backend (Phase 1A acceptance):
+ * Verified against the live backend:
  *  - /api/v1/search only ever returns ARTICLE hits, and SearchHit exposes just
  *    `objectId` — no slug and no username. So TOPIC / USER cannot be linked
  *    reliably from search results.
- *  - /api/v1/home DOES return SERIES hits, but no series detail route exists.
+ *  - /api/v1/home returns SERIES hits and /api/v1/galaxies/{slug}/content
+ *    returns ARTICLE / SERIES / MOMENT hits, all keyed by the object's own id
+ *    (a UUID), never by slug — so no lookup is needed to build these links.
  *
- * Only ARTICLE has a real, verifiable destination. Everything else degrades to
- * /discover rather than emitting a dead link (never /series/:id, never a
- * guessed /u/:id or /topics/:id).
+ * ARTICLE, SERIES and MOMENT therefore have real, verifiable destinations
+ * (their detail routes shipped in Phase 1B / 2G / 2D). Everything else — TOPIC,
+ * USER, and any future type — degrades to /discover rather than emitting a dead
+ * link (never a guessed /u/:id or /topics/:id).
+ *
+ * `title` is deliberately not required: galaxy content rows carry `objectId` +
+ * `objectType` but the surrounding row already renders the title itself.
  */
-export function contentHref(item: ContentSummary): string {
+export function contentHref(item: Pick<ContentSummary, "id" | "objectType">): string {
   const type = (item.objectType ?? "").toUpperCase();
   if (type === "ARTICLE") return `/articles/${item.id}`;
+  if (type === "SERIES") return `/series/${item.id}`;
+  if (type === "MOMENT") return `/moments/${item.id}`;
   return "/discover";
 }
 

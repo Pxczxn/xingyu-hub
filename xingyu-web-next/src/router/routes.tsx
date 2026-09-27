@@ -42,6 +42,10 @@ import { SeriesArticlesPage } from "@/features/series/pages/SeriesArticlesPage";
 import { PublicSeriesListPage } from "@/features/series/pages/PublicSeriesListPage";
 import { PublicSeriesDetailPage } from "@/features/series/pages/PublicSeriesDetailPage";
 import { PublicSeriesReadPage } from "@/features/series/pages/PublicSeriesReadPage";
+import { GalaxyListPage } from "@/features/galaxies/pages/GalaxyListPage";
+import { GalaxyDetailPage } from "@/features/galaxies/pages/GalaxyDetailPage";
+import { GalaxyMembersPage } from "@/features/galaxies/pages/GalaxyMembersPage";
+import { GalaxyContentPage } from "@/features/galaxies/pages/GalaxyContentPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -130,6 +134,14 @@ export function AppRoutes() {
         <Route path="/series" element={<PublicSeriesListPage />} />
         <Route path="/series/:seriesId" element={<PublicSeriesDetailPage />} />
         <Route path="/series/:seriesId/read" element={<PublicSeriesReadPage />} />
+
+        {/* Phase 2H: public galaxies. Guest-readable square + detail + roster +
+            content feed; only joining needs a session. All four are keyed by
+            `slug`, which is what the backend routes on. */}
+        <Route path="/galaxies" element={<GalaxyListPage />} />
+        <Route path="/galaxies/:slug" element={<GalaxyDetailPage />} />
+        <Route path="/galaxies/:slug/members" element={<GalaxyMembersPage />} />
+        <Route path="/galaxies/:slug/content" element={<GalaxyContentPage />} />
 
         {/* Phase 1B: real article + public profile */}
         <Route
