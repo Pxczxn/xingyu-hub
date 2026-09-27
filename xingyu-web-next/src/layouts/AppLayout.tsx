@@ -286,6 +286,13 @@ export function AppLayout() {
             <Link to="/announcements" className="hover:text-foreground hover:underline">
               公告
             </Link>
+            {/* Phase 2I-4: the events square is public and guest-readable, so its
+                entry point belongs in the footer rather than the seven-item main
+                nav (which MASTER.md fixes and 2H already stretched to include
+                动态). Without this, /events would have no entry point at all. */}
+            <Link to="/events" className="hover:text-foreground hover:underline">
+              社区活动
+            </Link>
             <Link to="/guide" className="hover:text-foreground hover:underline">
               指南
             </Link>
