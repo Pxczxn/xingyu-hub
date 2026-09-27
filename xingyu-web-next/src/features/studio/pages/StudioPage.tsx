@@ -37,7 +37,15 @@ export function StudioPage() {
           <CardContent className="p-6 text-sm text-muted-foreground">已发布占位</CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">审核中占位</CardContent>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            {/* Phase 2K-2: this cell used to read "审核中占位". /studio/submissions
+                now exists, so it becomes a real entry point. The other two cells
+                stay placeholders — there is still no drafts/published list page. */}
+            <Link to="/studio/submissions" className="text-accent hover:underline">
+              我的投稿
+            </Link>
+            <p className="mt-1">查看提交审核的稿件及进展。</p>
+          </CardContent>
         </Card>
       </div>
 

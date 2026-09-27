@@ -36,6 +36,8 @@ import { BookshelfPage } from "@/features/bookshelf/pages/BookshelfPage";
 import { MomentsPage } from "@/features/moments/pages/MomentsPage";
 import { MomentDetailPage } from "@/features/moments/pages/MomentDetailPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
+import { MySubmissionsPage } from "@/features/studio/pages/MySubmissionsPage";
+import { SubmissionDetailPage } from "@/features/studio/pages/SubmissionDetailPage";
 import { SeriesListPage } from "@/features/series/pages/SeriesListPage";
 import { SeriesNewPage } from "@/features/series/pages/SeriesNewPage";
 import { SeriesEditPage } from "@/features/series/pages/SeriesEditPage";
@@ -438,6 +440,29 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <StudioPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 2K-2: review submissions. Both are session-scoped
+            (`/me/submissions*`), so RequireAuth on both.
+
+            NOTE the paths are `/studio/submissions*`, NOT `/me/submissions*`:
+            Legacy hosted this at `/studio/submissions/{id}` and the studio is
+            where a writer looks for their own submissions. The API path stays
+            `/me/*`. */}
+        <Route
+          path="/studio/submissions"
+          element={
+            <RequireAuth>
+              <MySubmissionsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/studio/submissions/:submissionId"
+          element={
+            <RequireAuth>
+              <SubmissionDetailPage />
             </RequireAuth>
           }
         />

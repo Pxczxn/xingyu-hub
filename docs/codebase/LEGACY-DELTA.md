@@ -72,7 +72,7 @@
 | 素材库 | `/studio/assets` | |
 | 协作 | `/studio/collaboration`、`/accept` | |
 | 版本历史 | `/studio/content/:id/versions` | |
-| 投稿管理 | `/studio/submissions/:id` | |
+| 投稿管理 | `/studio/submissions/:id` | → **已迁 + 增强（Phase 2K-2）**：列表 `/studio/submissions` + 详情 `/studio/submissions/:submissionId`。**「撤回投稿」是新增功能而非迁移** —— Legacy 定义了 `withdrawReviewSubmission` 却 **0 处调用**（死代码），详情页是只读的。见 §三·补7 |
 | 创作台设置 | `/studio/settings` | |
 | 动态发布 | `/studio/moments/new` | ~~2D 有 `MomentDetailPage` 但**没有发布页**~~ → **勘误见 §三·补2**：发布表单**已在 `MomentsPage` 内**，无需独立页 |
 
@@ -391,6 +391,119 @@ surfaces an error when follow fails` 钉住这一点。
 
 ---
 
+## 三·补7 · Phase 2K-2 投稿审核：把 Legacy 的「死代码」变成真功能（2026-09-27）
+
+### 7.1 三端点先做活体确认（路径是真的）
+
+```
+GET  /api/v1/me/submissions?limit=20        -> 401 AUTH_REQUIRED   ✅ 存在，需身份
+GET  /api/v1/me/submissions/s1              -> 401 AUTH_REQUIRED   ✅ 存在，需身份
+POST /api/v1/me/submissions/s1/withdraw     -> 401 AUTH_REQUIRED   ✅ 存在，需身份
+GET  /api/v1/moments                        -> 200 []              （对照，证明探针通）
+```
+
+⚠️ **探针必须带 `/api/v1` 前缀**。本轮第一次探针漏了前缀，结果 `/me/submissions` 返回
+**HTML（SPA fallback 的 index.html，200）**、`/me/submissions/s1/withdraw` 返回 **405**
+—— 差点据此写出「路径不存在」或「方法未绑定」的错误结论。
+真因：后端只对 **`/api/*`** 返回 JSON（未匹配 → Spring 404 JSON），其余路径一律回落到前端 `index.html`。
+
+> **判据**：探针返回 HTML 而非 JSON ⇒ **前缀写错了**，不是路由不存在。
+> 405 也可能是这个原因造成的假象。**先确认前缀，再解读状态码。**
+
+### 7.2 状态机：去后端穷举 `setStatus`，共 5 个值
+
+`ReviewService` 里所有 `setStatus`：
+
+| 位置 | 写入值 | 触发 |
+|---|---|---|
+| `line 78` | `"PENDING"` | 用户提交 |
+| `line 163` | `"WITHDRAWN"` | 用户撤回 |
+| `line 203` | `normalizeDecision(...)` | 管理员裁定，只允许 `APPROVED` / `REJECTED` / `RETURNED` |
+
+→ 状态集 = **`PENDING` / `APPROVED` / `REJECTED` / `RETURNED` / `WITHDRAWN`**。
+
+**这次 Legacy 的映射是对的**（与 §三·补4 举报那次的错误映射相反）。
+**结论：不要一刀切假设 Legacy 对或错，必须逐案去后端穷举。**
+
+`STATUS_META` 的未知值处理沿用 §三·补4 纪律：**原样回显状态码**，
+描述文案给 `"当前状态暂无法识别。"` —— **不借用别的状态的文案**。
+
+### 7.3 ⚠️ 撤回是**新功能**，不是迁移
+
+Legacy `community.api.ts` 里有：
+
+```ts
+export async function withdrawReviewSubmission(id: string): Promise<{ id: string; status: string }> {
+  return apiRequest(...);   // 后端实际返回 ReviewSubmission 实体，不是 {id,status}
+}
+```
+
+两个问题叠加：
+1. **返回类型声明错误**（后端返实体，字段远多于 `{id,status}`）；
+2. **全 Legacy grep 0 处调用** —— 纯死代码，所以 Legacy 详情页**根本没有撤回按钮**。
+
+V2 把后端一直支持、前端从未接通的能力**真正做出来**：
+- **只对 `PENDING` 显示按钮**（后端 `withdraw` 对非 PENDING 抛 `CONFLICT`），
+  其余状态**隐藏**而不是渲染一个点了必失败的禁用按钮；
+- 确认框写明**副作用**：「撤回后稿件会回到可编辑状态」——
+  `withdraw` 会**同时把底层文章推回 `EDITORIAL_DRAFT`**，这是用户可见的影响，必须提前讲；
+- 成功后**应用服务端返回的 `status`**，不 refetch（后端返回的就是权威值）。
+
+### 7.4 ⚠️ `detail` 可能是 `undefined` —— 一个"点了没反应"的真 bug
+
+**症状**：撤回失败时 alert 完全不出现在 DOM 里。探针输出极其反直觉：
+
+```
+PROBE confirm button found: true
+PROBE withdraw args: [["s1"]]      ← 请求确实发出去了
+PROBE alert count: 0               ← 但没有任何提示
+```
+
+**根因**：
+
+```tsx
+setActionError(error.problem.detail);   // ❌ detail 为 undefined
+```
+
+`setActionError(undefined)` 在 React 看来**与初始值 `null` 不等价但同属"无更新"路径**，
+状态比较判定为无变化 ⇒ 整块 `{actionError ? <p role="alert">…` **不渲染**。
+用户看到的现象是：点了「确认撤回」，弹框消失，**然后什么都没有** —— 比报错更糟。
+
+**修法**：抽 `describeError(error, fallback)`，**始终在 `problem.detail` 之下垫一层兜底**：
+
+```tsx
+function describeError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) return error.problem.detail?.trim() || fallback;
+  return fallback;
+}
+```
+
+**⚠️ 活体探针补充了一个关键事实**：真实 401 响应的 `detail` 是**非空字符串**（`"请先登录"`）。
+所以这个 bug **只在部分错误路径（无 body / body 缺 `detail`）才会复现** ——
+这正是它能在测试里潜伏的原因，也是为什么**不能只依赖单元测试**，要配 DOM 探针看真实渲染。
+
+### 7.5 前端路由是 `/studio/*`，API 是 `/me/*`
+
+Legacy 把投稿放在 `/studio/submissions/{id}`，后端在 `/me/submissions*`。
+V2 **保留这个 split**（studio 是写作者找自己投稿的地方），并在路由注释里写死原因 ——
+否则后人很容易"顺手对齐"成 `/me/submissions` 而改坏。路由测试专门钉住这一点：
+`/me/submissions` 必须落到 404 `NotFound`。
+
+### 7.6 游客态验收（14/14）
+
+游客能验的只有守门这一层，但恰好是最容易出伪功能的地方：
+
+| 断言 | 为什么重要 |
+|---|---|
+| 两条路由都把游客弹到登录页 | 「未登录」不能伪装成「没有投稿」 |
+| 游客页**不出现**「暂无投稿记录」 | 空列表文案意味着"你确实没有投稿"，是错误陈述 |
+| 游客页**不出现**「投稿不存在或无权查看」 | 同上，404 文案对游客是误导 |
+| `returnTo` 保真（详情 → `/studio/submissions/s1`） | 登录后要回原页，不是首页 |
+| 登录页无「我的投稿」链接 | 不向游客暴露入口 |
+| `/me/submissions` → 404 | 钉住 §7.5 的前端契约 |
+
+---
+
 ## 四、建议的处置路径（供决策）
 
 既然缺口是**前端未搬**而非**后端未实现**：
@@ -412,9 +525,13 @@ surfaces an error when follow fails` 钉住这一点。
 | Phase | 内容 | 状态 |
 |---|---|---|
 | 2I-1 | 关注关系 `/me/following`、`/me/followers` | ✅ `5605dd9` |
-| 2I-2 | 通知中心 `/notifications` + Header 真实入口 | ✅ 本次 |
-| 2I-3 | 私信 / 消息中心（20+ 端点，最大一块；写码前需四源确认 + 范围裁剪） | ⬜ 下一个 |
-| 2I-4 | 活动 Events（后端 200 公开可读）+ 动态发布 | ⬜ |
+| 2I-2 | 通知中心 `/notifications` + Header 真实入口 | ✅ |
+| 2I-3 | 私信 / 消息中心（20+ 端点，最大一块；写码前需四源确认 + 范围裁剪） | ✅ |
+| 2I-4 | 活动 Events（后端 200 公开可读）+ 动态发布 | ✅ `6172aaa` |
+| 2J-1 | 举报（读写 split `/reports` + `/me/reports`） | ✅ |
+| 2J-2 | 举报/申诉 6 页面 + 路由 + 导航 | ✅ `73fd0af` |
+| 2K-1 | 推荐作者 `/creators`（纯前端聚合，零后端改动） | ✅ `2e691b2` |
+| 2K-2 | 投稿审核 `/studio/submissions*` + **新增撤回功能** | ✅ 本次 |
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。
