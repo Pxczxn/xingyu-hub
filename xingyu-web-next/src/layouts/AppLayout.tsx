@@ -1,5 +1,5 @@
 import { Link, Outlet } from "react-router-dom";
-import { BookOpen, Compass, Hash, Home, LogOut, MessageCircle, Orbit, PenLine, User as UserIcon } from "lucide-react";
+import { BookOpen, Compass, Hash, Home, LogOut, Map, MessageCircle, Orbit, PenLine, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
 
@@ -11,6 +11,18 @@ import { cn } from "@/lib/cn";
  * Message/notification panels are deliberately NOT implemented this round.
  */
 
+/*
+ * Phase 2H: seven nav items, one more than the six MASTER.md lists.
+ *
+ * MASTER.md "Shell" specifies 首页 / 发现 / 话题 / 系列 / 星系 / 指南, but 动态
+ * (/moments, shipped in Phase 2D) is a real, guest-readable feed — dropping it
+ * from the nav would leave it with no entry point at all. Rather than choose,
+ * both are shown: the design system's six plus 动态. MASTER.md carries a note
+ * recording this deliberate deviation.
+ *
+ * Icons: 指南 uses Map (a book/compass metaphor would collide with 系列's
+ * BookOpen and 发现's Compass); 星系 uses Orbit.
+ */
 const NAV_ITEMS = [
   { label: "首页", to: "/", icon: Home },
   { label: "发现", to: "/discover", icon: Compass },
@@ -18,6 +30,7 @@ const NAV_ITEMS = [
   { label: "系列", to: "/series", icon: BookOpen },
   { label: "星系", to: "/galaxies", icon: Orbit },
   { label: "动态", to: "/moments", icon: MessageCircle },
+  { label: "指南", to: "/guide", icon: Map },
 ];
 
 export function AppLayout() {

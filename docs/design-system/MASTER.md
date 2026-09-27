@@ -40,6 +40,12 @@ Use shadcn-style primitives from `components/ui/`:
 `AppShell` provides global navigation:
 
 - Nav: 首页 / 发现 / 话题 / 系列 / 星系 / 指南
+  - **Shipped deviation (Phase 2H, 2026-09-27):** the nav renders **7** items —
+    the six above **plus 动态** (`/moments`).
+    `/moments` is a real guest-readable feed (Phase 2D); removing it from the nav
+    would leave it with no entry point. Both are therefore shown, ordered
+    首页 / 发现 / 话题 / 系列 / 星系 / 动态 / 指南.
+    Icons: 系列 `BookOpen`, 星系 `Orbit`, 动态 `MessageCircle`, 指南 `Map`.
 - Center search bar
 - 创作 button → `/studio`
 - Notification & message placeholders
