@@ -255,6 +255,16 @@ export function AppLayout() {
                 <Link to="/me/moments" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
                   我的动态
                 </Link>
+                {/* Phase 2J-1: the rest of 我的互动. Same slot and same reason as
+                    我的动态 — these are session-scoped trails, so they belong in
+                    the signed-in branch. `/me/history` is intentionally missing:
+                    the backend has no such route. */}
+                <Link to="/me/likes" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  我的喜欢
+                </Link>
+                <Link to="/me/comments" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  我的评论
+                </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}
