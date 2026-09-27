@@ -46,6 +46,7 @@ import { GalaxyListPage } from "@/features/galaxies/pages/GalaxyListPage";
 import { GalaxyDetailPage } from "@/features/galaxies/pages/GalaxyDetailPage";
 import { GalaxyMembersPage } from "@/features/galaxies/pages/GalaxyMembersPage";
 import { GalaxyContentPage } from "@/features/galaxies/pages/GalaxyContentPage";
+import { MyFollowingPage, MyFollowersPage } from "@/features/social/pages/FollowListPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -74,6 +75,11 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2G:            /series, /series/:seriesId, /series/:seriesId/read
  *                      (public Series square + detail + reader; guest-readable)
  * Phase 2D:            /moments, /moments/:id (public feed/detail; publish CTA login-gated)
+ * Phase 2H:            /galaxies, /galaxies/:slug, /galaxies/:slug/members,
+ *                      /galaxies/:slug/content (public square + detail + roster +
+ *                      feed; guest-readable. Keyed by SLUG — the backend has no
+ *                      /galaxies/{id} route. Joining is the only signed-in action.)
+ * Phase 2I-1:          /me/following, /me/followers (RequireAuth; follow graph)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -176,6 +182,25 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <BookshelfPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 2I-1: the follow graph. `/me/following` and `/me/followers`
+            are the same page in two directions; only 粉丝 offers 关注 back.
+            Both need a session (the endpoints are /me/*). */}
+        <Route
+          path="/me/following"
+          element={
+            <RequireAuth>
+              <MyFollowingPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/me/followers"
+          element={
+            <RequireAuth>
+              <MyFollowersPage />
             </RequireAuth>
           }
         />

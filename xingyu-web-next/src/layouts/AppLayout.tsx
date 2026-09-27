@@ -99,6 +99,12 @@ export function AppLayout() {
                 <Link to="/me/bookshelf" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
                   书架
                 </Link>
+                {/* Phase 2I-1: the follow graph. Kept next to the other /me
+                    shortcuts; both are RequireAuth, so they only appear here
+                    (this whole block is the signed-in branch). */}
+                <Link to="/me/following" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  关注
+                </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}
