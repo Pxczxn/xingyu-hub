@@ -18,6 +18,16 @@ export default defineConfig({
         target: "http://127.0.0.1:7779",
         changeOrigin: true,
       },
+      // Community chat socket. The handshake carries the community session as
+      // `?token=<satoken>` in the query string (see
+      // CommunityWebSocketHandshakeInterceptor), so the same dev backend serves
+      // it. `ws: true` is required — without it Vite answers the upgrade with an
+      // HTTP 200 and the socket never opens.
+      "/ws": {
+        target: "ws://127.0.0.1:7779",
+        ws: true,
+        changeOrigin: true,
+      },
     },
   },
 });

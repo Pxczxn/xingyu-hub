@@ -48,6 +48,7 @@ import { GalaxyMembersPage } from "@/features/galaxies/pages/GalaxyMembersPage";
 import { GalaxyContentPage } from "@/features/galaxies/pages/GalaxyContentPage";
 import { MyFollowingPage, MyFollowersPage } from "@/features/social/pages/FollowListPage";
 import { NotificationsPage } from "@/features/notifications/pages/NotificationsPage";
+import { MailboxPage } from "@/features/messages/pages/MailboxPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -217,6 +218,26 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <NotificationsPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 2I-3: the private message centre. Both hosts need a session —
+            every /api/v1/messages endpoint is scoped by the community session.
+            Declared as two flat routes (not a nested index/child pair) because
+            MailboxPage renders the thread slot itself from the param. */}
+        <Route
+          path="/messages"
+          element={
+            <RequireAuth>
+              <MailboxPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/messages/:conversationId"
+          element={
+            <RequireAuth>
+              <MailboxPage />
             </RequireAuth>
           }
         />
