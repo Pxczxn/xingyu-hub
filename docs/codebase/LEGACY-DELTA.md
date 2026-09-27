@@ -44,7 +44,7 @@
 | **私信 / 消息中心** | `messages` 下 **20+ 条** | ✅ 401 | 最大的一块。会话、群聊、文件、邀请、搜索、已保存 |
 | **关注关系** | `/me/following`、`/me/followers` | ✅ 401 | 社交核心；`followUser`/`unfollowUser` 也已有 → **已迁（Phase 2I-1，`5605dd9`）** |
 | **通知中心** | (无独立页，Header 内) | ✅ 401 | `/api/v1/notifications`；V2 Header 的 `MessageCircle` 是 **placeholder** → **已迁（Phase 2I-2）**，见下方勘误 |
-| **关注动态 / 我的动态** | `/me/moments` | ✅ 401 | 2D 只做了公开 `/moments`，个人维度没做 |
+| **关注动态 / 我的动态** | `/me/moments` | ✅ 401 | 2D 只做了公开 `/moments`，个人维度没做 → **已迁（Phase 2I-5）**，另补 `GET /me/insights` |
 | **我的互动**（赞/评论/历史） | `/me/likes`、`/me/comments`、`/me/history` | ✅ 401 | 三个独立页，都是「我留下的痕迹」 |
 
 ### 🟠 P1 — 内容生态补全
@@ -73,7 +73,7 @@
 | 版本历史 | `/studio/content/:id/versions` | |
 | 投稿管理 | `/studio/submissions/:id` | |
 | 创作台设置 | `/studio/settings` | |
-| 动态发布 | `/studio/moments/new` | 2D 有 `MomentDetailPage` 但**没有发布页** |
+| 动态发布 | `/studio/moments/new` | ~~2D 有 `MomentDetailPage` 但**没有发布页**~~ → **勘误见 §三·补2**：发布表单**已在 `MomentsPage` 内**，无需独立页 |
 
 ### 🔵 P3 — 个人成长 / 杂项
 
@@ -102,8 +102,26 @@ V2 用 5 个页面覆盖主干 + `SettingsLayout`。**这属于「设计取舍�
    > **部分已修（Phase 2I-2）**：通知入口已变成真实链接并带未读数徽标。
    > 私信仍缺，且 **V2 已刻意不渲染消息图标**——没有目的地的图标比没图标更糟。
 
-2. **`/me/moments` 与 `/studio/moments/new` 一起缺失**，意味着 V2 的用户**只能看动态、不能发动态**。
-   2D 当时是有意只做公开读侧，但作为「完整功能面」这是个真缺口。
+2. **`/me/moments` 确实缺失**；但「**不能发动态**」这半句是**错的**，见 §三·补2。
+   `/me/moments`（个人动态历史）→ **已迁（Phase 2I-5）**。
+
+---
+
+## 三·补2 · Phase 2I-5 动态发布的两条勘误（源码 + 实测确认，2026-09-27）
+
+清点时把「`/studio/moments/new` 不在 V2」读成了「V2 不能发动态」，**这是错的**：
+
+| 原推断 | 实际情况 | 后果 |
+|---|---|---|
+| V2 只能看动态、不能发动态 | **发布早就实现了**。`MomentsPage.tsx` 内嵌发布表单 → `momentsApi.create({body})` → `navigate(/moments/{id})`；`MomentDetailPage` 已含编辑（PATCH）与删除（POST /trash），并已处理 30 分钟编辑窗口的 409 | 「不能发动态」是**假缺口**，差点照它开工写一个重复的发布页 |
+| `POST /studio/moments/new` 才是发布路径 | **Legacy 的 `/studio/moments/new` 不是后端路由**，只是 Legacy 自己的一个页面壳 | 不需要为它建 V2 页面；发布动作已由 `/moments` 承载 |
+
+**动态写链路（源码确认，`CommunityMomentController @RequestMapping("/moments")`）**：
+`POST /moments`（`{body}`，**无草稿态**，创建即 `PUBLISHED`）、`PATCH /moments/{id}`（非作者 404；非 PUBLISHED 409；超窗口 409）、
+`POST /moments/{id}/trash`（软删，返回 View **而非 204**）。
+`CommunityMeController` **有一整套平行的** `/me/moments`（GET/PATCH/POST trash）——**两套都真实存在**，前端选用 `/moments` 那套。
+
+⚠️ **探针教训（导致上面那条误判的直接原因）**：探 `POST /api/v1/me/moments` 得到 **405 Method Not Allowed**，据此推断「路由不存在」是**无效推理**——同一路径的 **`GET` 返回 401**（存在且需登录）。**405 只能说明"该方法未绑定"，不能说明"路由缺失"**；`404` 也常是业务语义（`GET /moments/{id}` 对 TRASHED 也返 404）而非路由不存在。判定路由存在性请**对同一路径逐个方法探**，或直接读 controller 源码。
 
 ---
 

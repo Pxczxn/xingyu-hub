@@ -249,6 +249,12 @@ export function AppLayout() {
                 <Link to="/me/following" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
                   关注
                 </Link>
+                {/* Phase 2I-5: the owner's own moment history. Signed-in only,
+                    like the other /me shortcuts — the public feed is in the
+                    main nav as 动态. */}
+                <Link to="/me/moments" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  我的动态
+                </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}

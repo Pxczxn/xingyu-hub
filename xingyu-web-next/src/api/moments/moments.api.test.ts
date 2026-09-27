@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "@/api/client";
-import { momentsApi } from "@/api/moments/moments.api";
+import { momentsApi, meInsightsApi } from "@/api/moments/moments.api";
 
 vi.mock("@/api/client", () => ({ apiRequest: vi.fn() }));
 
@@ -77,5 +77,67 @@ describe("momentsApi", () => {
     expect(serialized).not.toContain("/me/moments/");
     expect(momentsApi.update.toString()).not.toContain("/me/moments/");
     expect(momentsApi.trash.toString()).not.toContain("/me/moments/");
+  });
+});
+
+/*
+ * Phase 2I-5: the owner-surface counters. Kept as its own client because the
+ * payload counts articles/comments/likes, not just moments — a caller wanting
+ * only the counters should not have to import a moments client to get them.
+ */
+describe("meInsightsApi", () => {
+  it("reads GET /api/v1/me/insights", async () => {
+    const payload = {
+      articleCount: 3,
+      draftCount: 1,
+      followerCount: 12,
+      followingCount: 7,
+      commentCount: 5,
+      likeCount: 42,
+    };
+    mockedRequest.mockResolvedValue(payload);
+
+    await expect(meInsightsApi.get()).resolves.toEqual(payload);
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/insights");
+  });
+
+  it("is a bare read — no method override, so it stays a GET", async () => {
+    mockedRequest.mockResolvedValue({});
+    await meInsightsApi.get();
+
+    // A method key here would silently turn a read into a write.
+    const [, options] = mockedRequest.mock.calls[0];
+    expect(options).toBeUndefined();
+  });
+});
+
+/*
+ * Phase 2I-5: the owner-surface counters. Kept as its own client because the
+ * payload counts articles/comments/likes, not just moments — a caller wanting
+ * only the counters should not have to import a moments client to get them.
+ */
+describe("meInsightsApi", () => {
+  it("reads GET /api/v1/me/insights", async () => {
+    const payload = {
+      articleCount: 3,
+      draftCount: 1,
+      followerCount: 12,
+      followingCount: 7,
+      commentCount: 5,
+      likeCount: 42,
+    };
+    mockedRequest.mockResolvedValue(payload);
+
+    await expect(meInsightsApi.get()).resolves.toEqual(payload);
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/insights");
+  });
+
+  it("is a bare read — no method override, so it stays a GET", async () => {
+    mockedRequest.mockResolvedValue({});
+    await meInsightsApi.get();
+
+    // A method key here would silently turn a read into a write.
+    const [, options] = mockedRequest.mock.calls[0];
+    expect(options).toBeUndefined();
   });
 });

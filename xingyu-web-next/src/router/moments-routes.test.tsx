@@ -4,7 +4,8 @@ import { MemoryRouter, useLocation, useSearchParams } from "react-router-dom";
 import { AppRoutes } from "@/router/routes";
 import { AppProviders } from "@/app/providers/AppProviders";
 import { authApi } from "@/api/auth/auth.api";
-import { momentsApi } from "@/api/moments/moments.api";
+import { meInsightsApi, momentsApi } from "@/api/moments/moments.api";
+import { usersApi } from "@/api/users/users.api";
 
 vi.mock("@/api/auth/auth.api", () => ({
   authApi: { getMe: vi.fn(), login: vi.fn(), logout: vi.fn(), getPublicConfig: vi.fn() },
@@ -38,10 +39,22 @@ vi.mock("@/api/moments/moments.api", () => ({
     trash: vi.fn(),
     listMine: vi.fn(),
   },
+  // Phase 2I-5: /me/moments renders the counters panel, so this module must
+  // expose the insights client too or the import resolves to undefined.
+  meInsightsApi: { get: vi.fn() },
+}));
+
+// Phase 2I-5: the owner page also reads the profile for its header.
+vi.mock("@/api/users/users.api", () => ({
+  usersApi: {
+    getMyProfile: vi.fn(async () => ({ username: "tester", displayName: "测试用户" })),
+  },
 }));
 
 const mockedGetMe = vi.mocked(authApi.getMe);
 const mockedMoments = vi.mocked(momentsApi);
+const mockedInsights = vi.mocked(meInsightsApi);
+const mockedUsers = vi.mocked(usersApi);
 
 const VIEW = {
   id: "m-1",
@@ -61,7 +74,17 @@ function LocationProbe() {
   );
 }
 
-function renderAt(path: string) {
+function renderAt(path: string, { signedIn = false }: { signedIn?: boolean } = {}) {
+  if (signedIn) {
+    localStorage.setItem("xingyu-satoken", "test-token");
+    // A stored token makes the auth store validate it, so getMe must resolve or
+    // RequireAuth bounces to /login.
+    mockedGetMe.mockResolvedValue({
+      email: "tester@pxczxn.top",
+      emailVerified: true,
+      mustChangePassword: false,
+    } as Awaited<ReturnType<typeof authApi.getMe>>);
+  }
   return render(
     <MemoryRouter initialEntries={[path]}>
       <AppProviders>
@@ -78,6 +101,20 @@ beforeEach(() => {
   mockedMoments.list.mockResolvedValue([]);
   mockedMoments.getById.mockResolvedValue(VIEW);
   mockedMoments.listMine.mockResolvedValue([]);
+  // The owner page's decoration reads: resolving them keeps its effects from
+  // touching undefined promises (a vi.fn() with no return value).
+  mockedInsights.get.mockResolvedValue({
+    articleCount: 0,
+    draftCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    commentCount: 0,
+    likeCount: 0,
+  });
+  mockedUsers.getMyProfile.mockResolvedValue({
+    username: "tester",
+    displayName: "测试用户",
+  } as Awaited<ReturnType<typeof usersApi.getMyProfile>>);
 });
 
 describe("phase 2D moment routes", () => {
@@ -95,10 +132,19 @@ describe("phase 2D moment routes", () => {
     expect(screen.queryByRole("heading", { name: "登录星语" })).not.toBeInTheDocument();
   });
 
-  it("does not host /me/moments as a page", async () => {
+  // Phase 2D pinned /me/moments as NOT hosted. Phase 2I-5 deliberately changed
+  // that: the owner's own history is now a real page. A guest still cannot reach
+  // it (RequireAuth), so the meaningful assertion is the redirect, not a 404.
+  it("hosts /me/moments as a signed-in page, gated for guests", async () => {
+    renderAt("/me/moments", { signedIn: true });
+    expect(await screen.findByText("全部动态")).toBeInTheDocument();
+    expect(screen.queryByText("页面不存在")).not.toBeInTheDocument();
+  });
+
+  it("sends a guest from /me/moments to login", async () => {
     renderAt("/me/moments");
-    expect(await screen.findByText("页面不存在")).toBeInTheDocument();
-    expect(screen.getByTestId("current-path")).toHaveTextContent("/me/moments");
+    expect(await screen.findByRole("heading", { name: "登录星语" })).toBeInTheDocument();
+    expect(screen.queryByText("页面不存在")).not.toBeInTheDocument();
   });
 
   it("does not host /moments/:id/edit as a page", async () => {
