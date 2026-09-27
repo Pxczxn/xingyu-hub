@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
-import { Bell, BookOpen, Compass, Hash, Home, LogOut, Map, MessageCircle, Orbit, PenLine, User as UserIcon } from "lucide-react";
+import { Bell, BookOpen, Compass, Hash, Home, LogOut, Mail, Map, MessageCircle, Orbit, PenLine, User as UserIcon } from "lucide-react";
 import { homeApi } from "@/api/home/home.api";
+import { messagesApi } from "@/api/messages/messages.api";
+import { countUnreadConversations, toConversations } from "@/api/messages/messages.types";
 import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
+import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
 
 /*
  * App shell for Web V2.
@@ -79,6 +82,66 @@ export function AppLayout() {
     };
   }, [isAuthenticated]);
 
+  /*
+   * Unread message badge (Phase 2I-3).
+   *
+   * There is NO "mailbox total" endpoint — the backend only counts unread per
+   * conversation (`countUnread` in ConversationService, compared against
+   * `last_read_sequence`). So the header total is the sum of `unreadCount`
+   * across the session's conversations, via the same helper the mailbox uses.
+   *
+   * `GET /api/v1/messages` is a bare array (not a PageResult like
+   * /messages/{id}/messages), which is why this goes through `toConversations`.
+   *
+   * Like the notification badge, a failure is swallowed: the badge is
+   * decoration, and the count simply stays 0.
+   */
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    if (!isAuthenticated) {
+      setUnreadMessages(0);
+      return;
+    }
+    messagesApi
+      .listConversations()
+      .then((items) => {
+        if (active) setUnreadMessages(countUnreadConversations(toConversations(items)));
+      })
+      .catch(() => {
+        if (active) setUnreadMessages(0);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
+
+  // Realtime: a message arriving while the user is anywhere in the app changes
+  // the header count, not just the mailbox. Refetch rather than patch — the
+  // frame carries a message, not a conversation.
+  const [messageRefreshToken, setMessageRefreshToken] = useState(0);
+
+  useCommunityChatSocket(isAuthenticated, {
+    onMessage: () => setMessageRefreshToken((token) => token + 1),
+  });
+
+  useEffect(() => {
+    let active = true;
+    if (!isAuthenticated || messageRefreshToken === 0) return;
+    messagesApi
+      .listConversations()
+      .then((items) => {
+        if (active) setUnreadMessages(countUnreadConversations(toConversations(items)));
+      })
+      .catch(() => {
+        /* keep the previous count */
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, messageRefreshToken]);
+
   return (
     <div className="flex min-h-full flex-col bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
@@ -142,6 +205,25 @@ export function AppLayout() {
                       className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-accent-foreground"
                     >
                       {unread > 99 ? "99+" : unread}
+                    </span>
+                  ) : null}
+                </Link>
+
+                {/* Phase 2I-3: the message centre, same badge treatment as the
+                    bell. Mail (not MessageCircle) because 动态 in the nav already
+                    owns MessageCircle. */}
+                <Link
+                  to="/messages"
+                  aria-label={unreadMessages > 0 ? `私信（${unreadMessages} 条未读）` : "私信"}
+                  className="relative flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <Mail className="h-4 w-4" aria-hidden />
+                  {unreadMessages > 0 ? (
+                    <span
+                      aria-hidden
+                      className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-accent-foreground"
+                    >
+                      {unreadMessages > 99 ? "99+" : unreadMessages}
                     </span>
                   ) : null}
                 </Link>
