@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
-import { BookOpen, Compass, Hash, Home, LogOut, Map, MessageCircle, Orbit, PenLine, User as UserIcon } from "lucide-react";
+import { Bell, BookOpen, Compass, Hash, Home, LogOut, Map, MessageCircle, Orbit, PenLine, User as UserIcon } from "lucide-react";
+import { homeApi } from "@/api/home/home.api";
 import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
 
@@ -8,7 +10,15 @@ import { cn } from "@/lib/cn";
  * Follows docs/design-system/MASTER.md "Shell": global nav, search,
  * 创作 -> /studio, user entry -> profile. Navigation uses React Router <Link>.
  * Icons come from lucide-react (no emoji used as real icons).
- * Message/notification panels are deliberately NOT implemented this round.
+ *
+ * Phase 2I-2: the notification entry is now a REAL link to /notifications, with
+ * a live unread badge. It used to be an absent placeholder — the old note here
+ * read "Message/notification panels are deliberately NOT implemented this
+ * round", which meant the shell had no notification entry at all.
+ *
+ * The message centre (私信) is still not built (Phase 2I-3), so there is
+ * deliberately no message icon: an icon that leads nowhere is worse than no
+ * icon. Add it when the inbox lands.
  */
 
 /*
@@ -35,6 +45,39 @@ const NAV_ITEMS = [
 
 export function AppLayout() {
   const { isAuthenticated, user, logout } = useAuth();
+
+  /*
+   * Unread notification badge.
+   *
+   * GET /api/v1/home already carries `unreadNotifications` (HomeService counts
+   * unread rows for the session user and returns 0 for guests). That is the
+   * cheap source: no extra endpoint, and it is the same number the home page
+   * would render. It is read here rather than in each page so the shell shows it
+   * on every route.
+   *
+   * A failure is swallowed on purpose — the badge is decoration, and a toast for
+   * a background count would be noise. The count simply stays absent.
+   */
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    if (!isAuthenticated) {
+      setUnread(0);
+      return;
+    }
+    homeApi
+      .getGuestHome()
+      .then((home) => {
+        if (active) setUnread(home.unreadNotifications ?? 0);
+      })
+      .catch(() => {
+        if (active) setUnread(0);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
 
   return (
     <div className="flex min-h-full flex-col bg-background">
@@ -84,6 +127,25 @@ export function AppLayout() {
 
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
+                {/* Phase 2I-2: real notification entry with a live unread badge.
+                    The badge is capped at 99+ so a hot account cannot stretch the
+                    header; the number itself is never hidden from screen readers. */}
+                <Link
+                  to="/notifications"
+                  aria-label={unread > 0 ? `通知（${unread} 条未读）` : "通知"}
+                  className="relative flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <Bell className="h-4 w-4" aria-hidden />
+                  {unread > 0 ? (
+                    <span
+                      aria-hidden
+                      className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-accent-foreground"
+                    >
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  ) : null}
+                </Link>
+
                 {/* /api/v1/me does not expose a username, so link to /me, which
                     resolves the real username via /api/v1/me/profile. Never hardcode. */}
                 <Link
