@@ -315,6 +315,12 @@ export function AppLayout() {
             <Link to="/events" className="hover:text-foreground hover:underline">
               社区活动
             </Link>
+            {/* Phase 2K-1: /creators is guest-readable too (every underlying call
+                is public), so it shares the footer slot with /events rather than
+                taking a main-nav item. */}
+            <Link to="/creators" className="hover:text-foreground hover:underline">
+              推荐作者
+            </Link>
             <Link to="/guide" className="hover:text-foreground hover:underline">
               指南
             </Link>
