@@ -35,6 +35,10 @@ import { BookshelfPage } from "@/features/bookshelf/pages/BookshelfPage";
 import { MomentsPage } from "@/features/moments/pages/MomentsPage";
 import { MomentDetailPage } from "@/features/moments/pages/MomentDetailPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
+import { SeriesListPage } from "@/features/series/pages/SeriesListPage";
+import { SeriesNewPage } from "@/features/series/pages/SeriesNewPage";
+import { SeriesEditPage } from "@/features/series/pages/SeriesEditPage";
+import { SeriesArticlesPage } from "@/features/series/pages/SeriesArticlesPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -58,6 +62,8 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      (public, read-only, no RequireAuth)
  * Phase 2C:            /me/collections, /me/collections/:id, /me/bookshelf (RequireAuth)
  *                      /collections/:id (public, read-only)
+ * Phase 2F:            /studio/series, /studio/series/new, /studio/series/:id/edit,
+ *                      /studio/series/:id/articles (creator Series; no public reader)
  * Phase 2D:            /moments, /moments/:id (public feed/detail; publish CTA login-gated)
  * plus the five approved Legacy redirects.
  *
@@ -153,6 +159,38 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <StudioPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/studio/series"
+          element={
+            <RequireAuth>
+              <SeriesListPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/studio/series/new"
+          element={
+            <RequireAuth>
+              <SeriesNewPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/studio/series/:id/edit"
+          element={
+            <RequireAuth>
+              <SeriesEditPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/studio/series/:id/articles"
+          element={
+            <RequireAuth>
+              <SeriesArticlesPage />
             </RequireAuth>
           }
         />

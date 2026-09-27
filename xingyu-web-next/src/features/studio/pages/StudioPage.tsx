@@ -23,6 +23,9 @@ export function StudioPage() {
           <p className="text-sm text-muted-foreground">
             工作台占位 — 草稿、已发布与审核状态将在后续阶段接入。
           </p>
+          <Link to="/studio/series" className="text-sm text-accent hover:underline">
+            我的系列
+          </Link>
         </CardContent>
       </Card>
 
