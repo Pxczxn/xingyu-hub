@@ -48,7 +48,14 @@ Use shadcn-style primitives from `components/ui/`:
     Icons: 系列 `BookOpen`, 星系 `Orbit`, 动态 `MessageCircle`, 指南 `Map`.
 - Center search bar
 - 创作 button → `/studio`
-- Notification & message placeholders
+- Notification entry → `/notifications`, with a live unread badge
+  - **Shipped (Phase 2I-2, 2026-09-27):** the entry is real. It was previously an
+    unimplemented placeholder.
+  - Badge source: `unreadNotifications` from `GET /api/v1/home` (the same count
+    the home page reads), capped at `99+`, hidden entirely when zero.
+  - Rendered in the signed-in branch only — the endpoint is session-scoped.
+  - The **message centre (私信) is still not built** (Phase 2I-3), so no message
+    icon is rendered. An icon with no destination is worse than no icon.
 - Avatar link → profile or login
 
 ## Page specs

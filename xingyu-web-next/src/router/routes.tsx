@@ -47,6 +47,7 @@ import { GalaxyDetailPage } from "@/features/galaxies/pages/GalaxyDetailPage";
 import { GalaxyMembersPage } from "@/features/galaxies/pages/GalaxyMembersPage";
 import { GalaxyContentPage } from "@/features/galaxies/pages/GalaxyContentPage";
 import { MyFollowingPage, MyFollowersPage } from "@/features/social/pages/FollowListPage";
+import { NotificationsPage } from "@/features/notifications/pages/NotificationsPage";
 import { NotFound } from "@/components/shared/NotFound";
 import { PageState } from "@/components/shared/PageState";
 import { RequireAuth } from "./guards";
@@ -80,6 +81,11 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      feed; guest-readable. Keyed by SLUG — the backend has no
  *                      /galaxies/{id} route. Joining is the only signed-in action.)
  * Phase 2I-1:          /me/following, /me/followers (RequireAuth; follow graph)
+ * Phase 2I-2:          /notifications (RequireAuth; notification centre. A NEW
+ *                      page — Legacy left /notifications as a redirect to `/`
+ *                      and only rendered notifications in a header popover, so
+ *                      there is no Legacy route to port. Deliberately NOT added
+ *                      to LEGACY_REDIRECTS: that set is pinned at five.)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -201,6 +207,16 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <MyFollowersPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 2I-2: the notification centre. The endpoint is /api/v1/notifications
+            (session-scoped), so this needs a login like the follow lists. */}
+        <Route
+          path="/notifications"
+          element={
+            <RequireAuth>
+              <NotificationsPage />
             </RequireAuth>
           }
         />
