@@ -83,9 +83,9 @@
 |---|---|---|
 | `/me/badges` | ✅ 401（固定五枚） | → **已迁（Phase 3A）**：修正 Legacy 的「隐藏徽章」承诺与凭空「星语探索者」等级 → 见 §三·补12 |
 | `/me/growth` | ✅ 401 | → **已迁（Phase 3B）**：五路聚合，**每区块独立三态**（Legacy 的 `&&` 守卫会让失败区块静默消失）→ 见 §三·补14 |
-| `/me/interests` | ⚠️ 待核 | `/explore/map` **200 公开**；`/explore/me` 游客 **500**（待判是缺 401 映射还是真错） |
+| `/me/interests` | ❌ 游客 **500**（真缺陷） | → **已迁（Phase 3D）**：`/explore/me` 缺 `required = false` 导致 500，**不是「需登录」语义**；`PUT` 是**破坏性全覆盖** → 见 §三·补16 |
 | `/me/requests` | ✅ 401 | → **已迁（Phase 3C）**：仅「我提交的入群申请」（Legacy 标题「关系请求」大于实际内容）；**不做** owner 审批队列 → 见 §三·补15 |
-| `/me/groups` | ✅ 401（同源 `/messages`） | ⚠️ 语义**不等价**于 `/messages`（后者含 DIRECT）；且链向 V2 已无的 `/messages/group/:id` |
+| `/me/groups` | ✅ 401（读同源 `/messages`） | → **已迁（Phase 3E）**：同源但**仍是真缺口**（群聊视图 + 唯一创建入口）；`POST /messages/group` **真实存在**且只吃 `title` → 见 §三·补17 |
 
 其余（`/account/status`、`/content/:type/:id/status`、`/share`、`/spaces/:slug`、
 `/comments/:id`、`/feedback/recommendations`、`/collections/public`）**尚未核实**。
@@ -994,9 +994,9 @@ V2 沿用，并在测试里钉住「粉丝达到 10」「拥有 5 篇以上文�
 |---|---|---|
 | `/me/badges` | — | ✅ **已交付（Phase 3A）**，见 §三·补12 |
 | `/me/growth` | `getHistory()`→`/me/reading-history`、`getMyComments(10)`、`getMyBadges()`、`getMyInsights()`、`getHome()` | ✅ **已交付（Phase 3B）**，见 §三·补14。契约事实：`pendingActions` 无 `id` 且 href 指向 V2 不存在的 `/studio/reviewing` |
-| `/me/interests` | `GET /explore/map`（公开，探针 **200**）+ `GET /explore/me` + `updateMyExplore` | ⚠️ `GET /explore/me` 游客探针 **500**（`INTERNAL_ERROR`），而同组 `/explore/map` 是 **200** —— 需确认这是「需登录但未映射 401」还是真错，**开工前先核实** |
+| `/me/interests` | `GET /explore/map`（公开，探针 **200**）+ `GET /explore/me` + `updateMyExplore` | ✅ **已交付（Phase 3D）**，见 §三·补16。**结论：`/explore/me` 游客 500 是后端真缺陷**（控制器 `@RequestHeader("satoken")` 漏写 `required = false` → `MissingRequestHeaderException` 被兜底成 500），非「需登录」。另：`PUT` 是**破坏性全覆盖**（先删光关联行） |
 | `/me/requests` | `GET /me/group-join-requests?limit=20`（401） | 真正返回的是 **`MyGroupJoinRequestView`**，**含** `conversationTitle` 与 `resolvedAt`（`ConversationService:169` 现查会话标题）。⚠️ **不要看 `GroupJoinRequestView`** —— 那是群主侧审核用的另一个 DTO，**没有**这两个字段，会误导你砍掉页面功能 |
-| `/me/groups` | `GET /messages`（401，裸数组） | 前端 `filter(type === "GROUP")`。⚠️ **与 `/messages` 同源，但语义不等价**：后者是全部会话（含 DIRECT），但**V2 的 `MailboxPage` 目前没有 GROUP 筛选**。所以要么做筛选，要么不做 —— **不能因为「同源」就判它假缺口**；另外它链向 `/messages/group/{id}`，**V2 无该路由**，`/messages/:conversationId` 是否兼容 GROUP 需先核实 |
+| `/me/groups` | `GET /messages`（401，裸数组）+ `POST /messages/group` | ✅ **已交付（Phase 3E）**，见 §三·补17。**结论：同源但真缺口**（邮箱无法回答「我的群聊」，且创建入口是这页独有）。⚠️ **`POST /messages/group` 真实存在**，只吃 `{title}`、硬编码 `joinMode=OPEN`、只建 1 个 OWNER 成员 —— **没有邀请人列表**。`/messages/:conversationId` **兼容 GROUP**（会话页先 DIRECT 再回退 GROUP） |
 
 状态值（`ConversationService` 穷举）：群聊入群申请只有 **`PENDING` → `APPROVED` / `REJECTED`**，
 故 Legacy 的三标签映射（待处理/已通过/已拒绝）**恰好正确**，与 §三·补4
@@ -1248,6 +1248,204 @@ V2 的 `/messages/:conversationId` 对 **GROUP 会话同样可用**（先试 DIR
 
 ---
 
+## 三·补16 · Phase 3D 我的探索：一个**真实的 500**（不是「需登录」），和一个**破坏性全覆盖写**（2026-09-28）
+
+**页面**：`/me/interests` → `ExplorationInterestsPage`。
+
+### 16.1 先回答 §三·补13 的待核问题：`/explore/me` 游客 500 是**真 bug**
+
+补13 留的问题是「缺 401 映射，还是真错」。**答案是前者，且是一个具体缺陷。**
+
+`CommunityExploreController:56`：
+
+```java
+@GetMapping("/me")
+public UserExploreView myExploration(@RequestHeader("satoken") String token) {   // ← 没有 required = false
+    return explorationService.getUserExploration(requireUser(token));            // ← 这句本该抛 401
+}
+```
+
+`@RequestHeader("satoken")` **默认 `required = true`**。游客不带该头时，Spring 在**进入方法体之前**
+就抛 `MissingRequestHeaderException` —— 所以 `requireUser()`（它**确实**会抛
+`ContractException(AUTH_REQUIRED)` → 401）**根本没机会执行**。
+
+异常落到 `CommunityApiExceptionHandler`：该类注册了
+`FieldContractException` / `ContractException` / `DuplicateKeyException` 三个具体处理器
+**和一个 `Exception` 兜底** —— 但**没有** `MissingRequestHeaderException` 的处理器。
+于是它被兜底接住 → `INTERNAL_ERROR` → **500**。
+
+**实测（2026-09-28，本机 7779 后端，游客不带 satoken）：**
+
+| 端点 | 结果 | 判定 |
+|---|---|---|
+| `GET /explore/map` | **200** | 公开，正确 |
+| `GET /explore/nav` | **200**（`mode: guest`） | 该控制器**写对了** `required = false` |
+| `GET /explore/me` | **500** `INTERNAL_ERROR` | ❌ **缺陷** |
+| `GET /me/profile` | **401** `AUTH_REQUIRED` | 别的控制器路径**能**正确映射 401 |
+
+→ 同组、同控制器里 `/explore/nav` 就是 `required = false` 的正确写法；
+`/me/profile` 证明 401 映射本身是好的。**这不是「需登录」语义，是这一个端点的注解漏了。**
+
+**修复方向（本轮不动后端，仅记录）**：给 `CommunityApiExceptionHandler` 加一个
+`MissingRequestHeaderException` 处理器，映射到 `AUTH_REQUIRED`（401）——
+一处修复即覆盖全部 6 个硬性 `@RequestHeader("satoken")` 端点
+（`CommunityExploreController` 的 `myExploration`/`updateMyExploration`/`applyDomain`
++ `CommunityMeController` 的 `sessions`/`revokeOne`/`revokeOthers`）。
+
+**前端的处置**：该路由是 `RequireAuth`，正常流程下**总会**带上 satoken，
+所以这个 500 只在「会话中途失效」时出现。此时页面显示
+「**登录状态已过期，请重新登录**」——**这是我们自己按 401 语义写的兜底文案，
+不是把 500 伪装成登录问题**。测试里专门钉了一条：
+「非 401 的 500 **不得**渲染『去登录』链接」，以免后人图省事把 500 也算进登录分支。
+
+### 16.2 ⚠️ `PUT /explore/me` 是**破坏性全覆盖**，不是合并
+
+`ExplorationService.updateUserExploration`（`:138` 起）的动作顺序：
+
+1. **`userExploreDomainMapper.deleteByUserId(user.getId())`** —— 先删光该用户**所有**关联行；
+2. 再按 payload 的 `domainIds` 重新插入（**只接受 `domainType == "SYSTEM"`**，其余静默 `continue`）；
+3. 对已有 personal 行：名字**不在** `customLabels` 里 → `status = "ARCHIVED"`；
+   在 → 从待建集合移除；
+4. `customLabels` 里剩下的一律**新建**一行（**新 id**），并挂关联行。
+
+由此推出三条**必须**遵守的前端规则：
+
+- **永远发完整状态，绝不发增量** —— 发增量 = 静默清空其余。
+- **无变化时根本不发 PUT**（`isDirty`）—— 否则「点一下保存」会
+  archive 再 recreate 用户的所有 personal 行。
+- **保存后必须用响应重新播种** —— personal 标签是**新 id**，
+  不能沿用旧 id。
+
+`isDirty` 的比较规则也做了区分，测试钉住：**domain 顺序无关**（集合语义），
+**label 顺序有关**（顺序是用户可见的，且服务端 `sortOrder` 保留它）。
+
+### 16.3 官方领域只取**叶子**，根节点不作可选
+
+写接口接受任何 `SYSTEM` 领域 id，但 Legacy 只把 `children` 铺成可选项。
+根节点是分类标题（「技术」「设计」），把根当兴趣会得到比后端设计粒度**粗得多**的选项。
+→ 跟随 Legacy 只取叶子。**没有子节点的根不自我提升为叶子**，
+而是由 `hasSelectableDomains` 报告「无可选领域」，页面据此**说明原因**而不是渲染空白区块。
+
+### 16.4 `personal` 与 `customLabels` 的**双重出现**问题
+
+一个 personal 标签**同时**出现在：
+- `domains[]`（因为它**也有**关联行，`:186-192`），且 `personal: true`；
+- `customLabels[]`（服务端自己 `personal.stream().map(name)` 派生，`:130`）。
+
+→ 若不筛掉，它会**渲染两次**，而且可能被当成「官方勾选项」勾上。
+`selectedOfficialIds()` **显式过滤 `personal`**，测试专门钉了这条。
+
+### 16.5 不复制 Legacy 的 `/discover?domain=all` 跳转
+
+Legacy 保存后 `router.push('/discover?domain=all&sort=featured')`。
+但 V2 的 `/api/v1/discover` **不认** `domain`/`sort`（Phase 1A 已实测），
+跳过去只会**宣传一个不存在的筛选**。→ 留在原页并确认「已保存」。
+
+### 16.6 交付与验证
+
+| 文件 | 说明 |
+|---|---|
+| `src/api/exploration/exploration.types.ts` | `ExploreDomain` / `UserExplore` / 上限常量 / `slugifyLabel` |
+| `src/api/exploration/exploration.api.ts` | `getMap`（公开）/ `getMine` / `updateMine`（PUT） |
+| `src/api/exploration/exploration.api.test.ts` | 10 条，含「**失败必须传播**，不得吞成空数组」 |
+| `src/features/me-growth/exploration-interests.ts` | 铺平 / 选中 / 标签校验 / `isDirty` … |
+| `src/features/me-growth/exploration-interests.test.ts` | 33 条 |
+| `src/features/me-growth/pages/ExplorationInterestsPage.tsx` | 页面 |
+| `src/features/me-growth/pages/exploration-interests-page.test.tsx` | 21 条 |
+| `src/router/me-interests-routes.test.tsx` | 3 条（含未登录**不发任何读**） |
+
+- **未验证**：登录态真机保存（图形验证码人工环节）。写路径的语义
+  （完整状态、跳过无变化、保存后重播种）由 21 条页面测试覆盖。
+- **不做**：域申请（`POST /explore/domain-applications` 是**另一个**功能，
+  本页只管自己的偏好）；`/discover` 假筛选跳转。
+
+---
+
+## 三·补17 · Phase 3E 我的群聊：**「同源」但仍是真缺口**，与 Legacy 两个不存在的路由（2026-09-28）
+
+**页面**：`/me/groups` → `MyGroupsPage`。
+
+### 17.1 先回答「同源是不是假缺口」：**不是**
+
+补13 的疑虑是「`/me/groups` 同源 `/messages`，语义不等价」。核实后结论：
+
+- **读**确实同源：`GET /messages` 是**裸数组**，DIRECT 和 GROUP **混在一起**，**没有** group-only 端点。
+- **但缺口是真的**，两个理由：
+  1. 邮箱**无法**回答「我的群聊有哪些」——它把 DIRECT 混进来且不提供拆分；页面做的就是**群聊维度的视图**。
+  2. **创建群聊**是这一页独有的能力，邮箱没有入口。
+
+→ 所以它不是一个「为了路由对齐而搬」的页面，而是**群聊作用域的视图 + 唯一的创建入口**。
+
+### 17.2 ⚠️ `POST /messages/group`（创建群聊）**是真实存在的**
+
+这条是本次核实**推翻假设**的地方。`CommunityMessageController:67`：
+
+```java
+@PostMapping("/group")
+public ConversationView createGroup(@RequestBody Map<String, String> body) { ... }
+```
+
+`ConversationService.createGroup`（`:225-241`）**只读 `title`**：
+
+- 空标题 → `FieldContractException("title", "群聊标题不能为空")`（400）；
+- `joinMode` **硬编码 `OPEN`**；
+- 只插入**一行**成员（调用者，`OWNER`）。
+
+**⚠️ 没有任何邀请人列表 —— 新建的群永远只有 1 个成员。**
+→ 页面上**刻意不做**「邀请成员」输入框：接口会**静默忽略**它。
+（成员后续在群聊里加。其余 admin 能力 settings / announcement / members / leave
+虽然后端也有，本 Phase **不交付**，因此拥有群主身份的行**只显示角色标签、不给任何管理按钮**。）
+
+**探针勘误**（记录一下，因为差点被误导）：`POST /messages/groups`（复数）返 **500**，
+`POST /messages` 返 **405** —— 这两个**都不是**正确路径，不要据此判断「没有创建能力」。
+正确路径是**单数** `/messages/group`。
+
+### 17.3 Legacy 的两个链接**都指向它自己没定义的路由**
+
+| Legacy 链接 | Legacy 是否真的有这个路由 |
+|---|---|
+| `/messages/groups/new`（创建） | ❌ **不存在**（`app/messages/groups/new/page.tsx` 在，但 `/messages/groups/{id}` 动态段缺失，链接形状自相矛盾） |
+| `/messages/group/{id}`（每行） | ❌ **不存在** |
+
+→ V2 的处置：
+- 创建做成**页内内联表单**（不需要新路由，也就不可能再出现「链接指向不存在路由」）；
+- 行链接到 **`/messages/:conversationId`** —— V2 对 GROUP **真的能开**
+  （会话页先试 `getDirect`，404 再回退 `getGroup`；已在 `ConversationThreadPage:89-104` 确认）。
+  测试钉住 href **必须**是 `/messages/<id>` 且**不含** `/messages/group/`。
+
+### 17.4 角色 / 加入模式：未知值**原样回显**，不猜
+
+`roleLabel` / `joinModeNote` 对已知枚举给中文，对 `null`/`undefined` 返 `null`（**不显示**），
+对**未知值原样回显**（例如 `"MODERATOR"` → `"MODERATOR"`）。
+`canAdminister` 与后端 `requireOwnerOrAdmin` 对齐：**只认 `OWNER` / `ADMIN`**。
+`filterGroups` **保留服务端顺序**（mapper 已按 `updated_at DESC` 排好，不重排）。
+
+### 17.5 交付与验证
+
+| 文件 | 说明 |
+|---|---|
+| `src/api/messages/messages.api.ts` | **+`createGroup(title)`** → `POST /messages/group` |
+| `src/api/messages/messages.api.test.ts` | 表面断言**故意更新**（+`createGroup`）；admin 写端点缺席守卫**扩展**；+3 条 createGroup 形状测试 |
+| `src/features/me-growth/my-groups.ts` | 过滤 / 标题兜底 / 角色 / 加入模式 / 标题校验 / href |
+| `src/features/me-growth/my-groups.test.ts` | 25 条 |
+| `src/features/me-growth/pages/MyGroupsPage.tsx` | 页面（内联创建表单） |
+| `src/features/me-growth/pages/my-groups-page.test.tsx` | 18 条 |
+| `src/router/me-groups-routes.test.tsx` | 4 条（含未登录**不读邮箱**、href 不被 `/me/*` 吞掉） |
+
+- 全量：**171 文件 / 1813 测试全绿**；`tsc` 0 错；build 通过。
+- **未验证**：登录态真机创建群聊（图形验证码人工环节）。
+  创建流程（仅发 title、无邀请字段、成功后前插不重取）由 18 条页面测试覆盖。
+
+### 17.6 不做（明确边界）
+
+- ❌ **群管理**（settings / announcement / members / leave / remove-member）—— 后端有，本 Phase 不交付，故**不给按钮**。
+- ❌ **邀请成员** —— 创建接口只吃 `title`，没有邀请人列表。
+- ❌ **`/messages/group/{id}` 路由** —— Legacy 的形状，V2 不需要（统一走 `/messages/:id`）。
+- ❌ **group-only 读端点** —— 后端没有；客户端过滤是**事实**，注释里已写明。
+
+---
+
+## 四、建议的处置路径（供决策）
 
 既然缺口是**前端未搬**而非**后端未实现**：
 
@@ -1283,7 +1481,10 @@ V2 的 `/messages/:conversationId` 对 **GROUP 会话同样可用**（先试 DIR
 | 3A | 徽章成就 `/me/badges`（修正 Legacy 的「隐藏徽章」与凭空等级；**顺带推翻补3 的阅读历史结论**） | ✅ `8d1de83` |
 | 3B | 成长记录 `/me/growth`（五路聚合；**每区块独立三态**；修 `PendingAction.id` 潜伏类型错误 + href 死链） | ✅ 见 §三·补14 |
 | 3C | 关系请求 `/me/requests`（**纠正标题 > 内容**；仅「我提交的入群申请」；**不做** owner 审批队列与虚构的关注申请） | ✅ 见 §三·补15 |
-| 3D | P3 其余：`/me/interests`、`/me/groups` | ⬜ 契约底稿见 §三·补13 |
+| 3D | 我的探索 `/me/interests`（**核实并定性 `/explore/me` 游客 500 = 后端缺陷**；`PUT` 破坏性全覆盖 → 完整状态 + 无变化不发） | ✅ 见 §三·补16 |
+| 3E | 我的群聊 `/me/groups`（同源但**真缺口**；**发现 `POST /messages/group` 真实存在**且只吃 `title`；Legacy 两个链接都指向不存在的路由） | ✅ 见 §三·补17 |
+
+**P3 至此收尾**（3A–3E）：徽章 / 成长 / 关系请求 / 我的探索 / 我的群聊全部交付。
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。

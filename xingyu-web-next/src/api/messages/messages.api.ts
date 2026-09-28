@@ -35,6 +35,11 @@ import {
  * EXCEPTION (Phase 3C): `listMyGroupJoinRequests` IS here. It is the applicant's
  * own read-only view (`/me/group-join-requests`). The OWNER-side admin queue
  * (approve/reject) remains absent, and that is a scope decision, not an oversight.
+ *
+ * EXCEPTION (Phase 3E): `createGroup` IS here — `POST /messages/group` returning
+ * a ConversationView. Group creation is what the "我的群聊" page needs; the rest
+ * of the admin surface (`/settings`, `/announcement`, `/members`, `/leave`) stays
+ * out. See §三·补17.
  */
 export const messagesApi = {
   /** The mailbox. Mapper already sorts `updated_at DESC` — do not re-sort. */
@@ -63,6 +68,20 @@ export const messagesApi = {
   /** A GROUP conversation with its message window (server caps it at 100). */
   getGroup: (conversationId: string): Promise<Conversation> =>
     apiRequest<Conversation>(`/api/v1/messages/group/${encodeURIComponent(conversationId)}`),
+
+  /**
+   * Creates a GROUP conversation and makes the caller its OWNER (Phase 3E).
+   *
+   * Takes ONLY `{ title }` — `createGroup` reads nothing else from the body
+   * (`ConversationService:225-241`): it hardcodes `joinMode = OPEN` and inserts
+   * a single OWNER member row. There is NO invitee list, so a new group always
+   * starts with exactly one member. Do not offer an "invite members" field: the
+   * endpoint would ignore it.
+   *
+   * 400 `title: 群聊标题不能为空` when the title is blank.
+   */
+  createGroup: (title: string): Promise<Conversation> =>
+    apiRequest<Conversation>("/api/v1/messages/group", { method: "POST", body: { title } }),
 
   /**
    * Sends into a DIRECT conversation. Returns the created (or replayed) message.

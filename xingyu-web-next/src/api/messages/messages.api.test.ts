@@ -160,21 +160,25 @@ describe("messagesApi.recallMessage", () => {
 });
 
 describe("messagesApi surface", () => {
-  it("exposes the send/receive core plus attachments, search and the applicant's join requests", () => {
+  it("exposes the send/receive core plus attachments, search, join requests and group creation", () => {
     // 2I-3b added upload wiring, /media, /files and /search. Phase 3C added
-    // `listMyGroupJoinRequests` — the APPLICANT's own view.
+    // `listMyGroupJoinRequests` — the APPLICANT's own view. Phase 3E added
+    // `createGroup` — `POST /messages/group`, which the "我的群聊" page needs.
     //
     // Still deliberately absent (the boundary this assertion keeps):
-    //   - group ADMINISTRATION: members / announcement / join-request
-    //     approve+reject / leave / remove-member. `listMyGroupJoinRequests` is
-    //     NOT that: it reads `/me/group-join-requests` (who I asked), while the
-    //     admin queue is `/messages/group/{id}/join-requests` (who asked me).
+    //   - group ADMINISTRATION beyond creation: members / announcement /
+    //     join-request approve+reject / leave / remove-member. `createGroup` is
+    //     NOT that — it only mints a group and seats the caller as OWNER.
+    //     `listMyGroupJoinRequests` is also not that: it reads
+    //     `/me/group-join-requests` (who I asked), while the admin queue is
+    //     `/messages/group/{id}/join-requests` (who asked me).
     //   - `/me/saved-messages`.
     expect(Object.keys(messagesApi)).toEqual([
       "listConversations",
       "getDirect",
       "openDirect",
       "getGroup",
+      "createGroup",
       "sendDirect",
       "sendGroup",
       "listMessages",
@@ -188,13 +192,47 @@ describe("messagesApi surface", () => {
     ]);
   });
 
-  it("still has no group-admin writes, even though the applicant read was added", () => {
-    // Guards the distinction the previous test explains: approving/rejecting is
-    // an owner capability and must not sneak in alongside the applicant read.
+  it("still has no group-admin writes beyond creation", () => {
+    // Guards the distinction the previous test explains: approving/rejecting and
+    // the other owner capabilities must not sneak in alongside creation.
     const keys = Object.keys(messagesApi);
-    for (const admin of ["approveJoinRequest", "rejectJoinRequest", "leaveGroup", "removeMember"]) {
+    for (const admin of [
+      "approveJoinRequest",
+      "rejectJoinRequest",
+      "leaveGroup",
+      "removeMember",
+      "updateGroupSettings",
+      "updateGroupAnnouncement",
+      "listGroupMembers",
+    ]) {
       expect(keys).not.toContain(admin);
     }
+  });
+});
+
+describe("messagesApi.createGroup", () => {
+  it("POSTs ONLY the title to /api/v1/messages/group", async () => {
+    mocked.mockResolvedValue({ id: "g1", type: "GROUP", title: "前端交流", unreadCount: 0 });
+    await messagesApi.createGroup("前端交流");
+
+    expect(mocked).toHaveBeenCalledWith("/api/v1/messages/group", {
+      method: "POST",
+      // The service reads ONLY `title`; sending more would imply capability the
+      // endpoint does not have (there is no invitee list).
+      body: { title: "前端交流" },
+    });
+  });
+
+  it("returns the created ConversationView unchanged", async () => {
+    mocked.mockResolvedValue({ id: "g9", type: "GROUP", title: "新群", unreadCount: 0 });
+    const created = await messagesApi.createGroup("新群");
+    expect(created.id).toBe("g9");
+    expect(created.type).toBe("GROUP");
+  });
+
+  it("propagates the server's 400 on a blank title", async () => {
+    mocked.mockRejectedValue(new Error("title: 群聊标题不能为空"));
+    await expect(messagesApi.createGroup("   ")).rejects.toThrow("群聊标题不能为空");
   });
 });
 

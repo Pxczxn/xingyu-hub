@@ -282,6 +282,15 @@ export function AppLayout() {
                 <Link to="/me/requests" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
                   关系请求
                 </Link>
+                {/* Phase 3D: 我的探索. Personal exploration preferences (official
+                    domains + personal labels). Session-scoped. */}
+                <Link to="/me/interests" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  我的探索
+                </Link>
+                {/* Phase 3E: 我的群聊. Group-only view of the mailbox + creation. */}
+                <Link to="/me/groups" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  我的群聊
+                </Link>
                 {/* Phase 2J-2: 举报与申诉. Session-scoped like the rest of this
                     branch. The public 社区规则 link stays in the footer next to
                     the other informational links. */}
