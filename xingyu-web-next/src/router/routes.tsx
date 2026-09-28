@@ -29,6 +29,7 @@ import { AnnouncementDetailPage } from "@/features/announcements/pages/Announcem
 import { GuideIndexPage } from "@/features/guide/pages/GuideIndexPage";
 import { GuideDetailPage } from "@/features/guide/pages/GuideDetailPage";
 import { RulesPage } from "@/features/rules/pages/RulesPage";
+import { RecommendationFeedbackPage } from "@/features/feedback/pages/RecommendationFeedbackPage";
 import { CollectionsPage } from "@/features/collections/pages/CollectionsPage";
 import { CollectionManagePage } from "@/features/collections/pages/CollectionManagePage";
 import { CollectionPublicPage } from "@/features/collections/pages/CollectionPublicPage";
@@ -191,6 +192,21 @@ export function AppRoutes() {
         <Route path="/guide" element={<GuideIndexPage />} />
         <Route path="/guide/:slug" element={<GuideDetailPage />} />
         <Route path="/rules" element={<RulesPage />} />
+
+        {/* Phase 3F: 推荐反馈. Session-scoped on BOTH verbs — `GET` and `POST
+            /me/recommendation-feedback` are each 401 for a guest (probed
+            2026-09-28; unlike `/explore/me`, these map 401 correctly). Source-
+            listed as unverified until now; it is a genuine read+write page.
+            The POST takes only `{ body }` (no rating, no target), so the page
+            states the scope explicitly. There is NO delete endpoint. */}
+        <Route
+          path="/feedback/recommendations"
+          element={
+            <RequireAuth>
+              <RecommendationFeedbackPage />
+            </RequireAuth>
+          }
+        />
 
         {/* Phase 2C: public collection detail. 404 hides PRIVATE/UNLISTED. */}
         <Route path="/collections/:id" element={<CollectionPublicPage />} />

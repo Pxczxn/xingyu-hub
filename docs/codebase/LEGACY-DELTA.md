@@ -88,7 +88,9 @@
 | `/me/groups` | ✅ 401（读同源 `/messages`） | → **已迁（Phase 3E）**：同源但**仍是真缺口**（群聊视图 + 唯一创建入口）；`POST /messages/group` **真实存在**且只吃 `title` → 见 §三·补17 |
 
 其余（`/account/status`、`/content/:type/:id/status`、`/share`、`/spaces/:slug`、
-`/comments/:id`、`/feedback/recommendations`、`/collections/public`）**尚未核实**。
+`/comments/:id`、`/feedback/recommendations`、`/collections/public`）**已逐条核实（Phase 3F）**：
+**只有 `/feedback/recommendations` 是真缺口（已交付）**，其余 6 条为前端拼装/静态壳/
+或 Legacy 自身也未实现的路由 —— 见 §三·补18 §18.5。
 
 ### ⚪ P4 — 系统页（低价值，可最后做或不做）
 `/system/error`、`/forbidden`、`/maintenance`、`/not-found`、`/offline`、`/rate-limited`
@@ -1445,6 +1447,84 @@ public ConversationView createGroup(@RequestBody Map<String, String> body) { ...
 
 ---
 
+## 三·补18 · Phase 3F 推荐反馈 + 「尚未核实」清单的**逐条定性**（2026-09-28）
+
+**页面**：`/feedback/recommendations` → `RecommendationFeedbackPage`。
+
+### 18.1 它**不是**假缺口 —— 是一读一写都真实存在的页面
+
+补11 的「不做」列表里有几个是**同源且更弱**（素材库、创作台设置），
+推荐反馈**不属于**那一类。`RecommendationFeedbackService` 是完整的真实读写：
+
+| 项 | 值 | 依据 |
+|---|---|---|
+| 读 | `GET /me/recommendation-feedback?limit=20` | 控制器 `:386` |
+| 写 | `POST /me/recommendation-feedback`，body `{body}` | 控制器 `:392` |
+| 返回 | **裸数组**（非 PageResultView）；无游标 | `listMine` |
+| 上限 | `Math.min(Math.max(limit,1),50)` → **50 封顶** | `listMine` |
+| 校验 | 空/纯空白 → 400 `body: 反馈内容不能为空`；>2000 → 400 | `submit` |
+| DTO | `record(id, body, createdAt)` —— **无用户字段**（本就是自己的） | View |
+| 探针 | GET **401**、POST **401**（**正确映射**，非 `/explore/me` 那种 500） | 2026-09-28 |
+
+### 18.2 ⚠️ 页面**必须**声明范围，否则一定被误解
+
+`submit` **只读 `body` 一个字段** —— 没有评分、没有目标内容 id、没有分类。
+所以这是**针对推荐系统整体**的自由文本，**不是**「这篇推得不准」的投票。
+
+**风险**：用户很可能从某篇文章一路点进来，默认以为在给**那篇**打分。
+→ `FEEDBACK_SCOPE_NOTE` 在页头第一句说明「这是对整个推荐系统的整体反馈，
+不是针对某一篇文章」，并用**测试**钉住这两句必须存在（防止文案被改掉后无人察觉）。
+
+### 18.3 ⚠️ 后端**没有** DELETE —— 页面不许给删除控件
+
+控制器只有 `@GetMapping` 和 `@PostMapping`，**没有**删除/修改端点。
+→ 页面**不提供**任何删除/编辑按钮，并在提交前就**警告**「提交后无法修改或删除」。
+否则用户提交完会去找一个**不存在的控件**。测试钉了两条：
+「无删除/修改/撤销按钮」+「警告文案存在」。
+
+### 18.4 提交后用**响应**前插，不重取；确认态按 **id** 判定
+
+POST 返回的就是**已入库的行**，所以无需重取。`prependFeedback` **按 id 去重**并
+**按真实上限截断**（长会话不会胀过一次刷新能拿到的量）。
+`isJustSubmitted` **比 id 不比正文** —— 两条一模一样的抱怨是合法的，
+比文本会**误判**。
+
+### 18.5 「尚未核实」清单的**逐条定性**（补上这一格）
+
+原文写「其余……尚未核实」的 7 条，本轮核实如下：
+
+| 路由 | 判定 | 依据 |
+|---|---|---|
+| `/feedback/recommendations` | ✅ **真缺口 → 本轮已交付** | 见上 |
+| `/account/status` | ⚪ **不做** —— 与 `/sessions` + `/me` **同源**；它唯一独有的 `getAccountStatus()` 给出 `status`/`canChangeEmail`/`canChangePassword`/`requiresReAuth`，而 `MeView` 已含 `email`/`emailVerified`/`mustChangePassword` | 端点存在（401），但页面信息**严格更弱** |
+| `/collections/public` | ⚪ **不做** —— **自相矛盾**：用 `getMyProfile()` 渲染出**当前用户**的头像/昵称，却叫「公开收藏」；且**严格更弱**于 `/collections/:id`（后者真能打开任意一个人的公开收藏夹）。**只筛自己的 PUBLIC 收藏夹**这一件事，`/me/collections` 已能做 | Legacy `public/page.tsx:17-21` |
+| `/share` | ⚪ **不做** —— 6 行**纯静态壳**，**0 次 API 调用**，正文就是「打开发现页，用页面上的分享按钮」+ 一个 `/discover` 链接 | Legacy `share/page.tsx` |
+| `/content/:type/:id/status` | ⚪ **不做** —— Legacy `app/` 下**无对应 page**（未实现） | 目录不存在 |
+| `/spaces/:slug` | ⚪ **不做** —— Legacy `app/` 下**无对应 page** | 目录不存在 |
+| `/comments/:id` | ⚪ **不做** —— Legacy `app/` 下**无对应 page**（评论详情是 `/articles/:id` 内的锚点/弹层） | 目录不存在 |
+
+→ 结论：**这 7 条里只有 1 条是真缺口**（已交付），其余 6 条要么是前端拼装/静态壳，
+要么是 Legacy 自己也**没做的路由**。**又一次印证「清单是候选，调用点才是事实」。**
+
+### 18.6 交付与验证
+
+| 文件 | 说明 |
+|---|---|
+| `src/api/recommendation-feedback/recommendation-feedback.types.ts` | DTO + 三个常量（默认 20 / 上限 50 / 长度 2000） |
+| `src/api/recommendation-feedback/recommendation-feedback.api.ts` | `list` / `submit` |
+| `src/api/recommendation-feedback/recommendation-feedback.api.test.ts` | 9 条（含「**无删除/编辑**」缺席守卫） |
+| `src/features/feedback/recommendation-feedback.ts` | 校验 / 计数 / 去重前插 / `clampLimit` / `FEEDBACK_SCOPE_NOTE` |
+| `src/features/feedback/recommendation-feedback.test.ts` | 26 条 |
+| `src/features/feedback/pages/RecommendationFeedbackPage.tsx` | 页面 |
+| `src/features/feedback/pages/recommendation-feedback-page.test.tsx` | 17 条 |
+| `src/router/recommendation-feedback-routes.test.tsx` | 3 条（含未登录**不读列表**） |
+
+- 全量：**175 文件 / 1868 测试全绿**；`tsc` 0 错；build 通过。
+- 入口放在 **footer**（与 `/guide`、`/rules` 同列），不进主导航 —— 低频动作。
+- **未验证**：登录态真机提交（图形验证码人工环节）。
+
+---
+
 ## 四、建议的处置路径（供决策）
 
 既然缺口是**前端未搬**而非**后端未实现**：
@@ -1483,8 +1563,10 @@ public ConversationView createGroup(@RequestBody Map<String, String> body) { ...
 | 3C | 关系请求 `/me/requests`（**纠正标题 > 内容**；仅「我提交的入群申请」；**不做** owner 审批队列与虚构的关注申请） | ✅ 见 §三·补15 |
 | 3D | 我的探索 `/me/interests`（**核实并定性 `/explore/me` 游客 500 = 后端缺陷**；`PUT` 破坏性全覆盖 → 完整状态 + 无变化不发） | ✅ 见 §三·补16 |
 | 3E | 我的群聊 `/me/groups`（同源但**真缺口**；**发现 `POST /messages/group` 真实存在**且只吃 `title`；Legacy 两个链接都指向不存在的路由） | ✅ 见 §三·补17 |
+| 3F | 推荐反馈 `/feedback/recommendations`（**核实「尚未核实」清单 7 条，只此 1 条是真缺口**；POST 只吃 `body` → 必须声明范围；后端**无 DELETE** → 不给删除控件） | ✅ 见 §三·补18 |
 
-**P3 至此收尾**（3A–3E）：徽章 / 成长 / 关系请求 / 我的探索 / 我的群聊全部交付。
+**P3 至此收尾**（3A–3F）：徽章 / 成长 / 关系请求 / 我的探索 / 我的群聊 / 推荐反馈全部交付。
+**V2 缺口清单已清空** —— 剩余项全是已核实的「不做」（前端拼装、静态壳、Legacy 自身未实现）。
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。

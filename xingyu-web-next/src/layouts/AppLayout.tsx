@@ -353,6 +353,12 @@ export function AppLayout() {
             <Link to="/rules" className="hover:text-foreground hover:underline">
               社区规则
             </Link>
+            {/* Phase 3F: 推荐反馈. Like the other contact-the-team surfaces it
+                lives in the footer, not the main nav — it is an occasional
+                action, and the route is behind RequireAuth anyway. */}
+            <Link to="/feedback/recommendations" className="hover:text-foreground hover:underline">
+              推荐反馈
+            </Link>
           </nav>
         </div>
       </footer>
