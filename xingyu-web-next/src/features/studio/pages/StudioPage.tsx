@@ -65,6 +65,16 @@ export function StudioPage() {
             <p className="mt-1">生成邀请链接，发给想一起创作的人。</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            {/* Phase 2N. This page did not exist in Legacy at all — the backend
+                CRUD was never surfaced. */}
+            <Link to="/studio/categories" className="text-accent hover:underline">
+              创作空间分类
+            </Link>
+            <p className="mt-1">给作品分组，方便在主页按分类浏览。</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Link to="/" className="text-sm text-accent hover:underline">

@@ -42,6 +42,7 @@ import { ArticleVersionsPage } from "@/features/studio/pages/ArticleVersionsPage
 import { StudioAnalyticsPage } from "@/features/studio/pages/StudioAnalyticsPage";
 import { CollaborationInvitePage } from "@/features/studio/pages/CollaborationInvitePage";
 import { CollaborationAcceptPage } from "@/features/studio/pages/CollaborationAcceptPage";
+import { StudioCategoriesPage } from "@/features/studio/pages/StudioCategoriesPage";
 import { SeriesListPage } from "@/features/series/pages/SeriesListPage";
 import { SeriesNewPage } from "@/features/series/pages/SeriesNewPage";
 import { SeriesEditPage } from "@/features/series/pages/SeriesEditPage";
@@ -130,6 +131,10 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      backend has NO collaboration relationship — accept writes
  *                      nothing. The UI discloses this rather than implying a
  *                      permission grant.)
+ * Phase 2N:            /studio/categories (RequireAuth; creation-space category
+ *                      CRUD. NOT a migration — the backend API existed and was
+ *                      never surfaced by Legacy. Archive and delete are separate
+ *                      operations and the UI keeps them separate.)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -590,6 +595,20 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <CollaborationAcceptPage />
+            </RequireAuth>
+          }
+        />
+
+        {/* Phase 2N: creation-space categories. Not a migration — the backend
+            CRUD (`/me/creation-space/categories`) was fully implemented while
+            Legacy shipped no page for it (`app/studio/categories/` has no
+            page.tsx, and its redirect sends /studio/categories to the empty
+            /studio/settings shell). RequireAuth: every endpoint needs a session. */}
+        <Route
+          path="/studio/categories"
+          element={
+            <RequireAuth>
+              <StudioCategoriesPage />
             </RequireAuth>
           }
         />
