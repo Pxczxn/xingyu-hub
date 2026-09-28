@@ -69,11 +69,12 @@
 | 功能 | Legacy 路由 | 说明 |
 |---|---|---|
 | 数据分析 | `/studio/analytics` | → **已迁（Phase 2L）**：复用已有 `meInsightsApi`（`GET /me/insights`），零新 API。**修正 Legacy 的失败模式**（失败时渲染 `—`，与真实 0 无法区分）→ 见 §三·补9 |
-| 素材库 | `/studio/assets` | ⬜ **不建议做**：只是 `listMyArticles` + `listMySeries` 的重新组合，与创作台/投稿页语义重叠 |
+| 素材库 | `/studio/assets` | **✅ 已核实（Phase 2N，2026-09-28）：结论是不做** —— 45 行，只调 `listMyArticles()` + `listMySeries()`，与现有 `/studio/series` + 投稿列表**同源且严格更弱**（`meta` 直接印 `item.status` 原始枚举不翻译，无操作/无筛选/无空态区分）→ 见 §三·补11 |
 | 协作 | `/studio/collaboration`、`/accept` | → **已迁（Phase 2M）**，但 **后端是「空心功能」**：`acceptInvite` **0 写操作**、无关系表、无读取方，**接受邀请不产生任何协作权限**。两页照做，文案**实测声明该边界**；并修掉 Legacy 的 `/u/:username/works` 死链 → 见 §三·补10 |
 | 版本历史 | `/studio/content/:id/versions` | → **已迁（Phase 2L）**：`listRevisions` + `restoreRevision`。**修正 Legacy 的三处错误文案**（把「发布版本」谎称「自动保存」等）→ 见 §三·补9 |
 | 投稿管理 | `/studio/submissions/:id` | → **已迁 + 增强（Phase 2K-2）**：列表 `/studio/submissions` + 详情 `/studio/submissions/:submissionId`。**「撤回投稿」是新增功能而非迁移** —— Legacy 定义了 `withdrawReviewSubmission` 却 **0 处调用**（死代码），详情页是只读的。见 §三·补7 |
-| 创作台设置 | `/studio/settings` | |
+| 创作台设置 | `/studio/settings` | **✅ 已核实（Phase 2N，2026-09-28）：结论是不做** —— 40 行静态壳、**0 次 API 调用**、无表单无状态；三条「设置」两条是坏的（「创作空间分类」`href` **指向自己**，「精选展示」指向 `/studio/content` 而那是编辑器单篇路由 → 404）→ 见 §三·补11 |
+| 创作空间分类 | ~~无~~ `/studio/categories` | → **已迁（Phase 2N）**：**这不是迁移，是补一个从未做过的页面**。后端 `CommunityCreationSpaceController` 有**完整 CRUD**（`/api/v1/me/creation-space/categories`，含乐观锁 + slug 校验 + 归档），Legacy **从未为它做过页面**（只在 redirects 里把它指向空的 `/studio/settings`）→ 见 §三·补11 |
 | 动态发布 | `/studio/moments/new` | ~~2D 有 `MomentDetailPage` 但**没有发布页**~~ → **勘误见 §三·补2**：发布表单**已在 `MomentsPage` 内**，无需独立页 |
 
 ### 🔵 P3 — 个人成长 / 杂项
@@ -745,11 +746,131 @@ V2 的做法：
 另外：note 的 null 被后端映射成 `""`，所以「没有备注」在线上是**空字符串**而不是 null，
 判空必须用 `?.trim()`。
 
-### 10.5 未验证项（如实记录）
+### 10.5 未验证项 + 一个实测发现的既有后端缺陷
 
 **登录态下走完「创建 → 复制 → 打开 → 确认」全流程**未在真实浏览器实测 ——
-确认按钮需要真实登录态，而登录本身需要**人工验证码**。已在探针层确认
-`accept` 对游客返回 401（路径存在且需身份），游客侧验收见提交信息。
+确认按钮需要真实登录态，而登录本身需要**人工验证码**。游客侧验收 5/5 通过。
+
+⚠️ **实测修正（重要）**：`POST /collaboration/invites/accept` 对游客返回的是 **500**，
+**不是 401**（本节早前草稿写的是 401，已按探针结果更正）。根因在
+`CommunityCollaborationController:30`：它在调用 service 之前先求值
+`CommunityAuthContext.requireUser()`，游客时 ThreadLocal 为空 →
+`IllegalStateException` 未被映射为 401 → 落成 `INTERNAL_ERROR`。
+
+这与同批 `POST /me/*`（`CommunityMeController`，游客稳定 401）**行为不一致**。
+不影响本次实现（两页都是 `RequireAuth`，游客到不了页面；页面遇 500 走通用错误降级），
+但属于**应当修**的既有缺陷 —— 统一由鉴权拦截器在 Controller 之前拒绝匿名请求。
+
+同一文件另有一处**潜在 NPE**：`resolveInvite` / `acceptInvite` 的
+`"inviterDisplayName", profile == null ? null : profile.getDisplayName()`
+—— `profile` 存在但 `displayName` 为 null 时 `Map.of(...)` 会抛 NPE（500）。
+它只处理了「没有档案」，漏了「有档案但字段为空」。本次未触发，未修，一并记录。
+
+### 10.6 附带发现：后端 405 的响应形状**不是** RFC9457
+
+同批探针里，对 `GET /me/creation-space/categories/{id}`（方法未绑定）返回的是
+**Spring 默认错误体**：
+
+```json
+{"timestamp":"...","status":405,"error":"Method Not Allowed","path":"..."}
+```
+
+**没有** `type` / `title` / `detail` / `code`。而业务异常走的是标准 `ProblemDetails`。
+所以前端 `toProblemDetails()` 在这个分支上会退化成 `{ type:"about:blank", title:"Request failed",
+status:405, detail:<statusText>, code:"UNKNOWN" }` —— 能跑，但**这不是我们要的形状**。
+记录备查；当前没有页面依赖 405 的文案。
+
+---
+
+## 三·补11 · Phase 2N：两个「假缺口」+ 一个**从未被做过的功能**（2026-09-28）
+
+### 11.1 判定：`/studio/settings` 与 `/studio/assets` 都**不做**
+
+这两条在上一版清单里还挂着「⬜」，本轮按 §三·补8 的四问核实，**双双命中假缺口**。
+
+**`/studio/settings`（创作设置）— 证据：**
+
+| # | 证据 | 实测 |
+|---|---|---|
+| 1 | **无数据源** | `grep -cE "useAsyncData\|communityApi\.\|fetch\("` → **0**。没有表单、没有设置项、没有状态 |
+| 2 | **自指** | 第一条「创作空间分类」的 `href="/studio/settings"` —— **指向当前页自己** |
+| 3 | **另一条是死链** | 「精选展示」`href="/studio/content"`，而那是**编辑器单篇**路由（`/studio/content/:articleId`），裸路径在 V2 必 404 |
+| 4 | **它声称管的东西两个都不成立** | 「创作空间分类」后端确有 CRUD 但本页没接（见 11.2）；「精选展示」= `/studio/content` 本身 |
+
+**40 行，纯静态壳。** 三条「设置」里**两条是坏的**，一条指向自己。
+搬过来只会新增一个点不动的页面。
+
+**`/studio/assets`（素材库）— 证据：**
+
+| # | 证据 | 实测 |
+|---|---|---|
+| 1 | **同源** | 只调 `communityApi.listMyArticles()` + `listMySeries()`，与 `/studio/series` 和投稿列表**同一批端点**（注意 `assets` 在 `community-api.ts` 里**零新增方法**，纯复用） |
+| 2 | **严格更弱** | `meta` 直接印 `item.status` **原始枚举**（`DRAFT`/`PUBLISHED`）不做翻译；无操作、无筛选、无排序、无空态区分 |
+| 3 | **能力已有归属** | 系列在 `/studio/series`，稿件在 `/studio/submissions` —— 两个页面都比它强 |
+| 4 | **V2 侧无需补** | 45 行 |
+
+判定：**不建页、不加重定向。**
+
+### 11.2 但是：挖到一个**真缺口** —— 创作空间分类
+
+核实 `/studio/settings` 那条自指链接时，去后端查「创作空间分类」到底有没有能力，
+结果是**有，而且是完整的**：`CommunityCreationSpaceController`
+（`@RequestMapping("/me/creation-space")`）提供四个端点：
+
+| 端点 | 行为 |
+|---|---|
+| `GET /categories` | 列当前用户创作空间下的分类 |
+| `POST /categories` | 新建（`name` 必填，`slug` 空则由 `name` 派生） |
+| `PATCH /categories/{id}` | 改名 / 改状态（**乐观锁**） |
+| `DELETE /categories/{id}` | **真的删行** |
+
+而 **Legacy 从未为它做过页面**：`app/studio/categories/` 是个**空目录**（没有 `page.tsx`），
+重定向表把 `/studio/categories` 指向空的 `/studio/settings`。
+
+⇒ 这是一个**独立于前四类的新形态**：功能后端完整、前端**从未存在**。
+不是「Legacy 有 V2 没有」，而是「**谁都没有**」。所以 2N 的交付**不是迁移，是补建**。
+
+### 11.3 实现要点：按真实契约设计，不按对称性设计
+
+四个被契约逼出来的决定：
+
+1. **归档 ≠ 删除，是两个操作。** `update` 能把 `status` 改成 `ARCHIVED`；
+   `delete` 真的 `deleteById`。两者后果完全不同 ⇒ 两个按钮、两套文案、
+   删除走 `role="alertdialog"` 二次确认并明写**「无法撤销」**，同时**指引用户改用「归档」**。
+   测试断言确认框里出现「无法撤销」与「归档」。
+2. **`update` 必须回传 `lockVersion`。** 服务端直接读 body 里的它，
+   **缺省按 0 处理** —— 漏传会把每次更新变成假 409。API 测试专门断言
+   `lockVersion` 是一个**显式数字**，且 `0` 与「未提供」可区分。
+3. **409 / 404 之后必须重读列表，不给「重试」。** 这两者都意味着客户端副本已过期，
+   用同一个陈旧版本重试**必然以同样方式失败**。`shouldReloadAfterFailure()` 把这条
+   规则做成纯函数并单测（500 返回 false —— 那种情况重试是有意义的）。
+4. **不做排序控件。** `sortOrder` **是只读的**：`create` 硬编码 0、`update` 忽略该字段。
+   页面上没有任何上移/下移/拖动入口，测试反向断言不存在这类按钮。
+
+另外两条**有意不做**的：
+- **别名不可改**：API 允许改 `slug`，但产品里还没有任何地方展示分类的 slug，
+  提供「改别名」就是个**看不出效果**的控件 → 只展示、不提供编辑。
+- **别名预览显示真实路径**：`/u/{username}/works/{slug}`（V2 真实路由形态），
+  用户名未知时降级为 `/works/{slug}`，不编造路径。
+
+### 11.4 「空间不存在」不是「分类为空」
+
+`requireSpaceForUser` 在用户没有创作空间时抛 `NOT_FOUND "创作空间不存在"`。
+分类全部挂在空间下，所以这个 404 **不是空列表**，而是**前置条件缺失**。
+页面用**独立的一态**（`page-state-empty` + 「创作空间尚未建立」）与真正的空态
+（「还没有分类」）区分，测试断言两者的文案**互不包含**。
+把「我们读不到」渲染成「你没有」，正是 §三·补9 那条纪律的同一件事。
+
+### 11.5 本地校验镜像服务端
+
+`deriveSlug` / `validateSlug` 逐字对齐服务端的 `normalizeSlug` 与 `SLUG_PATTERN`
+（`^[a-z0-9-]{2,64}$`）。**有意不"顺手增强"**：服务端不做字符清理，
+客户端也不做 —— 否则用户会在客户端通过、被服务端拒绝，看到一条无法理解的错误。
+
+这条在测试里**自己撞到过**：用 CJK 名称「散文」测「服务端别名冲突」，
+结果派生出的 slug `散文` 先被本地校验拦下、压根没发出请求。
+**这是正确行为，不是 bug** —— 于是把该用例改成用能通过本地校验的名称，
+并**新增一条**用例断言 CJK 名称在本地就被拦下（`createCategory` 未被调用）。
 
 ---
 
@@ -783,7 +904,9 @@ V2 的做法：
 | 2K-2 | 投稿审核 `/studio/submissions*` + **新增撤回功能** | ✅ `bf92ffb` |
 | 2L | 帮助中心核实（**结论：不做**，并入 `/guide`） | ✅ 见 §三·补8 |
 | 2L | 版本历史 `/studio/content/:id/versions` + 数据分析 `/studio/analytics` | ✅ `eb43cd1` |
-| 2M | 协作邀请 `/studio/collaboration` + `/accept`（**核实后端为空心功能，文案声明边界**） | ✅ 本次 |
+| 2M | 协作邀请 `/studio/collaboration` + `/accept`（**核实后端为空心功能，文案声明边界**） | ✅ `7efa0cb` |
+| 2N | `/studio/settings` + `/studio/assets` 核实（**结论：两个都不做**，均命中假缺口） | ✅ 见 §三·补11 |
+| 2N | 创作空间分类 `/studio/categories`（**非迁移：后端 CRUD 完整但 Legacy 从未做页面**） | ✅ 本次 |
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。
