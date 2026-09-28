@@ -31,16 +31,25 @@ export function StudioPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">草稿占位</CardContent>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            <Link to="/studio/analytics" className="text-accent hover:underline">
+              数据分析
+            </Link>
+            <p className="mt-1">查看已发布文章、喜欢、评论与粉丝等汇总数据。</p>
+          </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">已发布占位</CardContent>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            {/* Still a placeholder on purpose: /studio/content has no LIST route
+                (only /studio/content/:articleId exists), so there is nowhere
+                honest to send the user yet. A link here would 404. */}
+            已发布占位
+          </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground">
             {/* Phase 2K-2: this cell used to read "审核中占位". /studio/submissions
-                now exists, so it becomes a real entry point. The other two cells
-                stay placeholders — there is still no drafts/published list page. */}
+                now exists, so it becomes a real entry point. */}
             <Link to="/studio/submissions" className="text-accent hover:underline">
               我的投稿
             </Link>

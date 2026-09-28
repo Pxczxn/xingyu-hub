@@ -105,3 +105,42 @@ export type MyArticleSummary = {
   categoryId: string | null;
   updatedAt: string;
 };
+
+/*
+ * Version history (Phase 2L) — mirrors backend `ArticleRevisionView`.
+ *
+ * ⚠️ read `listRevisions` in ArticleService before trusting the name: it queries
+ * `formalRevisionMapper.listByArticleId`, i.e. FORMAL revisions only. A formal
+ * revision row is written when the article is published, so a draft that was
+ * merely saved (never published) has an EMPTY history. The UI must therefore
+ * treat "no versions" as the normal state for a never-published article rather
+ * than as an error or a loading failure.
+ *
+ * Field-for-field against the DTO:
+ *   id, revisionNumber (backend coerces null -> 0), title, summary,
+ *   visibility, frozenAt
+ *
+ * ⚠️ `title` / `summary` are declared `String` in Java and are NOT annotated
+ * nullable, so they are *probably* non-null — but the DB column is nullable and
+ * the DTO passes it straight through. Treat `title` as possibly-null and fall
+ * back, rather than rendering an empty heading.
+ */
+export type ArticleRevision = {
+  id: string;
+  revisionNumber: number;
+  title: string | null;
+  summary: string | null;
+  visibility: string;
+  /** Instant (ISO-8601 string) — when this revision was frozen. */
+  frozenAt: string | null;
+};
+
+/*
+ * `restoreRevision` returns the SAME shape as a draft save (`WorkingDraftView`),
+ * because it mutates the working draft in place rather than creating anything.
+ *
+ * Side effects the UI must account for (verified in ArticleService):
+ *  - overwrites title/summary/coverUrl/bodyMode/body/slug/visibility of the draft;
+ *  - **increments lockVersion** — so any in-flight editor holding the old
+ *    lockVersion will be rejected by the optimistic lock on its next save.
+ */

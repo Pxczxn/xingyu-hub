@@ -58,7 +58,7 @@
 | **精选** | `/features` | ⚪ **无独立后端** | `getDiscover`+`getSuggestedUsers`+`getTopics`+`listSeries` 拼装 |
 | **创作者** | `/creators` | ✅ 复用已有 | `getProfile`/`getTopicCreators`/`getUserWorks`/`followUser`/`unfollowUser` → **已迁（Phase 2K-1）**，零后端改动，见 §三·补6 |
 | **举报 / 申诉** | `reports` 下 4 条、`appeals` | ✅ 401 | 读在 `/me/reports`·`/me/appeals`，**写在资源根** `/reports`·`/appeals` → **已迁（Phase 2J-2）**，见 §三·补4 |
-| **帮助中心** | `/help`、`/help/:slug` | ✅ 复用 `/guide` | `getGuidePages` 与 `/guide` **同一数据源** → 大概率**应并入 guide，不单独做** |
+| **帮助中心** | `/help`、`/help/:slug` | ✅ 复用 `/guide` | **✅ 已核实（Phase 2L，2026-09-28）：结论是不做** —— 与 `/guide` 同一数据源 `getGuidePages()`，且 `/help` 是**严格更弱**的版本。见 §三·补8 |
 
 > 这三条 ⚪「无独立后端」是本次核实出的**重要修正**：`rankings`/`categories`/`features`
 > 不是「有后端没前端」，而是**纯前端聚合页**。做它们不需要任何后端改动，
@@ -68,10 +68,10 @@
 
 | 功能 | Legacy 路由 | 说明 |
 |---|---|---|
-| 数据分析 | `/studio/analytics` | 创作台仪表盘 |
-| 素材库 | `/studio/assets` | |
-| 协作 | `/studio/collaboration`、`/accept` | |
-| 版本历史 | `/studio/content/:id/versions` | |
+| 数据分析 | `/studio/analytics` | → **已迁（Phase 2L）**：复用已有 `meInsightsApi`（`GET /me/insights`），零新 API。**修正 Legacy 的失败模式**（失败时渲染 `—`，与真实 0 无法区分）→ 见 §三·补9 |
+| 素材库 | `/studio/assets` | ⬜ **不建议做**：只是 `listMyArticles` + `listMySeries` 的重新组合，与创作台/投稿页语义重叠 |
+| 协作 | `/studio/collaboration`、`/accept` | ⬜ 未核实 |
+| 版本历史 | `/studio/content/:id/versions` | → **已迁（Phase 2L）**：`listRevisions` + `restoreRevision`。**修正 Legacy 的三处错误文案**（把「发布版本」谎称「自动保存」等）→ 见 §三·补9 |
 | 投稿管理 | `/studio/submissions/:id` | → **已迁 + 增强（Phase 2K-2）**：列表 `/studio/submissions` + 详情 `/studio/submissions/:submissionId`。**「撤回投稿」是新增功能而非迁移** —— Legacy 定义了 `withdrawReviewSubmission` 却 **0 处调用**（死代码），详情页是只读的。见 §三·补7 |
 | 创作台设置 | `/studio/settings` | |
 | 动态发布 | `/studio/moments/new` | ~~2D 有 `MomentDetailPage` 但**没有发布页**~~ → **勘误见 §三·补2**：发布表单**已在 `MomentsPage` 内**，无需独立页 |
@@ -504,6 +504,172 @@ V2 **保留这个 split**（studio 是写作者找自己投稿的地方），并
 
 ---
 
+## 三·补8 · Phase 2L 帮助中心：**核实后决定「不做」**（2026-09-28）
+
+### 8.1 结论先行
+
+`/help` + `/help/:slug` 的处理方式是 **不迁移、也不新建页面**。
+它是一个**已被 `/guide` 完全覆盖**的冗余入口。这不是偷懒，是核实后的结论 —— 证据如下。
+
+### 8.2 证据一：同一数据源
+
+```tsx
+// Legacy xingyu-web/app/help/page.tsx
+const { data: pages } = useAsyncData(() => communityApi.getGuidePages(), []);
+// Legacy xingyu-web/app/guide/page.tsx
+const { data }       = useAsyncData(() => communityApi.getGuidePages(), []);   // ← 同一个调用
+```
+
+两个页面消费**完全相同的** `getGuidePages()`，`PageHero` 的差异只有文案
+（「帮助中心」/「使用指南」）。**没有 `getHelpPages` 这种东西** —— `/help` 不是独立数据源。
+
+### 8.3 证据二：`/help` 是**严格更弱**的版本
+
+| 能力 | Legacy `/help` | Legacy `/guide` |
+|---|---|---|
+| 列表 | ✅ 纯文本 `<ul>` | ✅ 卡片网格 + `summary` 摘要 |
+| **搜索** | ❌ 无 | ✅ 有（按 `title` + `summary` 过滤） |
+| 空态区分 | ❌ 只有「暂无帮助内容」 | ✅ 区分「无匹配」与「指南发布后会展示」 |
+| 联系支持 | ❌ 无 | ✅ 有（footer 引导到 `/feedback/recommendations`） |
+
+所以 `/help` 相对 `/guide` **一项能力都不多**。
+
+### 8.4 证据三：`/help` 自己的链接指向 `/guide`
+
+```tsx
+// Legacy app/help/page.tsx —— 注意 href 是 /guide，不是 /help
+<Link href={`/guide/${page.slug}`}>{page.title}</Link>
+```
+
+**列表项的详情链接指向 `/guide/{slug}`**。也就是说 `/help` 实质上只是
+`/guide` 的一个**别名着陆页**，连它自己都承认详情页归 `/guide` 管。
+
+### 8.5 证据四：`/help/:slug` 是个 23 行的静态壳
+
+`app/help/[slug]/page.tsx` 是 23 行硬编码文案（「开始探索星语」「遇到问题怎么办？」），
+**不读 slug、不取数据**。即 Legacy 里 `/help/:slug` 在任何 slug 下渲染的都是同一段文字。
+它唯一的链接是「返回帮助中心」→ `/help`（自指）。
+
+### 8.6 V2 现状：`/guide` 已完整，且已含反查入口
+
+V2 `GuideIndexPage`（`/guide`）已具备：列表、空态、以及
+**「社区规则」链接**（`Link to="/rules"`）。`GuideDetailPage`（`/guide/:slug`）已在。
+
+→ **一个 `/help` 用户能得到的信息，`/guide` 全部覆盖，且更多。**
+仅缺一个「/help → /guide」的重定向，但 V2 不承担 Legacy 的 URL 兼容义务
+（用户从未提出该要求），所以**连重定向也不加**。
+
+### 8.7 与 §三·补5 的关系（"不要为了路由对齐而搬"）
+
+本决策是 §四末尾那条纪律的**第一个正式应用**：
+
+> `/rankings`、`/categories`、`/features`、`/help` 建议不做或并入现有页 ——
+> **不要为了"路由对齐"而搬它们**，那只会造出语义重叠的页面。
+
+当时对 `/help` 写的是「大概率应并入」；本轮**核实并坐实**了这个判断。
+两处的差异值得记住：**「大概率」只是推测，「已核实」才是结论** ——
+补8 的四条证据（同源 / 更弱 / 自指 / 静态壳）就是把它从推测变成结论的东西。
+
+---
+
+## 三·补9 · Phase 2L 版本历史 + 数据分析：两处 Legacy 的「漂亮谎话」（2026-09-28）
+
+### 9.1 版本历史：把「发布版本」谎称为「自动保存」
+
+Legacy `app/studio/content/[articleId]/versions/page.tsx`：
+
+- 标题叫「**草稿恢复点**」；
+- 每一行都标「**自动保存**」；
+- 页脚写着「**自动保存每 3 分钟生成一次草稿版本**」。
+
+**这三句全是假的。** 后端 `ArticleService.listRevisions` 读的是
+**`formalRevisionMapper.listByArticleId`** —— FORMAL（正式）版本，由**文章发布**时写入。
+一篇只保存过、从未发布的草稿，版本历史是**空的**。
+
+后果：用户会以为存在每 3 分钟一次的自动快照，从而**放心地不备份**。这是"看起来更贴心"的谎话，
+比直接说"暂无版本"有害得多。
+
+V2 的措辞：
+- 标题「**历史版本**」；
+- 每行「**发布版本 · 第 N 版**」；
+- 空态**解释原因**：「历史版本在文章发布时生成。这篇文章还没有发布过，所以还没有可恢复的版本。」
+
+测试用 `expect(body).not.toContain("自动保存")` 与 `not.toContain("每 3 分钟")` 钉死。
+
+### 9.2 版本历史的两处附带修正
+
+**其一：Legacy 的分支永远不会命中。**
+
+```tsx
+{revision.visibility === "PUBLISHED" ? "发布前版本" : "自动保存"}
+```
+
+`Visibility` 的真实取值是 `PUBLIC` / `UNLISTED` / `PRIVATE`（见 `articles.types.ts`），
+**从不含 `PUBLISHED`** → 这个三元**恒走 else**，那一行代码是死的。
+V2 不复刻一个永远走不到的分支，改为正经渲染 `visibilityLabel()`。
+
+**其二：Legacy 的「版本预览」展示的是当前草稿，不是选中的版本。**
+
+Legacy 把 `draft.body`（**当前草稿正文**）渲染在「版本预览」面板里，而面板上方的标题
+却是**选中版本**的标题 —— 两者根本不是一个东西。用户点第二个版本，看到的正文还是当前的。
+
+真相是 `ArticleRevisionView` **压根没有 body 字段**（只有 id / revisionNumber / title /
+summary / visibility / frozenAt）。V2 因此**只展示版本真正定格的内容**，并明说：
+
+> 版本记录只保存发布时定格的标题、摘要与可见性；**正文不会在这里提供预览**。
+
+### 9.3 恢复版本的状态门禁（去后端读，不猜）
+
+`ArticleService.restoreRevision` 第一件事是 `if (!ArticleStateSupport.canEditDraft(article)) throw 409`。
+`canEditDraft` = **ACTIVE lifecycle** + **NORMAL moderation** + **非 IN_REVIEW**。
+
+→ 「已发布」**不等于**「不可编辑」：PUBLISHED 文章正常可回滚（这正是本页的核心用途），
+而**排队审核中的（IN_REVIEW）不行**。所以 V2 的按钮可见性：
+`PUBLISHED` ✅ / `DRAFT` ✅ / `IN_REVIEW` ❌ / 状态未知 ❌。
+
+被禁用时**说明原因**（`restoreBlockedReason`），而不是静默隐藏按钮 ——
+"为什么不能点"比"什么都没有"更有用。
+
+**另一个容易漏的副作用**：`restoreRevision` 会 **`lockVersion + 1`**。
+所以任何持有旧 `lockVersion` 的编辑器实例，其下一次保存都会被乐观锁拒绝。
+这写进了 API 注释。
+
+### 9.4 数据分析：失败与「0」长得一模一样
+
+Legacy 的 `analytics/page.tsx` 是 42 行的壳，只有两个状态：`insights` 与 `!insights`。
+于是：
+
+```tsx
+<StatCard label="获得喜欢" value={insights?.likeCount ?? "—"} />
+```
+
+**请求失败 → `—`；正在加载 → `—`；真实的 0 → `0`。**
+失败与加载**视觉上无法区分**，而 `—` 又极容易被读成"还没有数据"。
+用户永远不知道是"我确实是 0"还是"系统根本没查到"。
+
+V2 把三态显式拆开（loading / error / ready），失败时**明说**：
+
+> 暂时无法读取你的创作数据，因此这里不显示任何数字。请稍后重试。
+
+并且**失败时不渲染计数器区块**（测试断言 `queryByLabelText("创作数据")` 为空），
+从结构上杜绝「读不到」被渲染成「0」。
+
+**顺带**：`InsightsView` 有 **6 个**计数器，Legacy 只展示 3 个
+（articleCount / likeCount / commentCount），静默丢弃了 draftCount / followerCount / followingCount。
+V2 全部展示 —— 接口已经返回了，丢掉没有理由。
+
+### 9.5 「不要为了路由对齐而造死链」
+
+Legacy 的 analytics 页没有任何跳转链接。V2 想加「我的稿件」，但核实后发现
+**`/studio/content` 这个列表路由并不存在**（只有 `/studio/content/:articleId`）。
+于是**不加这个链接**，并在代码注释里写死原因 —— 否则它就是一个稳定的 404。
+写了一条测试遍历所有 `<a href>`，断言不存在 `/studio/content`。
+
+这是 §三·补8 那条纪律（不要为对齐而搬）在**页内链接**粒度上的同一条：
+**能渲染出来 ≠ 指向存在的东西。**
+
+---
+
 ## 四、建议的处置路径（供决策）
 
 既然缺口是**前端未搬**而非**后端未实现**：
@@ -531,7 +697,9 @@ V2 **保留这个 split**（studio 是写作者找自己投稿的地方），并
 | 2J-1 | 举报（读写 split `/reports` + `/me/reports`） | ✅ |
 | 2J-2 | 举报/申诉 6 页面 + 路由 + 导航 | ✅ `73fd0af` |
 | 2K-1 | 推荐作者 `/creators`（纯前端聚合，零后端改动） | ✅ `2e691b2` |
-| 2K-2 | 投稿审核 `/studio/submissions*` + **新增撤回功能** | ✅ 本次 |
+| 2K-2 | 投稿审核 `/studio/submissions*` + **新增撤回功能** | ✅ `bf92ffb` |
+| 2L | 帮助中心核实（**结论：不做**，并入 `/guide`） | ✅ 见 §三·补8 |
+| 2L | 版本历史 `/studio/content/:id/versions` + 数据分析 `/studio/analytics` | ✅ 本次 |
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。
