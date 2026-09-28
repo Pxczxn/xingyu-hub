@@ -1,30 +1,60 @@
 import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AppLayout } from "@/layouts/AppLayout";
+import { AppRoutes } from "@/router/routes";
+import { AppProviders } from "@/app/providers/AppProviders";
+import { TOKEN_KEY } from "@/lib/storage";
 
 /*
- * Phase 3I route wiring.
+ * Phase 3I route wiring — asserted against the REAL route table.
  *
- * Two routes were added — `/messages/saved` and `/me/galaxies` — and each has
- * one easy-to-get-wrong property worth pinning:
+ * `AppRoutes` is rendered as-is (the house pattern from lazy-routes.test.tsx),
+ * deliberately NOT a hand-copied subset. That matters: a test carrying its own
+ * copy of the routes would keep passing after someone deleted the real
+ * declarations, so it would guard nothing. Rendering the real component means
+ * these assertions fail if `routes.tsx` loses either route.
  *
- *  1. `/messages/saved` is a SIBLING of `/messages/:conversationId`. React
- *     Router ranks the static segment above the dynamic one, so "saved" must
- *     reach the bookmark page and NOT be swallowed as a conversationId. If a
- *     future edit reorders or nests these, the mailbox would try to open a
- *     conversation named "saved" — this test is the tripwire.
+ * AUTH BOOT — the trap that made the first version of this file fail entirely
+ * (every test timed out on /login):
  *
- *  2. Both routes are behind RequireAuth. The API calls are session-scoped, so
- *     an unauthenticated visit must not reach the page body at all.
+ *   The pages sit behind `RequireAuth`, which reads the real auth store that
+ *   `AppProviders` mounts. Mocking `useAuth` does NOT satisfy it — the provider
+ *   boots from `apiRequest`/storage, so the guard still sees a guest and
+ *   `<Navigate to="/login?returnTo=...">` wins. The routes are contributed by
+ *   `AppProviders`, so the whole render lands on the login page and every
+ *   `findBy*` times out on a screen that has no page in it.
  *
- * Modules are mocked at their boundaries (the API layer + the auth store) in the
- * house style, and the real route table is exercised via createMemoryRouter so
- * the assertion is about routes.tsx, not about a hand-built copy of it.
+ *   The working pattern (copied from lazy-routes.test.tsx) is to seed
+ *   `localStorage[TOKEN_KEY]` and let the real store restore the session.
+ *
+ * Two properties are worth pinning:
+ *
+ *  1. `/messages/saved` must NOT be captured by `/messages/:conversationId`.
+ *     React Router 7 ranks a static segment above a dynamic one, so "saved"
+ *     wins — but that ranking is a behaviour, not a guarantee, and a future
+ *     reordering could flip it and silently route the bookmark page into the
+ *     mailbox. This is the tripwire.
+ *
+ *  2. Both routes land on their own page. Asserted via each page's own heading,
+ *     which is unique (the nav links use the same words, so a bare text query
+ *     would match twice).
  */
 
-vi.mock("@/features/auth/auth.store", () => ({
-  useAuth: () => ({ isAuthenticated: true, user: { username: "tester" }, logout: vi.fn() }),
+vi.mock("@/api/auth/auth.api", () => ({
+  authApi: {
+    getMe: vi.fn(async () => ({ email: "tester@pxczxn.top", emailVerified: true })),
+    login: vi.fn(),
+    logout: vi.fn(),
+    getPublicConfig: vi.fn(async () => ({})),
+    getCaptcha: vi.fn(),
+    register: vi.fn(),
+    verifyEmail: vi.fn(),
+    resendEmailVerification: vi.fn(),
+    requestPasswordRecovery: vi.fn(),
+    resetPassword: vi.fn(),
+    forceChangePassword: vi.fn(),
+    sendRegisterSms: vi.fn(),
+  },
 }));
 
 vi.mock("@/api/home/home.api", () => ({
@@ -71,57 +101,44 @@ vi.mock("@/api/galaxies/galaxies.api", () => ({
   },
 }));
 
-const routes = [
-  {
-    path: "/",
-    element: <AppLayout />,
-    children: [
-      { path: "messages/saved", lazy: async () => {
-          const mod = await import("@/features/messages/pages/SavedMessagesPage");
-          return { Component: mod.SavedMessagesPage };
-        } },
-      { path: "me/galaxies", lazy: async () => {
-          const mod = await import("@/features/galaxies/pages/MyGalaxiesPage");
-          return { Component: mod.MyGalaxiesPage };
-        } },
-      { path: "messages/:conversationId", element: <p>会话线程占位</p> },
-    ],
-  },
-];
-
 function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
-  return render(<RouterProvider router={router} />);
+  const router = createMemoryRouter(
+    [{ path: "*", element: <AppProviders><AppRoutes /></AppProviders> }],
+    { initialEntries: [path] },
+  );
+  return { router, ...render(<RouterProvider router={router} />) };
 }
 
 beforeEach(() => {
+  localStorage.clear();
   vi.clearAllMocks();
+  // Seed a session so RequireAuth admits the visit. See the header: mocking
+  // useAuth does NOT work here, because AppProviders owns the real store.
+  localStorage.setItem(TOKEN_KEY, "test-token");
 });
 
-describe("/messages/saved", () => {
-  it("renders the bookmark page, not a conversation thread", async () => {
-    renderAt("/messages/saved");
-    // The header can render a tick before the list effect settles, so wait on
-    // the row itself — that is the thing this test is actually about.
+describe("/messages/saved (real route table)", () => {
+  it("resolves to the bookmark page, not a conversation thread", async () => {
+    const { router } = renderAt("/messages/saved");
+    // Wait on the row: the header paints a tick before the list effect settles.
     expect(await screen.findByText("被收藏的消息")).toBeTruthy();
-    // "收藏的私信" appears BOTH as the page heading and as the AppLayout nav
-    // link, so assert on the heading specifically rather than by bare text.
     expect(screen.getByRole("heading", { name: "收藏的私信" })).toBeTruthy();
-    expect(screen.queryByText("会话线程占位")).toBeNull();
+    // The resolved path is the static /messages/saved, not the param route.
+    expect(router.state.location.pathname).toBe("/messages/saved");
   });
 
-  it("is NOT captured by the :conversationId sibling", async () => {
+  it("is NOT swallowed by :conversationId (the mailbox)", async () => {
     renderAt("/messages/saved");
-    await screen.findByText("收藏的私信");
-    // If "saved" had been read as a conversationId the placeholder would win.
-    expect(screen.queryByText("会话线程占位")).toBeNull();
+    await screen.findByText("被收藏的消息");
+    // MailboxPage's empty state would appear if the param route had won.
+    expect(screen.queryByText("还没有会话")).toBeNull();
   });
 });
 
-describe("/me/galaxies", () => {
+describe("/me/galaxies (real route table)", () => {
   it("renders 我加入的星系 with the joined list", async () => {
     renderAt("/me/galaxies");
-    expect(await screen.findByText("我加入的星系")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "我加入的星系" })).toBeTruthy();
     expect(screen.getByText("观测站")).toBeTruthy();
   });
 

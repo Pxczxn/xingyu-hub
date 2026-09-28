@@ -75,6 +75,30 @@ describe("SavedMessagesPage — loading and errors", () => {
     expect(await screen.findByTestId("page-state-error")).toBeTruthy();
     expect(screen.getByText("无法读取收藏的私信，请稍后重试。")).toBeTruthy();
   });
+
+  /*
+   * A 404 from list() means a bookmarked message was hard-deleted (the backend
+   * maps every row and throws on the missing one — see saved-messages.api.ts
+   * for the all-or-nothing hazard). This MUST render as an error, never as the
+   * empty state: 「无法读取」 and 「你没有收藏」 mean opposite things, and telling
+   * a user their bookmarks are gone when they are merely unreadable is the
+   * exact dishonesty this suite exists to prevent.
+   */
+  it("renders a deleted-message 404 as an error, NOT as an empty list", async () => {
+    mockedList.mockRejectedValueOnce(
+      new ApiError({
+        type: "about:blank",
+        title: "未找到",
+        status: 404,
+        detail: "资源不存在",
+        code: "NOT_FOUND",
+      }),
+    );
+    renderPage();
+    expect(await screen.findByTestId("page-state-error")).toBeTruthy();
+    expect(screen.queryByTestId("page-state-empty")).toBeNull();
+    expect(screen.queryByText("还没有收藏的私信")).toBeNull();
+  });
 });
 
 describe("SavedMessagesPage — empty and rows", () => {
