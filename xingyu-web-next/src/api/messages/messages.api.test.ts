@@ -172,7 +172,8 @@ describe("messagesApi surface", () => {
     //     `listMyGroupJoinRequests` is also not that: it reads
     //     `/me/group-join-requests` (who I asked), while the admin queue is
     //     `/messages/group/{id}/join-requests` (who asked me).
-    //   - `/me/saved-messages`.
+    //   - `/me/saved-messages` was here too, but Phase 3I gave it its own module
+    //     (`@/api/saved-messages`). It stays out of THIS surface on purpose.
     expect(Object.keys(messagesApi)).toEqual([
       "listConversations",
       "getDirect",

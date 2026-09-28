@@ -25,6 +25,11 @@ export const galaxiesApi = {
 
   /* Membership. All three need a session; guests get 401. */
 
+  /**
+   * The galaxies the caller has JOINED (Phase 3I: also the data behind
+   * `/me/galaxies`). A bare `GalaxySummary[]` — the same shape as `list()`, so
+   * the two are interchangeable downstream.
+   */
   listMine: (): Promise<GalaxySummary[]> => apiRequest<GalaxySummary[]>("/api/v1/me/galaxies"),
 
   join: (slug: string): Promise<GalaxySummary> =>

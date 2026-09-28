@@ -291,6 +291,19 @@ export function AppLayout() {
                 <Link to="/me/groups" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
                   我的群聊
                 </Link>
+                {/* Phase 3I: 收藏的私信. The bookmark store — a sibling of the
+                    mailbox, not a filter of it, because a bookmark outlives the
+                    conversation's position in the list. Session-scoped. */}
+                <Link to="/messages/saved" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  收藏的私信
+                </Link>
+                {/* Phase 3I: 我加入的星系. The signed-in counterpart of the public
+                    square in the main nav — the square lists every galaxy and
+                    carries no membership flag, so this is the only place that
+                    answers "which ones did I join". */}
+                <Link to="/me/galaxies" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  我的星系
+                </Link>
                 {/* Phase 2J-2: 举报与申诉. Session-scoped like the rest of this
                     branch. The public 社区规则 link stays in the footer next to
                     the other informational links. */}

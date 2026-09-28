@@ -29,8 +29,11 @@ import {
  * one: the upload endpoint creates no message, and `filesApi` already owns the
  * transport contract. This module owns only the message half.
  *
- * Group administration, join requests and saved messages are still absent; see
- * the types header for the deferred set.
+ * Group administration and join requests are still absent; see
+ * the types header for the deferred set. Saved messages are NO LONGER here as a
+ * gap: `/me/saved-messages` was surfaced in Phase 3I and lives in its own module
+ * (`@/api/saved-messages`). It is deliberately NOT re-exported from this one —
+ * the mailbox API owns conversation reads, the bookmark API owns bookmarks.
  *
  * EXCEPTION (Phase 3C): `listMyGroupJoinRequests` IS here. It is the applicant's
  * own read-only view (`/me/group-join-requests`). The OWNER-side admin queue

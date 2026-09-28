@@ -91,6 +91,11 @@ type JoinStatus = "idle" | "joining" | "applying" | "joined" | "pending" | "erro
  * `listMine` is best-effort: a guest or a failed call just leaves the button
  * visible. Joining an already-joined galaxy is idempotent server-side, so a
  * stale "加入星系" label costs nothing.
+ *
+ * Phase 3I note: `listMine` now has a SECOND consumer — `MyGalaxiesPage`
+ * (`/me/galaxies`). That page is the authority on "which ones did I join"; this
+ * hook still only uses the call to decide one button's label, so it must stay
+ * tolerant of a failure rather than propagating one.
  */
 export function useGalaxyMembership(slug: string) {
   const { isAuthenticated } = useAuth();

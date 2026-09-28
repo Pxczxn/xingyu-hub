@@ -33,8 +33,11 @@
  *    URL. It creates no message and touches no conversation. See files.api.ts.)
  *
  * Still deferred: group create/settings/announcement/members/leave/remove-member,
- * join requests (list/submit/approve/reject), my join requests,
- * /me/saved-messages.
+ * join requests (list/submit/approve/reject), my join requests.
+ *
+ * NOTE: `/me/saved-messages` USED to be on this deferred list. It was surfaced
+ * in Phase 3I and now has its own module (`@/api/saved-messages`), because a
+ * bookmark store is not a mailbox read and the two shapes share nothing.
  *
  * ── Shapes that will bite ───────────────────────────────────────────────────
  *

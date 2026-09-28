@@ -60,11 +60,13 @@ import { GalaxyListPage } from "@/features/galaxies/pages/GalaxyListPage";
 import { GalaxyDetailPage } from "@/features/galaxies/pages/GalaxyDetailPage";
 import { GalaxyMembersPage } from "@/features/galaxies/pages/GalaxyMembersPage";
 import { GalaxyContentPage } from "@/features/galaxies/pages/GalaxyContentPage";
+import { MyGalaxiesPage } from "@/features/galaxies/pages/MyGalaxiesPage";
 import { MyFollowingPage, MyFollowersPage } from "@/features/social/pages/FollowListPage";
 import { NotificationsPage } from "@/features/notifications/pages/NotificationsPage";
 import { MailboxPage } from "@/features/messages/pages/MailboxPage";
 import { ConversationAssetsPage } from "@/features/messages/pages/ConversationAssetsPage";
 import { SearchMessagesPage } from "@/features/messages/pages/SearchMessagesPage";
+import { SavedMessagesPage } from "@/features/messages/pages/SavedMessagesPage";
 import { EventsPage } from "@/features/events/pages/EventsPage";
 import { EventDetailPage } from "@/features/events/pages/EventDetailPage";
 import { EventSubmitPage } from "@/features/events/pages/EventSubmitPage";
@@ -146,6 +148,11 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  *                      CRUD. NOT a migration — the backend API existed and was
  *                      never surfaced by Legacy. Archive and delete are separate
  *                      operations and the UI keeps them separate.)
+ * Phase 3I:            /messages/saved, /me/galaxies (RequireAuth). The last two
+ *                      surfaced-but-unwired gaps: the /me/saved-messages bookmark
+ *                      store and 「我加入的星系」 (`GET /me/galaxies`, which
+ *                      GalaxyShell already called as a side channel). Both are
+ *                      session-scoped; neither has a Legacy route to port.
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -238,6 +245,20 @@ export function AppRoutes() {
         <Route path="/galaxies/:slug" element={<GalaxyDetailPage />} />
         <Route path="/galaxies/:slug/members" element={<GalaxyMembersPage />} />
         <Route path="/galaxies/:slug/content" element={<GalaxyContentPage />} />
+
+        {/* Phase 3I: 我加入的星系. Same `GET /me/galaxies` call GalaxyShell
+            already makes for its join-button state, promoted to a page — the
+            public square cannot answer "which ones did I join" because
+            GalaxySummary carries no membership flag. RequireAuth: the endpoint
+            is session-scoped and a guest gets 401. */}
+        <Route
+          path="/me/galaxies"
+          element={
+            <RequireAuth>
+              <MyGalaxiesPage />
+            </RequireAuth>
+          }
+        />
 
         {/* Phase 2I-4: community events. The square and the detail page are
             public and guest-readable (GET /events is unauthenticated); only the
@@ -541,6 +562,18 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <ConversationAssetsPage kind="files" />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 3I: 收藏的私信. A sibling of the mailbox rather than a child —
+            `/me/saved-messages` is a bookmark store independent of any open
+            conversation, and its rows deep-link INTO /messages/:id. RequireAuth
+            for the same reason as every other /messages page. */}
+        <Route
+          path="/messages/saved"
+          element={
+            <RequireAuth>
+              <SavedMessagesPage />
             </RequireAuth>
           }
         />
