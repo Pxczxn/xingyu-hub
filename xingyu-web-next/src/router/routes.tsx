@@ -67,8 +67,10 @@ import { MyMomentsPage } from "@/features/moments/pages/MyMomentsPage";
 import { MyLikesPage } from "@/features/me-activity/pages/MyLikesPage";
 import { MyCommentsPage } from "@/features/me-activity/pages/MyCommentsPage";
 import { AchievementBadgesPage } from "@/features/me-growth/pages/AchievementBadgesPage";
+import { ExplorationInterestsPage } from "@/features/me-growth/pages/ExplorationInterestsPage";
 import { GroupJoinRequestsPage } from "@/features/me-growth/pages/GroupJoinRequestsPage";
 import { GrowthPage } from "@/features/me-growth/pages/GrowthPage";
+import { MyGroupsPage } from "@/features/me-growth/pages/MyGroupsPage";
 import { MyReportsPage } from "@/features/moderation/pages/MyReportsPage";
 import { ReportDetailPage } from "@/features/moderation/pages/ReportDetailPage";
 import { NewReportPage } from "@/features/moderation/pages/NewReportPage";
@@ -368,6 +370,34 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <GroupJoinRequestsPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 3D: 我的探索 (兴趣). Writes the caller's own exploration
+            preferences — a DESTRUCTIVE full replacement server-side, so the page
+            always sends complete state and skips the PUT when nothing changed.
+            ⚠️ `GET /explore/me` returns 500 (not 401) for a guest: the controller
+            declares `@RequestHeader("satoken")` without `required = false`, so
+            Spring's MissingRequestHeaderException pre-empts the handler's own
+            401 mapping. See §三·补16. */}
+        <Route
+          path="/me/interests"
+          element={
+            <RequireAuth>
+              <ExplorationInterestsPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 3E: 我的群聊. One read (`GET /messages`, a bare array mixing
+            DIRECT + GROUP) filtered client-side, plus the ONLY create surface —
+            `POST /messages/group` in an inline form, so no /messages/groups/new
+            route is needed (and Legacy's shape never existed there anyway).
+            Rows link to /messages/:conversationId, which V2 serves for GROUP. */}
+        <Route
+          path="/me/groups"
+          element={
+            <RequireAuth>
+              <MyGroupsPage />
             </RequireAuth>
           }
         />
