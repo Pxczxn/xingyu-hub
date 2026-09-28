@@ -1693,4 +1693,3 @@ dist/prototype-assets/     674 文件 · .gitignore:26  dist/ 忽略 · 未跟�
 - **`/rankings`、`/categories`、`/features`、`/help` 建议不做或并入现有页** ——
   前三个是前端拼装（无独立数据源），`/help` 与 `/guide` 同源。
   **不要为了"路由对齐"而搬它们**，那只会造出四个和 `/discover`、`/guide` 语义重叠的页面。
-
