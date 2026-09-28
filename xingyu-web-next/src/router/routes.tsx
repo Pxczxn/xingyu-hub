@@ -67,6 +67,7 @@ import { MyMomentsPage } from "@/features/moments/pages/MyMomentsPage";
 import { MyLikesPage } from "@/features/me-activity/pages/MyLikesPage";
 import { MyCommentsPage } from "@/features/me-activity/pages/MyCommentsPage";
 import { AchievementBadgesPage } from "@/features/me-growth/pages/AchievementBadgesPage";
+import { GroupJoinRequestsPage } from "@/features/me-growth/pages/GroupJoinRequestsPage";
 import { GrowthPage } from "@/features/me-growth/pages/GrowthPage";
 import { MyReportsPage } from "@/features/moderation/pages/MyReportsPage";
 import { ReportDetailPage } from "@/features/moderation/pages/ReportDetailPage";
@@ -354,6 +355,19 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <GrowthPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 3C: 关系请求. Despite Legacy's broad page title, the backend has
+            NO follow-request concept — following is open (`JoinMode.OPEN`), so the
+            only thing that can appear here is a group JOIN REQUEST the caller
+            submitted (`GET /me/group-join-requests`). The owner-side approve/reject
+            queue is NOT shipped, so no "去处理" affordance exists here. See §三·补15. */}
+        <Route
+          path="/me/requests"
+          element={
+            <RequireAuth>
+              <GroupJoinRequestsPage />
             </RequireAuth>
           }
         />

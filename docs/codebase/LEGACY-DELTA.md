@@ -84,7 +84,7 @@
 | `/me/badges` | ✅ 401（固定五枚） | → **已迁（Phase 3A）**：修正 Legacy 的「隐藏徽章」承诺与凭空「星语探索者」等级 → 见 §三·补12 |
 | `/me/growth` | ✅ 401 | → **已迁（Phase 3B）**：五路聚合，**每区块独立三态**（Legacy 的 `&&` 守卫会让失败区块静默消失）→ 见 §三·补14 |
 | `/me/interests` | ⚠️ 待核 | `/explore/map` **200 公开**；`/explore/me` 游客 **500**（待判是缺 401 映射还是真错） |
-| `/me/requests` | ✅ 401 | 返回 **`MyGroupJoinRequestView`**（含 `conversationTitle`/`resolvedAt`），**别被 `GroupJoinRequestView` 误导** |
+| `/me/requests` | ✅ 401 | → **已迁（Phase 3C）**：仅「我提交的入群申请」（Legacy 标题「关系请求」大于实际内容）；**不做** owner 审批队列 → 见 §三·补15 |
 | `/me/groups` | ✅ 401（同源 `/messages`） | ⚠️ 语义**不等价**于 `/messages`（后者含 DIRECT）；且链向 V2 已无的 `/messages/group/:id` |
 
 其余（`/account/status`、`/content/:type/:id/status`、`/share`、`/spaces/:slug`、
@@ -1123,7 +1123,131 @@ V2 去重并**显示条数**（「3 项」），否则用户分不清"是 5 篇�
 
 ---
 
-## 四、建议的处置路径（供决策）
+## 三·补15 · Phase 3C 关系请求：一个**标题比内容大**的页面，和「入群申请」的双 DTO 陷阱（2026-09-28）
+
+**页面**：`/me/requests` → `GroupJoinRequestsPage`（`src/features/me-growth/pages/`）。
+
+### 15.1 Legacy 的页面标题骗了我一次（标题 ≠ 内容）
+
+Legacy 该页标题叫「**关系请求**」，读起来像是一个通用关系收件箱：关注申请、
+好友申请、群邀请……全都该在这儿。**后端一条都不存在。**
+
+把页面正文读到底，Legacy 自己就承认了范围：
+
+> 「关注为开放模式；此处展示你发起的群聊入群申请」
+
+也就是说页面只能显示 **`GET /api/v1/me/group-join-requests`** 一个来源 ——
+**调用方自己提交的入群申请**。三条硬事实决定了这个边界：
+
+1. **关注是开放模式**。`JoinMode.OPEN` 下 `follow` 是直接写入，**没有审批环节**，
+   所以后端**根本不存在**「关注申请」这个实体。更没有 `/me/follow-requests`。
+2. **`/me/group-join-requests` 只有「我提交的」这一个语义**。
+   owner 侧的待审队列是**另一个端点**（`/messages/group/{id}/join-requests`）+ 另两个写端点。
+3. **后端没有任何 `friend` / 好友概念**。用户之间只有 follow、block、DM 会话。
+
+→ **V2 的处置**：保留「关系请求」这个名字（与 Legacy 路由/导航对齐），
+但**在页面头部第一行就把范围说清**：「这里显示你发起的群聊入群申请。
+关注是开放模式，不需要申请，所以不会出现在这里。」
+**绝不**为了凑标题而编造「关注申请」区块或「好友」区块 —— 那是§三·补9 禁止的虚构态。
+
+### 15.2 `MyGroupJoinRequestView` ≠ `GroupJoinRequestView` —— 最容易踩的坑
+
+同一份"入群申请"数据，后端有**两个不同的 record**，字段集不一样：
+
+| | `MyGroupJoinRequestView`（我提交的） | `GroupJoinRequestView`（owner 看的） |
+|---|---|---|
+| 端点 | `GET /me/group-join-requests` | `GET /messages/group/{id}/join-requests` |
+| 群标题 | ✅ `conversationTitle` | 不需要（owner 知道自己的群） |
+| 处理时间 | ✅ `resolvedAt` | ❌ 无 |
+| 申请人 | ❌ 无（就是我自己） | ✅ 申请人信息 |
+
+**V2 用的是 `MyGroupJoinRequestView`**，字段（从 `ConversationService` 的组装点读到）：
+
+```ts
+interface MyGroupJoinRequest {
+  id: number;
+  conversationId: string;
+  conversationTitle: string | null;   // 仅当会话行已消失时为 null
+  joinMode: "OPEN" | "APPROVAL";
+  message: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string;
+  resolvedAt: string | null;
+}
+```
+
+**为什么这是个坑**：两个类型名字只差一个 `My` 前缀，且都围绕"入群申请"。
+按 `GroupJoinRequestView` 去写（找申请人、找不到 `resolvedAt`）会静默错位。
+→ 类型文件里的 doc comment **显式对比**两者，防止后人合并。
+
+### 15.3 `conversationTitle === null` 是**真实状态**，必须如实报，不许装饰
+
+`conversationTitle` 为 null 的**唯一原因**是会话行已经没了（`ConversationService:177`
+在会话查不到时不设标题）。此时：
+
+- **不链接**该行（点进去必然 404）；
+- 显示「**该群聊已不存在**」，而不是编一个「群聊」当标题。
+
+这是继承 §三·补9 的规则：**缺失态要如实显示，不能伪装成正常态**。
+编一个「群聊」名字会让用户以为申请还挂着、群还在 —— 那是在说谎。
+
+### 15.4 没有「去处理」按钮 —— 因为那是 owner 的活儿，V2 不做
+
+页面**刻意不提供**任何审批操作。owner 侧的 approve/reject 写端点
+（`POST /messages/group/{id}/join-requests/{reqId}/approve` 等）**本 Phase 不交付**，
+所以放一个「去处理」按钮 = 造一个**永远报错的控件**（§三·补11 的假缺口定义）。
+
+在 `messages.api.test.ts` 里**加了一条守卫断言**：这些群管理写端点
+**必须保持在 `messagesApi` 表面之外**。等到真的要做 owner 侧了，
+那条断言会失败 —— 这正是我们想要的**提醒**，而不是静默漂移。
+
+### 15.5 契约核对清单（全部从调用点/后端 record 读出，非文档）
+
+| 项 | 值 | 依据 |
+|---|---|---|
+| 端点 | `GET /api/v1/me/group-join-requests?limit=N` | 调用点 |
+| 返回 | **裸数组**（非 PageResultView） | 调用点 `.then(list => ...)` |
+| 默认 limit | `20`（`GROUP_JOIN_REQUEST_LIMIT`） | 调用点常量 |
+| 上限 | `100`（`GROUP_JOIN_REQUEST_MAX_LIMIT`） | 服务端 clamp |
+| 分页 | **无游标** —— 只有 limit，无 `nextCursor` | 契约 |
+| 状态枚举 | `PENDING` → `APPROVED` \| `REJECTED` | 后端 enum |
+| joinMode | `OPEN` \| `APPROVAL` | 后端 enum |
+
+→ 与阅读历史同理：**唯一加宽手段是调大 limit**，所以页面**不做"加载更多"**，
+只如实标注「最多显示 20 条最近记录」。造游标式分页 = 描述不存在的契约。
+
+### 15.6 `requestConversationHref` 的目标是 `/messages/:conversationId`（V2 真能开群聊）
+
+Legacy 链到 `/messages/group/{conversationId}` —— 那个形状**在 Legacy 里也没路由**。
+V2 的 `/messages/:conversationId` 对 **GROUP 会话同样可用**（先试 DIRECT，
+404 再回退 GROUP），所以这里的「查看群聊」是**真链接**，不是装饰。
+
+### 15.7 交付与验证
+
+| 文件 | 说明 |
+|---|---|
+| `src/api/messages/messages.types.ts` | `MyGroupJoinRequest` + 状态/模式常量 + limit 常量 |
+| `src/api/messages/messages.api.ts` | `listMyGroupJoinRequests(limit?)` |
+| `src/api/messages/messages.api.test.ts` | +5 条；并**新增群管理写端点的缺席守卫** |
+| `src/features/me-growth/group-join-requests.ts` | 纯逻辑：状态标签、`groupIsGone`、`splitByPending`、href 解析… |
+| `src/features/me-growth/group-join-requests.test.ts` | 21 条 |
+| `src/features/me-growth/pages/GroupJoinRequestsPage.tsx` | 页面（待处理/历史两段） |
+| `src/features/me-growth/pages/group-join-requests-page.test.tsx` | 14 条 |
+| `src/router/me-requests-routes.test.tsx` | 路由守卫 + 未登录**不发请求** + 一条真实渲染 |
+
+- **全量**：164 文件 / **1696 测试全绿**；`tsc --noEmit` 0 错；`npm run build` 通过。
+- **未验证**：登录态真机渲染（图形验证码人工环节）。三态与「群已不存在」分支由
+  14 条页面测试覆盖（含 null 标题不链接、状态标签、两段分组）。
+
+### 15.8 不做（明确边界）
+
+- ❌ **owner 侧审批队列**（另一个端点 + 写操作，V2 不交付）。
+- ❌ **「关注申请」区块** —— 后端无此实体，关注是开放的。
+- ❌ **游标分页 / 加载更多** —— 契约里没有。
+- ❌ **为 null 标题编造群名** —— 如实写「该群聊已不存在」且不链接。
+
+---
+
 
 既然缺口是**前端未搬**而非**后端未实现**：
 
@@ -1158,7 +1282,8 @@ V2 去重并**显示条数**（「3 项」），否则用户分不清"是 5 篇�
 | 2N | 创作空间分类 `/studio/categories`（**非迁移：后端 CRUD 完整但 Legacy 从未做页面**） | ✅ `82f4740` |
 | 3A | 徽章成就 `/me/badges`（修正 Legacy 的「隐藏徽章」与凭空等级；**顺带推翻补3 的阅读历史结论**） | ✅ `8d1de83` |
 | 3B | 成长记录 `/me/growth`（五路聚合；**每区块独立三态**；修 `PendingAction.id` 潜伏类型错误 + href 死链） | ✅ 见 §三·补14 |
-| 3? | P3 其余：`/me/interests`、`/me/requests`、`/me/groups` | ⬜ 契约底稿见 §三·补13 |
+| 3C | 关系请求 `/me/requests`（**纠正标题 > 内容**；仅「我提交的入群申请」；**不做** owner 审批队列与虚构的关注申请） | ✅ 见 §三·补15 |
+| 3D | P3 其余：`/me/interests`、`/me/groups` | ⬜ 契约底稿见 §三·补13 |
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。

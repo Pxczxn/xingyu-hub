@@ -150,6 +150,59 @@ export type MessagePage = {
   total?: number | null;
 };
 
+/**
+ * `MyGroupJoinRequestView` (Phase 3C).
+ *
+ * `GET /api/v1/me/group-join-requests?limit=20` returns these — verified against
+ * the backend record on 2026-09-28.
+ *
+ * ⚠️ THERE ARE **TWO** SIMILARLY-NAMED DTOs. This is the one the `/me/*` endpoint
+ * returns:
+ *
+ *   MyGroupJoinRequestView  -> (id, conversationId, conversationTitle, joinMode,
+ *                               message, status, createdAt, resolvedAt)   <-- /me/*
+ *   GroupJoinRequestView    -> (id, conversationId, userId, username,
+ *                               displayName, message, status, createdAt)  <-- group-owner side
+ *
+ * The owner-side one has NO `conversationTitle` and NO `resolvedAt`, and carries
+ * the APPLICANT's identity instead. They are the same-looking VOs for opposite
+ * audiences. Do not "simplify" this type by copying the other one — read which
+ * endpoint you are on first. (This is the same trap as §三·补13 flagged.)
+ *
+ * Nullability mirrors the service: `conversationTitle` is null when the
+ * conversation row is gone, and `message`/`resolvedAt` are nullable in the DB.
+ */
+export type MyGroupJoinRequest = {
+  id: string;
+  conversationId: string;
+  /** Null when the conversation no longer exists (`ConversationService:177`). */
+  conversationTitle?: string | null;
+  /** `OPEN` | `APPROVAL`; falls back to `OPEN` when the conversation is gone. */
+  joinMode?: string | null;
+  /** The applicant's own note. Null in the DB; "" is also possible on the wire. */
+  message?: string | null;
+  /** `PENDING` -> `APPROVED` | `REJECTED`. Those three only (see the service). */
+  status: string;
+  createdAt: string;
+  /** Set only once the owner has acted. */
+  resolvedAt?: string | null;
+};
+
+/** The three states a group join request can actually be in. */
+export const JOIN_REQUEST_PENDING = "PENDING";
+export const JOIN_REQUEST_APPROVED = "APPROVED";
+export const JOIN_REQUEST_REJECTED = "REJECTED";
+
+/** `OPEN` groups admit anyone, so a request row for one is anomalous. */
+export const JOIN_MODE_OPEN = "OPEN";
+export const JOIN_MODE_APPROVAL = "APPROVAL";
+
+/** The endpoint's own default (`@RequestParam(defaultValue = "20")`). */
+export const GROUP_JOIN_REQUEST_LIMIT = 20;
+
+/** The service caps at 100 (`Math.min(Math.max(limit,1),100)`). */
+export const GROUP_JOIN_REQUEST_MAX_LIMIT = 100;
+
 /** Body accepted by both send endpoints. `type` defaults to TEXT server-side. */
 export type SendMessagePayload = {
   body?: string;
