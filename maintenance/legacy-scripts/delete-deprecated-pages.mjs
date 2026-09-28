@@ -1,6 +1,17 @@
 import { readdir, unlink, rmdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
+/*
+ * ⚠️ 一次性历史脚本 — 已失效，不要重跑。
+ *
+ * Legacy 用户端已于 2026-09-28 归档到 `archive/xingyu-web-legacy/`，
+ * 下面的 ROOT 指向的 `xingyu-web/app` 已不存在。
+ *
+ * 更要紧的是：本脚本是**破坏性**的（直接 unlink + rmdir，无 dry-run、
+ * 无确认）。它现在会因为目录不存在而空跑，看起来「没出事」——
+ * 但若有人好心把 ROOT 改成新路径让它「恢复正常」，就会真的删掉
+ * 归档代码里的文件。**保留原样，不要修路径。**
+ */
 const ROOT = "xingyu-web/app";
 
 const DELETE_FILES = [

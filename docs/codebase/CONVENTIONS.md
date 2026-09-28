@@ -29,7 +29,7 @@ Private Java fields: Lombok `@Data` / `@RequiredArgsConstructor` is common; no `
 ### 3) Import and Module Conventions
 
 - Web V2: alias `@/` → `src/`; domain APIs under `src/api/<domain>/`; transport-only in `src/api/client.ts` (file header comment).
-- Legacy web: alias `@/` → repo root of `xingyu-web` (includes `app/`, `components/`, `lib/`).
+- Legacy web (ARCHIVED): alias `@/` → repo root of `archive/xingyu-web-legacy` (includes `app/`, `components/`, `lib/`).
 - Java: package-by-layer; community HTTP package is `web` not `community.api`.
 - Barrel exports: **[TODO]** not uniformly required; features import concrete files.
 

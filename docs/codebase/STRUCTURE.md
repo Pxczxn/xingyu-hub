@@ -8,7 +8,7 @@
 |------|---------|----------|
 | `xingyu-backend/` | Maven multi-module Spring Boot API + jobs | `xingyu-backend/pom.xml` |
 | `xingyu-web-next/` | User-facing **Web V2** (Vite + React Router) | `xingyu-web-next/vite.config.ts`; `src/app/App.tsx` |
-| `xingyu-web/` | **Legacy** user web (Vite SPA with Next-style `app/**/page.tsx` shims) | `docs/design-system/MASTER.md`; `xingyu-web/src/main.tsx` |
+| `xingyu-web/` | **ARCHIVED** — Legacy user web, moved to `archive/xingyu-web-legacy/` on 2026-09-28 (Vite SPA with Next-style `app/**/page.tsx` shims). Not built, not tested, not maintained. See `archive/README.md`. | `archive/README.md`; `archive/xingyu-web-legacy/src/main.tsx` |
 | `xingyu-admin/` | Vue 3 admin console | `xingyu-admin/README.md` |
 | `xingyu-uniapp/` | Uni-app mini-program (chat/profile oriented) | `xingyu-uniapp/README.md`; `pages.json` |
 | `sql/` | Versioned `V###__*.sql` migrations (V000–V041) | `sql/README.md` |
@@ -30,7 +30,7 @@
   - WebSocket: `/ws/message`, `/ws/ssh`, `/ws/community/chat` (`WebSocketConfig.java`)
 - Frontend entries:
   - `xingyu-web-next/index.html` → `src/main.tsx`
-  - `xingyu-web/index.html` → `src/main.tsx`
+  - `archive/xingyu-web-legacy/index.html` → `src/main.tsx` (ARCHIVED — not served)
   - `xingyu-admin/index.html` → `src/main.ts`
   - `xingyu-uniapp/main.js` (`package.json` `"main"`)
 - How entry is selected: Maven `start-class` in `xingyu-starter/pom.xml`; Vite `index.html`; Spring `spring.profiles.active` in `application.yml`
@@ -54,7 +54,7 @@ Frontend:
 |----------|-------------------|------------------------|
 | `xingyu-web-next/src/features/*` | Page-level product features | Shared fetch transport (`src/api/client.ts`) |
 | `xingyu-web-next/src/api/*` | Domain HTTP modules | UI components |
-| `xingyu-web/app/**/page.tsx` | Legacy route pages | V2 React Router (`xingyu-web-next`) |
+| `archive/xingyu-web-legacy/app/**/page.tsx` | ARCHIVED Legacy route pages (read-only history) | V2 React Router (`xingyu-web-next`) |
 | `xingyu-admin/src/views` + `src/api` | Admin screens and `/api/v1/admin` clients | Community ProblemDetails client |
 
 ### 4) Naming and Organization Rules
@@ -62,9 +62,9 @@ Frontend:
 - **Java packages**: reverse-DNS `top.pxczxn.xingyu.<layer>.<area>`; admin HTTP under `admin.controller.*`; community HTTP under `web.controller.*`
 - **SQL**: `V###__snake_description.sql` in `sql/`
 - **Web V2 files**: PascalCase pages (`SeriesListPage.tsx`); kebab-case helpers (`series-slug.ts`); colocated `*.test.ts(x)`
-- **Legacy web**: Next App Router filenames (`page.tsx`) under `app/`
+- **Legacy web** (archived): Next App Router filenames (`page.tsx`) under `app/`
 - **Admin**: Vue `index.vue` under `src/views/<domain>/`
-- **Import aliases**: Web V2 `@/*` → `./src/*` (`xingyu-web-next/tsconfig.json`); Legacy `@/*` → project root (`xingyu-web/tsconfig.json`)
+- **Import aliases**: Web V2 `@/*` → `./src/*` (`xingyu-web-next/tsconfig.json`); Legacy `@/*` → project root (`archive/xingyu-web-legacy/tsconfig.json`)
 - **API prefix**: `/api/v1` for community + starter; `/api/v1/admin` for admin (`ApiPrefixConfig.java`)
 
 ### 5) Evidence

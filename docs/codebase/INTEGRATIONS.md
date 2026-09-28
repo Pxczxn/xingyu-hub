@@ -60,7 +60,7 @@ No Docker, Prometheus, OpenTelemetry, or APM config files found.
 - `xingyu-backend/xingyu-infra/xingyu-oss/src/main/java/top/pxczxn/xingyu/oss/FileStorage.java`
 - `xingyu-backend/xingyu-infra/xingyu-db/src/main/java/top/pxczxn/xingyu/infra/schema/SchemaMigrator.java`
 - `scripts/ci-apply-migrations.sh`
-- `xingyu-web/.env.example`
+- `archive/xingyu-web-legacy/.env.example` (ARCHIVED)
 - `.gitignore` secrets section
 
 ## Extended Sections (Optional)
@@ -70,7 +70,7 @@ No Docker, Prometheus, OpenTelemetry, or APM config files found.
 | Process | Port | Evidence |
 |---------|------|----------|
 | Backend | 7779 | `application-dev.yml` |
-| Legacy web | 7777 | `xingyu-web/vite.config.ts` (per exploration) |
+| Legacy web (ARCHIVED) | 7777 | `archive/xingyu-web-legacy/vite.config.ts` — no longer served |
 | Admin | 7778 | `xingyu-admin/vite.config.ts` (README still says 3000) |
 | Web V2 | 5173 | `xingyu-web-next/vite.config.ts` |
 | `xingyu.community.public-base-url` | `http://localhost:3000` | `application-dev.yml` — does not match any of the Vite ports above |
