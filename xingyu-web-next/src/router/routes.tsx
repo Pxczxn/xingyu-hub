@@ -44,6 +44,7 @@ import { StudioAnalyticsPage } from "@/features/studio/pages/StudioAnalyticsPage
 import { CollaborationInvitePage } from "@/features/studio/pages/CollaborationInvitePage";
 import { CollaborationAcceptPage } from "@/features/studio/pages/CollaborationAcceptPage";
 import { StudioCategoriesPage } from "@/features/studio/pages/StudioCategoriesPage";
+import { ContentListPage } from "@/features/studio/pages/ContentListPage";
 import { SeriesListPage } from "@/features/series/pages/SeriesListPage";
 import { SeriesNewPage } from "@/features/series/pages/SeriesNewPage";
 import { SeriesEditPage } from "@/features/series/pages/SeriesEditPage";
@@ -544,6 +545,18 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <StudioPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 3G: content management. This is the LIST route the editor's
+            comments kept referring to as missing. React Router ranks
+            `/studio/content/:articleId` above nothing here — both are declared,
+            and the static segment wins for the exact path `/studio/content`. */}
+        <Route
+          path="/studio/content"
+          element={
+            <RequireAuth>
+              <ContentListPage />
             </RequireAuth>
           }
         />

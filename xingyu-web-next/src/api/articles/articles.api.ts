@@ -24,6 +24,7 @@ import type {
   ArticleRevision,
   ArticleSubmission,
   MyArticleSummary,
+  TrashItem,
 } from "./articles.types";
 
 const LIFECYCLE_VALUES: ArticleLifecycleStatus[] = ["DRAFT", "IN_REVIEW", "PUBLISHED"];
@@ -114,4 +115,37 @@ export const articlesApi = {
       `/api/v1/me/articles/${encodeURIComponent(articleId)}/revisions/${encodeURIComponent(revisionId)}/restore`,
       { method: "POST" },
     ),
+
+  /*
+   * Trash (Phase 3G). Three endpoints, all verified against CommunityArticleController
+   * / TrashService:
+   *   POST /api/v1/me/articles/{articleId}/trash    -> move to trash
+   *   POST /api/v1/me/articles/{articleId}/restore  -> 204, restore from trash
+   *   GET  /api/v1/me/trash                         -> List<TrashItemView>
+   *
+   * ⚠️ Trashing is NOT deleting, and restoring is NOT idempotent-safe to guess at:
+   * `restoreArticle` throws 404 NOT_FOUND 「文章不在回收站」 when the row is absent,
+   * so the UI must only offer restore on rows it actually listed.
+   *
+   * ⚠️ `trashArticle` refuses with 409 CONFLICT when the article is already
+   * trashed, and ALSO when it is under review (「审核中的文章不可移入回收站」).
+   * The UI hides the control for in-review pieces rather than rendering a button
+   * that always 409s.
+   */
+  trash: (articleId: string): Promise<TrashItem> =>
+    apiRequest<TrashItem>(`/api/v1/me/articles/${encodeURIComponent(articleId)}/trash`, {
+      method: "POST",
+    }),
+
+  /** 204 No Content on success; 404 when the article is not in the trash. */
+  restoreFromTrash: (articleId: string): Promise<void> =>
+    apiRequest<void>(`/api/v1/me/articles/${encodeURIComponent(articleId)}/restore`, {
+      method: "POST",
+    }),
+
+  /**
+   * The owner's trash. ⚠️ HETEROGENEOUS rows — see the TrashItem type. Not
+   * article-only, so callers must branch on `objectType`.
+   */
+  listTrash: (): Promise<TrashItem[]> => apiRequest<TrashItem[]>("/api/v1/me/trash"),
 };
