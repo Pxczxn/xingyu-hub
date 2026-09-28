@@ -99,7 +99,11 @@ describe("phase 3G content route resolution", () => {
   it("routes /studio/content to the content-management page", async () => {
     renderAt("/studio/content", true);
     expect(await screen.findByRole("heading", { name: "内容管理" })).toBeInTheDocument();
-    expect(listMine).toHaveBeenCalled();
+    // The heading is part of the synchronous shell, so `findByRole` above can
+    // resolve BEFORE the load effect fires. Awaiting the list call itself keeps
+    // this independent of scheduling — plain `expect(listMine).toHaveBeenCalled()`
+    // raced under full-suite load (observed once: 2058/2059).
+    await waitFor(() => expect(listMine).toHaveBeenCalled());
   });
 
   it("routes a GUEST to login and does NOT read the article list", async () => {
