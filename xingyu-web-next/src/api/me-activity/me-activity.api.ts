@@ -12,9 +12,16 @@ import { MY_ACTIVITY_LIMIT } from "./me-activity.types";
 /**
  * `GET /api/v1/me/likes` — content the session user currently likes.
  *
- * There is deliberately no `history()` here: `/me/history` has no backend
- * route at all (see the types file). Adding one would ship a control that can
- * only ever fail.
+ * There is deliberately no `history()` here, but NOT because reading history is
+ * missing from the backend — it is not. Reading history lives at a DIFFERENT
+ * path, `/me/reading-history` (verified 2026-09-28: 401 AUTH_REQUIRED), and
+ * Legacy's own `getHistory()` calls that path. This module simply has no
+ * business owning it; it belongs with the reading domain.
+ *
+ * ⚠️ Do not "restore" a `/me/history` client under the impression it is the
+ * reading-history endpoint. `GET /me/history` is a DIFFERENT, non-existent
+ * route: it 500s (no handler, no matching guard). The two names are similar;
+ * the routes are not the same. See LEGACY-DELTA §三·补3 §1b.
  */
 export const myLikesApi = {
   list: (limit: number = MY_ACTIVITY_LIMIT): Promise<MyLikeView[]> =>

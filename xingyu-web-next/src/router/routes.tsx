@@ -66,6 +66,7 @@ import { MyEventsPage } from "@/features/events/pages/MyEventsPage";
 import { MyMomentsPage } from "@/features/moments/pages/MyMomentsPage";
 import { MyLikesPage } from "@/features/me-activity/pages/MyLikesPage";
 import { MyCommentsPage } from "@/features/me-activity/pages/MyCommentsPage";
+import { AchievementBadgesPage } from "@/features/me-growth/pages/AchievementBadgesPage";
 import { MyReportsPage } from "@/features/moderation/pages/MyReportsPage";
 import { ReportDetailPage } from "@/features/moderation/pages/ReportDetailPage";
 import { NewReportPage } from "@/features/moderation/pages/NewReportPage";
@@ -311,7 +312,10 @@ export function AppRoutes() {
             read-only, single-read pages behind a session.
             NOTE: `/me/history` is deliberately absent. It exists only as a label
             in Legacy's screen-registry; the backend has no such route (probe:
-            500, no handler), so shipping it would be a page that always fails. */}
+            500, no handler), so shipping it would be a page that always fails.
+            ⚠️ That is NOT the same as "reading history is missing": the real
+            endpoint is `/me/reading-history` and it DOES exist (401). Legacy's
+            own getHistory() calls it. See LEGACY-DELTA §三·补3 §1b. */}
         <Route
           path="/me/likes"
           element={
@@ -325,6 +329,18 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <MyCommentsPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 3A: 徽章成就. `/me/badges` returns a bare array of a FIXED set
+            of five badges; `earned` is derived per request, not stored. Legacy's
+            "隐藏徽章" footer and invented "星语探索者" level are NOT reproduced —
+            neither has a backend basis. */}
+        <Route
+          path="/me/badges"
+          element={
+            <RequireAuth>
+              <AchievementBadgesPage />
             </RequireAuth>
           }
         />

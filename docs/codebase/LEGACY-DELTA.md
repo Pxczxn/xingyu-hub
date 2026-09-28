@@ -79,9 +79,16 @@
 
 ### 🔵 P3 — 个人成长 / 杂项
 
-`/me/badges`、`/me/growth`、`/me/interests`、`/me/requests`、`/me/groups`、
-`/account/status`、`/content/:type/:id/status`、`/share`、`/spaces/:slug`、
-`/comments/:id`、`/feedback/recommendations`、`/collections/public`
+| 路由 | 后端 | 说明 |
+|---|---|---|
+| `/me/badges` | ✅ 401（固定五枚） | → **已迁（Phase 3A）**：修正 Legacy 的「隐藏徽章」承诺与凭空「星语探索者」等级 → 见 §三·补12 |
+| `/me/growth` | ✅ | **无雷**：`getHistory()` 调的是 `/me/reading-history`（存在）→ 见 §三·补12 §12.6 |
+| `/me/interests` | ⚠️ 待核 | `/explore/map` **200 公开**；`/explore/me` 游客 **500**（待判是缺 401 映射还是真错） |
+| `/me/requests` | ✅ 401 | 返回 **`MyGroupJoinRequestView`**（含 `conversationTitle`/`resolvedAt`），**别被 `GroupJoinRequestView` 误导** |
+| `/me/groups` | ✅ 401（同源 `/messages`） | ⚠️ 语义**不等价**于 `/messages`（后者含 DIRECT）；且链向 V2 已无的 `/messages/group/:id` |
+
+其余（`/account/status`、`/content/:type/:id/status`、`/share`、`/spaces/:slug`、
+`/comments/:id`、`/feedback/recommendations`、`/collections/public`）**尚未核实**。
 
 ### ⚪ P4 — 系统页（低价值，可最后做或不做）
 `/system/error`、`/forbidden`、`/maintenance`、`/not-found`、`/offline`、`/rate-limited`
@@ -145,8 +152,41 @@ P0 表里「我的互动（赞/评论/历史）」三项，**只有两项该做*
 （`["阅读历史", "/me/history"]`）—— 那是**屏幕清单**，不是路由实现。
 Legacy 也从未调用过它。
 
-> **不做。** 若将来要做「阅读历史」，那需要**后端先建表 + 建端点**，
-> 属于新功能而非迁移。V2 刻意不建这个页面：一个必然 500 的页面就是伪完成。
+> **不做 `/me/history` 这个路径。** V2 刻意不建这个页面：一个必然 500 的页面就是伪完成。
+
+### 1b. ⚠️⚠️ 上方结论的**重要限定**（2026-09-28 补测，Phase 3A 期间发现）
+
+**上面三条证据只证伪了 `/me/history` 这个字符串，没有证伪「阅读历史」这个功能 —— 而后者是存在的。**
+
+补测发现：**真正的端点是 `GET /api/v1/me/reading-history`**（`CommunityMeController:201` →
+`ReadingService.readingHistory`），活体探针返回 **401 AUTH_REQUIRED**（存在、需登录），
+与 `/me/history` 的 500 形成鲜明对比。
+
+决定性证据：**Legacy 的 `getHistory()` 调用的就是 `/api/v1/me/reading-history`**
+（`xingyu-web/lib/community-api.ts:940`）。也就是说：
+- Legacy 页面 `app/me/growth/page.tsx` 里那个 `getHistory()` **是能跑的**；
+- 我此前看的「Legacy 标签 `/me/history`」是 `screen-registry.ts` 里的**另一个字符串**，
+  两者只是名字相似，**不是同一个东西**。
+
+**错误是怎么发生的（值得记住）：** 我先 grep 了「history」相关的一批字符串，
+命中的是 `screen-registry.ts` 的标签（`/me/history`），于是拿**这个**去探针 → 500 →
+得出结论「阅读历史没有后端」。但**真正的消费者（`getHistory`）调的是另一个路径**，
+我**没有去读 `getHistory` 的实现**就下了结论。
+
+> **纪律：判定「某功能有无后端」时，必须从「前端实际调用了什么」出发**
+> （读 `community-api.ts` 里的函数体），而不是从「标签/清单里写了什么路径」出发。
+> 清单是**候选**，调用点才是**事实**。用清单里的字符串去探针，探到的 500
+> 只说明那个字符串不对，不说明功能不存在。
+
+**对 P3 `/me/growth` 的影响**：`/me/growth` 的 `getHistory()` **可以照搬**，
+不需要「重新设计以规避缺失的阅读历史」。原先「growth 有雷」的判断是**错的**。
+后端的 `ReadingService.readingHistory` 复用 `continueReading`（`series_reader_state` +
+`readingHistoryEnabled` 开关），与 `MeHomeView.continueReading` 同源。
+
+配套：`POST /me/reading-progress` 记录进度；`GET /me/bookshelf` 是订阅系列（已在 V2，Phase 2C）。
+`readingHistoryEnabled` 开关为 false 时后端返回**空列表**（不是错误）—— UI 需把
+「用户关掉了记录」与「确实没读过」区分开，或至少不对空列表做过度解读。
+
 
 ### 2. `/me/likes` 与 `/me/comments` 契约（已迁）
 
@@ -874,6 +914,96 @@ status:405, detail:<statusText>, code:"UNKNOWN" }` —— 能跑，但**这不�
 
 ---
 
+## 三·补12 · Phase 3A 徽章成就：一个**固定五枚**的集合，和 Legacy 的两句漂亮话（2026-09-28）
+
+### 12.1 契约：集合是**封闭**的，`earned` 是**每次重算**的
+
+`GET /api/v1/me/badges`（`CommunityMeController:397` → `MeEngagementService.badges`）
+返回**裸数组** `BadgeView[]`，`record BadgeView(String id, String title, String description, boolean earned)`。
+活体探针 **401 AUTH_REQUIRED**。
+
+`badges()` 无分支地 `add` 了**恰好五条**：
+
+| id | 标题 | 判定条件（服务端实时计算） |
+|---|---|---|
+| `onboard` | 入门完成 | `onboardingService.get(user).isCompleted()` |
+| `first-post` | 初次创作 | `articleCount >= 1` |
+| `prolific` | 勤耕不辍 | `articleCount >= 5` |
+| `social` | 社区之星 | `followers >= 10` |
+| `profile` | 名片完善 | `profile.bio` 非空白 |
+
+两个由此推出的硬结论：
+
+1. **集合不增长** —— 服务端永远只有这五条，没有「隐藏徽章」，也不会新增种类
+   （除非改后端）。所以**空态对登录用户不可达**，而「还有更多等你发现」是**做不到的承诺**。
+2. **`earned` 不是持久化的荣誉**，而是**每次请求现算**（读文章数 / 粉丝数 / 引导状态 / bio）。
+   条件不成立就会**退回未点亮**（例如文章数掉回 5 以下）。
+   → UI **不能说「已获得」**（暗示可保有的奖杯），只能说**「当前已点亮」**。
+
+### 12.2 修掉 Legacy 的两句漂亮话
+
+**其一：「更多隐藏徽章等待你去发现」（页脚）。**
+服务端只有五枚。这句话承诺的是**不存在的内容** —— 与 §三·补9 的「自动保存」、
+§三·补10 的「已接受协作邀请」是同一类错误：**界面承诺了后端没有的东西**。
+V2 不写这句；测试断言正文**不含「隐藏徽章」**。
+
+**其二：一张凭空的「星语探索者」等级卡。**
+Legacy 在顶部渲染了一张等级卡：固定标题「星语探索者」+ `earned.length` 徽章数。
+**后端没有任何「等级」概念** —— 那个称号是硬编码的字符串，且**永不随进度变化**。
+一个恒定的头衔配一个真实的数字，读起来就像两者都是真的。
+V2 **不造等级**；测试断言正文不含「星语探索者」与「等级」。
+
+另外 Legacy 的 `earned` 计数文案写的是「已获得 N 枚」—— 按 12.1 第 2 条，这是过度声称，
+V2 改为**「当前已点亮 N 枚」**，并在页头说明**徽章由行为实时判定**。
+
+### 12.3 有意保留的：未点亮徽章**保留服务端的条件文案**
+
+未点亮徽章的 `description` 就是**用户该做什么**（「粉丝达到 10」）。
+Legacy 在 `description` 为空时才垫兜底，这一点是对的 ——
+**绝不把条件替换成更温和的散文**，那等于把门槛藏起来。
+V2 沿用，并在测试里钉住「粉丝达到 10」「拥有 5 篇以上文章」确实出现在页面上。
+
+### 12.4 未知徽章**原样渲染**，不静默丢弃
+
+`hasUnknownBadges()` 只用来决定**是否显示一条说明**，**绝不用来过滤列表**。
+后端若新增第六枚徽章，我们的映射表不认识它 —— 但**丢掉一行**比**显示一行不认识的**
+更糟（用户会以为自己少了一枚）。
+
+### 12.5 顺序：点亮在前，但**不提供排序控件**
+
+`sortForDisplay` 把已点亮的提到前面，**每组内保留服务端顺序**（服务端顺序近似难度阶梯）。
+不提供任何排序 UI —— 没有「按获取时间排序」可言，因为**没有获取时间**（12.1 第 2 条）。
+
+### 12.6 ⚠️ 顺带修正 §三·补3：「阅读历史」**是存在的**（见 §1b）
+
+核实 P3 时发现 §三·补3 的结论**不准确**：`/me/history` 确实不存在（500），
+但**真正的端点是 `/me/reading-history`**，它**存在且需登录**（401），
+且 **Legacy 的 `getHistory()` 调用的正是它**。
+
+→ 由此，原先对 P3 `/me/growth` 的「有雷」判断**是错的**：
+`getHistory()` 可以照搬。错误成因与纪律见 §1b。
+
+---
+
+## 三·补13 · P3 剩余项的契约底稿（2026-09-28，**尚未开工**）
+
+核实 3A 时把 P3 其余项一并摸了底。以下为**读源码得出**的契约事实，
+供后续 Phase 直接使用（避免重蹈补3「用清单字符串去探针」的覆辙）。
+
+| 页面 | 端点 | 关键事实 |
+|---|---|---|
+| `/me/growth` | `getHistory()`→`/me/reading-history`、`getMyComments(10)`、`getMyBadges()`、`getMyInsights()`、`getHome()` | **无雷**（见 12.6）。注意 `getHome()` 的 `pendingActions` 是「待处理」区块的数据源 |
+| `/me/interests` | `GET /explore/map`（公开，探针 **200**）+ `GET /explore/me` + `updateMyExplore` | ⚠️ `GET /explore/me` 游客探针 **500**（`INTERNAL_ERROR`），而同组 `/explore/map` 是 **200** —— 需确认这是「需登录但未映射 401」还是真错，**开工前先核实** |
+| `/me/requests` | `GET /me/group-join-requests?limit=20`（401） | 真正返回的是 **`MyGroupJoinRequestView`**，**含** `conversationTitle` 与 `resolvedAt`（`ConversationService:169` 现查会话标题）。⚠️ **不要看 `GroupJoinRequestView`** —— 那是群主侧审核用的另一个 DTO，**没有**这两个字段，会误导你砍掉页面功能 |
+| `/me/groups` | `GET /messages`（401，裸数组） | 前端 `filter(type === "GROUP")`。⚠️ **与 `/messages` 同源，但语义不等价**：后者是全部会话（含 DIRECT），但**V2 的 `MailboxPage` 目前没有 GROUP 筛选**。所以要么做筛选，要么不做 —— **不能因为「同源」就判它假缺口**；另外它链向 `/messages/group/{id}`，**V2 无该路由**，`/messages/:conversationId` 是否兼容 GROUP 需先核实 |
+| `/me/badges` | — | ✅ **已交付（Phase 3A）**，见 §三·补12 |
+
+状态值（`ConversationService` 穷举）：群聊入群申请只有 **`PENDING` → `APPROVED` / `REJECTED`**，
+故 Legacy 的三标签映射（待处理/已通过/已拒绝）**恰好正确**，与 §三·补4
+（举报映射 4 个里错 3 个）形成对照 —— **同一作者的两个页面，一个对、一个错，必须逐个核。**
+
+---
+
 ## 四、建议的处置路径（供决策）
 
 既然缺口是**前端未搬**而非**后端未实现**：
@@ -906,7 +1036,9 @@ status:405, detail:<statusText>, code:"UNKNOWN" }` —— 能跑，但**这不�
 | 2L | 版本历史 `/studio/content/:id/versions` + 数据分析 `/studio/analytics` | ✅ `eb43cd1` |
 | 2M | 协作邀请 `/studio/collaboration` + `/accept`（**核实后端为空心功能，文案声明边界**） | ✅ `7efa0cb` |
 | 2N | `/studio/settings` + `/studio/assets` 核实（**结论：两个都不做**，均命中假缺口） | ✅ 见 §三·补11 |
-| 2N | 创作空间分类 `/studio/categories`（**非迁移：后端 CRUD 完整但 Legacy 从未做页面**） | ✅ 本次 |
+| 2N | 创作空间分类 `/studio/categories`（**非迁移：后端 CRUD 完整但 Legacy 从未做页面**） | ✅ `82f4740` |
+| 3A | 徽章成就 `/me/badges`（修正 Legacy 的「隐藏徽章」与凭空等级；**顺带推翻补3 的阅读历史结论**） | ✅ 见 §三·补12 |
+| 3? | P3 其余：`/me/growth`（**无雷，见 12.6**）、`/me/interests`、`/me/requests`、`/me/groups` | ⬜ 契约底稿见 §三·补13 |
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。

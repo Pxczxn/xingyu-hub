@@ -265,6 +265,13 @@ export function AppLayout() {
                 <Link to="/me/comments" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
                   我的评论
                 </Link>
+                {/* Phase 3A: 徽章成就. Session-scoped like the rest of this
+                    branch — `/me/badges` needs a session and has no public
+                    counterpart (badges are never shown on someone else's
+                    profile). */}
+                <Link to="/me/badges" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  徽章
+                </Link>
                 {/* Phase 2J-2: 举报与申诉. Session-scoped like the rest of this
                     branch. The public 社区规则 link stays in the footer next to
                     the other informational links. */}
