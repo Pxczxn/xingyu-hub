@@ -23,6 +23,10 @@ import { SettingsPrivacyPage } from "@/features/settings/pages/SettingsPrivacyPa
 import { SettingsSessionsPage } from "@/features/settings/pages/SettingsSessionsPage";
 import { SettingsBlocksPage } from "@/features/settings/pages/SettingsBlocksPage";
 import { SettingsApiTokensPage } from "@/features/settings/pages/SettingsApiTokensPage";
+import { SettingsEmailPage } from "@/features/settings/pages/SettingsEmailPage";
+import { SettingsReauthenticatePage } from "@/features/settings/pages/SettingsReauthenticatePage";
+import { SettingsDataExportPage } from "@/features/settings/pages/SettingsDataExportPage";
+import { SettingsDeleteAccountPage } from "@/features/settings/pages/SettingsDeleteAccountPage";
 import { OnboardingAliasRedirect, OnboardingPage } from "@/features/onboarding/pages/OnboardingPage";
 import { AnnouncementsPage } from "@/features/announcements/pages/AnnouncementsPage";
 import { AnnouncementDetailPage } from "@/features/announcements/pages/AnnouncementDetailPage";
@@ -647,6 +651,13 @@ export function AppRoutes() {
           <Route path="/settings/sessions" element={<SettingsSessionsPage />} />
           <Route path="/settings/blocks" element={<SettingsBlocksPage />} />
           <Route path="/settings/api-tokens" element={<SettingsApiTokensPage />} />
+          {/* Phase 3H: account security + data sovereignty. All four are real
+              self-service endpoints (email change, data export, account
+              deactivation) plus the re-auth grant the email change depends on. */}
+          <Route path="/settings/security/email" element={<SettingsEmailPage />} />
+          <Route path="/settings/security/re-authenticate" element={<SettingsReauthenticatePage />} />
+          <Route path="/settings/data/export" element={<SettingsDataExportPage />} />
+          <Route path="/settings/data/delete-account" element={<SettingsDeleteAccountPage />} />
         </Route>
 
         {/* Phase 2L: version history and analytics. Both are owner-only views of

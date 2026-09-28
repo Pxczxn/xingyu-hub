@@ -19,9 +19,9 @@ import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
  * read "Message/notification panels are deliberately NOT implemented this
  * round", which meant the shell had no notification entry at all.
  *
- * The message centre (私信) is still not built (Phase 2I-3), so there is
- * deliberately no message icon: an icon that leads nowhere is worse than no
- * icon. Add it when the inbox lands.
+ * Phase 2I-3 landed the message centre, so the 私信 entry is now a REAL link to
+ * /messages with its own unread count. (A stale comment here claimed the inbox
+ * was unbuilt and the icon deliberately absent — both had stopped being true.)
  */
 
 /*

@@ -1,26 +1,45 @@
 import { NavLink } from "react-router-dom";
-import { KeyRound, MonitorSmartphone, ShieldCheck, ShieldOff, UserRound } from "lucide-react";
+import {
+  Database,
+  KeyRound,
+  Mail,
+  MonitorSmartphone,
+  ShieldCheck,
+  ShieldOff,
+  UserRound,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /*
- * Settings navigation (Phase 2A-1, extended in 2A-2a / 2A-2b).
+ * Settings navigation (Phase 2A-1, extended in 2A-2a / 2A-2b, corrected in 3H).
  *
- * Only pages that genuinely exist this round are listed. Deliberately absent
- * (and NOT shown as disabled/"coming soon" entries — an entry that leads
- * nowhere is worse than no entry):
- *   - 修改密码      backend has no self-service endpoint (Phase 2-0 B10)
- *   - 修改邮箱      requires an email verification link (human gate)
- *   - 通知设置      backend has no notification-preferences endpoint
- *   - 安全事件      backend has no security-events endpoint
- *   - 数据导出      no backend capability
- *   - 头像          real capability via a side channel, deferred to its own stage
+ * Only pages that genuinely exist are listed. Deliberately absent (and NOT shown
+ * as disabled/"coming soon" entries — an entry that leads nowhere is worse than
+ * no entry):
+ *   - 修改密码      backend has NO self-service set-password endpoint. Only
+ *                  `/me/password/force-change`, which is the forced-change path
+ *                  shown when `mustChangePassword` is set, and the
+ *                  `password-recovery` / `password-reset` mail flow. Neither is a
+ *                  "change my password from settings" endpoint.
+ *   - 通知设置      backend has no notification-preferences endpoint.
+ *   - 安全事件      backend WRITES `auth_security_event` rows but exposes no
+ *                  endpoint to READ them back.
+ *   - 头像          real capability via a side channel, deferred to its own stage.
+ *
+ * ⚠️ CORRECTED in Phase 3H: this comment previously claimed that 修改邮箱 is
+ * gated behind "an email verification link (human gate)" and that 数据导出 has
+ * "no backend capability". BOTH WERE WRONG — `POST /me/email/change` and
+ * `GET /me/data-export` are real self-service endpoints, and the account
+ * deactivation endpoint exists too. Those three pages are now built.
  */
 const SETTINGS_NAV = [
   { label: "资料", to: "/settings/profile", icon: UserRound },
+  { label: "邮箱", to: "/settings/security/email", icon: Mail },
   { label: "隐私", to: "/settings/privacy", icon: ShieldCheck },
   { label: "登录会话", to: "/settings/sessions", icon: MonitorSmartphone },
   { label: "屏蔽", to: "/settings/blocks", icon: ShieldOff },
   { label: "API Token", to: "/settings/api-tokens", icon: KeyRound },
+  { label: "数据导出", to: "/settings/data/export", icon: Database },
 ];
 
 export function SettingsNav() {

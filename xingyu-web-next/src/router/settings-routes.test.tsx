@@ -202,11 +202,15 @@ describe("settings routes — authenticated", () => {
     expect(nav).toHaveTextContent("资料");
     expect(nav).toHaveTextContent("隐私");
     expect(nav).toHaveTextContent("登录会话");
+    // Phase 3H: 邮箱 WAS previously asserted absent here, because at the time the
+    // nav comment wrongly claimed email change needed a human gate. The endpoint
+    // is real (`POST /me/email/change`), so the entry now exists by design.
+    expect(nav).toHaveTextContent("邮箱");
+    expect(nav).toHaveTextContent("数据导出");
 
-    // Unimplemented capabilities must not appear as nav entries, not even disabled.
+    // Still genuinely unimplemented — must NOT appear, not even disabled.
     expect(nav).not.toHaveTextContent("通知");
     expect(nav).not.toHaveTextContent("密码");
-    expect(nav).not.toHaveTextContent("邮箱");
     expect(nav).not.toHaveTextContent("头像");
     expect(nav).not.toHaveTextContent("敬请期待");
   });
