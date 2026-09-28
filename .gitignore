@@ -99,6 +99,7 @@ xingyu-backend/xingyu-starter/src/main/resources/static/
 coverage/
 playwright-report/
 test-results/
+.playwright-mcp/
 reports/
 .eslintcache
 work/

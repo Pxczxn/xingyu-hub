@@ -1,0 +1,29 @@
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer components {
+  /* Shared content container per design system: max-w-6xl, comfortable padding. */
+  .content-shell {
+    @apply mx-auto w-full max-w-content px-4 py-6 md:px-6 md:py-8;
+  }
+  .section-gap {
+    @apply flex flex-col gap-6;
+  }
+}

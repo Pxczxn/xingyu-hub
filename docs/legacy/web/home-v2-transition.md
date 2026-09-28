@@ -2,6 +2,9 @@
 > 本文档记录 Legacy Web 的 **Home V2 过渡实现**。Legacy Web 曾同时存在 **Home V1**（`components/community/home-page.tsx`）与 **Home V2**（`components/community/home-page-v2/`）两套首页实现。
 > 它**不代表**未来 Web 重构必须保留双实现，也**不应**作为新 Web 路由 / 架构的权威来源。
 > 可用于参考已确认的首页产品设计与交互；如未来 Web 已重新设计首页，本文件可随 Legacy 下线而归档。
+>
+> **（2026-09-28）Legacy Web 已归档为 `archive/xingyu-web-legacy/`**（见 `archive/README.md`）。
+> 下文「文件结构」等章节的 `xingyu-web/...` 路径均为**当时快照**，按 `archive/xingyu-web-legacy/...` 理解。
 
 # 星语社区首页 V2
 
