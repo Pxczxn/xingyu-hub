@@ -272,6 +272,11 @@ export function AppLayout() {
                 <Link to="/me/badges" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
                   徽章
                 </Link>
+                {/* Phase 3B: 成长记录. The aggregate view (data + badges + reading
+                    + comments); `/me/badges` remains the badge-only page. */}
+                <Link to="/me/growth" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  成长
+                </Link>
                 {/* Phase 2J-2: 举报与申诉. Session-scoped like the rest of this
                     branch. The public 社区规则 link stays in the footer next to
                     the other informational links. */}
