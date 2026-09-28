@@ -40,6 +40,8 @@ import { MySubmissionsPage } from "@/features/studio/pages/MySubmissionsPage";
 import { SubmissionDetailPage } from "@/features/studio/pages/SubmissionDetailPage";
 import { ArticleVersionsPage } from "@/features/studio/pages/ArticleVersionsPage";
 import { StudioAnalyticsPage } from "@/features/studio/pages/StudioAnalyticsPage";
+import { CollaborationInvitePage } from "@/features/studio/pages/CollaborationInvitePage";
+import { CollaborationAcceptPage } from "@/features/studio/pages/CollaborationAcceptPage";
 import { SeriesListPage } from "@/features/series/pages/SeriesListPage";
 import { SeriesNewPage } from "@/features/series/pages/SeriesNewPage";
 import { SeriesEditPage } from "@/features/series/pages/SeriesEditPage";
@@ -122,6 +124,12 @@ import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
  * Phase 2J-2:          /reports, /reports/new, /reports/:reportId, /appeals,
  *                      /appeals/new, /appeals/:appealId (all RequireAuth; 举报与申诉.
  *                      Routes at the resource root to match the write endpoints)
+ * Phase 2L:            /studio/analytics, /studio/content/:articleId/versions
+ * Phase 2M:            /studio/collaboration, /studio/collaboration/accept
+ *                      (RequireAuth; invite link create + confirm. NOTE: the
+ *                      backend has NO collaboration relationship — accept writes
+ *                      nothing. The UI discloses this rather than implying a
+ *                      permission grant.)
  * plus the five approved Legacy redirects.
  *
  * Route-level code splitting (Phase 1C-1):
@@ -549,6 +557,39 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <ArticleVersionsPage />
+            </RequireAuth>
+          }
+        />
+
+        {/* Phase 2M: collaboration invites. Both pages are RequireAuth.
+            The invite format is a strictly POST-a-session operation
+            (`POST /me/collaboration-invites`). Accept (`POST
+            /collaboration/invites/accept`) ALSO needs a session even though
+            resolve (`GET /collaboration/invites/resolve`) is public — gating both
+            keeps the flow coherent, and a guest simply gets bounced to login.
+
+            ⚠️ `/studio/collaboration/accept` is declared AFTER
+            `/studio/collaboration` on purpose. They are siblings (accept is not a
+            child of the create page), and React Router 7 would rank the static
+            "accept" segment above the param if one were introduced — but the
+            intent is clearer written in this order.
+
+            ⚠️ Neither page implies a working collaboration handshake: the backend
+            has no relationship table and accept writes nothing. See
+            collaboration.types.ts. */}
+        <Route
+          path="/studio/collaboration"
+          element={
+            <RequireAuth>
+              <CollaborationInvitePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/studio/collaboration/accept"
+          element={
+            <RequireAuth>
+              <CollaborationAcceptPage />
             </RequireAuth>
           }
         />

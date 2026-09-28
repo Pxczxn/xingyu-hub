@@ -48,12 +48,21 @@ export function StudioPage() {
         </Card>
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground">
-            {/* Phase 2K-2: this cell used to read "审核中占位". /studio/submissions
-                now exists, so it becomes a real entry point. */}
             <Link to="/studio/submissions" className="text-accent hover:underline">
               我的投稿
             </Link>
             <p className="mt-1">查看提交审核的稿件及进展。</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            {/* Phase 2M. Note the copy does NOT promise a collaborator list — the
+                backend has no such concept, so the entry point only creates and
+                confirms invite links. */}
+            <Link to="/studio/collaboration" className="text-accent hover:underline">
+              邀请协作
+            </Link>
+            <p className="mt-1">生成邀请链接，发给想一起创作的人。</p>
           </CardContent>
         </Card>
       </div>

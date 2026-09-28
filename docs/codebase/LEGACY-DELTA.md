@@ -70,7 +70,7 @@
 |---|---|---|
 | 数据分析 | `/studio/analytics` | → **已迁（Phase 2L）**：复用已有 `meInsightsApi`（`GET /me/insights`），零新 API。**修正 Legacy 的失败模式**（失败时渲染 `—`，与真实 0 无法区分）→ 见 §三·补9 |
 | 素材库 | `/studio/assets` | ⬜ **不建议做**：只是 `listMyArticles` + `listMySeries` 的重新组合，与创作台/投稿页语义重叠 |
-| 协作 | `/studio/collaboration`、`/accept` | ⬜ 未核实 |
+| 协作 | `/studio/collaboration`、`/accept` | → **已迁（Phase 2M）**，但 **后端是「空心功能」**：`acceptInvite` **0 写操作**、无关系表、无读取方，**接受邀请不产生任何协作权限**。两页照做，文案**实测声明该边界**；并修掉 Legacy 的 `/u/:username/works` 死链 → 见 §三·补10 |
 | 版本历史 | `/studio/content/:id/versions` | → **已迁（Phase 2L）**：`listRevisions` + `restoreRevision`。**修正 Legacy 的三处错误文案**（把「发布版本」谎称「自动保存」等）→ 见 §三·补9 |
 | 投稿管理 | `/studio/submissions/:id` | → **已迁 + 增强（Phase 2K-2）**：列表 `/studio/submissions` + 详情 `/studio/submissions/:submissionId`。**「撤回投稿」是新增功能而非迁移** —— Legacy 定义了 `withdrawReviewSubmission` 却 **0 处调用**（死代码），详情页是只读的。见 §三·补7 |
 | 创作台设置 | `/studio/settings` | |
@@ -670,6 +670,89 @@ Legacy 的 analytics 页没有任何跳转链接。V2 想加「我的稿件」�
 
 ---
 
+## 三·补10 · Phase 2M 协作邀请：后端是个**空心功能**（2026-09-28）
+
+### 10.1 核实结论（源码级）
+
+`CommunityCollaborationController`（`@RequestMapping("/collaboration")`）暴露两个端点，
+写入口在 `CommunityMeController`。三个端点对应三件事：
+
+| 端点 | 身份 | 实际行为 |
+|---|---|---|
+| `POST /me/collaboration-invites` | 需登录 | **真写**：`inviteMapper.insert(invite)` 插入一条邀请行 |
+| `GET /collaboration/invites/resolve` | **公开** | 只读查询，返回邀请人资料 |
+| `POST /collaboration/invites/accept` | 需登录 | **零写操作** |
+
+决定性证据 —— `CollaborationService` **全类唯一的写操作**就是创建邀请时的
+`inviteMapper.insert(invite)`。`acceptInvite` 只做三件事：
+
+1. 校验 token（失效 → `NOT_FOUND "邀请已失效或不存在"`）；
+2. 拒绝自邀（本人 → `CONFLICT "不能接受自己的邀请"`）；
+3. 返回**邀请人**的资料。
+
+**它不写入接受者、不写入时间、不建立任何关系。**
+
+数据库侧同样印证（`sql/V024__remaining_features.sql`）：
+
+- `collaboration_invite` 表**没有** `accepted_by` / `accepted_at` 列；
+- 全库**没有** `collaborator` / `space_member` 之类的成员表；
+- 全后端**没有任何地方**读「谁接受了邀请」。
+
+结论：**接受邀请后，双方都不获得任何权限。**
+这条邀请链接目前是「一条带已读回执的消息」，**不是一份授权**。
+
+### 10.2 处理方式：两页都做，但文案实测声明边界
+
+用户决策（2026-09-28）：**「连『接受邀请』页面一起做，但按钮文案与成功页如实写明：
+目前仅确认邀请，尚未产生协作权。」**
+
+落地为：
+
+- **`/studio/collaboration`**（创建）— 表单 + 生成**绝对**链接 + 复制；
+  能力边界提示放在**表单上方**（发出去之前就该读到），并在结果卡片里**再重复一次**。
+- **`/studio/collaboration/accept?token=`**（确认）— resolve（公开）→ 三态；
+  成功页标题是 **「已确认 X 的邀请」**，配 `ACCEPTANCE_BOUNDARY_NOTE`。
+
+`ACCEPTANCE_BOUNDARY_NOTE` 作为**单一导出常量**，创建页与接受页共用（成功页也重复展示），
+测试直接断言这个字符串 —— 文字一旦被改软，测试立刻失败。
+
+### 10.3 修掉 Legacy 的两处谎话 + 一个死链
+
+Legacy 的接受成功页写的是 **「已接受协作邀请」**，配一个「查看协作空间」按钮 ——
+在 0 写操作的后端之上，这句话读起来就是「你现在是协作者了」。
+这和 §三·补9 的「自动保存」是**同一类错误**：界面承诺了后端没有的东西。
+
+第二处是**死链**：Legacy 跳 `/u/{username}/works`，但 **V2 只有 `/u/:username`**
+（`UserProfilePage`，**已经内含「公开作品」区**，自己会调 `getUserWorks`）。
+照搬就会在一次成功的「协作」之后再送用户一个稳定的 404。
+
+V2 的做法：
+
+- 文案：**「已确认邀请」**，不是「已加入协作」；
+- 链接：**`/u/:username`**，把「看作品」交给那个页面自己已经有的区块；
+- username 缺失时（见 10.4）**隐藏按钮**，而不是渲染 `/u/undefined`。
+
+### 10.4 两个必须防的响应形状坑
+
+1. **`resolveInvite` / `acceptInvite` 用 `Map.of(...)` 构造返回** —— `Map.of` **不接受 null**，
+   所以 `inviterUsername` / `inviterDisplayName` 可能**整个键缺失**（不是 null）。
+   于是类型里除 `valid` 外**全部可选**，`inviterDisplayName()` 走
+   `displayName → username → "一位创作者"` 三级回退，**绝不渲染空串或 undefined**。
+2. **`valid: false` 是 HTTP 200**，不是错误。必须先 `resolve` 再判 `valid`，
+   否则会把「链接失效」（正常业务答案）当成「网络挂了」（我们的问题）——
+   两者的用户指引完全不同。
+
+另外：note 的 null 被后端映射成 `""`，所以「没有备注」在线上是**空字符串**而不是 null，
+判空必须用 `?.trim()`。
+
+### 10.5 未验证项（如实记录）
+
+**登录态下走完「创建 → 复制 → 打开 → 确认」全流程**未在真实浏览器实测 ——
+确认按钮需要真实登录态，而登录本身需要**人工验证码**。已在探针层确认
+`accept` 对游客返回 401（路径存在且需身份），游客侧验收见提交信息。
+
+---
+
 ## 四、建议的处置路径（供决策）
 
 既然缺口是**前端未搬**而非**后端未实现**：
@@ -699,7 +782,8 @@ Legacy 的 analytics 页没有任何跳转链接。V2 想加「我的稿件」�
 | 2K-1 | 推荐作者 `/creators`（纯前端聚合，零后端改动） | ✅ `2e691b2` |
 | 2K-2 | 投稿审核 `/studio/submissions*` + **新增撤回功能** | ✅ `bf92ffb` |
 | 2L | 帮助中心核实（**结论：不做**，并入 `/guide`） | ✅ 见 §三·补8 |
-| 2L | 版本历史 `/studio/content/:id/versions` + 数据分析 `/studio/analytics` | ✅ 本次 |
+| 2L | 版本历史 `/studio/content/:id/versions` + 数据分析 `/studio/analytics` | ✅ `eb43cd1` |
+| 2M | 协作邀请 `/studio/collaboration` + `/accept`（**核实后端为空心功能，文案声明边界**） | ✅ 本次 |
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。
