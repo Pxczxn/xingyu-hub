@@ -82,7 +82,7 @@
 | 路由 | 后端 | 说明 |
 |---|---|---|
 | `/me/badges` | ✅ 401（固定五枚） | → **已迁（Phase 3A）**：修正 Legacy 的「隐藏徽章」承诺与凭空「星语探索者」等级 → 见 §三·补12 |
-| `/me/growth` | ✅ | **无雷**：`getHistory()` 调的是 `/me/reading-history`（存在）→ 见 §三·补12 §12.6 |
+| `/me/growth` | ✅ 401 | → **已迁（Phase 3B）**：五路聚合，**每区块独立三态**（Legacy 的 `&&` 守卫会让失败区块静默消失）→ 见 §三·补14 |
 | `/me/interests` | ⚠️ 待核 | `/explore/map` **200 公开**；`/explore/me` 游客 **500**（待判是缺 401 映射还是真错） |
 | `/me/requests` | ✅ 401 | 返回 **`MyGroupJoinRequestView`**（含 `conversationTitle`/`resolvedAt`），**别被 `GroupJoinRequestView` 误导** |
 | `/me/groups` | ✅ 401（同源 `/messages`） | ⚠️ 语义**不等价**于 `/messages`（后者含 DIRECT）；且链向 V2 已无的 `/messages/group/:id` |
@@ -985,22 +985,141 @@ V2 沿用，并在测试里钉住「粉丝达到 10」「拥有 5 篇以上文�
 
 ---
 
-## 三·补13 · P3 剩余项的契约底稿（2026-09-28，**尚未开工**）
+## 三·补13 · P3 剩余项的契约底稿（2026-09-28）
 
 核实 3A 时把 P3 其余项一并摸了底。以下为**读源码得出**的契约事实，
 供后续 Phase 直接使用（避免重蹈补3「用清单字符串去探针」的覆辙）。
 
 | 页面 | 端点 | 关键事实 |
 |---|---|---|
-| `/me/growth` | `getHistory()`→`/me/reading-history`、`getMyComments(10)`、`getMyBadges()`、`getMyInsights()`、`getHome()` | **无雷**（见 12.6）。注意 `getHome()` 的 `pendingActions` 是「待处理」区块的数据源 |
+| `/me/badges` | — | ✅ **已交付（Phase 3A）**，见 §三·补12 |
+| `/me/growth` | `getHistory()`→`/me/reading-history`、`getMyComments(10)`、`getMyBadges()`、`getMyInsights()`、`getHome()` | ✅ **已交付（Phase 3B）**，见 §三·补14。契约事实：`pendingActions` 无 `id` 且 href 指向 V2 不存在的 `/studio/reviewing` |
 | `/me/interests` | `GET /explore/map`（公开，探针 **200**）+ `GET /explore/me` + `updateMyExplore` | ⚠️ `GET /explore/me` 游客探针 **500**（`INTERNAL_ERROR`），而同组 `/explore/map` 是 **200** —— 需确认这是「需登录但未映射 401」还是真错，**开工前先核实** |
 | `/me/requests` | `GET /me/group-join-requests?limit=20`（401） | 真正返回的是 **`MyGroupJoinRequestView`**，**含** `conversationTitle` 与 `resolvedAt`（`ConversationService:169` 现查会话标题）。⚠️ **不要看 `GroupJoinRequestView`** —— 那是群主侧审核用的另一个 DTO，**没有**这两个字段，会误导你砍掉页面功能 |
 | `/me/groups` | `GET /messages`（401，裸数组） | 前端 `filter(type === "GROUP")`。⚠️ **与 `/messages` 同源，但语义不等价**：后者是全部会话（含 DIRECT），但**V2 的 `MailboxPage` 目前没有 GROUP 筛选**。所以要么做筛选，要么不做 —— **不能因为「同源」就判它假缺口**；另外它链向 `/messages/group/{id}`，**V2 无该路由**，`/messages/:conversationId` 是否兼容 GROUP 需先核实 |
-| `/me/badges` | — | ✅ **已交付（Phase 3A）**，见 §三·补12 |
 
 状态值（`ConversationService` 穷举）：群聊入群申请只有 **`PENDING` → `APPROVED` / `REJECTED`**，
 故 Legacy 的三标签映射（待处理/已通过/已拒绝）**恰好正确**，与 §三·补4
 （举报映射 4 个里错 3 个）形成对照 —— **同一作者的两个页面，一个对、一个错，必须逐个核。**
+
+---
+
+## 三·补14 · Phase 3B 成长记录：**五路并行读取**，与「区块静默消失」（2026-09-28）
+
+### 14.1 页面形态：聚合 5 个独立读
+
+`/me/growth` 是**只读聚合页**，五路数据互不依赖：
+
+| 区块 | 来源 | 归属 |
+|---|---|---|
+| 创作数据（6 计数器） | `meInsightsApi.get()` → `/me/insights` | 复用（原属 `/me/moments` 面） |
+| 徽章 | `badgesApi.list()` | 复用（Phase 3A） |
+| 最近阅读 | `readingHistoryApi.list()` → **`/me/reading-history`** | **本 Phase 新增**（此前无 client） |
+| 最近评论 | `myCommentsApi.list(10)` | 复用（原属「我的互动」） |
+| 待处理 | `homeApi.getMyHome().pendingActions` | 复用（原属首页面） |
+
+**没有新建任何 API 模块以外的重复实现** —— 四个复用 + 一个新增。
+
+### 14.2 核心修法：**区块失败必须可见**
+
+Legacy 用 `useAsyncData` 并发五路，再用 `insights && (...)`、`badges && (...)` 守卫渲染。
+后果：**任一路失败 → 整个区块消失**，而「消失」与「你没有」**完全无法区分** ——
+与 §三·补9（数据分析把失败渲染成 `—`）是**同一个失败模式**。
+
+V2 给每个区块**独立的三态**（loading / error / ready），且**失败时明说**：
+
+> 暂时无法读取创作数据，因此这里不显示任何数字。
+
+并且**失败时不渲染计数器**（测试断言 `已发布文章` 不出现在失败态）。
+另有测试断言：**一路失败时其余四路仍然渲染** —— 这是拆五态（而非 `Promise.all`）的全部理由。
+
+### 14.3 「阅读历史为空」是**二义**的 —— 不能只报一种原因
+
+后端 `ReadingService.continueReading` 开头：
+
+```java
+if (user == null || !clientSettingsService.isReadingHistoryEnabled(user)) return List.of();
+```
+
+即 **用户关掉开关** 与 **确实没读过** 返回**同一个空列表**。
+→ 文案必须**同时**说明两种可能，不能替用户选一种：
+
+> 没有阅读记录。可能是还没有读过内容，也可能是在设置里关闭了阅读历史记录。
+
+这也是**不做「全部阅读记录」入口**的原因（`readingHistory` 复用 `continueReading`，
+两者同源，再建一页只是同一份数据的第二个入口）。
+
+### 14.4 ⚠️ 修掉一个**潜伏的类型错误**：`PendingAction.id` 并不存在
+
+V2 的 `home.types.ts` 曾把 `PendingAction` 声明为：
+
+```ts
+export type PendingAction = { id: string; kind: string; title: string; href?: string };
+```
+
+**两处与后端不符**（后端 `record PendingActionView(String type, String title, String href)`）：
+
+| V2 声明 | 实际 | 后果 |
+|---|---|---|
+| `id: string` **必填** | **根本没有这个字段** | 若拿它当 React key → `key={undefined}` |
+| `kind` | 字段名是 **`type`** | 永远读不到值 |
+
+**为什么一直没炸**：`pendingActions` 此前**全仓库无人消费**（只有 24 个路由测试把它 mock 成 `[]`）。
+这次的 growth 页是**第一个真正的消费者** —— 一上手就会踩到。
+已改正为 `{ type, title, href? }` 并写入注释。
+
+> **教训：`id` 是"想当然"最容易加错的字段。** 声明一个后端没有的 id，
+> 单元测试永远不会发现（mock 自己说了算），**只有第一次真实消费才暴露**。
+> 判断 DTO 字段一律**去读后端 record**，不要从"一般实体都有 id"外推。
+
+### 14.5 ⚠️ 服务端的 `href` 指向 **V2 不存在的路由**
+
+后端 `HomeService:84` 是 `pendingActions` 的**唯一生产者**，且**硬编码**：
+
+```java
+pendingActions.add(new PendingActionView("REVIEW", "文章审核中", "/studio/reviewing"));
+```
+
+**V2 没有 `/studio/reviewing`。** 照搬渲染 `<Link to={action.href}>` 就是
+「在一条真实的待办提示之后，送用户一个稳定的 404」—— 与 §三·补10 的
+`/u/:username/works` 死链是**同一类错误**。
+
+V2 的处理：`resolvePendingHref()` 走**已知路由白名单**（**不是** "以 `/studio` 开头"前缀判断），
+不在白名单内 → **渲染成纯文本 + 说明**：
+
+> 该入口在本站尚未开放，可到创作中心查看。
+
+**提示仍然可见**（丢掉它会隐藏一个真实的待办），只是**不可点向 404**。
+测试断言：`/studio/reviewing` **不产生 `<a>`**，而 `/studio/submissions`（白名单内）**产生**。
+
+### 14.6 去重：服务端**每条待审文章**产生**一行相同**的 `REVIEW`
+
+`HomeService:79-89` 是 `for (article : listByOwnerId(user))`，
+**每命中一篇在审文章就 add 一条一模一样的 `("REVIEW","文章审核中","/studio/reviewing")`**。
+→ 5 篇在审 = 5 行**完全无法区分**的「文章审核中」。
+
+V2 去重并**显示条数**（「3 项」），否则用户分不清"是 5 篇在审"还是"渲染坏了"。
+另：**因为 `PendingActionView` 没有 id**，React key 只能由 (type|title|href|index) 推导 ——
+这也正是 14.4 那个类型错误的现实后果。
+
+### 14.7 有意做的与有意不做的
+
+**做**：
+- 六条 `insights` 计数器**全展示**（同 §三·补9：接口返回了就没理由丢）。
+- 三个去向链接：`/me/badges`（全部徽章）、`/studio/analytics`（创作数据）、`/me/likes`。
+
+**不做**：
+- **不给 `/me/growth` 造"等级/进度条"** —— 后端无等级概念（同 §三·补12）。
+- **不做阅读历史分页**：`readingHistory` 忽略 `cursor` 且 `nextCursor` 恒为 `null`，
+  唯一的加宽手段是**调大 `limit`**（服务端上限 100）。造一个游标式「加载更多」
+  就是在描述一个不存在的契约。API 层测试**断言不发送 `cursor`**。
+
+### 14.8 未验证项
+
+- **登录态下四个区块的真实渲染未实测**（登录需人工图形验证码）。
+  区块的三态逻辑由 13 条页面测试覆盖（含「一路失败、其余存活」与两条 href 分支）。
+- `pendingActions` 在**真实数据**上的去重效果未实测 —— 本机库没有在审文章，
+  真实响应大概率是空数组（这也是该区块在真机上多半不出现的原因）。
 
 ---
 
@@ -1037,8 +1156,9 @@ V2 沿用，并在测试里钉住「粉丝达到 10」「拥有 5 篇以上文�
 | 2M | 协作邀请 `/studio/collaboration` + `/accept`（**核实后端为空心功能，文案声明边界**） | ✅ `7efa0cb` |
 | 2N | `/studio/settings` + `/studio/assets` 核实（**结论：两个都不做**，均命中假缺口） | ✅ 见 §三·补11 |
 | 2N | 创作空间分类 `/studio/categories`（**非迁移：后端 CRUD 完整但 Legacy 从未做页面**） | ✅ `82f4740` |
-| 3A | 徽章成就 `/me/badges`（修正 Legacy 的「隐藏徽章」与凭空等级；**顺带推翻补3 的阅读历史结论**） | ✅ 见 §三·补12 |
-| 3? | P3 其余：`/me/growth`（**无雷，见 12.6**）、`/me/interests`、`/me/requests`、`/me/groups` | ⬜ 契约底稿见 §三·补13 |
+| 3A | 徽章成就 `/me/badges`（修正 Legacy 的「隐藏徽章」与凭空等级；**顺带推翻补3 的阅读历史结论**） | ✅ `8d1de83` |
+| 3B | 成长记录 `/me/growth`（五路聚合；**每区块独立三态**；修 `PendingAction.id` 潜伏类型错误 + href 死链） | ✅ 见 §三·补14 |
+| 3? | P3 其余：`/me/interests`、`/me/requests`、`/me/groups` | ⬜ 契约底稿见 §三·补13 |
 
 **优先级修正**（核实后）：
 - **Events 应上调到 P0** —— 唯一确认公开可读（200）的缺口，且用户侧可见度高。

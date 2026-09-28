@@ -67,6 +67,7 @@ import { MyMomentsPage } from "@/features/moments/pages/MyMomentsPage";
 import { MyLikesPage } from "@/features/me-activity/pages/MyLikesPage";
 import { MyCommentsPage } from "@/features/me-activity/pages/MyCommentsPage";
 import { AchievementBadgesPage } from "@/features/me-growth/pages/AchievementBadgesPage";
+import { GrowthPage } from "@/features/me-growth/pages/GrowthPage";
 import { MyReportsPage } from "@/features/moderation/pages/MyReportsPage";
 import { ReportDetailPage } from "@/features/moderation/pages/ReportDetailPage";
 import { NewReportPage } from "@/features/moderation/pages/NewReportPage";
@@ -341,6 +342,18 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <AchievementBadgesPage />
+            </RequireAuth>
+          }
+        />
+        {/* Phase 3B: 成长记录. Aggregates FIVE independent reads, each with its own
+            loading/error state so a partial failure is visible per section rather
+            than blanking the page. Reading history is `/me/reading-history` (which
+            exists) — NOT `/me/history` (which does not). See LEGACY-DELTA §三·补14. */}
+        <Route
+          path="/me/growth"
+          element={
+            <RequireAuth>
+              <GrowthPage />
             </RequireAuth>
           }
         />
