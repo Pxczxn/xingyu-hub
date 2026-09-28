@@ -1504,12 +1504,18 @@ POST 返回的就是**已入库的行**，所以无需重取。`prependFeedback`
 | `/account/status` | ⚪ **不做** —— 与 `/sessions` + `/me` **同源**；它唯一独有的 `getAccountStatus()` 给出 `status`/`canChangeEmail`/`canChangePassword`/`requiresReAuth`，而 `MeView` 已含 `email`/`emailVerified`/`mustChangePassword` | 端点存在（401），但页面信息**严格更弱** |
 | `/collections/public` | ⚪ **不做** —— **自相矛盾**：用 `getMyProfile()` 渲染出**当前用户**的头像/昵称，却叫「公开收藏」；且**严格更弱**于 `/collections/:id`（后者真能打开任意一个人的公开收藏夹）。**只筛自己的 PUBLIC 收藏夹**这一件事，`/me/collections` 已能做 | Legacy `public/page.tsx:17-21` |
 | `/share` | ⚪ **不做** —— 6 行**纯静态壳**，**0 次 API 调用**，正文就是「打开发现页，用页面上的分享按钮」+ 一个 `/discover` 链接 | Legacy `share/page.tsx` |
-| `/content/:type/:id/status` | ⚪ **不做** —— Legacy `app/` 下**无对应 page**（未实现） | 目录不存在 |
-| `/spaces/:slug` | ⚪ **不做** —— Legacy `app/` 下**无对应 page** | 目录不存在 |
-| `/comments/:id` | ⚪ **不做** —— Legacy `app/` 下**无对应 page**（评论详情是 `/articles/:id` 内的锚点/弹层） | 目录不存在 |
+| `/content/:type/:id/status` | ⚪ **不做** —— 页面**确实存在**（`app/content/[objectType]/[objectId]/status/page.tsx`，12 行），但它是 **`/studio/content` 的只读劣化视图**：只取 `listMyArticles()` 里那一行，把 `status` 渲染成时间线；无独立端点、无新数据 | 补19 复核（**本节原写「目录不存在」，是错的**） |
+| `/spaces/:slug` | ⚪ **不做** —— 页面**确实存在**（`app/spaces/[spaceSlug]/page.tsx`，301 行，真实调 `getSpaceWorks`），但与 V2 的 `/u/:p` **同源且后者严格更强**：两端返回**同一个 `SpaceWorksView` DTO**；区别只在查询键，而 `space.slug` 被后端**硬编码等于 username**（注册 `space.setSlug(normalizedUsername)`，改名 `space.setSlug(newUsername)`），故两串**恒等**；`/users/{u}/works` 还多了**用户名历史回退** | 补19 复核（**本节原写「目录不存在」，是错的**） |
+| `/comments/:id` | ⚪ **不做** —— 页面**确实存在**（`app/comments/[commentId]/page.tsx`，59 行，真实调 `getComment(id)`）；但它是**单条评论的永久链接**，正文就是「评论 + 查看原内容」按钮，而那个按钮指向的正是 V2 `me-activity.types.ts:50` 记录的目的地 —— **V2 的评论行直接链到原内容，与 Legacy 该页的落点一致** | 补19 复核（**本节原写「目录不存在」，是错的**） |
 
 → 结论：**这 7 条里只有 1 条是真缺口**（已交付），其余 6 条要么是前端拼装/静态壳，
-要么是 Legacy 自己也**没做的路由**。**又一次印证「清单是候选，调用点才是事实」。**
+要么是**同源劣化视图**。**又一次印证「清单是候选，调用点才是事实」。**
+
+> ⚠️ **补19 勘误（2026-09-28）**：本表原把 `/content/*`、`/spaces/:slug`、`/comments/:id`
+> 三条判为「Legacy `app/` 下无对应 page / 目录不存在」。**三条全是错的** —— 三个 page
+> 文件都真实存在。结论（不做）不变，但**理由必须换掉**：真正的理由是「同源劣化 / 落点一致」，
+> 而不是「Legacy 没做」。**这是一个新的教训：「目录不存在」这种断言，必须用 `test -f`
+> 逐个验，不能顺手写 —— 它和「路径字符串骗人」是同一类错误，只是方向相反。**
 
 ### 18.6 交付与验证
 
@@ -1527,6 +1533,91 @@ POST 返回的就是**已入库的行**，所以无需重取。`prependFeedback`
 - 全量：**175 文件 / 1868 测试全绿**；`tsc` 0 错；build 通过。
 - 入口放在 **footer**（与 `/guide`、`/rules` 同列），不进主导航 —— 低频动作。
 - **未验证**：登录态真机提交（图形验证码人工环节）。
+
+---
+
+## 三·补19 · Phase 3J 全路由 diff：**52 条 Legacy 独有路由的逐条结账**（2026-09-28）
+
+Legacy 已归档到 `archive/xingyu-web-legacy/`。归档不等于「已覆盖」，
+所以本轮做了一次**穷尽式路由对账**，作为「合并是否真的完成」的验收。
+
+### 19.1 方法
+
+```bash
+# 两侧路由表（Legacy: app/**/page.tsx 的目录路径；V2: routes.tsx 的 path 属性）
+# ⚠️ 参数名先归一化：:id / :slug / :articleId → :p
+#    否则 :id vs :slug 会制造大量假差异
+comm -23 legacy-n.txt v2-n.txt     # Legacy 134 → V2 91：52 条无对应
+```
+
+### 19.2 结账表（52 条全部有归属）
+
+| 类别 | 条数 | 处置 | 依据 |
+|---|---|---|---|
+| **A. 纯重定向**（Legacy 自己就是 `navigate()`） | 3 | ✅ V2 覆盖 | `/settings`→`redirects.tsx`；`/settings/privacy` `/settings/account` 合并进 `/settings/privacy` `/settings/profile` |
+| **B. `export { default } from` 别名**（1 行跳转桩） | 5 | ✅ V2 不需要 | `/events/:p/results`、`/reports/:p/submitted`、`/messages/:p/search` 等，指向的页 V2 已有 |
+| **C. 空态壳 / 静态壳**（0 API） | 5 | ⚪ 不做 | `/me/empty`、`/messages/empty`、`/share`、`/system/*` |
+| **D. 同源劣化视图**（真实页，但 V2 更强） | 4 | ⚪ 不做 | `/spaces/:slug`、`/content/:t/:id/status`、`/comments/:id`、`/collections/public` |
+| **E. 已由 V2 另一形状覆盖** | 3 | ✅ 覆盖 | `/me/collections/:p/edit`→`collectionsApi.update`；`/messages/groups/new`→`/me/groups` 内联建群；`/me/history`→`/me/bookshelf` + `/me/comments` |
+| **F. 活动专题页**（Legacy 硬编码某届活动） | 5 | ⚪ 不做 | `/events/starry/*`、`/events/future-book/rules` —— 一次性活动，非通用能力 |
+| **G. 设置子路由**（V2 用 5 页覆盖主干） | 16 | ⚪ 设计取舍 | 见 §19.3 |
+| **H. P4 系统页** | 6 | ⚪ 不做 | `/system/error|forbidden|maintenance|not-found|offline|rate-limited` |
+| **I. V2 已有等价物（路径不同）** | 5 | ✅ 覆盖 | `/help*`→`/guide*`；`/rankings`/`/categories`/`/features`→V2 首页聚合 |
+
+**结论：52 条里 0 条真缺口。** 16 条由 V2 覆盖，36 条有明确的「不做」理由。
+
+### 19.3 G 类细化：设置子路由为什么是「取舍」不是「缺失」
+
+关键发现：**`GET/PUT /api/v1/me/client-settings` 是一个无白名单的自由 blob**
+（`ClientSettingsService.updateSettings` 只做 merge，不做 key 校验）。
+Legacy 把 `notifications` / `preferences` / `appearance` / `searchHistory` 塞进这个 blob 做**双写**
+（localStorage + 服务端）。
+
+但**服务端自己只读三个键**：`readingHistoryEnabled`、`searchHistoryEnabled`、
+`personalizedRecommendationEnabled`（`ClientSettingsService` 里的三个 `isXxxEnabled`）。
+Legacy 写进去的 `notifications` / `preferences` / `appearance` **没有任何服务端逻辑消费**——
+它们只是「把一个 JSON 从 A 设备搬到 B 设备」。
+
+→ V2 的判断（`SettingsNav.tsx` 注释已记录）：**这三类偏好没有真正的服务端语义**，
+做一个纯搬运的 UI 只会让用户以为「设置了通知」而后端从不发通知。
+**这是"漂亮谎话"的镜像**：Legacy 给了开关，开关背面什么都不接。
+
+### 19.4 ⚠️ 本轮抓到的新错误（写进纪律）
+
+**「Legacy `app/` 下无对应 page」这个断言，本轮被证伪 3 次。**
+
+| 路由 | 旧理由（错） | 实际 |
+|---|---|---|
+| `/spaces/:slug` | 目录不存在 | **301 行真实页**，真调 `getSpaceWorks` |
+| `/content/:type/:id/status` | 未实现 | **12 行真实页**，真调 `listMyArticles` |
+| `/comments/:id` | 目录不存在 | **59 行真实页**，真调 `getComment` |
+
+三条的**结论**（不做）都对，但**理由全错**。修正后理由见 §18.5 表。
+
+> **教训**：这和我之前踩的「路径字符串骗人」是**同一类错误的反向**。
+> 之前是「清单里有 → 以为功能在」；这次是「清单里没有 → 以为页面不在」。
+> **两个方向都要用事实验**：
+> - 判「有没有后端能力」→ 读**调用点的函数体**
+> - 判「有没有页面」→ `test -f` **逐个验文件**，不要凭印象或凭清单缺席下结论
+
+### 19.5 唯一遗留的诚实提醒
+
+`archive/xingyu-web-legacy/public/prototype-assets/` 有 **276 个文件 / 22 MB**，
+但它们在 git 里**既不是已跟踪，也不显示为未跟踪** —— 因为 `.gitignore:154` 有一条
+**显式的项目策略**：`prototype-assets/`（属「原型 / QA 临时资产」组，与 `mockup/`、
+`wireframe/`、`figma/` 同列）。
+
+```
+.gitignore:154:prototype-assets/    ← 全部被忽略
+git ls-files .../prototype-assets   → 0
+find     .../prototype-assets -type f → 276
+```
+
+**判定：这是既有的有意排除，不是归档造成的丢失。** 归档用的是 `git mv`，只搬已跟踪文件，
+对这份被忽略的目录**既没增也没减**。它在本机磁盘上是完整的一份（且当前只有这一份副本）。
+
+→ **提醒（非缺陷）**：若这些原型素材仍需保留，应**单独备份**；它们不在任何远端历史里，
+一次 `git clean -fdx` 就会永久删除。若确认已无用，可连同 `.gitignore` 该行一并清理。
 
 ---
 
