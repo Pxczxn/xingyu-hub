@@ -7,7 +7,9 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(fileURLToPath(import.meta.url), "..", "..");
-const WEB = join(ROOT, "xingyu-web");
+// Legacy 用户端已于 2026-09-28 归档到 archive/xingyu-web-legacy（见 archive/README.md）。
+// 本扫描器保留对它的读取，因为这份 inventory 仍要能回答「Legacy 当时有哪些页面」。
+const WEB = join(ROOT, "archive", "xingyu-web-legacy");
 const BACKEND = join(ROOT, "xingyu-backend");
 const SQL_DIR = join(ROOT, "sql");
 
