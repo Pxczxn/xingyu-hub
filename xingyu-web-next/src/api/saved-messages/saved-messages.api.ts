@@ -21,6 +21,18 @@ export const savedMessagesApi = {
    *
    * BARE ARRAY. `limit` is clamped to 1..100 server-side; the endpoint default
    * is 50. Requesting more than 100 is silently capped, not an error.
+   *
+   * ⚠️ ALL-OR-NOTHING FAILURE MODE (backend limitation, verified 2026-09-28).
+   * `SavedMessageService.listSaved` maps every row through `toView`, which
+   * throws NOT_FOUND when the underlying message OR its conversation row is
+   * gone — and messages are HARD-deleted (no `deleted` column on ChatMessage).
+   * So deleting ONE bookmarked message turns the ENTIRE list into a 404: the
+   * user cannot see any of their remaining bookmarks.
+   *
+   * There is no client-side fix — the endpoint never sends the surviving rows.
+   * The only honest thing the UI can do is render the 404 as an ERROR rather
+   * than as an empty list, so it never reads as 「你没有收藏」. Callers must not
+   * swallow this into `[]`.
    */
   list: async (limit: number = SAVED_MESSAGE_LIMIT): Promise<SavedMessageView[]> =>
     toSavedMessages(
