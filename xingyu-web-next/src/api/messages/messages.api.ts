@@ -1,5 +1,6 @@
 import { apiRequest } from "@/api/client";
 import {
+  GROUP_JOIN_REQUEST_LIMIT,
   newClientMessageId,
   toConversations,
   toMessages,
@@ -9,6 +10,7 @@ import {
   type ConversationType,
   type MessagePage,
   type MessageType,
+  type MyGroupJoinRequest,
   type SendMessagePayload,
 } from "./messages.types";
 
@@ -29,6 +31,10 @@ import {
  *
  * Group administration, join requests and saved messages are still absent; see
  * the types header for the deferred set.
+ *
+ * EXCEPTION (Phase 3C): `listMyGroupJoinRequests` IS here. It is the applicant's
+ * own read-only view (`/me/group-join-requests`). The OWNER-side admin queue
+ * (approve/reject) remains absent, and that is a scope decision, not an oversight.
  */
 export const messagesApi = {
   /** The mailbox. Mapper already sorts `updated_at DESC` — do not re-sort. */
@@ -198,4 +204,23 @@ export const messagesApi = {
       await apiRequest<ChatMessage[]>(`/api/v1/messages/search?${params.toString()}`),
     );
   },
+
+  /**
+   * The group join requests the CALLER has submitted (Phase 3C).
+   *
+   * `GET /api/v1/me/group-join-requests?limit=20` — a BARE ARRAY, capped at 100
+   * server-side. This is the applicant's own view; the owner's approve/reject
+   * queue is a different endpoint (`/messages/group/{id}/join-requests`) and is
+   * deliberately not exposed here.
+   *
+   * ⚠️ The returned rows are `MyGroupJoinRequestView`, NOT `GroupJoinRequestView`.
+   * See the type's doc comment — the two look alike and the wrong one silently
+   * loses `conversationTitle` and `resolvedAt`.
+   */
+  listMyGroupJoinRequests: async (
+    limit: number = GROUP_JOIN_REQUEST_LIMIT,
+  ): Promise<MyGroupJoinRequest[]> =>
+    apiRequest<MyGroupJoinRequest[]>(
+      `/api/v1/me/group-join-requests?limit=${encodeURIComponent(String(limit))}`,
+    ),
 };

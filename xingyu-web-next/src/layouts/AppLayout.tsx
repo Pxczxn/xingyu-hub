@@ -277,6 +277,11 @@ export function AppLayout() {
                 <Link to="/me/growth" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
                   成长
                 </Link>
+                {/* Phase 3C: 关系请求. Only group join requests can appear here
+                    (following is open, so no follow request exists). Session-scoped. */}
+                <Link to="/me/requests" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+                  关系请求
+                </Link>
                 {/* Phase 2J-2: 举报与申诉. Session-scoped like the rest of this
                     branch. The public 社区规则 link stays in the footer next to
                     the other informational links. */}

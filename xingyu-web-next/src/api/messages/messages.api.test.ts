@@ -160,11 +160,16 @@ describe("messagesApi.recallMessage", () => {
 });
 
 describe("messagesApi surface", () => {
-  it("exposes the send/receive core plus attachments and search, with group admin absent", () => {
-    // 2I-3b added upload wiring, /media, /files and /search. Group
-    // administration (members/announcement/join-requests/leave/remove-member)
-    // and /me/saved-messages are still deliberately not here — that is the
-    // boundary this assertion keeps.
+  it("exposes the send/receive core plus attachments, search and the applicant's join requests", () => {
+    // 2I-3b added upload wiring, /media, /files and /search. Phase 3C added
+    // `listMyGroupJoinRequests` — the APPLICANT's own view.
+    //
+    // Still deliberately absent (the boundary this assertion keeps):
+    //   - group ADMINISTRATION: members / announcement / join-request
+    //     approve+reject / leave / remove-member. `listMyGroupJoinRequests` is
+    //     NOT that: it reads `/me/group-join-requests` (who I asked), while the
+    //     admin queue is `/messages/group/{id}/join-requests` (who asked me).
+    //   - `/me/saved-messages`.
     expect(Object.keys(messagesApi)).toEqual([
       "listConversations",
       "getDirect",
@@ -179,7 +184,17 @@ describe("messagesApi surface", () => {
       "listMedia",
       "listFiles",
       "search",
+      "listMyGroupJoinRequests",
     ]);
+  });
+
+  it("still has no group-admin writes, even though the applicant read was added", () => {
+    // Guards the distinction the previous test explains: approving/rejecting is
+    // an owner capability and must not sneak in alongside the applicant read.
+    const keys = Object.keys(messagesApi);
+    for (const admin of ["approveJoinRequest", "rejectJoinRequest", "leaveGroup", "removeMember"]) {
+      expect(keys).not.toContain(admin);
+    }
   });
 });
 
@@ -305,5 +320,66 @@ describe("messagesApi.search", () => {
     mocked.mockResolvedValue([]);
     await messagesApi.search("x", 10);
     expect(mocked).toHaveBeenCalledWith("/api/v1/messages/search?q=x&limit=10");
+  });
+});
+
+describe("messagesApi.listMyGroupJoinRequests", () => {
+  it("reads the caller's OWN requests from /me, as a bare array", async () => {
+    const rows = [
+      {
+        id: "r1",
+        conversationId: "g1",
+        conversationTitle: "读书会",
+        joinMode: "APPROVAL",
+        message: "想加入",
+        status: "PENDING",
+        createdAt: "2026-09-01T10:00:00Z",
+        resolvedAt: null,
+      },
+    ];
+    mocked.mockResolvedValue(rows);
+    await expect(messagesApi.listMyGroupJoinRequests()).resolves.toEqual(rows);
+    expect(mocked).toHaveBeenCalledWith("/api/v1/me/group-join-requests?limit=20");
+  });
+
+  it("passes an explicit limit through", async () => {
+    mocked.mockResolvedValue([]);
+    await messagesApi.listMyGroupJoinRequests(50);
+    expect(mocked).toHaveBeenCalledWith("/api/v1/me/group-join-requests?limit=50");
+  });
+
+  it("hits /me/group-join-requests, NOT the owner-side /messages/group/{id} queue", async () => {
+    // Two different audiences: the applicant's own view vs the owner's
+    // approve/reject queue. The latter is deliberately out of scope.
+    mocked.mockResolvedValue([]);
+    await messagesApi.listMyGroupJoinRequests();
+    const [url] = mocked.mock.calls[0] as [string];
+    expect(url).toContain("/me/group-join-requests");
+    expect(url).not.toContain("/messages/group/");
+  });
+
+  it("issues a GET — no method override", async () => {
+    mocked.mockResolvedValue([]);
+    await messagesApi.listMyGroupJoinRequests();
+    const [, options] = mocked.mock.calls[0] as [string, unknown];
+    expect(options).toBeUndefined();
+  });
+
+  it("returns the applicant-shaped row unchanged (title + resolvedAt survive)", async () => {
+    // The MyGroupJoinRequestView fields. If someone swaps in the owner-side
+    // GroupJoinRequestView, these two would be undefined.
+    mocked.mockResolvedValue([
+      {
+        id: "r1",
+        conversationId: "g1",
+        conversationTitle: "读书会",
+        status: "APPROVED",
+        createdAt: "2026-09-01T10:00:00Z",
+        resolvedAt: "2026-09-02T10:00:00Z",
+      },
+    ]);
+    const [row] = await messagesApi.listMyGroupJoinRequests();
+    expect(row.conversationTitle).toBe("读书会");
+    expect(row.resolvedAt).toBe("2026-09-02T10:00:00Z");
   });
 });
