@@ -1,5 +1,7 @@
 > **设计基线 / 视觉参考（Legacy Web）**
-> 本文档记录 Legacy Web（`xingyu-web`）中已通过代码验证的设计基线，同时作为后续 Web 重构的视觉参考。
+> 本文档记录 Legacy Web 中已通过代码验证的设计基线，同时作为后续 Web 重构的视觉参考。
+> **（2026-09-28）** Legacy Web 已归档为 `archive/xingyu-web-legacy/`（见 `archive/README.md`）。
+> 本文所引证据路径按 `archive/xingyu-web-legacy/...` 理解；文档本身继续有效。
 > 它是「设计基线 / 视觉参考」，不是「旧路由架构必须照搬」——后续重构可沿用品牌色与基础 UI 原则，但不必复制 Legacy 的路由 / 目录结构。
 
 # Xingyu Community Design System
