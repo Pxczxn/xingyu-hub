@@ -38,6 +38,8 @@ import { MomentDetailPage } from "@/features/moments/pages/MomentDetailPage";
 import { StudioPage } from "@/features/studio/pages/StudioPage";
 import { MySubmissionsPage } from "@/features/studio/pages/MySubmissionsPage";
 import { SubmissionDetailPage } from "@/features/studio/pages/SubmissionDetailPage";
+import { ArticleVersionsPage } from "@/features/studio/pages/ArticleVersionsPage";
+import { StudioAnalyticsPage } from "@/features/studio/pages/StudioAnalyticsPage";
 import { SeriesListPage } from "@/features/series/pages/SeriesListPage";
 import { SeriesNewPage } from "@/features/series/pages/SeriesNewPage";
 import { SeriesEditPage } from "@/features/series/pages/SeriesEditPage";
@@ -531,6 +533,25 @@ export function AppRoutes() {
           <Route path="/settings/blocks" element={<SettingsBlocksPage />} />
           <Route path="/settings/api-tokens" element={<SettingsApiTokensPage />} />
         </Route>
+
+        {/* Phase 2L: version history and analytics. Both are owner-only views of
+            data the API already exposes (listRevisions / me/insights). */}
+        <Route
+          path="/studio/analytics"
+          element={
+            <RequireAuth>
+              <StudioAnalyticsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/studio/content/:articleId/versions"
+          element={
+            <RequireAuth>
+              <ArticleVersionsPage />
+            </RequireAuth>
+          }
+        />
 
         {/* Phase 1C-1: editor. One route covers both "existing draft" and
             "new article" (Legacy used the same magic `new` id). */}

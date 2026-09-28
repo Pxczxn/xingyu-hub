@@ -21,6 +21,7 @@ import type {
   ArticleDraft,
   ArticleDraftSavePayload,
   ArticleLifecycleStatus,
+  ArticleRevision,
   ArticleSubmission,
   MyArticleSummary,
 } from "./articles.types";
@@ -82,4 +83,35 @@ export const articlesApi = {
     const found = list.find((article) => article.id === articleId);
     return found ? normalizeLifecycleStatus(found.status) : null;
   },
+
+  /**
+   * Version history for one of my articles (Phase 2L).
+   *
+   * ⚠️ FORMAL revisions only — see the note on `ArticleRevision` in
+   * articles.types.ts. A never-published draft legitimately returns `[]`.
+   * `requireOwnedArticle` runs first, so a non-owner or unknown id is 404.
+   */
+  listRevisions: (articleId: string): Promise<ArticleRevision[]> =>
+    apiRequest<ArticleRevision[]>(
+      `/api/v1/me/articles/${encodeURIComponent(articleId)}/revisions`,
+    ),
+
+  /**
+   * Restores a formal revision INTO the working draft (Phase 2L).
+   *
+   * This does not create a new article or a new revision — it overwrites the
+   * draft's title/summary/cover/body/visibility and bumps `lockVersion`.
+   *
+   * Backend rejects with **409 CONFLICT 「文章当前不可恢复版本」** unless
+   * `canEditDraft(article)`: ACTIVE lifecycle AND NORMAL moderation AND NOT
+   * IN_REVIEW. So a published-but-ACTIVE article CAN be restored (this is the
+   * normal "roll back my published piece" flow), while a piece sitting in the
+   * review queue cannot. The UI hides the control outside that window rather
+   * than rendering a button that always 409s.
+   */
+  restoreRevision: (articleId: string, revisionId: string): Promise<ArticleDraft> =>
+    apiRequest<ArticleDraft>(
+      `/api/v1/me/articles/${encodeURIComponent(articleId)}/revisions/${encodeURIComponent(revisionId)}/restore`,
+      { method: "POST" },
+    ),
 };
