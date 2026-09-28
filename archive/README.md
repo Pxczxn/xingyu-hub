@@ -30,12 +30,8 @@ V2 已补齐 Legacy 拥有的全部真实能力，因此 Legacy 从「增量迁�
 
 - **已跟踪文件 407 个**，全部用 `git mv` 移入本目录，历史可用
   `git log --follow` 追溯，不是复制。
-- **`public/` 286 个文件在磁盘上，但只有 10 个进过 git**（`brand/`、`images/`）。
-  其余 276 个在 `public/prototype-assets/` 下，被根 `.gitignore`
-  第 154 行 `prototype-assets/` 全局忽略，**从未被跟踪**。
-  它们**只存在于本地磁盘**——`git mv` 不会删除磁盘内容，所以移动后仍在
-  `public/prototype-assets/` 原位。**这是这批原型的唯一副本**，
-  若需长期留存须单独备份（它们不在任何 commit 里）。
+- **`public/` 286 个文件中，10 个原本已被 Git 跟踪，另外 276 个原型资源曾被根 `.gitignore` 忽略。
+  本次合并已将这 276 个被 Legacy 页面实际引用的资源纳入 Git，现可从全新克隆恢复。
 - **无 CI、无 Dockerfile、无部署脚本**引用本目录；根目录也没有 `package.json`。
   归档它不会让任何流水线失败。
 
@@ -57,12 +53,9 @@ V2 已补齐 Legacy 拥有的全部真实能力，因此 Legacy 从「增量迁�
 ### 如果想彻底删除它
 
 先确认两件事，再动手：
-
-1. **`public/prototype-assets/` 的 276 个文件是否有别处副本。** 没有的话，
-   删除即永久丢失（见上）。
+1. **确认是否仍需保留 Legacy 归档及其 276 个原型资源。** 删除后将无法恢复归档页面素材。
 2. **确认不再需要回答「Legacy 怎么做的」这类取证问题。**
    `docs/codebase/LEGACY-DELTA.md` 是当时的差异清点，但它是**结论**，
    不是**证据**——证据在这个目录里。
-
 删除本身是一行 `git rm -r archive/xingyu-web-legacy`，不需要本目录之外
 任何改动（前提是上面的工具脚本已经改完或确认不再运行）。
