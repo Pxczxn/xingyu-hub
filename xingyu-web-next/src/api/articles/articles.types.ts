@@ -107,6 +107,26 @@ export type MyArticleSummary = {
 };
 
 /*
+ * Trash (Phase 3G) — mirrors backend `TrashItemView` field for field:
+ *   objectType, objectId, title, trashedAt
+ *
+ * ⚠️ The trash list is HETEROGENEOUS: `objectType` is not always "ARTICLE".
+ * `TrashService.listForOwner` reads a shared `trash_item` table that other
+ * object kinds can write to, so the UI must filter/branch on `objectType`
+ * rather than assuming every row is an article. The row's restore endpoint is
+ * article-specific (`POST /me/articles/{id}/restore`), so a non-article row has
+ * no working restore action here.
+ *
+ * ⚠️ `title` is nullable in the DB — a trashed shell may have `null`.
+ */
+export type TrashItem = {
+  objectType: string;
+  objectId: string;
+  title: string | null;
+  trashedAt: string;
+};
+
+/*
  * Version history (Phase 2L) — mirrors backend `ArticleRevisionView`.
  *
  * ⚠️ read `listRevisions` in ArticleService before trusting the name: it queries

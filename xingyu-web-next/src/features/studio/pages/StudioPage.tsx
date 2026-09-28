@@ -3,9 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/features/auth/auth.store";
 
 /**
- * Creation studio — workbench skeleton (Phase 0).
+ * Creation studio — entry hub.
  * Access is protected by the RequireAuth guard in the router, so this page is
- * only rendered for authenticated users. No article editor is migrated yet.
+ * only rendered for authenticated users.
+ *
+ * Phase 3G removed the last placeholder here. The article editor was shipped in
+ * Phase 1C, but nothing linked to it — this hub pointed at a dead "已发布占位"
+ * string because `/studio/content` (the list route) did not exist. That route
+ * now exists, so the hub offers real entries: 新建文章 / 我的内容 / 我的系列.
  */
 export function StudioPage() {
   const { user } = useAuth();
@@ -21,11 +26,19 @@ export function StudioPage() {
             {user?.username ? `${user.username}，欢迎回来。` : "欢迎回来。"}
           </p>
           <p className="text-sm text-muted-foreground">
-            工作台占位 — 草稿、已发布与审核状态将在后续阶段接入。
+            在这里管理你的文章、系列与投稿。
           </p>
-          <Link to="/studio/series" className="text-sm text-accent hover:underline">
-            我的系列
-          </Link>
+          <div className="mt-1 flex flex-wrap gap-3">
+            <Link to="/studio/content/new" className="text-sm text-accent hover:underline">
+              新建文章
+            </Link>
+            <Link to="/studio/content" className="text-sm text-accent hover:underline">
+              我的内容
+            </Link>
+            <Link to="/studio/series" className="text-sm text-accent hover:underline">
+              我的系列
+            </Link>
+          </div>
         </CardContent>
       </Card>
 
@@ -40,10 +53,14 @@ export function StudioPage() {
         </Card>
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground">
-            {/* Still a placeholder on purpose: /studio/content has no LIST route
-                (only /studio/content/:articleId exists), so there is nowhere
-                honest to send the user yet. A link here would 404. */}
-            已发布占位
+            {/* Phase 3G: was a dead "已发布占位" string because /studio/content had
+                no LIST route. That route now exists, so this card links to it.
+                The trash lives inside the content page as a tab — the owner list
+                endpoint and GET /me/trash are separate, so it is not a filter. */}
+            <Link to="/studio/content" className="text-accent hover:underline">
+              内容管理
+            </Link>
+            <p className="mt-1">按状态查看全部文章，也可以移入回收站或恢复。</p>
           </CardContent>
         </Card>
         <Card>
