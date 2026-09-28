@@ -50,9 +50,10 @@ describe("myCommentsApi", () => {
 });
 
 describe("no /me/history client exists", () => {
-  it("does not expose a history reader, because the backend has no such route", () => {
-    // Guards against someone "helpfully" adding one later: the endpoint 500s
-    // (no handler, no matching guard), so a client for it can only ever fail.
+  it("does not expose a client for the non-existent /me/history route", () => {
+    // `GET /me/history` 500s (no handler, no matching guard). NOTE this is NOT
+    // the reading-history endpoint: that one is `/me/reading-history`, it DOES
+    // exist (401), and it is not this module's concern.
     expect(Object.keys(myLikesApi)).not.toContain("history");
     expect(Object.keys(myLikesApi)).not.toContain("listHistory");
   });
