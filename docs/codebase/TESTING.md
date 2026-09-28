@@ -19,8 +19,8 @@ mvn -pl xingyu-starter -am test
 cd xingyu-web-next && npm test          # vitest run
 cd xingyu-web-next && npm run test:watch
 
-# Legacy web
-cd xingyu-web && npm test
+# Legacy web — ARCHIVED 2026-09-28; not built, not tested. Kept out on purpose.
+# (was: cd xingyu-web && npm test)
 
 # Admin audit tests (not full UI suite)
 cd xingyu-admin && npm run test:audit
@@ -65,7 +65,7 @@ cd xingyu-admin && npm run test:audit
   - Uni-app untested
   - Admin UI untested (only audit node tests)
   - Product-complete E2E absent
-  - Scan listed TODOs in `xingyu-web/app/page.tsx` (unreadCount / onboarding) as production stubs, not tests
+  - Scan listed TODOs in `archive/xingyu-web-legacy/app/page.tsx` (unreadCount / onboarding) as production stubs, not tests
   - High-churn frontend router/tests (`docs/codebase/.codebase-scan.txt` HIGH-CHURN)
 
 ### 6) Evidence

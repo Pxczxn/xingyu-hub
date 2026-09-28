@@ -1,5 +1,10 @@
 # Legacy `xingyu-web` 差异清点（Task #4 前置）
 
+> **状态（2026-09-28 更新）**：本文写作时的 `xingyu-web/` 已归档为
+> `archive/xingyu-web-legacy/`（见 `archive/README.md`）。文中所有 `xingyu-web/...`
+> 路径在阅读时按 `archive/xingyu-web-legacy/...` 理解。本文是**当时的结论快照**，
+> 未逐行回改路径，以保留决策时的原始证据。
+
 > 清点日期：2026-09-27 · 基线：`xingyu-web-next` @ `948c0a6`
 > 目的：决定 Legacy 如何处置前，先弄清 **V2 到底还缺什么**。
 > 方法：路由 diff（`app/**/page.tsx` vs `routes.tsx`）+ 逐页 API 引用数统计 + 活体端点探测 + 抽样读源码。
