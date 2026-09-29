@@ -133,17 +133,26 @@ function renderAt(path: string) {
 }
 
 describe("router", () => {
-  it("renders the Home skeleton at /", () => {
+  it("renders the Home feed skeleton at /", async () => {
     renderAt("/");
-    expect(screen.getByRole("heading", { name: "社区公告" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "为你推荐" })).toBeInTheDocument();
+    // The feed switcher is the page's primary control. 最新 is deliberately
+    // absent — there is no chronological "latest content" endpoint to back it.
+    expect(screen.getByRole("tab", { name: "推荐" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "关注" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "最新" })).not.toBeInTheDocument();
+    // Every mocked payload is empty: the feed degrades to its empty state and the
+    // non-critical rail renders nothing at all (no placeholder boxes).
+    await waitFor(() => expect(screen.getByTestId("section-empty")).toBeInTheDocument());
+    expect(screen.queryByRole("heading", { name: "社区公告" })).not.toBeInTheDocument();
   });
 
-  it("renders the login page at /login", () => {
+  it("renders the login page at /login", async () => {
     renderAt("/login");
-    expect(screen.getByRole("heading", { name: "登录星语" })).toBeInTheDocument();
-    expect(screen.getByLabelText("账号")).toBeInTheDocument();
-    expect(screen.getByLabelText("密码")).toBeInTheDocument();
+    // P1-1: every feature page is lazy(), so the first commit is the Suspense
+    // fallback — the form only exists once the chunk resolves.
+    expect(await screen.findByRole("heading", { name: "登录星语" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("账号")).toBeInTheDocument();
+    expect(await screen.findByLabelText("密码")).toBeInTheDocument();
   });
 
   it("renders the real article page at /articles/:articleId", async () => {
@@ -222,19 +231,19 @@ describe("legacy redirect table", () => {
 describe("phase 1A routes", () => {
   it("renders the discover page at /discover", async () => {
     renderAt("/discover");
-    expect(screen.getByRole("heading", { name: "发现" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "发现" })).toBeInTheDocument();
     // Wait for the (mocked, empty) feed so no state update lands after the test.
     await waitFor(() => expect(screen.getByTestId("page-state-empty")).toBeInTheDocument());
   });
 
-  it("renders the search page at /search", () => {
+  it("renders the search page at /search", async () => {
     renderAt("/search");
-    expect(screen.getByRole("search")).toBeInTheDocument();
+    expect(await screen.findByRole("search")).toBeInTheDocument();
   });
 
   it("renders the topics plaza at /topics", async () => {
     renderAt("/topics");
-    expect(screen.getByRole("heading", { name: "话题广场" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "话题广场" })).toBeInTheDocument();
     // Wait for the (mocked, empty) topics request so no state update lands after the test.
     await waitFor(() => expect(screen.getByTestId("page-state-empty")).toBeInTheDocument());
   });
@@ -246,18 +255,18 @@ describe("phase 1A routes", () => {
     });
   });
 
-  it("renders the register page at /register", () => {
+  it("renders the register page at /register", async () => {
     renderAt("/register");
-    expect(screen.getByRole("heading", { name: "注册星语" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "注册星语" })).toBeInTheDocument();
   });
 
-  it("renders the forgot-password page", () => {
+  it("renders the forgot-password page", async () => {
     renderAt("/forgot-password");
-    expect(screen.getByRole("heading", { name: "找回密码" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "找回密码" })).toBeInTheDocument();
   });
 
-  it("renders the pending-audit page", () => {
+  it("renders the pending-audit page", async () => {
     renderAt("/register/pending-audit?registered=1");
-    expect(screen.getByRole("heading", { name: "注册已提交" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "注册已提交" })).toBeInTheDocument();
   });
 });

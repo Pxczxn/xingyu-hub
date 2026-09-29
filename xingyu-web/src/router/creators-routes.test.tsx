@@ -106,7 +106,9 @@ describe("phase 2K-1 route resolution", () => {
   it("routes /creators to the aggregated creators page", async () => {
     renderAt("/creators", true);
     expect(await screen.findByRole("heading", { name: /推荐作者/ })).toBeInTheDocument();
-    expect(screen.getByLabelText("推荐作者列表")).toBeInTheDocument();
+    // P1-1: the list renders only after the topics API resolves, so it needs an
+    // async query even though the heading above is already in the DOM.
+    expect(await screen.findByLabelText("推荐作者列表")).toBeInTheDocument();
   });
 
   it("renders the creator aggregated from the topic API", async () => {
