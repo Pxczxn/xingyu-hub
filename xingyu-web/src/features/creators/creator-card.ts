@@ -57,7 +57,7 @@ export function creatorInitial(creator: CreatorCard): string {
  * without rendering the page.
  */
 export function mergeCreatorRows(
-  rows: Array<{ topic: TopicSummary; creators: TopicCreatorSummary[] }>
+  rows: Array<{ topic: TopicSummary; creators: TopicCreatorSummary[] }>,
 ): Array<TopicCreatorSummary & { topics: string[] }> {
   const grouped = new Map<string, TopicCreatorSummary & { topics: string[] }>();
   for (const { topic, creators } of rows) {
@@ -91,7 +91,7 @@ export function mergeCreatorRows(
 export function filterCreators(
   creators: CreatorCard[],
   activeTopic: string,
-  query: string
+  query: string,
 ): CreatorCard[] {
   const needle = query.trim().toLowerCase();
   return creators.filter((creator) => {

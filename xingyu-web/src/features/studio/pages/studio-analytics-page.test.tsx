@@ -152,4 +152,3 @@ describe("studio analytics page", () => {
     }
   });
 });
-

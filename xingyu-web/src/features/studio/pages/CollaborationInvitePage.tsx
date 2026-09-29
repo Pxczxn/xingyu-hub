@@ -112,9 +112,7 @@ export function CollaborationInvitePage() {
 
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-primary">邀请协作</h1>
-        <p className="text-sm text-muted-foreground">
-          生成一条邀请链接，发给你想一起创作的人。
-        </p>
+        <p className="text-sm text-muted-foreground">生成一条邀请链接，发给你想一起创作的人。</p>
       </header>
 
       {/* The boundary notice sits ABOVE the form, not below it: the user should
@@ -192,9 +190,7 @@ export function CollaborationInvitePage() {
             </div>
 
             {state.invite.note?.trim() ? (
-              <p className="text-sm text-muted-foreground">
-                备注：{state.invite.note}
-              </p>
+              <p className="text-sm text-muted-foreground">备注：{state.invite.note}</p>
             ) : null}
 
             <p className="text-xs text-muted-foreground">
@@ -257,4 +253,3 @@ export function CollaborationInvitePage() {
     </div>
   );
 }
-

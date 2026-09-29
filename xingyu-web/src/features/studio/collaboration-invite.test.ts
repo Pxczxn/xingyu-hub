@@ -20,7 +20,9 @@ describe("inviterDisplayName", () => {
   });
 
   it("falls back to the username", () => {
-    expect(inviterDisplayName({ inviterUsername: "alice", inviterDisplayName: null })).toBe("alice");
+    expect(inviterDisplayName({ inviterUsername: "alice", inviterDisplayName: null })).toBe(
+      "alice",
+    );
   });
 
   it("falls back to a neutral phrase when both are absent", () => {
@@ -119,7 +121,9 @@ describe("the acceptance boundary disclosure", () => {
 
 describe("acceptedHeadline", () => {
   it("names the inviter", () => {
-    expect(acceptedHeadline({ accepted: true, inviterUsername: "alice" })).toBe("已确认 alice 的邀请");
+    expect(acceptedHeadline({ accepted: true, inviterUsername: "alice" })).toBe(
+      "已确认 alice 的邀请",
+    );
   });
 
   it("says 已确认 rather than 已加入协作", () => {

@@ -141,24 +141,25 @@ export function OnboardingPage() {
     try {
       await action();
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.problem.detail || err.problem.title : "保存失败，请稍后重试。");
+      setSaveError(
+        err instanceof ApiError
+          ? err.problem.detail || err.problem.title
+          : "保存失败，请稍后重试。",
+      );
     } finally {
       pendingRef.current = false;
       setPending(false);
     }
   }, []);
 
-  const patchOnboarding = useCallback(
-    async (payload: OnboardingPatch) => {
-      const data = await onboardingApi.update(payload);
-      setState(data);
-      if (payload.interestsJson !== undefined) {
-        setSelectedInterests(parseInterestsJson(payload.interestsJson));
-      }
-      return data;
-    },
-    [],
-  );
+  const patchOnboarding = useCallback(async (payload: OnboardingPatch) => {
+    const data = await onboardingApi.update(payload);
+    setState(data);
+    if (payload.interestsJson !== undefined) {
+      setSelectedInterests(parseInterestsJson(payload.interestsJson));
+    }
+    return data;
+  }, []);
 
   const finish = useCallback(async () => {
     const data = await patchOnboarding({ completed: true });
@@ -191,13 +192,7 @@ export function OnboardingPage() {
   };
 
   if (loadError) {
-    return (
-      <PageState
-        kind="error"
-        title="无法加载入门引导"
-        description="请稍后重试。"
-      />
-    );
+    return <PageState kind="error" title="无法加载入门引导" description="请稍后重试。" />;
   }
 
   if (!state) {
@@ -220,7 +215,9 @@ export function OnboardingPage() {
     return (
       <section className="mx-auto max-w-lg space-y-4">
         <h1 className="text-xl font-semibold text-primary">入门状态异常</h1>
-        <p className="text-sm text-muted-foreground">当前步骤无法识别。请重新读取入门状态，不会猜测或写回未知步骤。</p>
+        <p className="text-sm text-muted-foreground">
+          当前步骤无法识别。请重新读取入门状态，不会猜测或写回未知步骤。
+        </p>
         <Button type="button" onClick={() => load()}>
           重新读取
         </Button>
@@ -265,7 +262,9 @@ export function OnboardingPage() {
             className="mt-4"
             variant="accent"
             disabled={pending}
-            onClick={() => void run(() => patchOnboarding({ step: "INTERESTS" }).then(() => undefined))}
+            onClick={() =>
+              void run(() => patchOnboarding({ step: "INTERESTS" }).then(() => undefined))
+            }
           >
             {pending ? "跳转中…" : "开始设置"}
           </Button>
@@ -279,7 +278,11 @@ export function OnboardingPage() {
             选择你想记录的领域与兴趣。这些标签只保存在入门资料里，不会改变推荐结果。
           </p>
 
-          <div className="mt-4 flex gap-1 overflow-x-auto pb-2" role="tablist" aria-label="兴趣领域">
+          <div
+            className="mt-4 flex gap-1 overflow-x-auto pb-2"
+            role="tablist"
+            aria-label="兴趣领域"
+          >
             {INTEREST_DOMAINS.map((domain) => (
               <button
                 key={domain.id}
@@ -316,7 +319,9 @@ export function OnboardingPage() {
                     )}
                     onClick={() =>
                       setSelectedInterests((prev) =>
-                        prev.includes(interest) ? prev.filter((item) => item !== interest) : [...prev, interest],
+                        prev.includes(interest)
+                          ? prev.filter((item) => item !== interest)
+                          : [...prev, interest],
                       )
                     }
                   >
@@ -386,11 +391,10 @@ export function OnboardingPage() {
             event.preventDefault();
             void run(async () => {
               if (profileLoaded) {
-                const payload = buildOnboardingProfilePatch(
-                  lockVersion,
-                  profileBaseline,
-                  { displayName, bio },
-                );
+                const payload = buildOnboardingProfilePatch(lockVersion, profileBaseline, {
+                  displayName,
+                  bio,
+                });
                 if (payload) {
                   const saved = await usersApi.updateMyProfile(payload);
                   setLockVersion(saved.lockVersion ?? lockVersion + 1);
@@ -444,7 +448,9 @@ export function OnboardingPage() {
             className="mt-4"
             variant="accent"
             disabled={pending}
-            onClick={() => void run(() => patchOnboarding({ step: "PROFILE" }).then(() => undefined))}
+            onClick={() =>
+              void run(() => patchOnboarding({ step: "PROFILE" }).then(() => undefined))
+            }
           >
             {pending ? "跳转中…" : "跳过"}
           </Button>
@@ -486,4 +492,3 @@ export function OnboardingPage() {
     </section>
   );
 }
-

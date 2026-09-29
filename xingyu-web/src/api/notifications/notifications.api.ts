@@ -28,10 +28,9 @@ export const notificationsApi = {
    * assume success.
    */
   markRead: (notificationId: string): Promise<Notification> =>
-    apiRequest<Notification>(
-      `/api/v1/notifications/${encodeURIComponent(notificationId)}/read`,
-      { method: "PATCH" },
-    ),
+    apiRequest<Notification>(`/api/v1/notifications/${encodeURIComponent(notificationId)}/read`, {
+      method: "PATCH",
+    }),
 
   /** Marks every unread notification read. Answers 204 -> resolves to undefined. */
   markAllRead: (): Promise<void> =>

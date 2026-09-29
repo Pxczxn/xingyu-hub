@@ -125,7 +125,11 @@ describe("AttachmentPicker — the two-step send", () => {
     const calls: string[] = [];
     mockedFiles.uploadFile.mockImplementation(async () => {
       calls.push("upload");
-      return { url: "/api/v1/admin/files/community/messages/a.png", name: "照片.png", mimeType: "image/png" };
+      return {
+        url: "/api/v1/admin/files/community/messages/a.png",
+        name: "照片.png",
+        mimeType: "image/png",
+      };
     });
     mockedMessages.sendAttachment.mockImplementation(async () => {
       calls.push("send");
@@ -148,7 +152,11 @@ describe("AttachmentPicker — the two-step send", () => {
   });
 
   it("derives FILE for a non-image in the whitelist", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({ url: "/files/a.pdf", name: "报告.pdf", mimeType: "application/pdf" });
+    mockedFiles.uploadFile.mockResolvedValue({
+      url: "/files/a.pdf",
+      name: "报告.pdf",
+      mimeType: "application/pdf",
+    });
     mockedMessages.sendAttachment.mockResolvedValue(created({ messageType: "FILE" }));
 
     renderPicker();
@@ -163,7 +171,11 @@ describe("AttachmentPicker — the two-step send", () => {
   });
 
   it("sends into a group through the group path", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({ url: "/files/a.png", name: "a.png", mimeType: "image/png" });
+    mockedFiles.uploadFile.mockResolvedValue({
+      url: "/files/a.png",
+      name: "a.png",
+      mimeType: "image/png",
+    });
     mockedMessages.sendAttachment.mockResolvedValue(created({ conversationType: "GROUP" }));
 
     renderPicker({ conversationType: "GROUP" });
@@ -191,7 +203,11 @@ describe("AttachmentPicker — failures name the step", () => {
   it("reports a send failure as a send failure, not an upload failure", async () => {
     // Both calls run while the control is busy, so a phase flag is the only way
     // to tell them apart — this pins that the flag is set at the right moment.
-    mockedFiles.uploadFile.mockResolvedValue({ url: "/files/a.png", name: "a.png", mimeType: "image/png" });
+    mockedFiles.uploadFile.mockResolvedValue({
+      url: "/files/a.png",
+      name: "a.png",
+      mimeType: "image/png",
+    });
     mockedMessages.sendAttachment.mockRejectedValue(new Error("boom"));
 
     const { onError } = renderPicker();
@@ -203,7 +219,11 @@ describe("AttachmentPicker — failures name the step", () => {
   });
 
   it("prefers the backend's own reason over the generic copy", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({ url: "/files/a.png", name: "a.png", mimeType: "image/png" });
+    mockedFiles.uploadFile.mockResolvedValue({
+      url: "/files/a.png",
+      name: "a.png",
+      mimeType: "image/png",
+    });
     mockedMessages.sendAttachment.mockRejectedValue(
       new ApiError({
         type: "about:blank",
@@ -233,7 +253,11 @@ describe("AttachmentPicker — repeat attempts", () => {
     pick(file);
     expect(await screen.findByRole("alert")).toHaveTextContent("附件上传失败");
 
-    mockedFiles.uploadFile.mockResolvedValue({ url: "/files/a.png", name: "a.png", mimeType: "image/png" });
+    mockedFiles.uploadFile.mockResolvedValue({
+      url: "/files/a.png",
+      name: "a.png",
+      mimeType: "image/png",
+    });
     mockedMessages.sendAttachment.mockResolvedValue(created());
     pick(file);
 
@@ -256,9 +280,11 @@ describe("AttachmentPicker — busy state", () => {
 
   it("shows 上传中… and blocks a second pick while working", async () => {
     let release: (value: { url: string; name: string; mimeType: string }) => void = () => {};
-    mockedFiles.uploadFile.mockReturnValue(new Promise((resolve) => {
-      release = resolve;
-    }));
+    mockedFiles.uploadFile.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
     mockedMessages.sendAttachment.mockResolvedValue(created());
 
     renderPicker();
@@ -271,4 +297,3 @@ describe("AttachmentPicker — busy state", () => {
     await waitFor(() => expect(screen.getByText("附件")).toBeInTheDocument());
   });
 });
-

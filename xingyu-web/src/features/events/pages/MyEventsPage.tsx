@@ -58,7 +58,9 @@ const TABS: { id: Bucket; label: string }[] = [
 ];
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 /** Which tab a submission belongs to. Unsettled rows are pending. */
@@ -184,7 +186,9 @@ export function MyEventsPage() {
                   }
                 >
                   {entry.label}
-                  {counts[entry.id] > 0 ? <span className="ml-1 text-xs">{counts[entry.id]}</span> : null}
+                  {counts[entry.id] > 0 ? (
+                    <span className="ml-1 text-xs">{counts[entry.id]}</span>
+                  ) : null}
                 </button>
               );
             })}
@@ -238,9 +242,7 @@ export function MyEventsPage() {
 
                   {/* The event title is the row's context; without the event in
                       the active list there is nothing honest to put here. */}
-                  {event ? (
-                    <p className="text-xs text-muted-foreground">{event.title}</p>
-                  ) : null}
+                  {event ? <p className="text-xs text-muted-foreground">{event.title}</p> : null}
 
                   {submission.note?.trim() ? (
                     <p className="text-xs text-muted-foreground">{submission.note}</p>
@@ -275,7 +277,9 @@ export function MyEventsPage() {
                       <span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
                         <CalendarDays className="h-3 w-3" aria-hidden />
                         {event.startsAt ? formatEventDay(event.startsAt) : "时间待定"}
-                        <span className="ml-1">{event.submissionOpen ? "征集进行中" : "暂未开放投稿"}</span>
+                        <span className="ml-1">
+                          {event.submissionOpen ? "征集进行中" : "暂未开放投稿"}
+                        </span>
                       </span>
                     </Link>
                   </li>
@@ -298,4 +302,3 @@ export function MyEventsPage() {
     </div>
   );
 }
-

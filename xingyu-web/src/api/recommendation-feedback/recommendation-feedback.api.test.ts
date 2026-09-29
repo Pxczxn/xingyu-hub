@@ -66,7 +66,11 @@ describe("recommendationFeedbackApi.list", () => {
 
 describe("recommendationFeedbackApi.submit", () => {
   it("POSTs ONLY { body } to the me-scoped path", async () => {
-    mockedRequest.mockResolvedValue({ id: "f9", body: "希望多点设计", createdAt: "2026-09-28T10:00:00Z" });
+    mockedRequest.mockResolvedValue({
+      id: "f9",
+      body: "希望多点设计",
+      createdAt: "2026-09-28T10:00:00Z",
+    });
     await recommendationFeedbackApi.submit("希望多点设计");
 
     expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/recommendation-feedback", {

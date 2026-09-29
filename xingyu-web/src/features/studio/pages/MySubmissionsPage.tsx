@@ -58,11 +58,7 @@ export function MySubmissionsPage() {
 
   if (failed === "auth") {
     return (
-      <PageState
-        kind="error"
-        title="登录状态已过期"
-        description="请重新登录后查看你的投稿。"
-      />
+      <PageState kind="error" title="登录状态已过期" description="请重新登录后查看你的投稿。" />
     );
   }
   if (failed) {
@@ -73,9 +69,7 @@ export function MySubmissionsPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-primary">我的投稿</h1>
-        <p className="text-sm text-muted-foreground">
-          你提交审核的稿件及当前进展。
-        </p>
+        <p className="text-sm text-muted-foreground">你提交审核的稿件及当前进展。</p>
       </header>
 
       {items.length === 0 ? (
@@ -94,7 +88,10 @@ export function MySubmissionsPage() {
                   <CardContent className="flex flex-col gap-2 p-5">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <h2 className="text-sm font-semibold text-foreground">
-                        <Link to={`/studio/submissions/${encodeURIComponent(item.id)}`} className="hover:text-accent">
+                        <Link
+                          to={`/studio/submissions/${encodeURIComponent(item.id)}`}
+                          className="hover:text-accent"
+                        >
                           {submissionTitle(item)}
                         </Link>
                       </h2>
@@ -152,4 +149,3 @@ function formatSubmittedAt(value: string): string {
     minute: "2-digit",
   });
 }
-

@@ -135,7 +135,7 @@ export function canWithdraw(status: string): boolean {
  */
 export function submissionArticleHref(
   status: string,
-  articleId: string | null | undefined
+  articleId: string | null | undefined,
 ): string | null {
   if (!articleId) {
     return null;
@@ -152,7 +152,7 @@ export function submissionArticleHref(
  * the page renders an explicit "暂无审核意见" instead of inventing an opinion.
  */
 export function submissionFeedback(
-  submission: Pick<ReviewSubmissionDetailView, "decisionComment">
+  submission: Pick<ReviewSubmissionDetailView, "decisionComment">,
 ): string | null {
   const comment = submission.decisionComment?.trim();
   return comment ? comment : null;
@@ -160,7 +160,7 @@ export function submissionFeedback(
 
 /** Display title, falling back to the article id when the revision is gone. */
 export function submissionTitle(
-  submission: Pick<ReviewSubmissionDetailView, "title" | "articleId">
+  submission: Pick<ReviewSubmissionDetailView, "title" | "articleId">,
 ): string {
   return submission.title?.trim() || `未命名投稿（${submission.articleId}）`;
 }

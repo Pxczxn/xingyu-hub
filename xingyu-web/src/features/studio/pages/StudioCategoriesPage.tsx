@@ -264,9 +264,7 @@ export function StudioCategoriesPage() {
 
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-primary">创作空间分类</h1>
-        <p className="text-sm text-muted-foreground">
-          给作品分组，方便在你的主页里按分类浏览。
-        </p>
+        <p className="text-sm text-muted-foreground">给作品分组，方便在你的主页里按分类浏览。</p>
       </header>
 
       <Card>
@@ -421,9 +419,7 @@ export function StudioCategoriesPage() {
                               <h2 className="text-sm font-semibold text-foreground">
                                 {category.name}
                               </h2>
-                              <p className="text-xs text-muted-foreground">
-                                别名 {category.slug}
-                              </p>
+                              <p className="text-xs text-muted-foreground">别名 {category.slug}</p>
                             </div>
                             <span
                               data-testid={`category-status-${category.id}`}
@@ -556,4 +552,3 @@ export function StudioCategoriesPage() {
     </div>
   );
 }
-

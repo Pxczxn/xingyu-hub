@@ -75,9 +75,7 @@ describe("resolvePostLoginPath", () => {
       completed: false,
     });
 
-    await expect(resolvePostLoginPath("/studio")).resolves.toBe(
-      "/onboarding?returnTo=%2Fstudio",
-    );
+    await expect(resolvePostLoginPath("/studio")).resolves.toBe("/onboarding?returnTo=%2Fstudio");
     expect(mockedGet).toHaveBeenCalledTimes(1);
   });
 

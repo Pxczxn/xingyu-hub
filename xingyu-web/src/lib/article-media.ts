@@ -10,8 +10,7 @@ export type ArticleMediaItem = {
 
 const MARKDOWN_IMAGE = /!\[([^\]]*)\]\(([^)]+)\)/g;
 const HTML_IMAGE = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-const PLAIN_IMAGE_URL =
-  /https?:\/\/[^\s<>"']+\.(?:png|jpe?g|gif|webp|svg)(?:\?[^\s<>"']*)?/gi;
+const PLAIN_IMAGE_URL = /https?:\/\/[^\s<>"']+\.(?:png|jpe?g|gif|webp|svg)(?:\?[^\s<>"']*)?/gi;
 
 function normalizeUrl(raw: string): string | null {
   const trimmed = raw.trim();

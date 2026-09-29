@@ -49,7 +49,9 @@ export function HomeFeedItem({ item, className }: { item: ContentSummary; classN
           {item.title}
         </Link>
         {item.summary ? (
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{item.summary}</p>
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+            {item.summary}
+          </p>
         ) : null}
         <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
           {item.authorName ? <span className="truncate">{item.authorName}</span> : null}

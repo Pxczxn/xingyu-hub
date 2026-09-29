@@ -92,4 +92,3 @@ describe("PublicSeriesListPage", () => {
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
   });
 });
-

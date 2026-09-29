@@ -51,7 +51,13 @@ describe("RecommendationFeedbackPage — loading & error", () => {
 
   it("reports a non-auth failure with the server's detail", async () => {
     list.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "boom", status: 500, detail: "系统繁忙，请稍后再试", code: "INTERNAL_ERROR" }),
+      new ApiError({
+        type: "about:blank",
+        title: "boom",
+        status: 500,
+        detail: "系统繁忙，请稍后再试",
+        code: "INTERNAL_ERROR",
+      }),
     );
     renderPage();
     const alert = await screen.findByTestId("page-state-error");
@@ -61,7 +67,13 @@ describe("RecommendationFeedbackPage — loading & error", () => {
 
   it("tells an expired session to log in again (401)", async () => {
     list.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "请先登录", status: 401, detail: "请先登录", code: "AUTH_REQUIRED" }),
+      new ApiError({
+        type: "about:blank",
+        title: "请先登录",
+        status: 401,
+        detail: "请先登录",
+        code: "AUTH_REQUIRED",
+      }),
     );
     renderPage();
     await screen.findByTestId("page-state-error");
@@ -160,7 +172,13 @@ describe("RecommendationFeedbackPage — submitting", () => {
 
   it("keeps the textarea on a server rejection so the user can retry", async () => {
     submit.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "校验失败", status: 400, detail: "body: 反馈内容不能为空", code: "VALIDATION_FAILED" }),
+      new ApiError({
+        type: "about:blank",
+        title: "校验失败",
+        status: 400,
+        detail: "body: 反馈内容不能为空",
+        code: "VALIDATION_FAILED",
+      }),
     );
     renderPage();
     const textarea = await screen.findByLabelText("反馈内容");
@@ -174,7 +192,9 @@ describe("RecommendationFeedbackPage — submitting", () => {
   it("blocks an over-limit body locally without calling the API", async () => {
     renderPage();
     const textarea = await screen.findByLabelText("反馈内容");
-    fireEvent.change(textarea, { target: { value: "x".repeat(RECOMMENDATION_FEEDBACK_MAX_LENGTH + 1) } });
+    fireEvent.change(textarea, {
+      target: { value: "x".repeat(RECOMMENDATION_FEEDBACK_MAX_LENGTH + 1) },
+    });
     fireEvent.click(screen.getByRole("button", { name: "提交反馈" }));
 
     expect(await screen.findByText(/不能超过 2000 字/)).toBeInTheDocument();
@@ -184,7 +204,9 @@ describe("RecommendationFeedbackPage — submitting", () => {
   it("counts down the remaining characters", async () => {
     renderPage();
     fireEvent.change(await screen.findByLabelText("反馈内容"), { target: { value: "abc" } });
-    expect(screen.getByText(`还可输入 ${RECOMMENDATION_FEEDBACK_MAX_LENGTH - 3} 字`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`还可输入 ${RECOMMENDATION_FEEDBACK_MAX_LENGTH - 3} 字`),
+    ).toBeInTheDocument();
   });
 
   it("does NOT claim a pre-existing row is the just-submitted one", async () => {
@@ -202,4 +224,3 @@ describe("RecommendationFeedbackPage — submitting", () => {
     expect(await screen.findByText("已提交，感谢反馈")).toBeInTheDocument();
   });
 });
-

@@ -75,7 +75,10 @@ export function pendingTitle(action: Pick<PendingAction, "type" | "title">): str
  * the SAME (type,title,href) more than once — `HomeService:84` adds one REVIEW row
  * **per under-review article**, with no per-item identifier.
  */
-export function pendingKey(action: Pick<PendingAction, "type" | "title" | "href">, index: number): string {
+export function pendingKey(
+  action: Pick<PendingAction, "type" | "title" | "href">,
+  index: number,
+): string {
   return `${action.type ?? ""}|${action.title ?? ""}|${action.href ?? ""}|${index}`;
 }
 

@@ -39,7 +39,7 @@ function renderPage(reportId = "r1") {
       <Routes>
         <Route path="/reports/:reportId" element={<ReportDetailPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -99,10 +99,7 @@ describe("ReportDetailPage", () => {
     mockedGet.mockResolvedValue(detail({ caseId: "case-1", measureId: "meas-9" }));
     renderPage();
     const link = await screen.findByRole("link", { name: "对此处置提出申诉" });
-    expect(link).toHaveAttribute(
-      "href",
-      "/appeals/new?caseId=case-1&measureId=meas-9"
-    );
+    expect(link).toHaveAttribute("href", "/appeals/new?caseId=case-1&measureId=meas-9");
   });
 
   it("withholds the appeal link and explains why when there is no measure", async () => {
@@ -167,7 +164,9 @@ describe("ReportDetailPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "提交补充说明" }));
 
     await waitFor(() => expect(mockedAddSupplement).toHaveBeenCalled());
-    await waitFor(() => expect((screen.getByLabelText("补充信息") as HTMLTextAreaElement).value).toBe(""));
+    await waitFor(() =>
+      expect((screen.getByLabelText("补充信息") as HTMLTextAreaElement).value).toBe(""),
+    );
   });
 
   it("keeps the typed text and shows the error when a supplement fails", async () => {
@@ -207,4 +206,3 @@ describe("ReportDetailPage", () => {
     expect(await screen.findByText("登录状态已过期，请重新登录。")).toBeInTheDocument();
   });
 });
-

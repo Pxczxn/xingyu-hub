@@ -123,4 +123,3 @@ describe("GuideDetailPage", () => {
     expect(await screen.findByText("指南不存在或未发布")).toBeInTheDocument();
   });
 });
-

@@ -77,7 +77,10 @@ export function SettingsDeleteAccountPage() {
         {ACCOUNT_DEACTIVATION_WARNING}
       </p>
 
-      <ul className="list-inside list-disc text-sm text-muted-foreground" data-testid="delete-account-facts">
+      <ul
+        className="list-inside list-disc text-sm text-muted-foreground"
+        data-testid="delete-account-facts"
+      >
         <li>停用后你无法登录，且当前页面无法撤销。</li>
         <li>你已发布的内容不会被自动删除。</li>
         <li>我们不会向你发送确认邮件，此操作立即生效。</li>
@@ -120,4 +123,3 @@ export function SettingsDeleteAccountPage() {
     </div>
   );
 }
-

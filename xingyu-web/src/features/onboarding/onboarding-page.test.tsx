@@ -143,7 +143,10 @@ describe("OnboardingPage", () => {
 
     await user.click(await screen.findByRole("button", { name: "开始设置" }));
     expect(await screen.findByRole("heading", { name: "记录兴趣" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "前端开发" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "前端开发" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("records interests as a JSON string and does not send null", async () => {
@@ -383,4 +386,3 @@ describe("OnboardingPage", () => {
     expect(mockedOnboarding.update).not.toHaveBeenCalled();
   });
 });
-

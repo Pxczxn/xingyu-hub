@@ -36,7 +36,7 @@ export const reportsApi = {
   addSupplement: (reportId: string, body: string): Promise<ReportSupplementView> =>
     apiRequest<ReportSupplementView>(
       `/api/v1/me/reports/${encodeURIComponent(reportId)}/supplements`,
-      { method: "POST", body: { body } }
+      { method: "POST", body: { body } },
     ),
 
   /**
@@ -82,7 +82,11 @@ export const appealsApi = {
    * 「未找到可申诉的治理措施」 when neither resolves. So the caller must have a
    * real measureId/caseId from a report detail — there is no "appeal anything".
    */
-  submit: (payload: { measureId?: string; caseId?: string; detail: string }): Promise<{
+  submit: (payload: {
+    measureId?: string;
+    caseId?: string;
+    detail: string;
+  }): Promise<{
     id: string;
     status: string;
   }> => apiRequest("/api/v1/appeals", { method: "POST", body: payload }),

@@ -64,12 +64,12 @@ export const articlesApi = {
    * Backend rejects with 409 when the article is already under review.
    */
   submitForReview: (articleId: string): Promise<ArticleSubmission> =>
-    apiRequest<ArticleSubmission>(
-      `/api/v1/me/articles/${encodeURIComponent(articleId)}/submit`,
-      { method: "POST" },
-    ),
+    apiRequest<ArticleSubmission>(`/api/v1/me/articles/${encodeURIComponent(articleId)}/submit`, {
+      method: "POST",
+    }),
 
-  listMine: (): Promise<MyArticleSummary[]> => apiRequest<MyArticleSummary[]>("/api/v1/me/articles"),
+  listMine: (): Promise<MyArticleSummary[]> =>
+    apiRequest<MyArticleSummary[]>("/api/v1/me/articles"),
 
   /**
    * Resolves one article's editorial status.
@@ -93,9 +93,7 @@ export const articlesApi = {
    * `requireOwnedArticle` runs first, so a non-owner or unknown id is 404.
    */
   listRevisions: (articleId: string): Promise<ArticleRevision[]> =>
-    apiRequest<ArticleRevision[]>(
-      `/api/v1/me/articles/${encodeURIComponent(articleId)}/revisions`,
-    ),
+    apiRequest<ArticleRevision[]>(`/api/v1/me/articles/${encodeURIComponent(articleId)}/revisions`),
 
   /**
    * Restores a formal revision INTO the working draft (Phase 2L).

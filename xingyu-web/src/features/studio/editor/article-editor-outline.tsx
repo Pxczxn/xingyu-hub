@@ -15,11 +15,7 @@ type ArticleEditorOutlineProps = {
   onSelect: (item: EditorOutlineItem, index: number) => void;
 };
 
-export function ArticleEditorOutline({
-  items,
-  activeIndex,
-  onSelect,
-}: ArticleEditorOutlineProps) {
+export function ArticleEditorOutline({ items, activeIndex, onSelect }: ArticleEditorOutlineProps) {
   return (
     <aside className={cn(styles.outline)} aria-label="文章大纲">
       <p className={cn(styles.outlineLabel)}>大纲</p>
@@ -48,4 +44,3 @@ export function ArticleEditorOutline({
     </aside>
   );
 }
-

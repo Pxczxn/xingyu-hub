@@ -20,10 +20,13 @@ function mapGuestHome(raw: GuestHomeRaw): GuestHomeView {
 }
 
 export const homeApi = {
-  getGuestHome: async (): Promise<GuestHomeView> => mapGuestHome(await apiRequest<GuestHomeRaw>("/api/v1/home")),
+  getGuestHome: async (): Promise<GuestHomeView> =>
+    mapGuestHome(await apiRequest<GuestHomeRaw>("/api/v1/home")),
 
   getMyHome: (): Promise<MeHomeView> => apiRequest<MeHomeView>("/api/v1/me/home"),
 
   getAnnouncements: (limit = 3): Promise<AnnouncementSummary[]> =>
-    apiRequest<AnnouncementSummary[]>(`/api/v1/announcements?limit=${encodeURIComponent(String(limit))}`),
+    apiRequest<AnnouncementSummary[]>(
+      `/api/v1/announcements?limit=${encodeURIComponent(String(limit))}`,
+    ),
 };

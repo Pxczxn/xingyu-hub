@@ -14,10 +14,7 @@ import { extractEditorOutline } from "@/lib/article-editor-outline";
 import { ensureCanonicalMarkdownBody } from "@/lib/article-body-markdown";
 import type { ArticleBodyMode } from "@/lib/article-body-convert";
 import type { ArticleEditorBodyController } from "@/lib/article-editor-body-controller";
-import type {
-  ArticleLifecycleStatus,
-  ArticleVisibility,
-} from "@/api/articles/articles.types";
+import type { ArticleLifecycleStatus, ArticleVisibility } from "@/api/articles/articles.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { articlesApi } from "@/api/articles/articles.api";
 import { topicsApi } from "@/api/topics/topics.api";
@@ -730,4 +727,3 @@ export function EditorPage() {
     </div>
   );
 }
-

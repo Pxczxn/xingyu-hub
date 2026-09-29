@@ -12,7 +12,9 @@ type LoadState =
   | { kind: "ready"; collection: CollectionDetail };
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 function objectTypeLabel(type: string): string {
@@ -23,7 +25,8 @@ function objectTypeLabel(type: string): string {
 }
 
 function itemHref(objectType: string, objectId: string): string | null {
-  if (objectType.toUpperCase() === "ARTICLE" && objectId) return `/articles/${encodeURIComponent(objectId)}`;
+  if (objectType.toUpperCase() === "ARTICLE" && objectId)
+    return `/articles/${encodeURIComponent(objectId)}`;
   return null;
 }
 
@@ -55,9 +58,7 @@ export function CollectionPublicPage() {
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "error") return <PageState kind="error" />;
   if (state.kind === "unavailable") {
-    return (
-      <PageState kind="empty" title="收藏夹不存在或暂不可访问" />
-    );
+    return <PageState kind="empty" title="收藏夹不存在或暂不可访问" />;
   }
 
   const { collection } = state;
@@ -82,7 +83,9 @@ export function CollectionPublicPage() {
                 ) : (
                   <p className="text-sm font-medium">{item.title}</p>
                 )}
-                <p className="mt-1 text-xs text-muted-foreground">{objectTypeLabel(item.objectType)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {objectTypeLabel(item.objectType)}
+                </p>
               </li>
             );
           })}
@@ -91,4 +94,3 @@ export function CollectionPublicPage() {
     </article>
   );
 }
-

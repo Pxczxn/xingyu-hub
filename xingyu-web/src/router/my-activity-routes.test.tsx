@@ -53,7 +53,12 @@ vi.mock("@/api/home/home.api", () => ({
 vi.mock("@/api/me-activity/me-activity.api", () => ({
   myLikesApi: {
     list: vi.fn(async () => [
-      { objectType: "ARTICLE", objectId: "a1", title: "一篇文章", createdAt: "2026-09-20T10:00:00Z" },
+      {
+        objectType: "ARTICLE",
+        objectId: "a1",
+        title: "一篇文章",
+        createdAt: "2026-09-20T10:00:00Z",
+      },
     ]),
   },
   myCommentsApi: {

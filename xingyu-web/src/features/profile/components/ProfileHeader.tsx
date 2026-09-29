@@ -47,7 +47,9 @@ export function ProfileHeader({
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-primary">{name}</h1>
           <p className="text-sm text-muted-foreground">@{profile.username}</p>
-          {profile.bio ? <p className="mt-2 max-w-2xl text-sm text-foreground">{profile.bio}</p> : null}
+          {profile.bio ? (
+            <p className="mt-2 max-w-2xl text-sm text-foreground">{profile.bio}</p>
+          ) : null}
           {profile.websiteUrl ? (
             <a
               href={profile.websiteUrl}
@@ -90,4 +92,3 @@ export function ProfileHeader({
     </header>
   );
 }
-

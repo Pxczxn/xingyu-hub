@@ -129,8 +129,12 @@ describe("creatorDisplayName", () => {
   it("prefers the profile displayName", () => {
     expect(
       creatorDisplayName(
-        card({ username: "alice", displayName: "行内名", profile: { username: "alice", displayName: "档案名" } })
-      )
+        card({
+          username: "alice",
+          displayName: "行内名",
+          profile: { username: "alice", displayName: "档案名" },
+        }),
+      ),
     ).toBe("档案名");
   });
 
@@ -146,8 +150,12 @@ describe("creatorDisplayName", () => {
     // An empty string is not a name — showing "" would render a blank heading.
     expect(
       creatorDisplayName(
-        card({ username: "alice", displayName: "行内名", profile: { username: "alice", displayName: "" } })
-      )
+        card({
+          username: "alice",
+          displayName: "行内名",
+          profile: { username: "alice", displayName: "" },
+        }),
+      ),
     ).toBe("行内名");
   });
 });

@@ -57,7 +57,11 @@ function useNarrowToolbar() {
   return narrow;
 }
 
-function useDismissOnOutside(open: boolean, onClose: () => void, rootRef: React.RefObject<HTMLElement | null>) {
+function useDismissOnOutside(
+  open: boolean,
+  onClose: () => void,
+  rootRef: React.RefObject<HTMLElement | null>,
+) {
   useEffect(() => {
     if (!open) return;
     function handlePointerDown(event: PointerEvent) {
@@ -409,4 +413,3 @@ export function ArticleEditorToolbar({
     </div>
   );
 }
-

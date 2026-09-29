@@ -42,7 +42,11 @@ export function AnnouncementsPage() {
       {loading ? <PageState kind="loading" /> : null}
       {!loading && error ? <PageState kind="error" /> : null}
       {!loading && !error && items.length === 0 ? (
-        <PageState kind="empty" title="暂无已发布公告" description="有新的已发布公告时会出现在这里。" />
+        <PageState
+          kind="empty"
+          title="暂无已发布公告"
+          description="有新的已发布公告时会出现在这里。"
+        />
       ) : null}
 
       {!loading && !error && items.length > 0 ? (
@@ -55,7 +59,9 @@ export function AnnouncementsPage() {
               >
                 <h2 className="text-sm font-medium text-foreground">{item.title}</h2>
                 {item.publishedAt ? (
-                  <p className="mt-1 text-xs text-muted-foreground">{formatPublishedAt(item.publishedAt)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatPublishedAt(item.publishedAt)}
+                  </p>
                 ) : null}
               </Link>
             </li>
@@ -76,4 +82,3 @@ function formatPublishedAt(value: string): string {
     timeZone: "UTC",
   });
 }
-

@@ -168,7 +168,10 @@ export function MyMomentsPage() {
           ) : (
             <ul aria-label="我的动态列表" className="divide-y divide-border">
               {moments.map((moment) => (
-                <li key={moment.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]">
+                <li
+                  key={moment.id}
+                  className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
+                >
                   <time
                     dateTime={moment.createdAt}
                     className="text-xs tabular-nums text-muted-foreground"
@@ -206,11 +209,7 @@ export function MyMomentsPage() {
               动态概览
             </h2>
             <dl className="mt-3 flex flex-col gap-3 text-xs">
-              <Row
-                icon={CalendarDays}
-                label="已发布动态"
-                value={`${moments.length} 条`}
-              />
+              <Row icon={CalendarDays} label="已发布动态" value={`${moments.length} 条`} />
               {/* 「—」 rather than 0 when the read failed: the counters are
                   non-null longs server-side, so 0 is a real value and must not
                   be faked. */}
@@ -225,9 +224,9 @@ export function MyMomentsPage() {
                 value={
                   insights
                     ? String(insights.followerCount)
-                    : (profile?.followerCount != null
+                    : profile?.followerCount != null
                       ? String(profile.followerCount)
-                      : "—")
+                      : "—"
                 }
               />
               <Row
@@ -269,4 +268,3 @@ function Row({
     </div>
   );
 }
-

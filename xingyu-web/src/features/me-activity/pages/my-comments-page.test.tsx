@@ -29,7 +29,7 @@ function renderPage() {
   return render(
     <MemoryRouter>
       <MyCommentsPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -139,4 +139,3 @@ describe("MyCommentsPage", () => {
     expect(screen.queryByRole("button", { name: /更多|加载/ })).not.toBeInTheDocument();
   });
 });
-

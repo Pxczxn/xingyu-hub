@@ -131,4 +131,3 @@ describe("article like", () => {
     expect(mocked.like).not.toHaveBeenCalled();
   });
 });
-

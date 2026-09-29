@@ -30,7 +30,7 @@ function renderPage(appealId = "ap1") {
       <Routes>
         <Route path="/appeals/:appealId" element={<AppealDetailPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -94,7 +94,7 @@ describe("AppealDetailPage", () => {
     renderPage();
     expect(await screen.findByRole("link", { name: /返回申诉列表/ })).toHaveAttribute(
       "href",
-      "/appeals"
+      "/appeals",
     );
   });
 
@@ -117,4 +117,3 @@ describe("AppealDetailPage", () => {
     expect(await screen.findByText("服务暂时不可用")).toBeInTheDocument();
   });
 });
-

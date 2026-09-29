@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  ARTICLE_HEADING_ID_PREFIX,
-} from "@/lib/article-markdown-pipeline";
-import {
-  extractArticleOutline,
-} from "@/lib/article-markdown";
-import {
-  extractEditorOutline,
-} from "@/lib/article-editor-outline";
+import { ARTICLE_HEADING_ID_PREFIX } from "@/lib/article-markdown-pipeline";
+import { extractArticleOutline } from "@/lib/article-markdown";
+import { extractEditorOutline } from "@/lib/article-editor-outline";
 
 /*
  * Migrated from Legacy lib/article-markdown-outline.test.ts.
@@ -47,11 +41,7 @@ describe("extractArticleOutline", () => {
   it("parses H2-H4 while skipping H1 for reader outline", () => {
     const items = extractArticleOutline(OUTLINE_SAMPLE);
     expect(items.map((item) => item.level)).toEqual([2, 3, 4]);
-    expect(items.map((item) => item.text)).toEqual([
-      "二级章节",
-      "三级小节",
-      "四级细节",
-    ]);
+    expect(items.map((item) => item.text)).toEqual(["二级章节", "三级小节", "四级细节"]);
   });
 
   it("keeps heading ids aligned with renderer article-h-* sequence", () => {

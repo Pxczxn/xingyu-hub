@@ -79,9 +79,7 @@ export const SAVED_MESSAGE_LIMIT = 50;
 export const SAVED_MESSAGE_MAX_LIMIT = 100;
 
 /** `GET /me/saved-messages` is a bare array; tolerate an envelope so it cannot blank. */
-export function toSavedMessages(
-  raw: SavedMessageList | null | undefined,
-): SavedMessageView[] {
+export function toSavedMessages(raw: SavedMessageList | null | undefined): SavedMessageView[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;
   const items = (raw as { items?: unknown }).items;
@@ -125,9 +123,7 @@ export function savedMessageBody(item: SavedMessageView): string | null {
 }
 
 /** `IMAGE` / `FILE` rows carry an attachment worth rendering. */
-export function savedAttachmentKind(
-  item: SavedMessageView,
-): "image" | "file" | null {
+export function savedAttachmentKind(item: SavedMessageView): "image" | "file" | null {
   if (!item.attachmentUrl) return null;
   if (item.messageType === "IMAGE") return "image";
   if (item.messageType === "FILE") return "file";

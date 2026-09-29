@@ -66,7 +66,11 @@ export function SeriesListPage() {
       </header>
 
       {items.length === 0 ? (
-        <PageState kind="empty" title="还没有系列" description="先创建一个系列，再把文章编排进去。" />
+        <PageState
+          kind="empty"
+          title="还没有系列"
+          description="先创建一个系列，再把文章编排进去。"
+        />
       ) : (
         <ul className="grid gap-3">
           {items.map((item) => (
@@ -101,4 +105,3 @@ export function SeriesListPage() {
     </div>
   );
 }
-

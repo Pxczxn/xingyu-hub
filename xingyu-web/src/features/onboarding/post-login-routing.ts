@@ -17,7 +17,11 @@ const AUTH_PATHS = [
  * matches the verified "do not block login" decision.
  */
 export function shouldSkipOnboardingGate(returnTo: string): boolean {
-  if (returnTo === "/onboarding" || returnTo.startsWith("/onboarding/") || returnTo.startsWith("/onboarding?")) {
+  if (
+    returnTo === "/onboarding" ||
+    returnTo.startsWith("/onboarding/") ||
+    returnTo.startsWith("/onboarding?")
+  ) {
     return true;
   }
   return AUTH_PATHS.some((path) => returnTo === path || returnTo.startsWith(`${path}?`));

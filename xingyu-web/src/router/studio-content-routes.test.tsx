@@ -82,7 +82,16 @@ function renderAt(path: string, signedIn: boolean) {
   if (signedIn) localStorage.setItem(TOKEN_KEY, "test-token");
   else localStorage.clear();
   const router = createMemoryRouter(
-    [{ path: "*", element: <AppProviders><AppRoutes /></AppProviders> }],
+    [
+      {
+        path: "*",
+        element: (
+          <AppProviders>
+            <AppRoutes />
+          </AppProviders>
+        ),
+      },
+    ],
     { initialEntries: [path] },
   );
   return { router, ...render(<RouterProvider router={router} />) };
@@ -116,10 +125,9 @@ describe("phase 3G content route resolution", () => {
     // If route ranking were wrong, `/studio/content` would swallow `/new` and
     // this would render the content list instead of the editor.
     const { container, router } = renderAt("/studio/content/new", true);
-    await waitFor(
-      () => expect(container.querySelector("[data-editor-root]")).not.toBeNull(),
-      { timeout: 30000 },
-    );
+    await waitFor(() => expect(container.querySelector("[data-editor-root]")).not.toBeNull(), {
+      timeout: 30000,
+    });
     expect(screen.queryByRole("heading", { name: "内容管理" })).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/studio/content/new");
   }, 60000);

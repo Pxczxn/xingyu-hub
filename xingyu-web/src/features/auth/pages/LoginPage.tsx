@@ -24,7 +24,11 @@ export function LoginPage() {
   const [params] = useSearchParams();
   const returnTo = params.get("returnTo") ?? "/";
 
-  const [values, setValues] = useState<LoginFormValues>({ login: "", password: "", rememberMe: false });
+  const [values, setValues] = useState<LoginFormValues>({
+    login: "",
+    password: "",
+    rememberMe: false,
+  });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -179,4 +183,3 @@ export function LoginPage() {
     </AuthCard>
   );
 }
-

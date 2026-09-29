@@ -38,11 +38,13 @@ export function extractEditorOutline(body: string): EditorOutlineItem[] {
   return lines.flatMap((line, lineIndex) => {
     const match = /^(#{1,4})\s+(.+)$/.exec(line.trim());
     if (!match) return [];
-    return [{
-      id: `editor-h-${headingIndex++}`,
-      text: stripInlineMarkdown(match[2]),
-      level: match[1].length as 1 | 2 | 3 | 4,
-      lineIndex,
-    }];
+    return [
+      {
+        id: `editor-h-${headingIndex++}`,
+        text: stripInlineMarkdown(match[2]),
+        level: match[1].length as 1 | 2 | 3 | 4,
+        lineIndex,
+      },
+    ];
   });
 }

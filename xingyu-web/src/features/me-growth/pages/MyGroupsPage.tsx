@@ -57,7 +57,9 @@ type LoadState =
   | { kind: "ready"; groups: Conversation[] };
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 export function MyGroupsPage() {
@@ -220,11 +222,7 @@ export function MyGroupsPage() {
       </header>
 
       {state.groups.length === 0 ? (
-        <PageState
-          kind="empty"
-          title="暂无群聊"
-          description="创建群聊，与创作者或读者交流。"
-        />
+        <PageState kind="empty" title="暂无群聊" description="创建群聊，与创作者或读者交流。" />
       ) : (
         <ul aria-label="我的群聊列表" className="grid gap-3">
           {state.groups.map((group) => {
@@ -286,4 +284,3 @@ export function MyGroupsPage() {
     </div>
   );
 }
-

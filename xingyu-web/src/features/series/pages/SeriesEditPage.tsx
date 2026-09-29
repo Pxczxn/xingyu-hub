@@ -86,7 +86,11 @@ export function SeriesEditPage() {
   if (loadState === "notfound") {
     return (
       <div className="section-gap">
-        <PageState kind="empty" title="系列不存在或无权编辑" description="地址可能有误，或该系列不属于当前账号。" />
+        <PageState
+          kind="empty"
+          title="系列不存在或无权编辑"
+          description="地址可能有误，或该系列不属于当前账号。"
+        />
         <BackLink />
       </div>
     );
@@ -96,7 +100,10 @@ export function SeriesEditPage() {
     <div className="section-gap">
       <BackLink />
       <h1 className="text-xl font-semibold text-primary">编辑系列</h1>
-      <form onSubmit={(event) => void onSave(event)} className="space-y-3 rounded-lg border border-border bg-card p-4">
+      <form
+        onSubmit={(event) => void onSave(event)}
+        className="space-y-3 rounded-lg border border-border bg-card p-4"
+      >
         <label className="block text-sm font-medium">
           标题
           <input
@@ -175,4 +182,3 @@ function BackLink() {
     </Link>
   );
 }
-

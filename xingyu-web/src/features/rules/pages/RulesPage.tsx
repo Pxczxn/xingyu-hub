@@ -4,10 +4,7 @@ import { guideApi } from "@/api/guide/guide.api";
 import type { GuidePage } from "@/api/guide/guide.types";
 import { PageState } from "@/components/shared/PageState";
 
-type LoadState =
-  | { kind: "loading" }
-  | { kind: "unavailable" }
-  | { kind: "ready"; page: GuidePage };
+type LoadState = { kind: "loading" } | { kind: "unavailable" } | { kind: "ready"; page: GuidePage };
 
 export function RulesPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -32,7 +29,11 @@ export function RulesPage() {
   if (state.kind === "unavailable") {
     return (
       <div className="section-gap">
-        <PageState kind="error" title="社区规则暂不可用" description="请稍后重试，或先查看使用指南。" />
+        <PageState
+          kind="error"
+          title="社区规则暂不可用"
+          description="请稍后重试，或先查看使用指南。"
+        />
         <Link to="/guide" className="text-sm text-accent hover:underline">
           查看使用指南
         </Link>
@@ -68,4 +69,3 @@ function formatPublishedAt(value: string): string {
     timeZone: "UTC",
   });
 }
-

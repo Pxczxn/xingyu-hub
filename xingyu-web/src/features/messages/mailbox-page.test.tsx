@@ -251,4 +251,3 @@ describe("MailboxPage — realtime", () => {
     expect(screen.queryByTestId("page-state-loading")).not.toBeInTheDocument();
   });
 });
-

@@ -30,7 +30,10 @@ export function SectionState({
         role="status"
         aria-live="polite"
         data-testid="section-loading"
-        className={cn("rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground", className)}
+        className={cn(
+          "rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground",
+          className,
+        )}
       >
         加载中…
       </div>
@@ -42,7 +45,10 @@ export function SectionState({
       <div
         role="alert"
         data-testid="section-error"
-        className={cn("rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground", className)}
+        className={cn(
+          "rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground",
+          className,
+        )}
       >
         {errorText}
       </div>
@@ -53,7 +59,10 @@ export function SectionState({
     return (
       <div
         data-testid="section-empty"
-        className={cn("rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground", className)}
+        className={cn(
+          "rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground",
+          className,
+        )}
       >
         {emptyText}
       </div>

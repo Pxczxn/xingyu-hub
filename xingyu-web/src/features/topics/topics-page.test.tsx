@@ -96,4 +96,3 @@ describe("topics page", () => {
     expect(mocked.unfollowTopic).not.toHaveBeenCalled();
   });
 });
-

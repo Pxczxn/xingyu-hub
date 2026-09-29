@@ -206,4 +206,3 @@ describe("SettingsEmailPage", () => {
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
   });
 });
-

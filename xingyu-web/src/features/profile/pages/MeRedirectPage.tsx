@@ -52,4 +52,3 @@ export function MeRedirectPage() {
 
   return <PageState kind="loading" />;
 }
-

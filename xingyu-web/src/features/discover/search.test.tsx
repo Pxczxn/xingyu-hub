@@ -45,16 +45,19 @@ beforeEach(() => {
 describe("search page", () => {
   it("reads the keyword from the URL and issues the query", async () => {
     mocked.search.mockResolvedValue({
-      items: HITS.map((h) => ({ id: h.objectId, title: h.title, summary: h.summary, objectType: h.objectType })),
+      items: HITS.map((h) => ({
+        id: h.objectId,
+        title: h.title,
+        summary: h.summary,
+        objectType: h.objectType,
+      })),
       total: 1,
     });
 
     renderAt("/search?q=spring");
 
     await waitFor(() => {
-      expect(mocked.search).toHaveBeenCalledWith(
-        expect.objectContaining({ q: "spring" }),
-      );
+      expect(mocked.search).toHaveBeenCalledWith(expect.objectContaining({ q: "spring" }));
     });
     expect(await screen.findByText("Spring 实战笔记")).toBeInTheDocument();
   });
@@ -87,4 +90,3 @@ describe("search page", () => {
     expect(screen.queryByTestId("search-results")).not.toBeInTheDocument();
   });
 });
-

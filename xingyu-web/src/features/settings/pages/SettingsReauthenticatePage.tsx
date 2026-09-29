@@ -59,8 +59,7 @@ export function SettingsReauthenticatePage() {
       const grant = await accountApi.reAuthenticate(password);
       // `expiresAt` is always present from the backend, but fall back to the
       // documented 15-minute window rather than storing an unusable grant.
-      const expiresAt =
-        grant.expiresAt ?? new Date(Date.now() + 15 * 60_000).toISOString();
+      const expiresAt = grant.expiresAt ?? new Date(Date.now() + 15 * 60_000).toISOString();
       setStoredRecentAuth(grant.recentAuthId, expiresAt);
       setPassword("");
       setDone(true);
@@ -137,4 +136,3 @@ export function SettingsReauthenticatePage() {
     </div>
   );
 }
-

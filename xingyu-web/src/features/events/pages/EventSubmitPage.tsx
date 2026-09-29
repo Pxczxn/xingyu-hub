@@ -326,7 +326,9 @@ export function EventSubmitPage() {
               <h2 className="text-sm font-semibold text-foreground">{loaded.title}</h2>
               <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock3 className="h-3.5 w-3.5" aria-hidden />
-                {loaded.startsAt ? `开始 ${formatEventDateTime(loaded.startsAt)}` : "开始时间待公布"}
+                {loaded.startsAt
+                  ? `开始 ${formatEventDateTime(loaded.startsAt)}`
+                  : "开始时间待公布"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 结束 {formatEventDateTime(loaded.endsAt) ?? "待公布"}
@@ -355,4 +357,3 @@ export function EventSubmitPage() {
     </div>
   );
 }
-

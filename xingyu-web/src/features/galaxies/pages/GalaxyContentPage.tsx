@@ -14,12 +14,12 @@ import {
 import { GalaxyShell } from "../GalaxyShell";
 
 type LoadState =
-  | { kind: "loading" }
-  | { kind: "error" }
-  | { kind: "ready"; items: GalaxyContent[] };
+  { kind: "loading" } | { kind: "error" } | { kind: "ready"; items: GalaxyContent[] };
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 /**
@@ -111,7 +111,11 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
           </div>
 
           {visible.length === 0 ? (
-            <PageState kind="empty" title="暂无匹配内容" description="当前筛选条件下没有可展示的内容。" />
+            <PageState
+              kind="empty"
+              title="暂无匹配内容"
+              description="当前筛选条件下没有可展示的内容。"
+            />
           ) : (
             <ul className="mt-3 divide-y divide-border rounded-lg border border-border bg-card">
               {visible.map((item) => (
@@ -126,7 +130,9 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
                     {galaxyContentTypeLabel(item.objectType)}
                   </span>
                   {item.pinned ? (
-                    <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent">置顶</span>
+                    <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent">
+                      置顶
+                    </span>
                   ) : null}
                 </li>
               ))}
@@ -137,4 +143,3 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
     </section>
   );
 }
-

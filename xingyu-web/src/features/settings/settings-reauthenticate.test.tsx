@@ -3,10 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { accountApi } from "@/api/account/account.api";
-import {
-  SettingsReauthenticatePage,
-  safeReturnTo,
-} from "./pages/SettingsReauthenticatePage";
+import { SettingsReauthenticatePage, safeReturnTo } from "./pages/SettingsReauthenticatePage";
 import { getStoredRecentAuth } from "./recent-auth";
 
 vi.mock("@/api/account/account.api", () => ({
@@ -24,10 +21,7 @@ function renderPage(initialEntry = "/settings/security/re-authenticate") {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
-        <Route
-          path="/settings/security/re-authenticate"
-          element={<SettingsReauthenticatePage />}
-        />
+        <Route path="/settings/security/re-authenticate" element={<SettingsReauthenticatePage />} />
         <Route path="/settings/security/email" element={<p>邮箱页面</p>} />
       </Routes>
     </MemoryRouter>,
@@ -150,4 +144,3 @@ describe("SettingsReauthenticatePage", () => {
     expect(screen.getByText(/15 分钟/)).toBeInTheDocument();
   });
 });
-

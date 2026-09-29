@@ -97,9 +97,7 @@ export function SettingsEmailPage() {
       setNewEmail("");
       setPassword("");
     } catch (error) {
-      setSubmitError(
-        error instanceof ApiError ? error.problem.detail : "更换失败，请稍后重试。",
-      );
+      setSubmitError(error instanceof ApiError ? error.problem.detail : "更换失败，请稍后重试。");
     } finally {
       setBusy(false);
     }
@@ -148,9 +146,7 @@ export function SettingsEmailPage() {
           role={notice.tone === "warning" ? "alert" : "status"}
           data-testid={`email-notice-${notice.tone}`}
           className={
-            notice.tone === "warning"
-              ? "text-sm text-destructive"
-              : "text-sm text-muted-foreground"
+            notice.tone === "warning" ? "text-sm text-destructive" : "text-sm text-muted-foreground"
           }
         >
           {notice.message}
@@ -202,4 +198,3 @@ export function SettingsEmailPage() {
     </div>
   );
 }
-

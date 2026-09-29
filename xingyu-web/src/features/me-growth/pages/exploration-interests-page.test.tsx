@@ -140,7 +140,10 @@ describe("ExplorationInterestsPage — rendering", () => {
       mine({ domains: [{ id: "c-java", slug: "java", name: "Java", personal: false }] }),
     );
     renderPage();
-    expect(await screen.findByRole("button", { name: "Java" })).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByRole("button", { name: "Java" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(screen.getByRole("button", { name: "前端" })).toHaveAttribute("aria-pressed", "false");
   });
 
@@ -306,4 +309,3 @@ describe("ExplorationInterestsPage — saving", () => {
     expect(screen.getByRole("heading", { name: "我的探索" })).toBeInTheDocument();
   });
 });
-

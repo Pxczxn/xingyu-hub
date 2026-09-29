@@ -18,7 +18,9 @@ type LoadState =
 type SubscribeState = "idle" | "pending" | "done" | "error";
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 /**
@@ -164,4 +166,3 @@ export function PublicSeriesDetailPage() {
     </article>
   );
 }
-

@@ -86,8 +86,7 @@ export const accountApi = {
    * instead of promising irreversible deletion — and must warn that the caller
    * has no way back through the UI.
    */
-  requestAccountDeletion: (): Promise<AccountDeletionResult> =>
-    apiRequestAccountDeletion(),
+  requestAccountDeletion: (): Promise<AccountDeletionResult> => apiRequestAccountDeletion(),
 };
 
 /**

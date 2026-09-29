@@ -37,4 +37,3 @@ export function ProfileStats({ profile }: { profile: ProfileDetail }) {
     </dl>
   );
 }
-

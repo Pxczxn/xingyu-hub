@@ -149,7 +149,9 @@ describe("SettingsProfilePage — edit and save", () => {
 
   it("shows a saved confirmation and adopts the server response", async () => {
     mocked.getMyProfile.mockResolvedValue(profile());
-    mocked.updateMyProfile.mockResolvedValue(profile({ displayName: "服务端昵称", lockVersion: 4 }));
+    mocked.updateMyProfile.mockResolvedValue(
+      profile({ displayName: "服务端昵称", lockVersion: 4 }),
+    );
 
     render(<SettingsProfilePage />);
 
@@ -226,7 +228,9 @@ describe("SettingsProfilePage — edit and save", () => {
 
   it("persists across a remount (the reload path)", async () => {
     mocked.getMyProfile.mockResolvedValue(profile());
-    mocked.updateMyProfile.mockResolvedValue(profile({ displayName: "已保存昵称", lockVersion: 4 }));
+    mocked.updateMyProfile.mockResolvedValue(
+      profile({ displayName: "已保存昵称", lockVersion: 4 }),
+    );
 
     const view = render(<SettingsProfilePage />);
     const displayName = await screen.findByLabelText("昵称");
@@ -421,4 +425,3 @@ describe("SettingsProfilePage — visibility is described truthfully", () => {
     expect("visibility" in payload).toBe(false);
   });
 });
-

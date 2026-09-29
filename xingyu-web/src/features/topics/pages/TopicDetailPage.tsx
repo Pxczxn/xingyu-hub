@@ -117,4 +117,3 @@ export function TopicDetailPage() {
     </div>
   );
 }
-

@@ -31,7 +31,7 @@ const VISIBILITY_LABELS: Record<string, string> = {
 
 export function visibilityLabel(visibility: string | null | undefined): string {
   const key = (visibility ?? "").toUpperCase();
-  return VISIBILITY_LABELS[key] ?? (visibility ?? "");
+  return VISIBILITY_LABELS[key] ?? visibility ?? "";
 }
 
 /**

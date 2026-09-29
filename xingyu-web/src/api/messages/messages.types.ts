@@ -232,9 +232,22 @@ export type SendMessagePayload = {
 
 /** Exactly the controller's whitelist, lower-cased. Keep in sync. */
 export const MESSAGE_ATTACHMENT_EXTENSIONS = [
-  "jpg", "jpeg", "png", "gif", "webp",
-  "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-  "txt", "md", "csv", "zip",
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "txt",
+  "md",
+  "csv",
+  "zip",
 ] as const;
 
 /** The subset of the whitelist that is an image — these become IMAGE messages. */
@@ -356,10 +369,7 @@ export function sortBySequence(messages: ChatMessage[]): ChatMessage[] {
  * page boundary can legitimately overlap the window already on screen, and a
  * duplicate React key would warn and drop a row.
  */
-export function mergeMessages(
-  current: ChatMessage[],
-  incoming: ChatMessage[],
-): ChatMessage[] {
+export function mergeMessages(current: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
   const byId = new Map<string, ChatMessage>();
   for (const message of current) byId.set(message.id, message);
   for (const message of incoming) byId.set(message.id, message);

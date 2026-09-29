@@ -60,29 +60,32 @@ export function ArticleVersionsPage() {
   const [restored, setRestored] = useState(false);
   const pendingRef = useRef(false);
 
-  const load = useCallback(async (signal: { active: boolean }) => {
-    if (!articleId) {
-      setState({ kind: "unavailable" });
-      return;
-    }
-    try {
-      // The owner list is the ONLY contract source for editorial status (the
-      // draft DTO does not carry it). A failure here must not break the page —
-      // status only decides whether we OFFER restore, so fall back to null and
-      // let canRestore() treat it as unknown.
-      const [revisions, status] = await Promise.all([
-        articlesApi.listRevisions(articleId),
-        articlesApi.getMyArticleStatus(articleId).catch(() => null),
-      ]);
-      if (!signal.active) return;
-      setState({ kind: "ready", revisions, status });
-      setSelectedId(revisions[0]?.id ?? null);
-    } catch (error) {
-      if (!signal.active) return;
-      const code = error instanceof ApiError ? error.problem.status : 0;
-      setState(code === 404 ? { kind: "unavailable" } : { kind: "error" });
-    }
-  }, [articleId]);
+  const load = useCallback(
+    async (signal: { active: boolean }) => {
+      if (!articleId) {
+        setState({ kind: "unavailable" });
+        return;
+      }
+      try {
+        // The owner list is the ONLY contract source for editorial status (the
+        // draft DTO does not carry it). A failure here must not break the page —
+        // status only decides whether we OFFER restore, so fall back to null and
+        // let canRestore() treat it as unknown.
+        const [revisions, status] = await Promise.all([
+          articlesApi.listRevisions(articleId),
+          articlesApi.getMyArticleStatus(articleId).catch(() => null),
+        ]);
+        if (!signal.active) return;
+        setState({ kind: "ready", revisions, status });
+        setSelectedId(revisions[0]?.id ?? null);
+      } catch (error) {
+        if (!signal.active) return;
+        const code = error instanceof ApiError ? error.problem.status : 0;
+        setState(code === 404 ? { kind: "unavailable" } : { kind: "error" });
+      }
+    },
+    [articleId],
+  );
 
   useEffect(() => {
     const signal = { active: true };
@@ -156,15 +159,24 @@ export function ArticleVersionsPage() {
       </header>
 
       {actionError ? (
-        <p role="alert" className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive"
+        >
           {actionError}
         </p>
       ) : null}
 
       {restored ? (
-        <p role="status" className="rounded-md border border-border bg-card p-3 text-sm text-foreground">
+        <p
+          role="status"
+          className="rounded-md border border-border bg-card p-3 text-sm text-foreground"
+        >
           已恢复为当前草稿。
-          <Link to={`/studio/content/${encodeURIComponent(articleId ?? "")}`} className="ml-1 text-accent hover:underline">
+          <Link
+            to={`/studio/content/${encodeURIComponent(articleId ?? "")}`}
+            className="ml-1 text-accent hover:underline"
+          >
             返回编辑器
           </Link>
         </p>
@@ -302,4 +314,3 @@ export function ArticleVersionsPage() {
     </div>
   );
 }
-

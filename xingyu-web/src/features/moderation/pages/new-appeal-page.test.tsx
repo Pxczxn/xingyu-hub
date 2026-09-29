@@ -24,7 +24,7 @@ function renderAt(search: string) {
       <Routes>
         <Route path="/appeals/new" element={<NewAppealPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -48,10 +48,7 @@ describe("NewAppealPage — without a case or measure", () => {
   it("explains why and points at the reports page", () => {
     renderAt("");
     expect(screen.getByText("没有可申诉的处置")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "查看我的举报" })).toHaveAttribute(
-      "href",
-      "/reports"
-    );
+    expect(screen.getByRole("link", { name: "查看我的举报" })).toHaveAttribute("href", "/reports");
   });
 
   it("never calls the API in that state", () => {
@@ -88,7 +85,7 @@ describe("NewAppealPage — with a case/measure", () => {
         measureId: "meas-1",
         caseId: "case-1",
         detail: "请求复核",
-      })
+      }),
     );
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/appeals/ap-new"));
   });
@@ -139,4 +136,3 @@ describe("NewAppealPage — with a case/measure", () => {
     expect(screen.getByRole("link", { name: "取消" })).toHaveAttribute("href", "/appeals");
   });
 });
-

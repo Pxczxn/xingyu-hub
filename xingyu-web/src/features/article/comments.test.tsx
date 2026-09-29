@@ -69,7 +69,13 @@ describe("comments (authenticated)", () => {
   it("lists comments", async () => {
     setStoredToken("tok");
     mocked.getComments.mockResolvedValue([
-      { id: "c1", authorId: "u1", authorUsername: "alice", body: "很棒", createdAt: "2026-09-01T00:00:00Z" },
+      {
+        id: "c1",
+        authorId: "u1",
+        authorUsername: "alice",
+        body: "很棒",
+        createdAt: "2026-09-01T00:00:00Z",
+      },
     ]);
 
     renderSection();
@@ -137,4 +143,3 @@ describe("comments (authenticated)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("评论发布失败");
   });
 });
-

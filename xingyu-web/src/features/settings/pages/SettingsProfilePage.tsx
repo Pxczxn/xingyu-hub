@@ -124,9 +124,7 @@ export function SettingsProfilePage() {
         setConflict(true);
         setSaveError("资料已被其他会话更新，请重新加载后再保存。");
       } else {
-        setSaveError(
-          error instanceof ApiError ? error.problem.detail : "保存失败，请稍后重试。",
-        );
+        setSaveError(error instanceof ApiError ? error.problem.detail : "保存失败，请稍后重试。");
       }
     }
   }, [baseline, values, lockVersion]);
@@ -163,9 +161,7 @@ export function SettingsProfilePage() {
         <h2 id="settings-profile-heading" className="text-base font-semibold text-primary">
           资料
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          这些信息会展示在你的公开主页上。
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">这些信息会展示在你的公开主页上。</p>
       </section>
 
       <form
@@ -273,11 +269,7 @@ export function SettingsProfilePage() {
             </span>
           ) : null}
           {conflict ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setReloadKey((key) => key + 1)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
               重新加载
             </Button>
           ) : null}
@@ -286,4 +278,3 @@ export function SettingsProfilePage() {
     </div>
   );
 }
-

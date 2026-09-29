@@ -31,9 +31,7 @@ vi.mock("@/api/articles/articles.api", () => ({
   articlesApi: { listMine: vi.fn() },
   normalizeLifecycleStatus: (value: string | null | undefined) => {
     const upper = (value ?? "").toUpperCase();
-    return ["DRAFT", "IN_REVIEW", "PUBLISHED"].includes(upper)
-      ? upper
-      : "DRAFT";
+    return ["DRAFT", "IN_REVIEW", "PUBLISHED"].includes(upper) ? upper : "DRAFT";
   },
 }));
 vi.mock("@/api/series/series.api", () => ({
@@ -124,9 +122,7 @@ describe("EventSubmitPage — content filter", () => {
     renderPage();
 
     const select = await screen.findByLabelText("选择投稿内容");
-    const options = Array.from(select.querySelectorAll("option")).map(
-      (o) => o.textContent,
-    );
+    const options = Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
     expect(options).toEqual(["已发布"]);
   });
 
@@ -140,24 +136,18 @@ describe("EventSubmitPage — content filter", () => {
     fireEvent.click(await screen.findByRole("button", { name: "系列作品" }));
 
     const select = await screen.findByLabelText("选择投稿内容");
-    const options = Array.from(select.querySelectorAll("option")).map(
-      (o) => o.textContent,
-    );
+    const options = Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
     expect(options).toEqual(["进行中"]);
   });
 
   it("offers moments with their body as the title", async () => {
-    mockedMoments.listMine.mockResolvedValue([
-      moment({ body: "今天看到了一颗流星" }),
-    ]);
+    mockedMoments.listMine.mockResolvedValue([moment({ body: "今天看到了一颗流星" })]);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "社区动态" }));
 
     const select = await screen.findByLabelText("选择投稿内容");
-    expect(select.querySelectorAll("option")[0].textContent).toBe(
-      "今天看到了一颗流星",
-    );
+    expect(select.querySelectorAll("option")[0].textContent).toBe("今天看到了一颗流星");
   });
 
   it("explains an empty article list instead of showing an empty dropdown", async () => {
@@ -177,9 +167,7 @@ describe("EventSubmitPage — content filter", () => {
     fireEvent.click(await screen.findByRole("button", { name: "社区动态" }));
 
     expect(
-      await screen.findByText(
-        "还没有可投稿的动态。发布一条动态后就可以投稿了。",
-      ),
+      await screen.findByText("还没有可投稿的动态。发布一条动态后就可以投稿了。"),
     ).toBeInTheDocument();
   });
 });
@@ -216,14 +204,11 @@ describe("EventSubmitPage — fetch behaviour", () => {
     renderPage();
 
     const select = await screen.findByLabelText("选择投稿内容");
-    const options = Array.from(
-      select.querySelectorAll("option"),
-    ) as HTMLOptionElement[];
+    const options = Array.from(select.querySelectorAll("option")) as HTMLOptionElement[];
     expect(options).toHaveLength(2);
     expect(options[0].value).toBe("a1");
     expect(
-      select.querySelector("option[selected]")?.getAttribute("value") ??
-        options[0].value,
+      select.querySelector("option[selected]")?.getAttribute("value") ?? options[0].value,
     ).toBe("a1");
   });
 
@@ -239,9 +224,7 @@ describe("EventSubmitPage — fetch behaviour", () => {
     );
     renderPage();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "无法读取你的文章",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("无法读取你的文章");
   });
 });
 
@@ -331,9 +314,7 @@ describe("EventSubmitPage — submit", () => {
     await screen.findByLabelText("选择投稿内容");
     fireEvent.click(screen.getByRole("button", { name: "提交投稿" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "投稿内容不存在",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("投稿内容不存在");
   });
 
   it("shows the server's 「活动投稿已关闭」 on a 409", async () => {
@@ -352,9 +333,7 @@ describe("EventSubmitPage — submit", () => {
     await screen.findByLabelText("选择投稿内容");
     fireEvent.click(screen.getByRole("button", { name: "提交投稿" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "活动投稿已关闭",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("活动投稿已关闭");
   });
 });
 
@@ -364,9 +343,7 @@ describe("EventSubmitPage — submission gate", () => {
     renderPage();
 
     expect(await screen.findByText("投稿通道未开放")).toBeInTheDocument();
-    expect(
-      screen.getByText("这个活动当前未开放投稿，请稍后再来。"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("这个活动当前未开放投稿，请稍后再来。")).toBeInTheDocument();
     expect(screen.queryByLabelText("选择投稿内容")).not.toBeInTheDocument();
     // The form stays unmounted, and with it the article picker — the gate is on
     // the rendering, not on the fetch (the tab effect has no event dependency).
@@ -378,9 +355,7 @@ describe("EventSubmitPage — submission gate", () => {
     );
     renderPage();
 
-    expect(
-      await screen.findByText("这个活动已经结束，无法再投稿。"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("这个活动已经结束，无法再投稿。")).toBeInTheDocument();
   });
 
   it("reports a 404 event as missing", async () => {
@@ -395,13 +370,7 @@ describe("EventSubmitPage — submission gate", () => {
     );
     renderPage();
 
-    expect(
-      await screen.findByText("这个活动不存在，或者已经下线。"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "返回活动广场" })).toHaveAttribute(
-      "href",
-      "/events",
-    );
+    expect(await screen.findByText("这个活动不存在，或者已经下线。")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "返回活动广场" })).toHaveAttribute("href", "/events");
   });
 });
-

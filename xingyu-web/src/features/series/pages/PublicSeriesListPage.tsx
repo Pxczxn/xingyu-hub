@@ -56,7 +56,11 @@ export function PublicSeriesListPage() {
 
   return (
     <div className="section-gap">
-      <PageHero eyebrow="SERIES" title="系列广场" description="沿着一条主题线索，慢慢读完一个完整的故事。" />
+      <PageHero
+        eyebrow="SERIES"
+        title="系列广场"
+        description="沿着一条主题线索，慢慢读完一个完整的故事。"
+      />
 
       {items.length === 0 ? (
         <PageState
@@ -109,7 +113,10 @@ export function PublicSeriesListPage() {
 
           {items.length > visibleCount ? (
             <div className="text-center">
-              <Button variant="outline" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+              >
                 加载更多系列
               </Button>
             </div>

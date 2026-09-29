@@ -59,12 +59,19 @@ import { MessageBubble } from "../MessageBubble";
 type LoadState =
   | { kind: "loading" }
   | { kind: "error"; expired: boolean; notFound: boolean }
-  | { kind: "ready"; conversation: Conversation; messages: ChatMessage[]; nextCursor: string | null };
+  | {
+      kind: "ready";
+      conversation: Conversation;
+      messages: ChatMessage[];
+      nextCursor: string | null;
+    };
 
 const SEND_FAILED = "消息发送失败，请重试。";
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 function isNotFound(err: unknown): boolean {
@@ -184,7 +191,9 @@ export function ConversationThreadPage() {
       );
       setDraft("");
     } catch (err: unknown) {
-      setActionError(err instanceof ApiError && err.problem.detail ? err.problem.detail : SEND_FAILED);
+      setActionError(
+        err instanceof ApiError && err.problem.detail ? err.problem.detail : SEND_FAILED,
+      );
     } finally {
       setSending(false);
     }
@@ -210,7 +219,9 @@ export function ConversationThreadPage() {
           : current,
       );
     } catch (err: unknown) {
-      setActionError(err instanceof ApiError ? err.problem.detail : "无法加载更早的消息，请稍后重试。");
+      setActionError(
+        err instanceof ApiError ? err.problem.detail : "无法加载更早的消息，请稍后重试。",
+      );
     } finally {
       setLoadingOlder(false);
     }
@@ -315,7 +326,12 @@ export function ConversationThreadPage() {
       <div className="flex flex-col gap-3">
         {messages.length > 0 ? (
           <div className="text-center">
-            <Button variant="ghost" size="sm" disabled={loadingOlder} onClick={() => void onLoadOlder()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={loadingOlder}
+              onClick={() => void onLoadOlder()}
+            >
               {loadingOlder ? "加载中…" : "加载更早的消息"}
             </Button>
           </div>
@@ -391,4 +407,3 @@ export function ConversationThreadPage() {
     </div>
   );
 }
-

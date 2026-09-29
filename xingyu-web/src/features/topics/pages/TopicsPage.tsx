@@ -55,7 +55,12 @@ export function TopicsPage() {
 
   return (
     <div className="section-gap">
-      <PageHero eyebrow="TOPICS" title="话题广场" description="用一个关键词，连接正在发生的讨论与同频的人。" tone="violet" />
+      <PageHero
+        eyebrow="TOPICS"
+        title="话题广场"
+        description="用一个关键词，连接正在发生的讨论与同频的人。"
+        tone="violet"
+      />
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Input
           value={keyword}
@@ -78,11 +83,16 @@ export function TopicsPage() {
               className="flex items-center gap-3 rounded-lg border border-border bg-card p-4"
             >
               <div className="min-w-0 flex-1">
-                <Link to={`/topics/${topic.slug}`} className="block truncate text-sm font-medium hover:text-accent">
+                <Link
+                  to={`/topics/${topic.slug}`}
+                  className="block truncate text-sm font-medium hover:text-accent"
+                >
                   {topic.name}
                 </Link>
                 {topic.description ? (
-                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{topic.description}</p>
+                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                    {topic.description}
+                  </p>
                 ) : null}
                 <p className="mt-1 text-xs text-muted-foreground">
                   {topic.followerCount ?? 0} 关注 · {topic.contentCount ?? 0} 内容

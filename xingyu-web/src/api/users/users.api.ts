@@ -70,8 +70,7 @@ export const usersApi = {
    *     offers that control (see ProfileBlockControl), the guard is just honest
    *   - a missing target is a 404
    */
-  listBlockedUsers: (): Promise<BlockedUser[]> =>
-    apiRequest<BlockedUser[]>("/api/v1/me/blocks"),
+  listBlockedUsers: (): Promise<BlockedUser[]> => apiRequest<BlockedUser[]>("/api/v1/me/blocks"),
 
   blockUser: (username: string): Promise<void> =>
     apiRequest<void>(`/api/v1/me/blocks/${encodeURIComponent(username)}`, { method: "POST" }),

@@ -35,7 +35,13 @@ describe("AttachmentMediaGrid", () => {
   it("links each tile to the full image in a new tab", () => {
     render(
       <AttachmentMediaGrid
-        items={[message({ messageType: "IMAGE", attachmentUrl: "/files/x.png", attachmentName: "照片.png" })]}
+        items={[
+          message({
+            messageType: "IMAGE",
+            attachmentUrl: "/files/x.png",
+            attachmentName: "照片.png",
+          }),
+        ]}
       />,
     );
 
@@ -46,18 +52,25 @@ describe("AttachmentMediaGrid", () => {
     // rel=noreferrer, not just a bare target: an attachment URL is user-supplied
     // and must not be able to reach back through window.opener.
     expect(link).toHaveAttribute("rel", "noreferrer");
-    expect(within(list).getByRole("img", { name: "照片.png" })).toHaveAttribute("src", "/files/x.png");
+    expect(within(list).getByRole("img", { name: "照片.png" })).toHaveAttribute(
+      "src",
+      "/files/x.png",
+    );
   });
 
   it("lazy-loads tiles so a long media list does not fetch everything at once", () => {
-    render(<AttachmentMediaGrid items={[message({ messageType: "IMAGE", attachmentName: "a.png" })]} />);
+    render(
+      <AttachmentMediaGrid items={[message({ messageType: "IMAGE", attachmentName: "a.png" })]} />,
+    );
     expect(screen.getByRole("img")).toHaveAttribute("loading", "lazy");
   });
 
   it("falls back to a generic alt/name rather than rendering an empty label", () => {
     render(
       <AttachmentMediaGrid
-        items={[message({ messageType: "IMAGE", attachmentUrl: "/files/x.png", attachmentName: null })]}
+        items={[
+          message({ messageType: "IMAGE", attachmentUrl: "/files/x.png", attachmentName: null }),
+        ]}
       />,
     );
     // The img gets the generic alt.
@@ -74,8 +87,18 @@ describe("AttachmentMediaGrid", () => {
     render(
       <AttachmentMediaGrid
         items={[
-          message({ id: "a", messageType: "IMAGE", attachmentUrl: "/a.png", attachmentName: "a.png" }),
-          message({ id: "b", messageType: "IMAGE", attachmentUrl: "/b.png", attachmentName: "b.png" }),
+          message({
+            id: "a",
+            messageType: "IMAGE",
+            attachmentUrl: "/a.png",
+            attachmentName: "a.png",
+          }),
+          message({
+            id: "b",
+            messageType: "IMAGE",
+            attachmentUrl: "/b.png",
+            attachmentName: "b.png",
+          }),
         ]}
       />,
     );
@@ -149,4 +172,3 @@ describe("AttachmentFileList", () => {
     expect(within(screen.getByLabelText("文件列表")).getAllByRole("listitem")).toHaveLength(2);
   });
 });
-

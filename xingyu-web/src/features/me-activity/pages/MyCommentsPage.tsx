@@ -133,7 +133,10 @@ export function MyCommentsPage() {
         ) : (
           <ul aria-label="我的评论列表" className="divide-y divide-border">
             {comments.map((comment) => (
-              <li key={comment.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]">
+              <li
+                key={comment.id}
+                className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
+              >
                 <time
                   dateTime={comment.createdAt}
                   className="text-xs tabular-nums text-muted-foreground"
@@ -171,4 +174,3 @@ export function MyCommentsPage() {
     </div>
   );
 }
-

@@ -49,4 +49,3 @@ export function ArticleEditorLinkControl({
     </div>
   );
 }
-

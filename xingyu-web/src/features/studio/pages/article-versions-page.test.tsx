@@ -157,9 +157,7 @@ describe("article versions page", () => {
 
       expect(await screen.findByTestId("restore-blocked")).toBeInTheDocument();
       expect(screen.getByTestId("restore-blocked")).toHaveTextContent("审核");
-      expect(
-        screen.queryByRole("button", { name: "恢复为当前草稿" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "恢复为当前草稿" })).not.toBeInTheDocument();
     });
 
     it("hides restore when the status cannot be resolved", async () => {
@@ -168,9 +166,7 @@ describe("article versions page", () => {
       renderPage();
 
       expect(await screen.findByTestId("restore-blocked")).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "恢复为当前草稿" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "恢复为当前草稿" })).not.toBeInTheDocument();
     });
 
     it("still renders the history when the status lookup fails", async () => {
@@ -229,9 +225,7 @@ describe("article versions page", () => {
 
     it("surfaces the server's detail on a 409 and keeps the page usable", async () => {
       mocked.listRevisions.mockResolvedValue([revision()]);
-      mocked.restoreRevision.mockRejectedValue(
-        problem(409, "CONFLICT", "文章当前不可恢复版本"),
-      );
+      mocked.restoreRevision.mockRejectedValue(problem(409, "CONFLICT", "文章当前不可恢复版本"));
       renderPage();
 
       fireEvent.click(await screen.findByRole("button", { name: "恢复为当前草稿" }));
@@ -261,7 +255,10 @@ describe("article versions page", () => {
       mocked.listRevisions.mockResolvedValue([revision()]);
       let release: (value: unknown) => void = () => {};
       mocked.restoreRevision.mockImplementation(
-        () => new Promise((resolve) => { release = resolve; }) as never,
+        () =>
+          new Promise((resolve) => {
+            release = resolve;
+          }) as never,
       );
       renderPage();
 
@@ -291,4 +288,3 @@ describe("article versions page", () => {
     });
   });
 });
-

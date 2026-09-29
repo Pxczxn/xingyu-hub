@@ -271,7 +271,9 @@ describe("MomentDetailPage", () => {
     mocked.trash.mockResolvedValue(VIEW);
     renderDetail();
     fireEvent.click(await screen.findByRole("button", { name: "删除动态" }));
-    expect(screen.getByRole("alertdialog")).toHaveTextContent("确定删除这条动态吗？删除后将无法继续公开访问。");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "确定删除这条动态吗？删除后将无法继续公开访问。",
+    );
     fireEvent.click(screen.getByRole("button", { name: "取消" }));
     expect(mocked.trash).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "删除动态" }));
@@ -293,4 +295,3 @@ describe("MomentDetailPage", () => {
     await waitFor(() => expect(mocked.trash).toHaveBeenCalledTimes(1));
   });
 });
-

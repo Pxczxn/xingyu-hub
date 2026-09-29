@@ -33,7 +33,11 @@ export function ForgotPasswordPage() {
         setNotice(`开发环境重置链接：${result.devResetLink}`);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.detail || err.problem.title : "请求失败，请稍后重试。");
+      setError(
+        err instanceof ApiError
+          ? err.problem.detail || err.problem.title
+          : "请求失败，请稍后重试。",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -83,4 +87,3 @@ export function ForgotPasswordPage() {
     </AuthCard>
   );
 }
-

@@ -27,7 +27,7 @@ function renderPage() {
   return render(
     <MemoryRouter>
       <MyLikesPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -84,9 +84,7 @@ describe("MyLikesPage", () => {
   });
 
   it("degrades an unmapped objectType to /discover instead of guessing a route", async () => {
-    mockedList.mockResolvedValue([
-      like({ objectType: "USER", objectId: "u1", title: "某用户" }),
-    ]);
+    mockedList.mockResolvedValue([like({ objectType: "USER", objectId: "u1", title: "某用户" })]);
     renderPage();
     const link = await screen.findByRole("link", { name: "某用户" });
     // Never /u/u1 — the shared contentHref refuses to guess.
@@ -138,4 +136,3 @@ describe("MyLikesPage", () => {
     expect(screen.queryByRole("button", { name: /更多|加载/ })).not.toBeInTheDocument();
   });
 });
-

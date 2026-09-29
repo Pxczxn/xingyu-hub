@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  clearStoredRecentAuth,
-  getStoredRecentAuth,
-  setStoredRecentAuth,
-} from "./recent-auth";
+import { clearStoredRecentAuth, getStoredRecentAuth, setStoredRecentAuth } from "./recent-auth";
 
 const KEY = "xingyu-recent-auth";
 

@@ -66,7 +66,7 @@ export function CreatorsPage() {
             creators: await topicsApi
               .getTopicCreators(topic.slug, CREATOR_PER_TOPIC_LIMIT)
               .catch(() => []),
-          }))
+          })),
         );
         if (!active) return;
 
@@ -83,7 +83,7 @@ export function CreatorsPage() {
                 .catch(() => []),
             ]);
             return { ...creator, profile, latestWork: works[0] ?? null };
-          })
+          }),
         );
         if (!active) return;
 
@@ -117,8 +117,8 @@ export function CreatorsPage() {
         rows.map((row) =>
           row.username === creator.username && row.profile
             ? { ...row, profile: { ...row.profile, following: !wasFollowing } }
-            : row
-        )
+            : row,
+        ),
       );
     } catch {
       setFollowError("关注操作未完成，请确认登录状态后重试。");
@@ -129,7 +129,7 @@ export function CreatorsPage() {
 
   const visible = useMemo(
     () => filterCreators(creators, activeTopic, query),
-    [creators, activeTopic, query]
+    [creators, activeTopic, query],
   );
 
   const hasAnyTopic = topics.length > 0;
@@ -138,24 +138,21 @@ export function CreatorsPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-primary">推荐作者</h1>
-        <p className="text-sm text-muted-foreground">
-          从社区专题中发现值得关注的创作者。
-        </p>
+        <p className="text-sm text-muted-foreground">从社区专题中发现值得关注的创作者。</p>
       </header>
 
       {followError ? (
-        <p role="alert" className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive"
+        >
           {followError}
         </p>
       ) : null}
 
       {loading ? <PageState kind="loading" /> : null}
       {!loading && failed ? (
-        <PageState
-          kind="error"
-          title="作者列表加载失败"
-          description="请稍后重试。"
-        />
+        <PageState kind="error" title="作者列表加载失败" description="请稍后重试。" />
       ) : null}
 
       {!loading && !failed && !hasAnyTopic ? (
@@ -218,11 +215,7 @@ export function CreatorsPage() {
                 description="已收录的专题下暂时还没有已发布的内容，因此无法据此推荐作者。"
               />
             ) : (
-              <PageState
-                kind="empty"
-                title="暂无匹配作者"
-                description="调整专题或关键词后再试。"
-              />
+              <PageState kind="empty" title="暂无匹配作者" description="调整专题或关键词后再试。" />
             )
           ) : (
             <ul
@@ -245,4 +238,3 @@ export function CreatorsPage() {
     </div>
   );
 }
-

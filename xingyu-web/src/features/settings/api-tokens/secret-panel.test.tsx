@@ -99,4 +99,3 @@ describe("ApiTokenSecretPanel — dismiss", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });
-

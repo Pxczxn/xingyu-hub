@@ -52,4 +52,3 @@ export function AttachmentFileList({ items }: { items: ChatMessage[] }) {
     </ul>
   );
 }
-

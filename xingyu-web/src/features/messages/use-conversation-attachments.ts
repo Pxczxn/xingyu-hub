@@ -21,7 +21,9 @@ export type AttachmentsState =
   | { kind: "ready"; items: ChatMessage[] };
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 function isNotFound(err: unknown): boolean {
@@ -54,7 +56,8 @@ export function useConversationAttachments(
         if (active) setState({ kind: "ready", items });
       })
       .catch((err: unknown) => {
-        if (active) setState({ kind: "error", expired: isAuthError(err), notFound: isNotFound(err) });
+        if (active)
+          setState({ kind: "error", expired: isAuthError(err), notFound: isNotFound(err) });
       });
 
     return () => {

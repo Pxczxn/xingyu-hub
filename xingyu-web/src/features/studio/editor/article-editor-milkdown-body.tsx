@@ -7,10 +7,7 @@ import { Milkdown, MilkdownProvider, useEditor, useInstance } from "@milkdown/re
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ArticleEditorBodyController } from "@/lib/article-editor-body-controller";
 import { ensureCanonicalMarkdownBody } from "@/lib/article-body-markdown";
-import {
-  insertMilkdownImage,
-  runMilkdownFormatAction,
-} from "@/lib/milkdown-editor-commands";
+import { insertMilkdownImage, runMilkdownFormatAction } from "@/lib/milkdown-editor-commands";
 import { readMilkdownCaretAnchor } from "@/lib/milkdown-editor-caret-anchor";
 import {
   applyMilkdownLink,
@@ -20,10 +17,7 @@ import {
 import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
 import { syncMilkdownEditorUi } from "@/lib/milkdown-editor-format-state";
 import { ArticleMarkdownBody } from "@/lib/article-markdown";
-import {
-  describeEditorImageUploadError,
-  uploadEditorImage,
-} from "./editor-image-upload";
+import { describeEditorImageUploadError, uploadEditorImage } from "./editor-image-upload";
 import "@milkdown/crepe/theme/common/code-mirror.css";
 import "@milkdown/crepe/theme/common/cursor.css";
 import "@milkdown/crepe/theme/common/image-block.css";
@@ -114,94 +108,91 @@ function MilkdownEditorInner({
     }
   }, []);
 
-  useEditor(
-    (root) => {
-      const crepe = new Crepe({
-        root,
-        defaultValue: initialValueRef.current,
-        features: {
-          [CrepeFeature.Toolbar]: false,
-          [CrepeFeature.TopBar]: false,
-          [CrepeFeature.Table]: false,
-          [CrepeFeature.Latex]: false,
-          [CrepeFeature.AI]: false,
-          [CrepeFeature.BlockEdit]: false,
+  useEditor((root) => {
+    const crepe = new Crepe({
+      root,
+      defaultValue: initialValueRef.current,
+      features: {
+        [CrepeFeature.Toolbar]: false,
+        [CrepeFeature.TopBar]: false,
+        [CrepeFeature.Table]: false,
+        [CrepeFeature.Latex]: false,
+        [CrepeFeature.AI]: false,
+        [CrepeFeature.BlockEdit]: false,
+      },
+      featureConfigs: {
+        [CrepeFeature.Placeholder]: {
+          text: "开始写作。可用上方工具栏排版，也可以把图片拖进来。",
+          mode: "block",
         },
-        featureConfigs: {
-          [CrepeFeature.Placeholder]: {
-            text: "开始写作。可用上方工具栏排版，也可以把图片拖进来。",
-            mode: "block",
-          },
-          [CrepeFeature.ImageBlock]: {
-            onUpload: async (file) => {
-              onUploadingChangeRef.current?.(true);
-              try {
-                const uploaded = await uploadEditorImage(file);
-                return uploaded.url;
-              } catch (error) {
-                onUploadErrorRef.current?.(describeEditorImageUploadError(error));
-                throw error instanceof Error ? error : new Error("upload failed");
-              } finally {
-                onUploadingChangeRef.current?.(false);
-                setDragging(false);
-              }
-            },
+        [CrepeFeature.ImageBlock]: {
+          onUpload: async (file) => {
+            onUploadingChangeRef.current?.(true);
+            try {
+              const uploaded = await uploadEditorImage(file);
+              return uploaded.url;
+            } catch (error) {
+              onUploadErrorRef.current?.(describeEditorImageUploadError(error));
+              throw error instanceof Error ? error : new Error("upload failed");
+            } finally {
+              onUploadingChangeRef.current?.(false);
+              setDragging(false);
+            }
           },
         },
+      },
+    });
+
+    crepe.on((listener) => {
+      const notifyUi = (ctx: Parameters<typeof syncMilkdownEditorUi>[0]) => {
+        const state = syncMilkdownEditorUi(ctx);
+        formatListenersRef.current.forEach((notify) => notify(state));
+      };
+
+      listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
+        if (markdown === prevMarkdown) return;
+        onChangeRef.current(ensureCanonicalMarkdownBody(markdown));
       });
-
-      crepe.on((listener) => {
-        const notifyUi = (ctx: Parameters<typeof syncMilkdownEditorUi>[0]) => {
-          const state = syncMilkdownEditorUi(ctx);
-          formatListenersRef.current.forEach((notify) => notify(state));
-        };
-
-        listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
-          if (markdown === prevMarkdown) return;
-          onChangeRef.current(ensureCanonicalMarkdownBody(markdown));
-        });
-        listener.mounted((ctx) => {
-          editorReadyRef.current = true;
-          // Apply the current read-only state to the freshly mounted editor.
-          try {
-            crepe.setReadonly(readOnlyRef.current);
-          } catch {
-            // Older/newer Crepe builds may not expose setReadonly; the toolbar and
-            // save button are disabled regardless.
-          }
-          notifyUi(ctx);
-          // Report the serializer's canonical markdown once so the page can treat
-          // mount-time normalization as part of loading, not as a user edit.
-          try {
-            onSettleRef.current?.(ensureCanonicalMarkdownBody(crepe.getMarkdown()));
-          } catch {
-            // The editor may not be serialisable this early; markdownUpdated will
-            // still deliver the canonical value.
-          }
-        });
-        listener.selectionUpdated((ctx) => {
-          if (!editorReadyRef.current) return;
-          notifyUi(ctx);
-        });
-        listener.updated((ctx) => {
-          if (!editorReadyRef.current) return;
-          notifyUi(ctx);
-        });
-        listener.focus(() => setEditorFocused(true));
-        listener.blur((ctx) => {
-          setEditorFocused(false);
-          const view = ctx.get(editorViewCtx);
-          view?.dom
-            ?.querySelectorAll(".xy-editor-block-active")
-            .forEach((element) => element.classList.remove("xy-editor-block-active"));
-        });
+      listener.mounted((ctx) => {
+        editorReadyRef.current = true;
+        // Apply the current read-only state to the freshly mounted editor.
+        try {
+          crepe.setReadonly(readOnlyRef.current);
+        } catch {
+          // Older/newer Crepe builds may not expose setReadonly; the toolbar and
+          // save button are disabled regardless.
+        }
+        notifyUi(ctx);
+        // Report the serializer's canonical markdown once so the page can treat
+        // mount-time normalization as part of loading, not as a user edit.
+        try {
+          onSettleRef.current?.(ensureCanonicalMarkdownBody(crepe.getMarkdown()));
+        } catch {
+          // The editor may not be serialisable this early; markdownUpdated will
+          // still deliver the canonical value.
+        }
       });
+      listener.selectionUpdated((ctx) => {
+        if (!editorReadyRef.current) return;
+        notifyUi(ctx);
+      });
+      listener.updated((ctx) => {
+        if (!editorReadyRef.current) return;
+        notifyUi(ctx);
+      });
+      listener.focus(() => setEditorFocused(true));
+      listener.blur((ctx) => {
+        setEditorFocused(false);
+        const view = ctx.get(editorViewCtx);
+        view?.dom
+          ?.querySelectorAll(".xy-editor-block-active")
+          .forEach((element) => element.classList.remove("xy-editor-block-active"));
+      });
+    });
 
-      crepeRef.current = crepe;
-      return crepe;
-    },
-    [],
-  );
+    crepeRef.current = crepe;
+    return crepe;
+  }, []);
 
   const [loading, getInstance] = useInstance();
 
@@ -383,9 +374,7 @@ function MilkdownEditorInner({
           )}
           aria-hidden={previewEnabled}
         >
-          <div
-            className={`xy-editor-milkdown${editorFocused ? " is-focused" : ""}`}
-          >
+          <div className={`xy-editor-milkdown${editorFocused ? " is-focused" : ""}`}>
             <Milkdown />
           </div>
         </div>
@@ -401,4 +390,3 @@ export function ArticleEditorMilkdownBody(props: ArticleEditorMilkdownBodyProps)
     </MilkdownProvider>
   );
 }
-

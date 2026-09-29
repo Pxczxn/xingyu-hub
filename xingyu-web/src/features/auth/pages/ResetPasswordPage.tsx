@@ -51,7 +51,11 @@ export function ResetPasswordPage() {
       await authApi.resetPassword({ token, password });
       navigate("/login", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.detail || err.problem.title : "重置失败，请稍后重试。");
+      setError(
+        err instanceof ApiError
+          ? err.problem.detail || err.problem.title
+          : "重置失败，请稍后重试。",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -68,7 +72,9 @@ export function ResetPasswordPage() {
           </Link>
         }
       >
-        <p className="text-sm text-muted-foreground">当前链接缺少 token，请回到邮箱点击完整链接。</p>
+        <p className="text-sm text-muted-foreground">
+          当前链接缺少 token，请回到邮箱点击完整链接。
+        </p>
       </AuthCard>
     );
   }
@@ -119,4 +125,3 @@ export function ResetPasswordPage() {
     </AuthCard>
   );
 }
-

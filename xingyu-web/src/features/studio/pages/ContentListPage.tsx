@@ -183,7 +183,10 @@ export function ContentListPage() {
       </nav>
 
       {actionError ? (
-        <div role="alert" className="rounded-lg border border-border bg-card p-3 text-sm text-foreground">
+        <div
+          role="alert"
+          className="rounded-lg border border-border bg-card p-3 text-sm text-foreground"
+        >
           {actionError}
         </div>
       ) : null}
@@ -201,21 +204,13 @@ export function ContentListPage() {
         <PageState kind="loading" />
       ) : phase === "error" ? (
         <div className="section-gap">
-          <PageState
-            kind="error"
-            title="无法加载内容"
-            description="请确认登录状态后重试。"
-          />
+          <PageState kind="error" title="无法加载内容" description="请确认登录状态后重试。" />
           <Button variant="outline" onClick={loadArticles}>
             重新加载
           </Button>
         </div>
       ) : visible.length === 0 ? (
-        <PageState
-          kind="empty"
-          title={emptyTitle(tab)}
-          description={emptyHint(tab)}
-        />
+        <PageState kind="empty" title={emptyTitle(tab)} description={emptyHint(tab)} />
       ) : (
         <ul className="grid gap-3" data-testid="content-rows">
           {visible.map((article) => (
@@ -356,7 +351,10 @@ function TrashPanel({
           </p>
           <ul className="mt-2 grid gap-1">
             {others.map((item) => (
-              <li key={`${item.objectType}:${item.objectId}`} className="text-xs text-muted-foreground">
+              <li
+                key={`${item.objectType}:${item.objectId}`}
+                className="text-xs text-muted-foreground"
+              >
                 {`${item.objectType} · ${trashItemTitle(item)}`}
               </li>
             ))}
@@ -396,4 +394,3 @@ function emptyHint(tab: Tab): string {
       return "点「新建文章」开始写第一篇。";
   }
 }
-

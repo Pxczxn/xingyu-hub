@@ -182,10 +182,16 @@ export function SettingsApiTokensPage() {
       ) : null}
 
       <section aria-labelledby="settings-api-tokens-create-heading">
-        <h3 id="settings-api-tokens-create-heading" className="text-sm font-semibold text-foreground">
+        <h3
+          id="settings-api-tokens-create-heading"
+          className="text-sm font-semibold text-foreground"
+        >
           创建 Token
         </h3>
-        <form className="mt-3 flex flex-wrap items-end gap-3" onSubmit={(event) => void create(event)}>
+        <form
+          className="mt-3 flex flex-wrap items-end gap-3"
+          onSubmit={(event) => void create(event)}
+        >
           <div className="min-w-0 flex-1">
             <Label htmlFor="api-token-name">名称</Label>
             <Input
@@ -207,12 +213,20 @@ export function SettingsApiTokensPage() {
           </Button>
         </form>
         {nameError ? (
-          <p role="alert" data-testid="api-token-name-error" className="mt-2 text-sm text-destructive">
+          <p
+            role="alert"
+            data-testid="api-token-name-error"
+            className="mt-2 text-sm text-destructive"
+          >
             {nameError}
           </p>
         ) : null}
         {createError ? (
-          <p role="alert" data-testid="api-token-create-error" className="mt-2 text-sm text-destructive">
+          <p
+            role="alert"
+            data-testid="api-token-create-error"
+            className="mt-2 text-sm text-destructive"
+          >
             {createError}
           </p>
         ) : null}
@@ -224,7 +238,11 @@ export function SettingsApiTokensPage() {
         </h3>
 
         {actionError ? (
-          <p role="alert" data-testid="api-token-action-error" className="mt-2 text-sm text-destructive">
+          <p
+            role="alert"
+            data-testid="api-token-action-error"
+            className="mt-2 text-sm text-destructive"
+          >
             {actionError}
           </p>
         ) : null}
@@ -262,7 +280,9 @@ export function SettingsApiTokensPage() {
                   <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
                     <div className="flex gap-1">
                       <dt>创建于</dt>
-                      <dd data-testid={`api-token-created-${token.id}`}>{formatInstant(token.createdAt)}</dd>
+                      <dd data-testid={`api-token-created-${token.id}`}>
+                        {formatInstant(token.createdAt)}
+                      </dd>
                     </div>
                     <div className="flex gap-1">
                       <dt>最近使用</dt>
@@ -322,4 +342,3 @@ export function SettingsApiTokensPage() {
     </div>
   );
 }
-

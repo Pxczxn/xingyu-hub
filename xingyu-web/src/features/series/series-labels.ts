@@ -10,11 +10,16 @@ export function apiErrorDetail(error: unknown, fallback: string): string {
 }
 
 export function isNotFoundError(error: unknown): boolean {
-  return error instanceof ApiError && (error.problem.status === 404 || error.problem.code === "NOT_FOUND");
+  return (
+    error instanceof ApiError &&
+    (error.problem.status === 404 || error.problem.code === "NOT_FOUND")
+  );
 }
 
 export function isConflictError(error: unknown): boolean {
-  return error instanceof ApiError && error.problem.status === 409 && error.problem.code === "CONFLICT";
+  return (
+    error instanceof ApiError && error.problem.status === 409 && error.problem.code === "CONFLICT"
+  );
 }
 
 export function formatUpdatedAt(value: string): string {

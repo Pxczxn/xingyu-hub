@@ -88,7 +88,11 @@ describe("countUnreadConversations", () => {
   });
 
   it("treats a missing unreadCount as 0 instead of NaN", () => {
-    expect(countUnreadConversations([{ ...makeConversation(), unreadCount: undefined as unknown as number }])).toBe(0);
+    expect(
+      countUnreadConversations([
+        { ...makeConversation(), unreadCount: undefined as unknown as number },
+      ]),
+    ).toBe(0);
   });
 });
 
@@ -121,13 +125,22 @@ describe("conversationLabel", () => {
 
 describe("sortBySequence / mergeMessages", () => {
   it("orders ascending by sequenceNumber", () => {
-    const list = [makeMessage({ id: "b", sequenceNumber: 3 }), makeMessage({ id: "a", sequenceNumber: 1 })];
+    const list = [
+      makeMessage({ id: "b", sequenceNumber: 3 }),
+      makeMessage({ id: "a", sequenceNumber: 1 }),
+    ];
     expect(sortBySequence(list).map((m) => m.id)).toEqual(["a", "b"]);
   });
 
   it("prepends older history and keeps ascending order", () => {
-    const current = [makeMessage({ id: "m3", sequenceNumber: 3 }), makeMessage({ id: "m4", sequenceNumber: 4 })];
-    const older = [makeMessage({ id: "m1", sequenceNumber: 1 }), makeMessage({ id: "m2", sequenceNumber: 2 })];
+    const current = [
+      makeMessage({ id: "m3", sequenceNumber: 3 }),
+      makeMessage({ id: "m4", sequenceNumber: 4 }),
+    ];
+    const older = [
+      makeMessage({ id: "m1", sequenceNumber: 1 }),
+      makeMessage({ id: "m2", sequenceNumber: 2 }),
+    ];
     expect(mergeMessages(current, older).map((m) => m.id)).toEqual(["m1", "m2", "m3", "m4"]);
   });
 
@@ -164,8 +177,17 @@ describe("attachmentMessageType", () => {
 
   it("classifies every other whitelisted extension as FILE", () => {
     for (const name of [
-      "a.pdf", "a.doc", "a.docx", "a.xls", "a.xlsx",
-      "a.ppt", "a.pptx", "a.txt", "a.md", "a.csv", "a.zip",
+      "a.pdf",
+      "a.doc",
+      "a.docx",
+      "a.xls",
+      "a.xlsx",
+      "a.ppt",
+      "a.pptx",
+      "a.txt",
+      "a.md",
+      "a.csv",
+      "a.zip",
     ]) {
       expect(attachmentMessageType(name)).toBe("FILE");
     }
@@ -224,9 +246,9 @@ describe("validateMessageAttachment", () => {
   it("accepts exactly the limit and rejects one byte more", () => {
     // `validateFileSize` compares `size > max`, so exactly 100 MB passes.
     expect(validateMessageAttachment(fakeFile("a.png", MESSAGE_ATTACHMENT_MAX_BYTES))).toBeNull();
-    expect(validateMessageAttachment(fakeFile("a.png", MESSAGE_ATTACHMENT_MAX_BYTES + 1))).toContain(
-      "附件",
-    );
+    expect(
+      validateMessageAttachment(fakeFile("a.png", MESSAGE_ATTACHMENT_MAX_BYTES + 1)),
+    ).toContain("附件");
   });
 
   it("ignores an empty MIME type rather than blocking a good file", () => {

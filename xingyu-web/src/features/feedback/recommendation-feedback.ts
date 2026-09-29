@@ -13,8 +13,7 @@ import type { RecommendationFeedback } from "@/api/recommendation-feedback/recom
  */
 
 export type SubmitCheck =
-  | { ok: true; body: string }
-  | { ok: false; reason: "empty" | "too_long"; message: string };
+  { ok: true; body: string } | { ok: false; reason: "empty" | "too_long"; message: string };
 
 /**
  * Validate before submitting.

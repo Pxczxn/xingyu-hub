@@ -115,7 +115,9 @@ export function toProfileFormValues(profile: ProfileDetail): ProfileFormValues {
     websiteUrl: profile.websiteUrl ?? "",
     // Keep isVisibility() as the guard so an unknown enum value cannot silently
     // become "PUBLIC"; anything unexpected folds onto the safe 不列出 side.
-    visibility: isVisibility(profile.visibility) ? toVisibilityChoice(profile.visibility) : "UNLISTED",
+    visibility: isVisibility(profile.visibility)
+      ? toVisibilityChoice(profile.visibility)
+      : "UNLISTED",
   };
 }
 

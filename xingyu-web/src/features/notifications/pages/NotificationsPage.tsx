@@ -46,7 +46,9 @@ const TABS: { id: NotificationTab; label: string }[] = [
 ];
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 export function NotificationsPage() {
@@ -101,7 +103,9 @@ export function NotificationsPage() {
         const updated = await notificationsApi.markRead(item.id);
         if (state.kind === "ready") {
           replaceItems(
-            state.items.map((row) => (row.id === item.id ? { ...row, ...updated, read: true } : row)),
+            state.items.map((row) =>
+              row.id === item.id ? { ...row, ...updated, read: true } : row,
+            ),
           );
         }
       } catch (err: unknown) {
@@ -131,7 +135,9 @@ export function NotificationsPage() {
       // read-all answers 204 with no payload, so reflect it locally.
       replaceItems(state.items.map((row) => ({ ...row, read: true })));
     } catch (err: unknown) {
-      setActionError(err instanceof ApiError ? err.problem.detail : "全部标记已读失败，请稍后重试。");
+      setActionError(
+        err instanceof ApiError ? err.problem.detail : "全部标记已读失败，请稍后重试。",
+      );
     } finally {
       setBusy(false);
     }
@@ -164,7 +170,8 @@ export function NotificationsPage() {
 
   const { items } = state;
   const counts = countUnreadByBucket(items);
-  const visible = tab === "all" ? items : items.filter((item) => notificationBucket(item.category) === tab);
+  const visible =
+    tab === "all" ? items : items.filter((item) => notificationBucket(item.category) === tab);
 
   return (
     <div className="section-gap">
@@ -245,4 +252,3 @@ export function NotificationsPage() {
     </div>
   );
 }
-

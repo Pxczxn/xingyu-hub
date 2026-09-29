@@ -46,7 +46,9 @@ const COPY: Record<Direction, { title: string; empty: string; emptyHint: string 
 };
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 export function FollowListPage({ direction }: { direction: Direction }) {
@@ -95,7 +97,9 @@ export function FollowListPage({ direction }: { direction: Direction }) {
           ? {
               kind: "ready",
               users: current.users.map((item) =>
-                item.userId === user.userId ? { ...item, followedAt: new Date().toISOString() } : item,
+                item.userId === user.userId
+                  ? { ...item, followedAt: new Date().toISOString() }
+                  : item,
               ),
             }
           : current,
@@ -120,7 +124,9 @@ export function FollowListPage({ direction }: { direction: Direction }) {
         <PageState
           kind="error"
           title="加载失败"
-          description={state.expired ? "登录状态已过期，请重新登录。" : "无法读取这份列表，请稍后重试。"}
+          description={
+            state.expired ? "登录状态已过期，请重新登录。" : "无法读取这份列表，请稍后重试。"
+          }
         />
         {state.expired ? (
           <p className="text-center">
@@ -209,4 +215,3 @@ export function MyFollowingPage() {
 export function MyFollowersPage() {
   return <FollowListPage direction="followers" />;
 }
-

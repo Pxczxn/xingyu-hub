@@ -21,7 +21,11 @@ export const topicsApi = {
   getTopic: (slug: string): Promise<TopicSummary> =>
     apiRequest<TopicSummary>(`/api/v1/topics/${encodeURIComponent(slug)}`),
 
-  getTopicContent: (slug: string, sort: TopicContentSort = "latest", limit = 12): Promise<ContentSummary[]> =>
+  getTopicContent: (
+    slug: string,
+    sort: TopicContentSort = "latest",
+    limit = 12,
+  ): Promise<ContentSummary[]> =>
     apiRequest<ContentSummary[]>(
       `/api/v1/topics/${encodeURIComponent(slug)}/content?sort=${encodeURIComponent(sort)}&limit=${encodeURIComponent(String(limit))}`,
     ),

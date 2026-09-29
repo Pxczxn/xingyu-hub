@@ -155,7 +155,9 @@ export function SeriesArticlesPage() {
                     onClick={() => addArticle(article)}
                   >
                     <span>{articleDisplayTitle(article.title)}</span>
-                    <span className="mt-1 block font-mono text-xs text-muted-foreground">{article.id}</span>
+                    <span className="mt-1 block font-mono text-xs text-muted-foreground">
+                      {article.id}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -189,4 +191,3 @@ function BackLink() {
     </Link>
   );
 }
-

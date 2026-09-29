@@ -25,9 +25,7 @@ export function StudioPage() {
           <p className="text-sm text-muted-foreground">
             {user?.username ? `${user.username}，欢迎回来。` : "欢迎回来。"}
           </p>
-          <p className="text-sm text-muted-foreground">
-            在这里管理你的文章、系列与投稿。
-          </p>
+          <p className="text-sm text-muted-foreground">在这里管理你的文章、系列与投稿。</p>
           <div className="mt-1 flex flex-wrap gap-3">
             <Link to="/studio/content/new" className="text-sm text-accent hover:underline">
               新建文章
@@ -100,4 +98,3 @@ export function StudioPage() {
     </div>
   );
 }
-

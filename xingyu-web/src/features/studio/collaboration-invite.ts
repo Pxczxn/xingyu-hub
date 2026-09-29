@@ -64,9 +64,7 @@ export function inviterDisplayName(
  * not an error, so it must be routed through here rather than treated as a
  * network failure.
  */
-export function inviteProblem(
-  invite: CollaborationInviteResolve | null,
-): string | null {
+export function inviteProblem(invite: CollaborationInviteResolve | null): string | null {
   if (!invite || !invite.valid) {
     return "这个邀请链接已失效或不存在。请向邀请你的人索取新的链接。";
   }

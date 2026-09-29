@@ -76,7 +76,10 @@ function renderAssets(kind: "media" | "files", conversationId = "c1") {
       <Routes>
         <Route path="/messages/:conversationId" element={<div>会话详情</div>} />
         <Route path="/login" element={<div>登录页</div>} />
-        <Route path="/messages/:conversationId/:kind" element={<ConversationAssetsPage kind={kind} />} />
+        <Route
+          path="/messages/:conversationId/:kind"
+          element={<ConversationAssetsPage kind={kind} />}
+        />
       </Routes>
     </MemoryRouter>,
   );
@@ -175,7 +178,10 @@ describe("ConversationAssetsPage — navigation", () => {
     await screen.findByLabelText("图片列表");
 
     expect(screen.getByRole("link", { name: "返回会话" })).toHaveAttribute("href", "/messages/c1");
-    expect(screen.getByRole("link", { name: "看文件" })).toHaveAttribute("href", "/messages/c1/files");
+    expect(screen.getByRole("link", { name: "看文件" })).toHaveAttribute(
+      "href",
+      "/messages/c1/files",
+    );
   });
 
   it("offers 看图片 from the files view", async () => {
@@ -183,7 +189,10 @@ describe("ConversationAssetsPage — navigation", () => {
     renderAssets("files");
     await screen.findByLabelText("文件列表");
 
-    expect(screen.getByRole("link", { name: "看图片" })).toHaveAttribute("href", "/messages/c1/media");
+    expect(screen.getByRole("link", { name: "看图片" })).toHaveAttribute(
+      "href",
+      "/messages/c1/media",
+    );
   });
 
   it("escapes the conversation id in every link", () => {
@@ -195,7 +204,10 @@ describe("ConversationAssetsPage — navigation", () => {
     render(
       <MemoryRouter initialEntries={["/messages/a%2Fb/files"]}>
         <Routes>
-          <Route path="/messages/:conversationId/:kind" element={<ConversationAssetsPage kind="files" />} />
+          <Route
+            path="/messages/:conversationId/:kind"
+            element={<ConversationAssetsPage kind="files" />}
+          />
         </Routes>
       </MemoryRouter>,
     );
@@ -203,8 +215,14 @@ describe("ConversationAssetsPage — navigation", () => {
     // The `:conversationId` param arrives decoded ("a/b"), so every href must
     // re-encode it — otherwise a single-segment link would 404.
     return screen.findByLabelText("文件列表").then(() => {
-      expect(screen.getByRole("link", { name: "返回会话" })).toHaveAttribute("href", "/messages/a%2Fb");
-      expect(screen.getByRole("link", { name: "看图片" })).toHaveAttribute("href", "/messages/a%2Fb/media");
+      expect(screen.getByRole("link", { name: "返回会话" })).toHaveAttribute(
+        "href",
+        "/messages/a%2Fb",
+      );
+      expect(screen.getByRole("link", { name: "看图片" })).toHaveAttribute(
+        "href",
+        "/messages/a%2Fb/media",
+      );
     });
   });
 
@@ -254,4 +272,3 @@ describe("ConversationAssetsPage — errors", () => {
     expect(screen.queryByRole("link", { name: "去登录" })).not.toBeInTheDocument();
   });
 });
-

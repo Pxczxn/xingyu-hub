@@ -107,7 +107,10 @@ export function CollectionsPage() {
       </header>
 
       {creating ? (
-        <form onSubmit={(event) => void onCreate(event)} className="space-y-3 rounded-lg border border-border bg-card p-4">
+        <form
+          onSubmit={(event) => void onCreate(event)}
+          className="space-y-3 rounded-lg border border-border bg-card p-4"
+        >
           <label className="block text-sm font-medium text-foreground">
             名称
             <input
@@ -192,4 +195,3 @@ export function CollectionsPage() {
     </div>
   );
 }
-

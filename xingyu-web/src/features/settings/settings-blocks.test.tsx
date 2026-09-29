@@ -136,4 +136,3 @@ describe("SettingsBlocksPage — unblock", () => {
     await waitFor(() => expect(mockedLoad).toHaveBeenCalledTimes(2));
   });
 });
-

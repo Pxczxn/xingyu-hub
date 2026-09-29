@@ -50,7 +50,9 @@ type LoadState =
   | { kind: "ready"; requests: MyGroupJoinRequest[] };
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 function formatTime(value?: string | null): string {
@@ -229,4 +231,3 @@ function RequestRow({ request }: { request: MyGroupJoinRequest }) {
     </li>
   );
 }
-

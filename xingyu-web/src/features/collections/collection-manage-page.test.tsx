@@ -157,7 +157,10 @@ describe("CollectionManagePage", () => {
     fireEvent.change(screen.getByLabelText("名称"), { target: { value: "改名后" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => {
-      expect(mocked.update).toHaveBeenCalledWith("col-1", { title: "改名后", visibility: "PRIVATE" });
+      expect(mocked.update).toHaveBeenCalledWith("col-1", {
+        title: "改名后",
+        visibility: "PRIVATE",
+      });
     });
     expect(await screen.findByRole("heading", { name: "改名后" })).toBeInTheDocument();
   });
@@ -175,7 +178,10 @@ describe("CollectionManagePage", () => {
     fireEvent.click(screen.getByDisplayValue("PUBLIC"));
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => {
-      expect(mocked.update).toHaveBeenCalledWith("col-1", { title: "夜间读物", visibility: "PUBLIC" });
+      expect(mocked.update).toHaveBeenCalledWith("col-1", {
+        title: "夜间读物",
+        visibility: "PUBLIC",
+      });
     });
   });
 
@@ -184,7 +190,9 @@ describe("CollectionManagePage", () => {
     mocked.remove.mockResolvedValue(undefined);
     renderManage();
     fireEvent.click(await screen.findByRole("button", { name: "删除收藏夹" }));
-    expect(screen.getByRole("alertdialog")).toHaveTextContent("确定删除这个收藏夹吗？此操作无法撤销。");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "确定删除这个收藏夹吗？此操作无法撤销。",
+    );
     fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
     await waitFor(() => {
       expect(mocked.remove).toHaveBeenCalledWith("col-1");
@@ -196,8 +204,9 @@ describe("CollectionManagePage", () => {
     mockOwnedDetail();
     renderManage();
     await screen.findByRole("heading", { name: "夜间读物" });
-    expect(screen.queryByRole("button", { name: /加入收藏夹|添加条目|移除|移动/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /加入收藏夹|添加条目|移除|移动/ }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("加入收藏夹")).not.toBeInTheDocument();
   });
 });
-

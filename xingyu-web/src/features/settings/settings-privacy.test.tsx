@@ -72,7 +72,13 @@ describe("SettingsPrivacyPage — load", () => {
 
   it("surfaces a load failure and offers a retry", async () => {
     mocked.getMyProfile.mockRejectedValueOnce(
-      new ApiError({ type: "about:blank", title: "x", status: 500, detail: "boom", code: "INTERNAL_ERROR" }),
+      new ApiError({
+        type: "about:blank",
+        title: "x",
+        status: 500,
+        detail: "boom",
+        code: "INTERNAL_ERROR",
+      }),
     );
 
     render(<SettingsPrivacyPage />);
@@ -179,4 +185,3 @@ describe("SettingsPrivacyPage — no fake controls", () => {
     expect(screen.queryByText(/邮箱/)).not.toBeInTheDocument();
   });
 });
-

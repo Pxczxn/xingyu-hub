@@ -12,7 +12,9 @@ type LoadState =
   | { kind: "ready"; item: Announcement };
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 export function AnnouncementDetailPage() {
@@ -52,7 +54,11 @@ export function AnnouncementDetailPage() {
   if (state.kind === "notfound") {
     return (
       <div className="section-gap">
-        <PageState kind="empty" title="公告不存在或未发布" description="这条公告可能已归档，或地址有误。" />
+        <PageState
+          kind="empty"
+          title="公告不存在或未发布"
+          description="这条公告可能已归档，或地址有误。"
+        />
         <BackToList />
       </div>
     );
@@ -69,7 +75,9 @@ export function AnnouncementDetailPage() {
           <p className="text-sm text-muted-foreground">{formatPublishedAt(item.publishedAt)}</p>
         ) : null}
       </header>
-      <div className="whitespace-pre-wrap text-sm leading-7 text-foreground">{item.body || "该公告暂未提供正文。"}</div>
+      <div className="whitespace-pre-wrap text-sm leading-7 text-foreground">
+        {item.body || "该公告暂未提供正文。"}
+      </div>
     </article>
   );
 }
@@ -92,4 +100,3 @@ function formatPublishedAt(value: string): string {
     timeZone: "UTC",
   });
 }
-

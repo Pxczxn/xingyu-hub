@@ -206,7 +206,7 @@ export function ReportDetailPage() {
             <p className="mt-4">
               <Link
                 to={`/appeals/new?caseId=${encodeURIComponent(report.caseId ?? "")}&measureId=${encodeURIComponent(
-                  report.measureId ?? ""
+                  report.measureId ?? "",
                 )}`}
                 className="text-sm text-accent hover:underline"
               >
@@ -263,19 +263,16 @@ export function ReportDetailPage() {
               onClick={() => void submitSupplement()}
               disabled={submitting || draft.trim().length === 0}
               className={cn(
-                "self-start rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
+                "self-start rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50",
               )}
             >
               {submitting ? "提交中…" : "提交补充说明"}
             </button>
           </div>
         ) : (
-          <p className="mt-3 text-xs text-muted-foreground">
-            举报已关闭，无法再补充说明。
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">举报已关闭，无法再补充说明。</p>
         )}
       </section>
     </div>
   );
 }
-

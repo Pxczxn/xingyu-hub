@@ -194,7 +194,12 @@ describe("ConversationThreadPage — own-message detection", () => {
 
   it("does not offer 撤回 on our own recalled message (it is already a tombstone)", async () => {
     await renderConnected([
-      message({ id: "mine", senderId: ME, recalledAt: "2026-09-27T03:00:00Z", body: "[消息已撤回]" }),
+      message({
+        id: "mine",
+        senderId: ME,
+        recalledAt: "2026-09-27T03:00:00Z",
+        body: "[消息已撤回]",
+      }),
     ]);
 
     const list = screen.getByLabelText("消息列表");
@@ -256,7 +261,9 @@ describe("ConversationThreadPage — realtime", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("消息列表").querySelector("[data-recalled='true']")).not.toBeNull();
+      expect(
+        screen.getByLabelText("消息列表").querySelector("[data-recalled='true']"),
+      ).not.toBeNull();
     });
   });
 });
@@ -291,8 +298,14 @@ describe("ConversationThreadPage — attachment entry points", () => {
   it("links to the shared media and files views for the open conversation", async () => {
     await renderConnected([message()]);
 
-    expect(screen.getByRole("link", { name: "图片" })).toHaveAttribute("href", "/messages/c1/media");
-    expect(screen.getByRole("link", { name: "文件" })).toHaveAttribute("href", "/messages/c1/files");
+    expect(screen.getByRole("link", { name: "图片" })).toHaveAttribute(
+      "href",
+      "/messages/c1/media",
+    );
+    expect(screen.getByRole("link", { name: "文件" })).toHaveAttribute(
+      "href",
+      "/messages/c1/files",
+    );
   });
 
   it("renders the attachment control so a file can be sent", async () => {
@@ -329,4 +342,3 @@ describe("ConversationThreadPage — errors", () => {
     expect(await screen.findByText("会话不存在")).toBeInTheDocument();
   });
 });
-

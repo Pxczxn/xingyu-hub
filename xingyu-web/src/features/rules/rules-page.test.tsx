@@ -70,4 +70,3 @@ describe("RulesPage", () => {
     expect(await screen.findByText("社区规则暂不可用")).toBeInTheDocument();
   });
 });
-

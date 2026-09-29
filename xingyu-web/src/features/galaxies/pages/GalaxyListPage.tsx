@@ -43,13 +43,19 @@ export function GalaxyListPage() {
   const trimmed = keyword.trim();
   const visible = trimmed
     ? items.filter(
-        (item) => item.name.includes(trimmed) || item.slug.toLowerCase().includes(trimmed.toLowerCase()),
+        (item) =>
+          item.name.includes(trimmed) || item.slug.toLowerCase().includes(trimmed.toLowerCase()),
       )
     : items;
 
   return (
     <div className="section-gap">
-      <PageHero eyebrow="GALAXIES" title="星系" description="围绕共同兴趣聚合内容与成员，找到属于你的社区轨道。" tone="blue" />
+      <PageHero
+        eyebrow="GALAXIES"
+        title="星系"
+        description="围绕共同兴趣聚合内容与成员，找到属于你的社区轨道。"
+        tone="blue"
+      />
 
       {items.length === 0 ? (
         <PageState kind="empty" title="还没有星系" description="星系创建后会显示在这里。" />

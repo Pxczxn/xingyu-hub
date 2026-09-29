@@ -131,7 +131,11 @@ export function useCommunityChatSocket(enabled: boolean, handlers: ChatSocketHan
         } else if (payload.type === "message" && payload.conversationId && payload.message) {
           handlersRef.current.onMessage?.(payload.conversationId, payload.message);
         } else if (payload.type === "read" && payload.conversationId) {
-          handlersRef.current.onRead?.(payload.conversationId, payload.userId, payload.sequenceNumber);
+          handlersRef.current.onRead?.(
+            payload.conversationId,
+            payload.userId,
+            payload.sequenceNumber,
+          );
         } else if (payload.type === "recall" && payload.conversationId && payload.message) {
           handlersRef.current.onRecall?.(payload.conversationId, payload.message);
         }

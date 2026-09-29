@@ -42,11 +42,7 @@ export function TrendingTopicsPanel({
         </Link>
       </div>
 
-      <SectionState
-        status={status}
-        emptyText="暂无话题"
-        className="border-0 bg-transparent p-0"
-      >
+      <SectionState status={status} emptyText="暂无话题" className="border-0 bg-transparent p-0">
         <ul className="flex flex-col gap-1">
           {ranked.map((topic) => (
             <li key={topic.id}>

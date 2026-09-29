@@ -27,7 +27,7 @@ vi.mock("@/api/submissions/submissions.api", () => ({
 const mocked = vi.mocked(submissionsApi);
 
 function submission(
-  overrides: Partial<ReviewSubmissionDetailView> = {}
+  overrides: Partial<ReviewSubmissionDetailView> = {},
 ): ReviewSubmissionDetailView {
   return {
     id: "s1",
@@ -198,7 +198,9 @@ describe("SubmissionDetailPage — withdraw flow", () => {
     fireEvent.click(await screen.findByRole("button", { name: "撤回投稿" }));
     fireEvent.click(screen.getByRole("button", { name: "确认撤回" }));
 
-    await waitFor(() => expect(screen.getByTestId("submission-status")).toHaveTextContent("已撤回"));
+    await waitFor(() =>
+      expect(screen.getByTestId("submission-status")).toHaveTextContent("已撤回"),
+    );
     expect(mocked.withdraw).toHaveBeenCalledWith("s1");
     // The server's answer is the truth — no second GET.
     expect(mocked.getById).toHaveBeenCalledTimes(1);
@@ -268,4 +270,3 @@ describe("SubmissionDetailPage — withdraw flow", () => {
     expect(screen.getByTestId("submission-status")).toHaveTextContent("待审核");
   });
 });
-

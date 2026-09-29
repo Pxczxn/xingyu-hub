@@ -28,9 +28,7 @@ import { Card, CardContent } from "@/components/ui/card";
  */
 
 type InsightsState =
-  | { kind: "loading" }
-  | { kind: "error" }
-  | { kind: "ready"; insights: InsightsView };
+  { kind: "loading" } | { kind: "error" } | { kind: "ready"; insights: InsightsView };
 
 export function StudioAnalyticsPage() {
   const [state, setState] = useState<InsightsState>({ kind: "loading" });
@@ -64,8 +62,7 @@ export function StudioAnalyticsPage() {
     };
   }, []);
 
-  const unreviewed =
-    drafts?.filter((d) => (d.status ?? "").toUpperCase() === "DRAFT") ?? null;
+  const unreviewed = drafts?.filter((d) => (d.status ?? "").toUpperCase() === "DRAFT") ?? null;
 
   return (
     <div className="section-gap">
@@ -96,10 +93,7 @@ export function StudioAnalyticsPage() {
 
       {state.kind === "ready" ? (
         <>
-          <ul
-            aria-label="创作数据"
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-          >
+          <ul aria-label="创作数据" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Stat label="已发布文章" value={state.insights.articleCount} unit="篇" />
             <Stat label="草稿" value={state.insights.draftCount} unit="篇" />
             <Stat label="获得喜欢" value={state.insights.likeCount} />
@@ -131,7 +125,10 @@ export function StudioAnalyticsPage() {
                 (only /studio/content/:articleId does). Linking to it would be a
                 guaranteed 404, so the only entry point offered is the one that
                 works. */}
-            <Link to="/studio/submissions" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <Link
+              to="/studio/submissions"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
               我的投稿
             </Link>
           </div>
@@ -147,9 +144,10 @@ function Stat({ label, value, unit }: { label: string; value: number; unit?: str
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-primary">
         {value}
-        {unit ? <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span> : null}
+        {unit ? (
+          <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>
+        ) : null}
       </p>
     </li>
   );
 }
-
