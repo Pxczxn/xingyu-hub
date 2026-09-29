@@ -12,7 +12,7 @@ export type PasswordRuleCheck = {
   passed: boolean;
 };
 
-const SPECIAL_PATTERN = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/;
+const SPECIAL_PATTERN = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
 
 export function getPasswordRuleChecks(
   value: string,

@@ -5,6 +5,9 @@ export type LabelProps = LabelHTMLAttributes<HTMLLabelElement>;
 
 export const Label = forwardRef<HTMLLabelElement, LabelProps>(
   ({ className, ...props }, ref) => (
+    // A generic primitive: the association (htmlFor, or a nested control) is
+    // supplied by the consumer, so the rule cannot see it here.
+    // eslint-disable-next-line jsx-a11y/label-has-associated-control
     <label
       ref={ref}
       className={cn(

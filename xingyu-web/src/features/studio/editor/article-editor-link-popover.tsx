@@ -50,6 +50,9 @@ export function ArticleEditorLinkPopover({
   }
 
   return (
+    // The handler only stops the event from reaching the editor behind it; the
+    // dialog itself has no interactive affordance.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div role="dialog" aria-label="编辑链接" onMouseDown={(event) => event.stopPropagation()}>
       <form className={cn(styles.linkPopoverForm)} onSubmit={handleSubmit}>
         <label className={cn(styles.linkPopoverField)} htmlFor={textId}>

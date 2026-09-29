@@ -162,7 +162,9 @@ export function ArticleEditorBody({
     if (next === bodyMode) return;
 
     if (bodyMode === "RICH_TEXT") {
-      let markdown = value;
+      // Both the try and the catch assign, so there is no meaningful initial
+      // value — declaring without one avoids a dead assignment.
+      let markdown: string;
       try {
         markdown = ensureCanonicalMarkdownBody(
           controllerRef.current?.getMarkdown?.() ?? value,
