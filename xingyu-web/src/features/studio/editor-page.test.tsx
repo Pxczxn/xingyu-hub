@@ -318,7 +318,7 @@ describe("toolbar actions", () => {
     setBody(container, "小节标题");
 
     fireEvent.click(screen.getByRole("button", { name: /^块类型：/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "二级标题" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "二级标题" }));
 
     expect(bodyTextarea(container)).toHaveValue("## 小节标题");
   });
@@ -328,7 +328,7 @@ describe("toolbar actions", () => {
     setBody(container, "第一项\n第二项");
 
     fireEvent.click(screen.getByRole("button", { name: "列表" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "无序列表" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "无序列表" }));
 
     expect(bodyTextarea(container)).toHaveValue("- 第一项\n- 第二项");
   });
@@ -338,12 +338,12 @@ describe("toolbar actions", () => {
 
     setBody(container, "被引用");
     fireEvent.click(screen.getByRole("button", { name: "块类型：正文" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "引用" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "引用" }));
     expect(bodyTextarea(container)).toHaveValue("> 被引用");
 
     setBody(container, "code");
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "行内代码" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "行内代码" }));
     expect(bodyTextarea(container)).toHaveValue("`code`");
   });
 });

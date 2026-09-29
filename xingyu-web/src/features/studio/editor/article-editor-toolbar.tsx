@@ -155,8 +155,8 @@ function BlockTypeDropdown({
               <button
                 key={blockType}
                 type="button"
-                role="menuitem"
-                aria-pressed={active}
+                role="menuitemradio"
+                aria-checked={active}
                 className={cn(styles.formatDropdownMenuItem, active && styles.isActive)}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
@@ -242,8 +242,8 @@ function ToolbarMenu({
               <button
                 key={key}
                 type="button"
-                role="menuitem"
-                aria-pressed={itemActive}
+                role="menuitemcheckbox"
+                aria-checked={itemActive}
                 className={cn(styles.formatDropdownMenuItem, itemActive && styles.isActive)}
                 data-xy-link-trigger={key === "link" ? "true" : undefined}
                 onMouseDown={(event) => event.preventDefault()}

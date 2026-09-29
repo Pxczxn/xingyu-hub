@@ -15,8 +15,17 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
   return <div className={cn("flex flex-col gap-1.5 p-6", className)} {...props} />;
 }
 
-export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("text-base font-semibold leading-none tracking-tight", className)} {...props} />;
+export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+  // `children` is destructured explicitly rather than left inside `...props`
+  // so the heading is statically known to have content (jsx-a11y/heading-has-content).
+  return (
+    <h3
+      className={cn("text-base font-semibold leading-none tracking-tight", className)}
+      {...props}
+    >
+      {children}
+    </h3>
+  );
 }
 
 export function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
