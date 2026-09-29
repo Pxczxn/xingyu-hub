@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { PageState } from "@/components/shared/PageState";
 import { Bell, BookOpen, Compass, Hash, Home, LogOut, Mail, Map, MessageCircle, Orbit, PenLine, User as UserIcon } from "lucide-react";
 import { homeApi } from "@/api/home/home.api";
 import { messagesApi } from "@/api/messages/messages.api";
@@ -340,7 +341,13 @@ export function AppLayout() {
       </header>
 
       <main className="content-shell flex-1">
-        <Outlet />
+        {/* P1-1: the single Suspense boundary for every lazy route page.
+            It sits INSIDE the shell so the header (nav, search, unread badges)
+            and the footer stay mounted while a route chunk downloads — a
+            root-level boundary would blank the whole app on first navigation. */}
+        <Suspense fallback={<PageState kind="loading" />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <footer className="border-t border-border">
