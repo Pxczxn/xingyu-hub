@@ -45,7 +45,7 @@ Browser/Admin/Uni-app
 | `xingyu-platform` | Bootstrap, reliable events, core security pieces | HTTP mapping | `ReliableEventConsumer.java` |
 | `xingyu-db` | Druid/MyBatis infra, `SchemaMigrator` | Business rules | `SchemaMigrator.java` |
 | `xingyu-job` | Quartz catalog | Community publish scheduler (that is `@Scheduled` in community) | `SysJobController.java`; `ScheduledArticlePublishTask.java` |
-| `xingyu-web-next` | Current user UI (partial vs product map) | Admin RBAC screens | `src/router/routes.tsx` |
+| `xingyu-web` | Current user UI (partial vs product map) | Admin RBAC screens | `src/router/routes.tsx` |
 | `xingyu-web` | Legacy full page map | New V2-only routes | `app/**/page.tsx` |
 | `xingyu-admin` | Ops UI | Community ProblemDetails client | `src/utils/request.ts` |
 | `xingyu-uniapp` | Mini-program chat/profile against `/api/v1/app` and **admin chat** paths | Full community product surface | `utils/api.js`; `pages.json` |
@@ -54,7 +54,7 @@ Browser/Admin/Uni-app
 
 | Pattern | Where found | Why it exists |
 |---------|-------------|---------------|
-| Layered Maven modules | `xingyu-backend/pom.xml` | Separate API/core/infra |
+| Layered Maven modules | `../../xingyu-server/pom.xml` | Separate API/core/infra |
 | Mapper/Service/Controller | community + admin packages | Spring + MyBatis-Plus default |
 | Strategy (login) | `xingyu-auth/.../strategy` | Password/SMS/miniprogram/social |
 | Factory (SMS/Pay/Push/OSS) | `SmsServiceFactory`, `PayServiceFactory`, `FileStorage` impls | Pluggable vendors |
@@ -66,7 +66,7 @@ Browser/Admin/Uni-app
 
 ### 5) Known Architectural Risks
 
-- **Two user webs** (`xingyu-web` vs `xingyu-web-next`) can diverge from the v3.2 route registry; V2 comments state missing nav (messages/notifications) and no public series reader.
+- **Two user webs** (`xingyu-web` vs `xingyu-web`) can diverge from the v3.2 route registry; V2 comments state missing nav (messages/notifications) and no public series reader.
 - **Two auth systems** sharing the header name `satoken` (community sessions in MySQL; admin tokens via Sa-Token/Redis) increases mis-wiring risk (`V027` comment in `sql/README.md`).
 - **Redis is wired as a first-class dependency** (`sa-token-redis-jackson`, captcha/repeat-submit) with no optional disable found; Redis outage behavior at startup is **[TODO]**.
 - **Uni-app still titles “Mars办公”** and calls `/api/v1/admin/sys/chat/*`, leftover of the generic admin template (`pages.json`; `V019` dropped Mars demo tables).
@@ -74,13 +74,13 @@ Browser/Admin/Uni-app
 
 ### 6) Evidence
 
-- `xingyu-backend/xingyu-starter/src/main/java/top/pxczxn/xingyu/XingyuHubApplication.java`
-- `xingyu-backend/xingyu-starter/src/main/java/top/pxczxn/xingyu/api/ApiPrefixConfig.java`
-- `xingyu-backend/xingyu-core/xingyu-system/src/main/java/top/pxczxn/xingyu/system/config/SaTokenConfig.java`
-- `xingyu-backend/xingyu-api/xingyu-community-api/src/main/java/top/pxczxn/xingyu/web/interceptor/CommunityAuthInterceptor.java`
-- `xingyu-backend/xingyu-core/xingyu-platform/src/main/java/top/pxczxn/xingyu/core/event/ReliableEventConsumer.java`
-- `xingyu-backend/xingyu-infra/xingyu-db/src/main/java/top/pxczxn/xingyu/infra/schema/SchemaMigrator.java`
-- `xingyu-web-next/src/api/client.ts`
+- `../../xingyu-server/xingyu-starter/src/main/java/top/pxczxn/xingyu/XingyuHubApplication.java`
+- `../../xingyu-server/xingyu-starter/src/main/java/top/pxczxn/xingyu/api/ApiPrefixConfig.java`
+- `../../xingyu-server/xingyu-core/xingyu-system/src/main/java/top/pxczxn/xingyu/system/config/SaTokenConfig.java`
+- `../../xingyu-server/xingyu-api/xingyu-community-api/src/main/java/top/pxczxn/xingyu/web/interceptor/CommunityAuthInterceptor.java`
+- `../../xingyu-server/xingyu-core/xingyu-platform/src/main/java/top/pxczxn/xingyu/core/event/ReliableEventConsumer.java`
+- `../../xingyu-server/xingyu-infra/xingyu-db/src/main/java/top/pxczxn/xingyu/infra/schema/SchemaMigrator.java`
+- `../../xingyu-web/src/api/client.ts`
 
 ## Extended Sections (Optional)
 

@@ -36,7 +36,7 @@ cd xingyu-admin && npm run test:audit
 - Web V2: colocated `src/**/*.{test,spec}.{ts,tsx}` (`vitest.config.ts` `include`).
 - Legacy web: `*.{test,spec}.{ts,tsx}` (20 files; default Vitest include).
 - Admin: `xingyu-admin/tests/*.mjs`.
-- Setup: `xingyu-web-next/vitest.setup.ts`; backend `application-test.yml` + `TestDatabaseGuard.java`.
+- Setup: `../../xingyu-web/vitest.setup.ts`; backend `application-test.yml` + `TestDatabaseGuard.java`.
 - DB rebuild for tests: `sql/rebuild-test-db.sh` (referenced by test YAML comments / `sql/README.md`).
 
 ### 3) Test Scope Matrix
@@ -70,11 +70,11 @@ cd xingyu-admin && npm run test:audit
 
 ### 6) Evidence
 
-- `xingyu-backend/xingyu-starter/pom.xml` (Surefire)
-- `xingyu-backend/xingyu-starter/src/test/resources/application-test.yml`
-- `xingyu-backend/xingyu-starter/src/test/java/top/pxczxn/xingyu/TestDatabaseGuard.java`
-- `xingyu-web-next/vitest.config.ts`
-- `xingyu-web-next/package.json`
+- `../../xingyu-server/xingyu-starter/pom.xml` (Surefire)
+- `../../xingyu-server/xingyu-starter/src/test/resources/application-test.yml`
+- `../../xingyu-server/xingyu-starter/src/test/java/top/pxczxn/xingyu/TestDatabaseGuard.java`
+- `../../xingyu-web/vitest.config.ts`
+- `../../xingyu-web/package.json`
 - `xingyu-admin/package.json`
 - `docs/codebase/.codebase-scan.txt`
 

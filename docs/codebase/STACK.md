@@ -8,29 +8,29 @@ This repository is a **multi-project workspace** (not a single npm/Maven root). 
 
 | Area | Value | Evidence |
 |------|-------|----------|
-| Primary languages | Java 21 (backend); TypeScript/React (user web); Vue 3 (admin); JavaScript (uni-app) | `xingyu-backend/pom.xml` (`java.version` 21); `xingyu-web-next/package.json`; `xingyu-admin/package.json`; `xingyu-uniapp/package.json` |
-| Runtime + version | Spring Boot 3.2.2; Node not pinned (no `.nvmrc`); Vite 8 (user web), Vite 5 (admin) | `xingyu-backend/pom.xml`; `xingyu-web-next/package.json`; `xingyu-admin/package.json` |
-| Package managers | Maven (backend); npm (`package-lock.json` present in web/admin) | `xingyu-backend/pom.xml`; `xingyu-web-next/package.json`; `xingyu-admin/package.json` |
-| Module/build system | Maven multi-module aggregator `xingyu-backend`; independent Vite apps | `xingyu-backend/pom.xml` `<modules>`; each frontend `package.json` |
+| Primary languages | Java 21 (backend); TypeScript/React (user web); Vue 3 (admin); JavaScript (uni-app) | `../../xingyu-server/pom.xml` (`java.version` 21); `../../xingyu-web/package.json`; `xingyu-admin/package.json`; `xingyu-uniapp/package.json` |
+| Runtime + version | Spring Boot 3.2.2; Node not pinned (no `.nvmrc`); Vite 8 (user web), Vite 5 (admin) | `../../xingyu-server/pom.xml`; `../../xingyu-web/package.json`; `xingyu-admin/package.json` |
+| Package managers | Maven (backend); npm (`package-lock.json` present in web/admin) | `../../xingyu-server/pom.xml`; `../../xingyu-web/package.json`; `xingyu-admin/package.json` |
+| Module/build system | Maven multi-module aggregator `xingyu-server`; independent Vite apps | `../../xingyu-server/pom.xml` `<modules>`; each frontend `package.json` |
 
 ### 2) Production Frameworks and Dependencies
 
 | Dependency | Version | Role in system | Evidence |
 |------------|---------|----------------|----------|
-| Spring Boot | 3.2.2 | HTTP server, DI, scheduling | `xingyu-backend/pom.xml` |
-| MyBatis-Plus | 3.5.5 | ORM / mapper | `xingyu-backend/pom.xml` |
-| Sa-Token | 1.37.0 | Admin/app session & RBAC | `xingyu-backend/pom.xml`; `SaTokenConfig.java` |
-| Hutool | 5.8.25 | Utilities | `xingyu-backend/pom.xml` |
-| Druid | 1.2.23 | JDBC pool | `xingyu-backend/pom.xml`; `application-dev.yml` |
+| Spring Boot | 3.2.2 | HTTP server, DI, scheduling | `../../xingyu-server/pom.xml` |
+| MyBatis-Plus | 3.5.5 | ORM / mapper | `../../xingyu-server/pom.xml` |
+| Sa-Token | 1.37.0 | Admin/app session & RBAC | `../../xingyu-server/pom.xml`; `SaTokenConfig.java` |
+| Hutool | 5.8.25 | Utilities | `../../xingyu-server/pom.xml` |
+| Druid | 1.2.23 | JDBC pool | `../../xingyu-server/pom.xml`; `application-dev.yml` |
 | mysql-connector-j | (Spring Boot BOM) | MySQL driver `com.mysql.cj.jdbc.Driver` | `xingyu-infra/xingyu-db/pom.xml`; `application-dev.yml` |
 | Redis (Spring Data + Lettuce) | Boot BOM | Cache, Sa-Token Redis jackson, rate limits | `xingyu-infra/xingyu-redis/pom.xml`; `application-dev.yml` |
 | Quartz | `spring-boot-starter-quartz` | Admin-managed jobs | `xingyu-job/pom.xml` |
-| React | ^19.0.0 | User web (V2 and Legacy) | `xingyu-web-next/package.json`; `xingyu-web/package.json` |
-| react-router-dom | ^7.1.1 | Web V2 routing | `xingyu-web-next/package.json` |
+| React | ^19.0.0 | User web (V2 and Legacy) | `../../xingyu-web/package.json`; `xingyu-web/package.json` |
+| react-router-dom | ^7.1.1 | Web V2 routing | `../../xingyu-web/package.json` |
 | Vue | ^3.4.15 | Admin UI | `xingyu-admin/package.json` |
 | Naive UI / Pinia / vue-router | Naive ^2.37.3, Pinia ^2.1.7, vue-router ^4.2.5 | Admin UI/state/routing | `xingyu-admin/package.json` |
 | axios | ^1.6.5 | Admin HTTP | `xingyu-admin/package.json` |
-| Milkdown | ^7.22.1 | Markdown editor | `xingyu-web-next/package.json` |
+| Milkdown | ^7.22.1 | Markdown editor | `../../xingyu-web/package.json` |
 | uview-plus / crypto-js | 3.3.36 / ^4.2.0 | Uni-app UI and crypto | `xingyu-uniapp/package.json` |
 | MinIO / Aliyun OSS SDKs | (infra poms) | Object storage adapters | `xingyu-infra/xingyu-oss/pom.xml` |
 | Aliyun / Tencent SMS SDKs | (infra poms) | SMS adapters | `xingyu-infra/xingyu-sms/pom.xml` |
@@ -43,10 +43,10 @@ This repository is a **multi-project workspace** (not a single npm/Maven root). 
 | Maven + spring-boot-maven-plugin | Backend build/repackage | `xingyu-starter/pom.xml` |
 | maven-surefire-plugin 3.5.4 | Backend tests (fork isolation) | `xingyu-starter/pom.xml` |
 | TypeScript 5.3.x | Frontend typecheck | frontend `package.json` files |
-| Vite | Frontend bundler/dev server | `xingyu-web-next`, `xingyu-web`, `xingyu-admin` |
-| Vitest + jsdom + Testing Library | User-web unit/UI tests | `xingyu-web-next/package.json`; `xingyu-web/package.json` |
+| Vite | Frontend bundler/dev server | `xingyu-web`, `xingyu-web`, `xingyu-admin` |
+| Vitest + jsdom + Testing Library | User-web unit/UI tests | `../../xingyu-web/package.json`; `xingyu-web/package.json` |
 | Node `node --test` | Admin data-audit tests | `xingyu-admin/package.json` `test:audit` |
-| Tailwind CSS 3.4 | User-web styling | `xingyu-web-next/package.json` |
+| Tailwind CSS 3.4 | User-web styling | `../../xingyu-web/package.json` |
 | [TODO] ESLint / Prettier / Checkstyle / Spotless / Jacoco | No config files or POM plugins found | glob for eslint/prettier/checkstyle; grep of `pom.xml` |
 
 ### 4) Key Commands
@@ -91,7 +91,7 @@ Lint command: **[TODO]** — no lint scripts in frontend `package.json`; no Chec
 ### 5) Environment and Config
 
 - Config sources:
-  - `xingyu-backend/xingyu-starter/src/main/resources/application.yml` (`spring.profiles.active: dev`)
+  - `../../xingyu-server/xingyu-starter/src/main/resources/application.yml` (`spring.profiles.active: dev`)
   - `application-dev.yml`, `application-prod.yml`, `application-test.yml`
   - `xingyu-web/.env.example`
   - gitignored `scripts/local-db.env` (referenced by `sql/README.md` and `application-dev.yml` comments)
@@ -109,10 +109,10 @@ Lint command: **[TODO]** — no lint scripts in frontend `package.json`; no Chec
 
 ### 6) Evidence
 
-- `xingyu-backend/pom.xml`
-- `xingyu-backend/xingyu-starter/src/main/resources/application-dev.yml`
-- `xingyu-backend/xingyu-starter/src/main/resources/application-prod.yml`
-- `xingyu-web-next/package.json`
+- `../../xingyu-server/pom.xml`
+- `../../xingyu-server/xingyu-starter/src/main/resources/application-dev.yml`
+- `../../xingyu-server/xingyu-starter/src/main/resources/application-prod.yml`
+- `../../xingyu-web/package.json`
 - `xingyu-web/package.json`
 - `xingyu-admin/package.json`
 - `xingyu-uniapp/package.json`

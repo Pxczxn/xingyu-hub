@@ -6,8 +6,8 @@
 
 | Path | Purpose | Evidence |
 |------|---------|----------|
-| `xingyu-backend/` | Maven multi-module Spring Boot API + jobs | `xingyu-backend/pom.xml` |
-| `xingyu-web-next/` | User-facing **Web V2** (Vite + React Router) | `xingyu-web-next/vite.config.ts`; `src/app/App.tsx` |
+| `../../xingyu-server/` | Maven multi-module Spring Boot API + jobs | `../../xingyu-server/pom.xml` |
+| `../../xingyu-web/` | User-facing **Web V2** (Vite + React Router) | `../../xingyu-web/vite.config.ts`; `src/app/App.tsx` |
 | `xingyu-web/` | **ARCHIVED** — Legacy user web, moved to `archive/xingyu-web-legacy/` on 2026-09-28 (Vite SPA with Next-style `app/**/page.tsx` shims). Not built, not tested, not maintained. See `archive/README.md`. | `archive/README.md`; `archive/xingyu-web-legacy/src/main.tsx` |
 | `xingyu-admin/` | Vue 3 admin console | `xingyu-admin/README.md` |
 | `xingyu-uniapp/` | Uni-app mini-program (chat/profile oriented) | `xingyu-uniapp/README.md`; `pages.json` |
@@ -23,13 +23,13 @@
 
 ### 2) Entry Points
 
-- Main runtime entry: `xingyu-backend/xingyu-starter/src/main/java/top/pxczxn/xingyu/XingyuHubApplication.java` (`@SpringBootApplication`, `@EnableScheduling`)
+- Main runtime entry: `../../xingyu-server/xingyu-starter/src/main/java/top/pxczxn/xingyu/XingyuHubApplication.java` (`@SpringBootApplication`, `@EnableScheduling`)
 - Secondary:
   - Quartz jobs via `xingyu-job` + admin `/api/v1/admin/monitor/job`
   - Spring `@Scheduled` tasks (`ScheduledArticlePublishTask`, `ApiAccessLogFlushTask`, `ReliableEventConsumer`)
   - WebSocket: `/ws/message`, `/ws/ssh`, `/ws/community/chat` (`WebSocketConfig.java`)
 - Frontend entries:
-  - `xingyu-web-next/index.html` → `src/main.tsx`
+  - `../../xingyu-web/index.html` → `src/main.tsx`
   - `archive/xingyu-web-legacy/index.html` → `src/main.tsx` (ARCHIVED — not served)
   - `xingyu-admin/index.html` → `src/main.ts`
   - `xingyu-uniapp/main.js` (`package.json` `"main"`)
@@ -37,7 +37,7 @@
 
 ### 3) Module Boundaries
 
-Backend Maven layers (parent modules in `xingyu-backend/pom.xml`):
+Backend Maven layers (parent modules in `../../xingyu-server/pom.xml`):
 
 | Boundary | What belongs here | What must not be here |
 |----------|-------------------|------------------------|
@@ -52,9 +52,9 @@ Frontend:
 
 | Boundary | What belongs here | What must not be here |
 |----------|-------------------|------------------------|
-| `xingyu-web-next/src/features/*` | Page-level product features | Shared fetch transport (`src/api/client.ts`) |
-| `xingyu-web-next/src/api/*` | Domain HTTP modules | UI components |
-| `archive/xingyu-web-legacy/app/**/page.tsx` | ARCHIVED Legacy route pages (read-only history) | V2 React Router (`xingyu-web-next`) |
+| `../../xingyu-web/src/features/*` | Page-level product features | Shared fetch transport (`src/api/client.ts`) |
+| `../../xingyu-web/src/api/*` | Domain HTTP modules | UI components |
+| `archive/xingyu-web-legacy/app/**/page.tsx` | ARCHIVED Legacy route pages (read-only history) | V2 React Router (`xingyu-web`) |
 | `xingyu-admin/src/views` + `src/api` | Admin screens and `/api/v1/admin` clients | Community ProblemDetails client |
 
 ### 4) Naming and Organization Rules
@@ -64,14 +64,14 @@ Frontend:
 - **Web V2 files**: PascalCase pages (`SeriesListPage.tsx`); kebab-case helpers (`series-slug.ts`); colocated `*.test.ts(x)`
 - **Legacy web** (archived): Next App Router filenames (`page.tsx`) under `app/`
 - **Admin**: Vue `index.vue` under `src/views/<domain>/`
-- **Import aliases**: Web V2 `@/*` → `./src/*` (`xingyu-web-next/tsconfig.json`); Legacy `@/*` → project root (`archive/xingyu-web-legacy/tsconfig.json`)
+- **Import aliases**: Web V2 `@/*` → `./src/*` (`../../xingyu-web/tsconfig.json`); Legacy `@/*` → project root (`archive/xingyu-web-legacy/tsconfig.json`)
 - **API prefix**: `/api/v1` for community + starter; `/api/v1/admin` for admin (`ApiPrefixConfig.java`)
 
 ### 5) Evidence
 
-- `xingyu-backend/pom.xml` and nested `*/pom.xml`
+- `../../xingyu-server/pom.xml` and nested `*/pom.xml`
 - `XingyuHubApplication.java`
-- `xingyu-web-next/src/router/routes.tsx`
+- `../../xingyu-web/src/router/routes.tsx`
 - `xingyu-admin/src/main.ts`
 - `sql/README.md`
 - `doc/星语社区-产品功能与开发总文档-v3.2-品牌文案整合基线.md`
@@ -98,7 +98,7 @@ xingyu-backend
 
 ### Web V2 feature folders
 
-`announcements`, `article`, `auth`, `blocks`, `bookshelf`, `collections`, `discover`, `guide`, `home`, `moments`, `onboarding`, `profile`, `rules`, `series`, `settings`, `studio`, `topics` — under `xingyu-web-next/src/features/`.
+`announcements`, `article`, `auth`, `blocks`, `bookshelf`, `collections`, `discover`, `guide`, `home`, `moments`, `onboarding`, `profile`, `rules`, `series`, `settings`, `studio`, `topics` — under `../../xingyu-web/src/features/`.
 
 ### Community API controllers (27)
 

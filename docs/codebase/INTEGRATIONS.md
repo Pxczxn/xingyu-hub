@@ -54,11 +54,11 @@ No Docker, Prometheus, OpenTelemetry, or APM config files found.
 
 ### 6) Evidence
 
-- `xingyu-backend/xingyu-starter/src/main/resources/application-dev.yml`
-- `xingyu-backend/xingyu-starter/src/main/resources/application-prod.yml`
-- `xingyu-backend/xingyu-infra/xingyu-redis/pom.xml`
-- `xingyu-backend/xingyu-infra/xingyu-oss/src/main/java/top/pxczxn/xingyu/oss/FileStorage.java`
-- `xingyu-backend/xingyu-infra/xingyu-db/src/main/java/top/pxczxn/xingyu/infra/schema/SchemaMigrator.java`
+- `../../xingyu-server/xingyu-starter/src/main/resources/application-dev.yml`
+- `../../xingyu-server/xingyu-starter/src/main/resources/application-prod.yml`
+- `../../xingyu-server/xingyu-infra/xingyu-redis/pom.xml`
+- `../../xingyu-server/xingyu-infra/xingyu-oss/src/main/java/top/pxczxn/xingyu/oss/FileStorage.java`
+- `../../xingyu-server/xingyu-infra/xingyu-db/src/main/java/top/pxczxn/xingyu/infra/schema/SchemaMigrator.java`
 - `scripts/ci-apply-migrations.sh`
 - `archive/xingyu-web-legacy/.env.example` (ARCHIVED)
 - `.gitignore` secrets section
@@ -72,7 +72,7 @@ No Docker, Prometheus, OpenTelemetry, or APM config files found.
 | Backend | 7779 | `application-dev.yml` |
 | Legacy web (ARCHIVED) | 7777 | `archive/xingyu-web-legacy/vite.config.ts` — no longer served |
 | Admin | 7778 | `xingyu-admin/vite.config.ts` (README still says 3000) |
-| Web V2 | 5173 | `xingyu-web-next/vite.config.ts` |
+| Web V2 | 5173 | `../../xingyu-web/vite.config.ts` |
 | `xingyu.community.public-base-url` | `http://localhost:3000` | `application-dev.yml` — does not match any of the Vite ports above |
 
 ### Proxying
