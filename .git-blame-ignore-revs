@@ -1,0 +1,11 @@
+# git blame 忽略列表
+#
+# 本机一次性启用：
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub 网页端的 blame 视图会自动识别该文件，无需额外配置。
+#
+# 下列提交是纯格式 / 机械变更，不含任何行为改动。放进这里是为了让
+# `git blame` 仍然指向真正的逻辑作者，而不是被格式化提交整片覆盖。
+
+# style(web-v2): 全量 Prettier 格式化（printWidth 100）
+04f85f2959fc62583e8589fd01408944620f374e
