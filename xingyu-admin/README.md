@@ -1,6 +1,6 @@
 # 星语管理端
 
-Vue 3 + Vite + Naive UI 管理后台，对接 `xingyu-backend`。
+Vue 3 + Vite + Naive UI 管理后台，对接 `xingyu-server`。
 
 ## 开发
 

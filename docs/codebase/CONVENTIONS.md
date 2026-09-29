@@ -22,8 +22,8 @@ Private Java fields: Lombok `@Data` / `@RequiredArgsConstructor` is common; no `
 
 - Formatter: **[TODO]** — no `.prettierrc`, Spotless, or EditorConfig found.
 - Linter: **[TODO]** — no ESLint config; no Checkstyle/SpotBugs plugins in POMs.
-- TypeScript (Web V2): `strict`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch` (`xingyu-web-next/tsconfig.json`).
-- Java encoding: UTF-8 (`xingyu-backend/pom.xml` `project.build.sourceEncoding`).
+- TypeScript (Web V2): `strict`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch` (`../../xingyu-web/tsconfig.json`).
+- Java encoding: UTF-8 (`../../xingyu-server/pom.xml` `project.build.sourceEncoding`).
 - Run commands: `npm run typecheck` (web-next); backend compile via Maven. No `lint` script.
 
 ### 3) Import and Module Conventions
@@ -51,13 +51,13 @@ Private Java fields: Lombok `@Data` / `@RequiredArgsConstructor` is common; no `
 
 ### 6) Evidence
 
-- `xingyu-web-next/tsconfig.json`
-- `xingyu-web-next/vitest.config.ts`
-- `xingyu-web-next/src/api/client.ts`
-- `xingyu-backend/xingyu-common/src/main/java/top/pxczxn/xingyu/common/result/Result.java`
-- `xingyu-backend/xingyu-common/src/main/java/top/pxczxn/xingyu/common/exception/GlobalExceptionHandler.java`
-- `xingyu-backend/xingyu-api/xingyu-community-api/src/main/java/top/pxczxn/xingyu/web/advice/CommunityApiExceptionHandler.java`
-- `xingyu-backend/xingyu-starter/pom.xml` (Surefire)
+- `../../xingyu-web/tsconfig.json`
+- `../../xingyu-web/vitest.config.ts`
+- `../../xingyu-web/src/api/client.ts`
+- `../../xingyu-server/xingyu-common/src/main/java/top/pxczxn/xingyu/common/result/Result.java`
+- `../../xingyu-server/xingyu-common/src/main/java/top/pxczxn/xingyu/common/exception/GlobalExceptionHandler.java`
+- `../../xingyu-server/xingyu-api/xingyu-community-api/src/main/java/top/pxczxn/xingyu/web/advice/CommunityApiExceptionHandler.java`
+- `../../xingyu-server/xingyu-starter/pom.xml` (Surefire)
 - `xingyu-admin/package.json`
 
 ## Extended Sections (Optional)

@@ -5,7 +5,7 @@
 > 路径在阅读时按 `archive/xingyu-web-legacy/...` 理解。本文是**当时的结论快照**，
 > 未逐行回改路径，以保留决策时的原始证据。
 
-> 清点日期：2026-09-27 · 基线：`xingyu-web-next` @ `948c0a6`
+> 清点日期：2026-09-27 · 基线：`xingyu-web` @ `948c0a6`
 > 目的：决定 Legacy 如何处置前，先弄清 **V2 到底还缺什么**。
 > 方法：路由 diff（`app/**/page.tsx` vs `routes.tsx`）+ 逐页 API 引用数统计 + 活体端点探测 + 抽样读源码。
 
@@ -1624,7 +1624,7 @@ find     .../prototype-assets -type f → 276
   内容不是草稿，而是页面**实际渲染的插画**：首页推荐位封面、徽章图、分类行星图、
   活动 hero 图、收藏夹头图、`events.module.css` 的 `url(...)` 背景等。
 - **V2 完全不引用它**（`grep -rn prototype-assets xingyu-web-next/` → 0 命中，
-  且 `xingyu-web-next/public/` 为空）。所以这**不影响 V2 运行**，
+  且 `../../xingyu-web/public/` 为空）。所以这**不影响 V2 运行**，
   但意味着**归档的 Legacy 无法仅从 git 复现**：新克隆会得到 276 张坏图。
 
 **副本情况（我原先写「只有这一份」，不准确）**：

@@ -6,7 +6,7 @@
 
 | Severity | Concern | Evidence | Impact | Suggested action |
 |----------|---------|----------|--------|------------------|
-| high | Dual user frontends; V2 is incomplete vs product/design nav | `docs/design-system/MASTER.md`; `xingyu-web-next/src/layouts/AppLayout.tsx`; `routes.tsx` comments (no `/galaxies`) | Users/devs hit the wrong app; features exist in API/Legacy but not V2 | [ASK USER] freeze Legacy vs finish V2 parity. *Progress:* public Series shipped in V2 (Phase 2G, `5cd1421`); `/galaxies` still missing |
+| high | Dual user frontends; V2 is incomplete vs product/design nav | `docs/design-system/MASTER.md`; `../../xingyu-web/src/layouts/AppLayout.tsx`; `routes.tsx` comments (no `/galaxies`) | Users/devs hit the wrong app; features exist in API/Legacy but not V2 | [ASK USER] freeze Legacy vs finish V2 parity. *Progress:* public Series shipped in V2 (Phase 2G, `5cd1421`); `/galaxies` still missing |
 | high | Dual auth sharing `satoken` header | `CommunityAuthInterceptor.java`; `SaTokenConfig.java`; `sql/README.md` V027 | Token mix-up between admin Sa-Token and community DB sessions | Keep clients strictly separated; document header+cookie rules |
 | high | RSA private key in `sys_config_group` JSON | `SysConfigGroupController.java:284` TODO(P2) | Key compromise via config dump/backup | Move to dedicated secret storage |
 | med | Public series leaks unpublished chapters to guests | `SeriesService.syncChapters()` (binds any owned article, incl. `DRAFT`/`PRIVATE`); `listPublic`/`getPublicById` return those chapters; `ArticleService.getPublicArticle()` needs a `published_revision` row → guest 404 on open | A guest sees a chapter in the table of contents and gets a dead 404 for it; creator has no signal they bound an unreadable article | Filter unpublished articles out of the public chapter list (or reject the binding). **Deferred by user (2026-09-27) — frontend degrades gracefully for now, backend untouched** |
@@ -23,7 +23,7 @@
 |-----------|---------------|-------|-----------------|---------------|
 | Next.js shims without `next` dependency | Incremental migrate from App Router files | `xingyu-web` (`next.config.ts`, `app/**/page.tsx`, Vite aliases) | Tooling confusion (“this is Next”) | Keep documenting as Vite SPA; eventually delete with V2 |
 | Admin README port 3000 vs Vite 7778 | Stale README | `xingyu-admin/README.md` vs `vite.config.ts` | Wrong local URL | Update README |
-| Parent POM description still “通用管理系统 - RBAC” | Scaffold leftover | `xingyu-backend/pom.xml` | Wrong mental model | Rename description to 星语 |
+| Parent POM description still “通用管理系统 - RBAC” | Scaffold leftover | `../../xingyu-server/pom.xml` | Wrong mental model | Rename description to 星语 |
 | `public-base-url` `localhost:3000` | Copy-paste / old port | `application-dev.yml` `xingyu.community.public-base-url` | Wrong absolute links in emails/SEO | Point at actual web origin |
 | Schema ledger reconciliation history | Dev applied SQL outside migrator | `maintenance/reconciliation/` (CLOSED) | Repeat if people edit live DB | Stick to `V042+` files + rebuild scripts |
 | Design-system UI kit not fully in V2 | V2 started smaller | MASTER.md lists Avatar/Tabs; V2 has 5 `components/ui` files | Inconsistent UI | Port primitives as pages need them |
@@ -58,15 +58,15 @@ From `docs/codebase/.codebase-scan.txt` HIGH-CHURN (last 90 days):
 
 | Area | Why fragile | Churn signal | Safe change strategy |
 |------|-------------|-------------|----------------------|
-| `xingyu-web-next/src/router/routes.tsx` | Product surface + redirects | 11 edits | Keep `series-routes.test.tsx` / `routes.test.tsx` green |
+| `../../xingyu-web/src/router/routes.tsx` | Product surface + redirects | 11 edits | Keep `series-routes.test.tsx` / `routes.test.tsx` green |
 | `xingyu-admin/.../community/users` | Admin community user UX | 7 + related API/controller | Pair Vue + `AdminCommunityUserController` + `CommunityUserAdminService` |
-| `xingyu-web-next` layout/editor/studio | Editor CSS + workspace | 4–6 | Run web-next vitest; visual check studio |
+| `xingyu-web` layout/editor/studio | Editor CSS + workspace | 4–6 | Run web-next vitest; visual check studio |
 | `xingyu-web/lib/community-api.ts` + `globals.css` | Legacy still moving | 6 | Avoid duplicating into V2; port once |
 | `sql/rebuild-test-db.sh` | Test DB contract | 4 | Don’t change checksums of published `V000–V041` |
 
 ### 6) `[ASK USER]` Questions
 
-1. [ASK USER] 用户端是否以 `xingyu-web-next` 为唯一前进方向？`xingyu-web` 是否冻结/只作视觉参考？
+1. [ASK USER] 用户端是否以 `xingyu-web` 为唯一前进方向？`xingyu-web` 是否冻结/只作视觉参考？
 2. [ASK USER] `xingyu-uniapp` 是否仍要做成星语社区小程序，还是 Mars 办公/IM 遗留、可归档？
 3. [ASK USER] Redis 是生产硬依赖，还是允许无 Redis 降级（与部分内部 “Redis 可选” 政策是否一致）？
 4. [ASK USER] 社区 API 是否应全部改为 `ProblemDetails`，禁止未包装 DTO / `ResponseStatusException` 混用？
@@ -81,5 +81,5 @@ From `docs/codebase/.codebase-scan.txt` HIGH-CHURN (last 90 days):
 - `doc/星语社区-产品功能与开发总文档-v3.2-品牌文案整合基线.md` (intent)
 - `sql/README.md`; `maintenance/reconciliation/README.md`
 - `SysConfigGroupController.java`; `SysServerServiceImpl.java`; `AlipayLogin.java`; `AppleLogin.java`
-- `xingyu-web-next/src/layouts/AppLayout.tsx`; `xingyu-uniapp/pages.json`
+- `../../xingyu-web/src/layouts/AppLayout.tsx`; `xingyu-uniapp/pages.json`
 - `application-dev.yml`; `application-prod.yml`
