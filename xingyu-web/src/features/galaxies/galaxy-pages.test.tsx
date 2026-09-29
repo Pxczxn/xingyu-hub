@@ -27,7 +27,13 @@ vi.mock("@/features/auth/auth.store", () => ({
 
 const mocked = vi.mocked(galaxiesApi);
 
-const GALAXY = { id: "g-1", slug: "xingyu-official", name: "星语", official: true, memberCount: 12 };
+const GALAXY = {
+  id: "g-1",
+  slug: "xingyu-official",
+  name: "星语",
+  official: true,
+  memberCount: 12,
+};
 
 const MEMBERS = [
   {
@@ -81,7 +87,13 @@ describe("GalaxyShell", () => {
 
   it("shows the unavailable state when the galaxy 404s", async () => {
     mocked.getBySlug.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "资源不存在", status: 404, detail: "资源不存在", code: "NOT_FOUND" }),
+      new ApiError({
+        type: "about:blank",
+        title: "资源不存在",
+        status: 404,
+        detail: "资源不存在",
+        code: "NOT_FOUND",
+      }),
     );
     renderPage("/galaxies/nope", <GalaxyDetailPage />, "/galaxies/:slug");
     expect(await screen.findByText("星系不存在或尚未公开")).toBeInTheDocument();
@@ -95,7 +107,11 @@ describe("GalaxyShell", () => {
   });
 
   it("marks the active tab with aria-current", async () => {
-    renderPage("/galaxies/xingyu-official/members", <GalaxyMembersPage />, "/galaxies/:slug/members");
+    renderPage(
+      "/galaxies/xingyu-official/members",
+      <GalaxyMembersPage />,
+      "/galaxies/:slug/members",
+    );
     const tab = await screen.findByRole("link", { name: "成员" });
     expect(tab).toHaveAttribute("aria-current", "page");
   });
@@ -130,7 +146,10 @@ describe("GalaxyDetailPage", () => {
   it("shows a member preview with a role label and a profile link", async () => {
     renderPage("/galaxies/xingyu-official", <GalaxyDetailPage />, "/galaxies/:slug");
 
-    expect(await screen.findByRole("link", { name: "探针" })).toHaveAttribute("href", "/u/series_probe");
+    expect(await screen.findByRole("link", { name: "探针" })).toHaveAttribute(
+      "href",
+      "/u/series_probe",
+    );
     expect(screen.getByText(/创建者/)).toBeInTheDocument();
     // displayName is null for u-2, so the username is the label.
     expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute("href", "/u/alice");
@@ -139,7 +158,11 @@ describe("GalaxyDetailPage", () => {
 
 describe("GalaxyMembersPage", () => {
   it("lists members with username labels and role text", async () => {
-    renderPage("/galaxies/xingyu-official/members", <GalaxyMembersPage />, "/galaxies/:slug/members");
+    renderPage(
+      "/galaxies/xingyu-official/members",
+      <GalaxyMembersPage />,
+      "/galaxies/:slug/members",
+    );
 
     expect(await screen.findByText("共 2 位公开成员")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /探针/ })).toHaveAttribute("href", "/u/series_probe");
@@ -153,15 +176,29 @@ describe("GalaxyMembersPage", () => {
 
   it("shows the empty state when the roster is empty", async () => {
     mocked.listMembers.mockResolvedValue([]);
-    renderPage("/galaxies/xingyu-official/members", <GalaxyMembersPage />, "/galaxies/:slug/members");
+    renderPage(
+      "/galaxies/xingyu-official/members",
+      <GalaxyMembersPage />,
+      "/galaxies/:slug/members",
+    );
     expect(await screen.findByText("暂无公开成员")).toBeInTheDocument();
   });
 
   it("does not blank the page when the roster request fails", async () => {
     mocked.listMembers.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "t", status: 404, detail: "d", code: "NOT_FOUND" }),
+      new ApiError({
+        type: "about:blank",
+        title: "t",
+        status: 404,
+        detail: "d",
+        code: "NOT_FOUND",
+      }),
     );
-    renderPage("/galaxies/xingyu-official/members", <GalaxyMembersPage />, "/galaxies/:slug/members");
+    renderPage(
+      "/galaxies/xingyu-official/members",
+      <GalaxyMembersPage />,
+      "/galaxies/:slug/members",
+    );
     // The galaxy header still rendered, and the roster degrades to empty rather
     // than error — a failed side list must not take down the whole page.
     expect(await screen.findByRole("heading", { level: 1, name: "星语" })).toBeInTheDocument();
@@ -172,16 +209,30 @@ describe("GalaxyMembersPage", () => {
 
 describe("GalaxyContentPage", () => {
   it("renders every content type and maps each to its route", async () => {
-    renderPage("/galaxies/xingyu-official/content", <GalaxyContentPage />, "/galaxies/:slug/content");
+    renderPage(
+      "/galaxies/xingyu-official/content",
+      <GalaxyContentPage />,
+      "/galaxies/:slug/content",
+    );
 
-    expect(await screen.findByRole("link", { name: "第一篇" })).toHaveAttribute("href", "/articles/art-1");
+    expect(await screen.findByRole("link", { name: "第一篇" })).toHaveAttribute(
+      "href",
+      "/articles/art-1",
+    );
     expect(screen.getByRole("link", { name: "置顶系列" })).toHaveAttribute("href", "/series/ser-1");
-    expect(screen.getByRole("link", { name: "一条动态" })).toHaveAttribute("href", "/moments/mom-1");
+    expect(screen.getByRole("link", { name: "一条动态" })).toHaveAttribute(
+      "href",
+      "/moments/mom-1",
+    );
   });
 
   it("filters by object type", async () => {
     const { default: userEvent } = await import("@testing-library/user-event");
-    renderPage("/galaxies/xingyu-official/content", <GalaxyContentPage />, "/galaxies/:slug/content");
+    renderPage(
+      "/galaxies/xingyu-official/content",
+      <GalaxyContentPage />,
+      "/galaxies/:slug/content",
+    );
     await screen.findByRole("link", { name: "第一篇" });
 
     await userEvent.setup().click(screen.getByRole("button", { name: "系列" }));
@@ -192,7 +243,11 @@ describe("GalaxyContentPage", () => {
 
   it("narrows to pinned rows only", async () => {
     const { default: userEvent } = await import("@testing-library/user-event");
-    renderPage("/galaxies/xingyu-official/content", <GalaxyContentPage />, "/galaxies/:slug/content");
+    renderPage(
+      "/galaxies/xingyu-official/content",
+      <GalaxyContentPage />,
+      "/galaxies/:slug/content",
+    );
     await screen.findByRole("link", { name: "第一篇" });
 
     await userEvent.setup().click(screen.getByRole("button", { name: "仅看置顶" }));
@@ -203,8 +258,11 @@ describe("GalaxyContentPage", () => {
 
   it("shows the empty state when the galaxy has no content", async () => {
     mocked.listContent.mockResolvedValue([]);
-    renderPage("/galaxies/xingyu-official/content", <GalaxyContentPage />, "/galaxies/:slug/content");
+    renderPage(
+      "/galaxies/xingyu-official/content",
+      <GalaxyContentPage />,
+      "/galaxies/:slug/content",
+    );
     expect(await screen.findByText("暂无内容")).toBeInTheDocument();
   });
 });
-

@@ -24,7 +24,7 @@ vi.mock("@/api/submissions/submissions.api", () => ({
 const mocked = vi.mocked(submissionsApi);
 
 function submission(
-  overrides: Partial<ReviewSubmissionDetailView> = {}
+  overrides: Partial<ReviewSubmissionDetailView> = {},
 ): ReviewSubmissionDetailView {
   return {
     id: "s1",
@@ -186,4 +186,3 @@ describe("MySubmissionsPage — row content", () => {
     expect(screen.getByText(/审核队列/)).toBeInTheDocument();
   });
 });
-

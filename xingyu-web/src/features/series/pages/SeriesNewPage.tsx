@@ -56,7 +56,10 @@ export function SeriesNewPage() {
         返回系列列表
       </Link>
       <h1 className="text-xl font-semibold text-primary">创建系列</h1>
-      <form onSubmit={(event) => void onSubmit(event)} className="space-y-3 rounded-lg border border-border bg-card p-4">
+      <form
+        onSubmit={(event) => void onSubmit(event)}
+        className="space-y-3 rounded-lg border border-border bg-card p-4"
+      >
         <label className="block text-sm font-medium">
           标题
           <input
@@ -103,4 +106,3 @@ export function SeriesNewPage() {
     </div>
   );
 }
-

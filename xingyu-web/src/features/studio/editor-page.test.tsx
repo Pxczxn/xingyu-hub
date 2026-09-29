@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import {
-  createMemoryRouter,
-  Route,
-  RouterProvider,
-  Routes,
-  useLocation,
-} from "react-router-dom";
+import { createMemoryRouter, Route, RouterProvider, Routes, useLocation } from "react-router-dom";
 import { EditorPage } from "./pages/EditorPage";
 import { articlesApi } from "@/api/articles/articles.api";
 import { topicsApi } from "@/api/topics/topics.api";
@@ -257,7 +251,10 @@ describe("local editing state", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "预览" }));
 
-    expect(screen.getByRole("button", { name: "关闭预览" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "关闭预览" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     // The Markdown reading pipeline renders the preview.
     expect(container.querySelector(".article-body")).not.toBeNull();
     expect(bodyTextarea(container)).toHaveValue(before);
@@ -874,8 +871,7 @@ describe("unsaved-changes protection", () => {
     const removeSpy = vi.spyOn(window, "removeEventListener");
 
     await renderLoaded();
-    const registered = () =>
-      addSpy.mock.calls.filter(([type]) => type === "beforeunload").length;
+    const registered = () => addSpy.mock.calls.filter(([type]) => type === "beforeunload").length;
 
     expect(registered()).toBe(0);
 
@@ -1263,4 +1259,3 @@ describe("scope guards", () => {
     expect(saveButton()).toBeInTheDocument();
   });
 });
-

@@ -98,7 +98,10 @@ export function HomePage() {
   }, [ready, isAuthenticated]);
 
   // Non-critical rail modules, isolated so failures cannot blank the page.
-  const announcements = useSection<AnnouncementSummary[]>(() => homeApi.getAnnouncements(3), [ready]);
+  const announcements = useSection<AnnouncementSummary[]>(
+    () => homeApi.getAnnouncements(3),
+    [ready],
+  );
   const topics = useSection<TopicSummary[]>(() => topicsApi.getTopics(), [ready]);
 
   /*
@@ -157,18 +160,19 @@ export function HomePage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column — the feed itself. Full width when the rail has nothing. */}
-        <div className={cn("flex min-w-0 flex-col gap-4", showSidebar ? "lg:col-span-2" : "lg:col-span-3")}>
+        <div
+          className={cn(
+            "flex min-w-0 flex-col gap-4",
+            showSidebar ? "lg:col-span-2" : "lg:col-span-3",
+          )}
+        >
           <HomeFeedTabs value={tab} onChange={setTab} />
 
           {continueReading && continueReading.length > 0 ? (
             <ContinueReadingStrip items={continueReading} />
           ) : null}
 
-          <section
-            id={`home-tabpanel-${tab}`}
-            role="tabpanel"
-            aria-labelledby={`home-tab-${tab}`}
-          >
+          <section id={`home-tabpanel-${tab}`} role="tabpanel" aria-labelledby={`home-tab-${tab}`}>
             <SectionState status={feedStatus} emptyText={emptyText}>
               <ul className="flex flex-col">
                 {(feedItems ?? []).map((item) => (

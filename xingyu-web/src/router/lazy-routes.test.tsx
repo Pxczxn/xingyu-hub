@@ -111,7 +111,16 @@ vi.mock("@/api/interactions/interactions.api", () => ({
 
 function renderAt(path: string) {
   const router = createMemoryRouter(
-    [{ path: "*", element: <AppProviders><AppRoutes /></AppProviders> }],
+    [
+      {
+        path: "*",
+        element: (
+          <AppProviders>
+            <AppRoutes />
+          </AppProviders>
+        ),
+      },
+    ],
     { initialEntries: [path] },
   );
   return { router, ...render(<RouterProvider router={router} />) };
@@ -146,10 +155,9 @@ describe("lazy editor route", () => {
     // The editor chunk carries Milkdown + Crepe + CodeMirror, so in the unbundled
     // test environment the dynamic import needs a generous budget (in the real
     // build it is a single pre-split chunk fetched once).
-    await waitFor(
-      () => expect(container.querySelector("[data-editor-root]")).not.toBeNull(),
-      { timeout: 30000 },
-    );
+    await waitFor(() => expect(container.querySelector("[data-editor-root]")).not.toBeNull(), {
+      timeout: 30000,
+    });
     expect(screen.getByRole("toolbar", { name: "正文编辑工具" })).toBeInTheDocument();
     expect(screen.getByLabelText("文章标题")).toHaveValue("");
     // Phase 1C-2: opening /studio/content/new is a LOCAL blank editor — it must not

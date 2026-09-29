@@ -19,7 +19,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   // While the session is being restored we must not redirect prematurely.
   if (status === "initializing") {
-    return <div role="status" aria-live="polite" data-testid="auth-guard-loading">正在加载…</div>;
+    return (
+      <div role="status" aria-live="polite" data-testid="auth-guard-loading">
+        正在加载…
+      </div>
+    );
   }
 
   if (!isAuthenticated) {

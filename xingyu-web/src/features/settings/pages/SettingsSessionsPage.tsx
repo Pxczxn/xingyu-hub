@@ -115,9 +115,7 @@ export function SettingsSessionsPage() {
         <h2 id="settings-sessions-heading" className="text-base font-semibold text-primary">
           登录会话
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          这里列出当前账号仍有效的登录会话。
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">这里列出当前账号仍有效的登录会话。</p>
       </section>
 
       {actionError ? (
@@ -137,9 +135,7 @@ export function SettingsSessionsPage() {
               className="rounded-lg border border-border bg-card p-4"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  {session.deviceLabel}
-                </span>
+                <span className="text-sm font-medium text-foreground">{session.deviceLabel}</span>
                 {session.current ? (
                   <span
                     data-testid="session-current-badge"
@@ -244,4 +240,3 @@ export function SettingsSessionsPage() {
     </div>
   );
 }
-

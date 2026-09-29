@@ -209,7 +209,10 @@ export const ARTICLE_EDITOR_TOOLBAR_SEGMENTS: ToolbarSegment[] = [
 const HISTORY_KEYS: ToolbarActionKey[] = ["undo", "redo"];
 const INLINE_KEYS: ToolbarActionKey[] = ["bold", "italic", "strike"];
 
-export function getToolbarMenuItems(segment: ToolbarMenuSegment, narrow: boolean): ToolbarActionKey[] {
+export function getToolbarMenuItems(
+  segment: ToolbarMenuSegment,
+  narrow: boolean,
+): ToolbarActionKey[] {
   if (!narrow || !segment.narrowExtraItems?.length) return segment.items;
   return [...segment.items, ...segment.narrowExtraItems];
 }

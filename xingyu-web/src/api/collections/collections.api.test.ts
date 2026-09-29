@@ -74,7 +74,9 @@ describe("collectionsApi", () => {
 
     await expect(collectionsApi.remove("col-1")).resolves.toBeUndefined();
 
-    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/collections/col-1", { method: "DELETE" });
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/collections/col-1", {
+      method: "DELETE",
+    });
   });
 
   it("treats only PRIVATE, PUBLIC, and UNLISTED as legal visibilities", () => {

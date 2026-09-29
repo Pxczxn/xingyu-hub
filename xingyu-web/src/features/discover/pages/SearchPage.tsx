@@ -108,14 +108,15 @@ export function SearchPage() {
       </div>
 
       {/* empty query */}
-      {!query ? (
-        <PageState kind="empty" />
-      ) : null}
+      {!query ? <PageState kind="empty" /> : null}
 
       {query && loading ? <PageState kind="loading" /> : null}
       {query && !loading && error ? <PageState kind="error" /> : null}
       {query && !loading && !error && searched && items.length === 0 ? (
-        <div data-testid="search-no-results" className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+        <div
+          data-testid="search-no-results"
+          className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground"
+        >
           没有找到与「{query}」相关的内容
         </div>
       ) : null}
@@ -130,4 +131,3 @@ export function SearchPage() {
     </div>
   );
 }
-

@@ -1,11 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { eventsApi } from "@/api/events/events.api";
@@ -52,9 +46,7 @@ function event(overrides: Partial<EventView> = {}): EventView {
   };
 }
 
-function submission(
-  overrides: Partial<EventSubmissionView> = {},
-): EventSubmissionView {
+function submission(overrides: Partial<EventSubmissionView> = {}): EventSubmissionView {
   return {
     id: "s1",
     eventId: "e1",
@@ -108,13 +100,8 @@ describe("EventDetailPage — loading and errors", () => {
     renderPage();
 
     expect(await screen.findByText("活动不存在")).toBeInTheDocument();
-    expect(
-      screen.getByText("这个活动不存在，或者已经下线。"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "返回活动广场" })).toHaveAttribute(
-      "href",
-      "/events",
-    );
+    expect(screen.getByText("这个活动不存在，或者已经下线。")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "返回活动广场" })).toHaveAttribute("href", "/events");
   });
 
   it("prefers the backend's own wording for a non-404 failure", async () => {
@@ -137,9 +124,7 @@ describe("EventDetailPage — loading and errors", () => {
     mocked.listAcceptedSubmissions.mockRejectedValue(new Error("network"));
     renderPage();
 
-    expect(
-      await screen.findByRole("heading", { name: "星语创作赛" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "星语创作赛" })).toBeInTheDocument();
     expect(
       screen.getByText("暂无通过审核的投稿。投稿需要经过审核后才会公示。"),
     ).toBeInTheDocument();
@@ -153,9 +138,7 @@ describe("EventDetailPage — submission list", () => {
     renderPage();
 
     expect(
-      await screen.findByText(
-        "暂无通过审核的投稿。投稿需要经过审核后才会公示。",
-      ),
+      await screen.findByText("暂无通过审核的投稿。投稿需要经过审核后才会公示。"),
     ).toBeInTheDocument();
   });
 
@@ -179,9 +162,7 @@ describe("EventDetailPage — submission list", () => {
 
   it("falls back to 未命名作品 when the server could not resolve a title", async () => {
     mocked.get.mockResolvedValue(event());
-    mocked.listAcceptedSubmissions.mockResolvedValue([
-      submission({ objectTitle: null }),
-    ]);
+    mocked.listAcceptedSubmissions.mockResolvedValue([submission({ objectTitle: null })]);
     renderPage();
 
     const list = await screen.findByLabelText("投稿列表");
@@ -194,37 +175,30 @@ describe("EventDetailPage — submission gate", () => {
     mocked.get.mockResolvedValue(event({ submissionOpen: true }));
     renderPage();
 
-    expect(
-      await screen.findByRole("link", { name: "提交作品" }),
-    ).toHaveAttribute("href", "/events/e1/submit");
+    expect(await screen.findByRole("link", { name: "提交作品" })).toHaveAttribute(
+      "href",
+      "/events/e1/submit",
+    );
   });
 
   it("hides 提交作品 when submissions are closed but the event is still running", async () => {
     // The trap: closed submissions is NOT "the event is over".
-    mocked.get.mockResolvedValue(
-      event({ submissionOpen: false, endsAt: "2099-10-05T02:00:00Z" }),
-    );
+    mocked.get.mockResolvedValue(event({ submissionOpen: false, endsAt: "2099-10-05T02:00:00Z" }));
     renderPage();
 
     await screen.findByRole("heading", { name: "星语创作赛" });
-    expect(
-      screen.queryByRole("link", { name: "提交作品" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "提交作品" })).not.toBeInTheDocument();
     expect(screen.getAllByText("暂未开放投稿").length).toBeGreaterThan(0);
     expect(screen.queryByText("已结束")).not.toBeInTheDocument();
   });
 
   it("says 已结束 and hides submission once endsAt has passed", async () => {
-    mocked.get.mockResolvedValue(
-      event({ submissionOpen: true, endsAt: "2000-01-01T00:00:00Z" }),
-    );
+    mocked.get.mockResolvedValue(event({ submissionOpen: true, endsAt: "2000-01-01T00:00:00Z" }));
     renderPage();
 
     await screen.findByRole("heading", { name: "星语创作赛" });
     expect(screen.getAllByText("已结束").length).toBeGreaterThan(0);
-    expect(
-      screen.queryByRole("link", { name: "提交作品" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "提交作品" })).not.toBeInTheDocument();
   });
 });
 
@@ -242,9 +216,7 @@ describe("EventDetailPage — guest", () => {
     renderPage();
 
     await screen.findByRole("heading", { name: "星语创作赛" });
-    expect(
-      screen.queryByRole("button", { name: /报名参加/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /报名参加/ })).not.toBeInTheDocument();
   });
 });
 
@@ -262,12 +234,8 @@ describe("EventDetailPage — registration", () => {
     mocked.get.mockResolvedValue(event());
     renderPage();
 
-    expect(
-      await screen.findByRole("button", { name: /报名参加/ }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /取消报名/ }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /报名参加/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /取消报名/ })).not.toBeInTheDocument();
   });
 
   it("reports what the server returned rather than assuming REGISTERED", async () => {
@@ -283,9 +251,7 @@ describe("EventDetailPage — registration", () => {
     fireEvent.click(await screen.findByRole("button", { name: /报名参加/ }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /取消报名/ }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /取消报名/ })).toBeInTheDocument();
     });
     expect(mocked.register).toHaveBeenCalledWith("e1");
   });
@@ -310,17 +276,13 @@ describe("EventDetailPage — registration", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /报名参加/ }));
     await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: /取消报名/ }),
-      ).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /取消报名/ })).toBeInTheDocument(),
     );
 
     fireEvent.click(screen.getByRole("button", { name: /取消报名/ }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /报名参加/ }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /报名参加/ })).toBeInTheDocument();
     });
     // The 404 is the state we asked for — it must not produce a banner.
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -341,9 +303,7 @@ describe("EventDetailPage — registration", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /报名参加/ }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "活动报名已关闭",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("活动报名已关闭");
   });
 
   it("hides the registration button once the event has ended", async () => {
@@ -351,9 +311,7 @@ describe("EventDetailPage — registration", () => {
     renderPage();
 
     await screen.findByRole("heading", { name: "星语创作赛" });
-    expect(
-      screen.queryByRole("button", { name: /报名参加/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /报名参加/ })).not.toBeInTheDocument();
   });
 
   it("keeps registration separate from submission", async () => {
@@ -363,9 +321,6 @@ describe("EventDetailPage — registration", () => {
     await screen.findByRole("heading", { name: "星语创作赛" });
     // Both actions exist and neither implies the other.
     expect(screen.getByRole("link", { name: "提交作品" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /报名参加/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /报名参加/ })).toBeInTheDocument();
   });
 });
-

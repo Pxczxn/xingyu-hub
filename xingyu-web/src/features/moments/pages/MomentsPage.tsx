@@ -68,10 +68,18 @@ export function MomentsPage() {
 
   return (
     <div className="section-gap">
-      <PageHero eyebrow="MOMENTS" title="动态" description="分享此刻的想法，也看看社区正在发生什么。" tone="violet" />
+      <PageHero
+        eyebrow="MOMENTS"
+        title="动态"
+        description="分享此刻的想法，也看看社区正在发生什么。"
+        tone="violet"
+      />
 
       {isAuthenticated ? (
-        <form onSubmit={(event) => void onCreate(event)} className="space-y-3 rounded-lg border border-border bg-card p-4">
+        <form
+          onSubmit={(event) => void onCreate(event)}
+          className="space-y-3 rounded-lg border border-border bg-card p-4"
+        >
           <label className="block text-sm font-medium">
             动态正文
             <textarea
@@ -113,7 +121,10 @@ export function MomentsPage() {
                 className="block rounded-lg border border-border bg-card p-4 hover:border-accent"
               >
                 <p className="whitespace-pre-wrap text-sm text-foreground">{item.body}</p>
-                <time dateTime={item.createdAt} className="mt-2 block text-xs text-muted-foreground">
+                <time
+                  dateTime={item.createdAt}
+                  className="mt-2 block text-xs text-muted-foreground"
+                >
                   {formatMomentTime(item.createdAt)}
                 </time>
               </Link>

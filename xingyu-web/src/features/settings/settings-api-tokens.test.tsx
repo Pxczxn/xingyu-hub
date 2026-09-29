@@ -268,7 +268,9 @@ describe("SettingsApiTokensPage — revoke", () => {
   });
 
   it("revokes then re-reads the real list", async () => {
-    mockedList.mockResolvedValueOnce([token()]).mockResolvedValueOnce([token({ status: "REVOKED" })]);
+    mockedList
+      .mockResolvedValueOnce([token()])
+      .mockResolvedValueOnce([token({ status: "REVOKED" })]);
     mockedRevoke.mockResolvedValue(undefined);
 
     render(<SettingsApiTokensPage />);
@@ -314,4 +316,3 @@ describe("SettingsApiTokensPage — revoke", () => {
     await waitFor(() => expect(mockedRevoke).toHaveBeenCalledTimes(1));
   });
 });
-

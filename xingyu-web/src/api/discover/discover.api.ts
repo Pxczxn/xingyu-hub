@@ -11,7 +11,14 @@
  * 500 INTERNAL_ERROR on the current backend (verified 2026-09-20).
  */
 import { apiRequest } from "@/api/client";
-import { toContentSummary, toPage, type ContentSummary, type CursorInput, type PageResult, type SearchHit } from "@/api/common.types";
+import {
+  toContentSummary,
+  toPage,
+  type ContentSummary,
+  type CursorInput,
+  type PageResult,
+  type SearchHit,
+} from "@/api/common.types";
 import type { ExploreNav, SearchParams } from "./discover.types";
 
 function qs(params: Record<string, string | number | undefined>): string {
@@ -25,12 +32,19 @@ function qs(params: Record<string, string | number | undefined>): string {
 
 export const discoverApi = {
   getDiscover: (input: CursorInput = {}): Promise<PageResult<ContentSummary>> =>
-    apiRequest<PageResult<ContentSummary>>(`/api/v1/discover${qs({ cursor: input.cursor, limit: input.limit })}`),
+    apiRequest<PageResult<ContentSummary>>(
+      `/api/v1/discover${qs({ cursor: input.cursor, limit: input.limit })}`,
+    ),
 
   getDiscoverNav: (): Promise<ExploreNav> => apiRequest<ExploreNav>("/api/v1/discover/nav"),
 
   /** Backend returns SearchHit[]; the UI consumes PageResult<ContentSummary>. */
-  search: async ({ q, type, sort = "hot", limit = 20 }: SearchParams): Promise<PageResult<ContentSummary>> => {
+  search: async ({
+    q,
+    type,
+    sort = "hot",
+    limit = 20,
+  }: SearchParams): Promise<PageResult<ContentSummary>> => {
     const hits = await apiRequest<SearchHit[]>(
       `/api/v1/search${qs({ q, type: type === "ALL" ? undefined : type, sort, limit })}`,
     );

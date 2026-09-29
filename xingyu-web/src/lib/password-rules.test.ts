@@ -93,6 +93,8 @@ describe("passwordRulesHint", () => {
   });
 
   it("describes the configured rules", () => {
-    expect(passwordRulesHint(policy)).toBe("密码需包含：8-32 位、大写字母、小写字母、数字、特殊字符");
+    expect(passwordRulesHint(policy)).toBe(
+      "密码需包含：8-32 位、大写字母、小写字母、数字、特殊字符",
+    );
   });
 });

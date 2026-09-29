@@ -87,7 +87,14 @@ describe("GrowthPage — aggregation", () => {
 
   it("renders recent comments", async () => {
     mockedComments.mockResolvedValue([
-      { id: "c1", body: "写得好", objectType: "ARTICLE", objectId: "a1", objectTitle: "文", createdAt: "2026-09-01T10:00:00Z" },
+      {
+        id: "c1",
+        body: "写得好",
+        objectType: "ARTICLE",
+        objectId: "a1",
+        objectTitle: "文",
+        createdAt: "2026-09-01T10:00:00Z",
+      },
     ]);
     renderPage();
     const panel = await screen.findByLabelText("最近评论");
@@ -97,7 +104,10 @@ describe("GrowthPage — aggregation", () => {
   it("links the badge summary to the full badge page", async () => {
     renderPage();
     const panel = await screen.findByLabelText("徽章");
-    expect(within(panel).getByRole("link", { name: "查看全部" })).toHaveAttribute("href", "/me/badges");
+    expect(within(panel).getByRole("link", { name: "查看全部" })).toHaveAttribute(
+      "href",
+      "/me/badges",
+    );
   });
 });
 
@@ -115,8 +125,12 @@ describe("GrowthPage — per-section honesty on partial failure", () => {
     // The whole reason for five separate states instead of one Promise.all.
     mockedInsights.mockRejectedValue(new Error("boom"));
     renderPage();
-    expect(await within(await screen.findByLabelText("徽章")).findByText(/当前已点亮/)).toBeInTheDocument();
-    expect(within(await screen.findByLabelText("最近评论")).getByText(/还没有发表过评论/)).toBeInTheDocument();
+    expect(
+      await within(await screen.findByLabelText("徽章")).findByText(/当前已点亮/),
+    ).toBeInTheDocument();
+    expect(
+      within(await screen.findByLabelText("最近评论")).getByText(/还没有发表过评论/),
+    ).toBeInTheDocument();
   });
 
   it("explains a failed reading-history read rather than showing an empty state", async () => {
@@ -143,7 +157,9 @@ describe("GrowthPage — per-section honesty on partial failure", () => {
     expect(await screen.findByText(/登录状态过期/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "去登录" })).toBeInTheDocument();
     // Other sections still rendered.
-    expect(within(await screen.findByLabelText("徽章")).getByText(/当前已点亮/)).toBeInTheDocument();
+    expect(
+      within(await screen.findByLabelText("徽章")).getByText(/当前已点亮/),
+    ).toBeInTheDocument();
   });
 });
 
@@ -211,4 +227,3 @@ describe("GrowthPage — pending actions", () => {
     expect(screen.queryByLabelText("待处理")).not.toBeInTheDocument();
   });
 });
-

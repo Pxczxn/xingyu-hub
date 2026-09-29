@@ -28,7 +28,7 @@ function renderPage() {
   return render(
     <MemoryRouter>
       <MyAppealsPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -92,7 +92,7 @@ describe("MyAppealsPage", () => {
     renderPage();
     expect(await screen.findByRole("link", { name: "我的举报" })).toHaveAttribute(
       "href",
-      "/reports"
+      "/reports",
     );
   });
 
@@ -131,4 +131,3 @@ describe("MyAppealsPage", () => {
     expect(screen.queryByRole("button", { name: /更多|加载/ })).not.toBeInTheDocument();
   });
 });
-

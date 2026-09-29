@@ -52,7 +52,12 @@ describe("flattenSelectableDomains", () => {
   it("flattens to CHILDREN only, carrying the parent group name", () => {
     const flat = flattenSelectableDomains(MAP);
     expect(flat.map((d) => d.id)).toEqual(["c-java", "c-fe", "c-ui"]);
-    expect(flat[0]).toEqual({ id: "c-java", name: "Java", groupName: "技术", description: "JVM 生态" });
+    expect(flat[0]).toEqual({
+      id: "c-java",
+      name: "Java",
+      groupName: "技术",
+      description: "JVM 生态",
+    });
     expect(flat[2].groupName).toBe("设计");
   });
 
@@ -205,7 +210,9 @@ describe("isDirty", () => {
   });
 
   it("is TRUE when the LABEL order differs (order is user-visible)", () => {
-    expect(isDirty({ domainIds: [], labels: ["A", "B"] }, { domainIds: [], labels: ["B", "A"] })).toBe(true);
+    expect(
+      isDirty({ domainIds: [], labels: ["A", "B"] }, { domainIds: [], labels: ["B", "A"] }),
+    ).toBe(true);
   });
 
   it("detects an added / removed domain", () => {

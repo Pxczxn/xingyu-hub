@@ -115,27 +115,39 @@ const RegisterPage = lazy(() =>
 );
 
 const PendingAuditPage = lazy(() =>
-  import("@/features/auth/pages/PendingAuditPage").then((module) => ({ default: module.PendingAuditPage })),
+  import("@/features/auth/pages/PendingAuditPage").then((module) => ({
+    default: module.PendingAuditPage,
+  })),
 );
 
 const VerifyEmailPage = lazy(() =>
-  import("@/features/auth/pages/VerifyEmailPage").then((module) => ({ default: module.VerifyEmailPage })),
+  import("@/features/auth/pages/VerifyEmailPage").then((module) => ({
+    default: module.VerifyEmailPage,
+  })),
 );
 
 const ForgotPasswordPage = lazy(() =>
-  import("@/features/auth/pages/ForgotPasswordPage").then((module) => ({ default: module.ForgotPasswordPage })),
+  import("@/features/auth/pages/ForgotPasswordPage").then((module) => ({
+    default: module.ForgotPasswordPage,
+  })),
 );
 
 const ResetPasswordPage = lazy(() =>
-  import("@/features/auth/pages/ResetPasswordPage").then((module) => ({ default: module.ResetPasswordPage })),
+  import("@/features/auth/pages/ResetPasswordPage").then((module) => ({
+    default: module.ResetPasswordPage,
+  })),
 );
 
 const ForceChangePasswordPage = lazy(() =>
-  import("@/features/auth/pages/ForceChangePasswordPage").then((module) => ({ default: module.ForceChangePasswordPage })),
+  import("@/features/auth/pages/ForceChangePasswordPage").then((module) => ({
+    default: module.ForceChangePasswordPage,
+  })),
 );
 
 const DiscoverPage = lazy(() =>
-  import("@/features/discover/pages/DiscoverPage").then((module) => ({ default: module.DiscoverPage })),
+  import("@/features/discover/pages/DiscoverPage").then((module) => ({
+    default: module.DiscoverPage,
+  })),
 );
 
 const SearchPage = lazy(() =>
@@ -147,83 +159,123 @@ const TopicsPage = lazy(() =>
 );
 
 const TopicDetailPage = lazy(() =>
-  import("@/features/topics/pages/TopicDetailPage").then((module) => ({ default: module.TopicDetailPage })),
+  import("@/features/topics/pages/TopicDetailPage").then((module) => ({
+    default: module.TopicDetailPage,
+  })),
 );
 
 const CreatorsPage = lazy(() =>
-  import("@/features/creators/pages/CreatorsPage").then((module) => ({ default: module.CreatorsPage })),
+  import("@/features/creators/pages/CreatorsPage").then((module) => ({
+    default: module.CreatorsPage,
+  })),
 );
 
 const UserProfilePage = lazy(() =>
-  import("@/features/profile/pages/UserProfilePage").then((module) => ({ default: module.UserProfilePage })),
+  import("@/features/profile/pages/UserProfilePage").then((module) => ({
+    default: module.UserProfilePage,
+  })),
 );
 
 const MeRedirectPage = lazy(() =>
-  import("@/features/profile/pages/MeRedirectPage").then((module) => ({ default: module.MeRedirectPage })),
+  import("@/features/profile/pages/MeRedirectPage").then((module) => ({
+    default: module.MeRedirectPage,
+  })),
 );
 
 const SettingsLayout = lazy(() =>
-  import("@/features/settings/pages/SettingsLayout").then((module) => ({ default: module.SettingsLayout })),
+  import("@/features/settings/pages/SettingsLayout").then((module) => ({
+    default: module.SettingsLayout,
+  })),
 );
 
 const SettingsProfilePage = lazy(() =>
-  import("@/features/settings/pages/SettingsProfilePage").then((module) => ({ default: module.SettingsProfilePage })),
+  import("@/features/settings/pages/SettingsProfilePage").then((module) => ({
+    default: module.SettingsProfilePage,
+  })),
 );
 
 const SettingsPrivacyPage = lazy(() =>
-  import("@/features/settings/pages/SettingsPrivacyPage").then((module) => ({ default: module.SettingsPrivacyPage })),
+  import("@/features/settings/pages/SettingsPrivacyPage").then((module) => ({
+    default: module.SettingsPrivacyPage,
+  })),
 );
 
 const SettingsSessionsPage = lazy(() =>
-  import("@/features/settings/pages/SettingsSessionsPage").then((module) => ({ default: module.SettingsSessionsPage })),
+  import("@/features/settings/pages/SettingsSessionsPage").then((module) => ({
+    default: module.SettingsSessionsPage,
+  })),
 );
 
 const SettingsBlocksPage = lazy(() =>
-  import("@/features/settings/pages/SettingsBlocksPage").then((module) => ({ default: module.SettingsBlocksPage })),
+  import("@/features/settings/pages/SettingsBlocksPage").then((module) => ({
+    default: module.SettingsBlocksPage,
+  })),
 );
 
 const SettingsApiTokensPage = lazy(() =>
-  import("@/features/settings/pages/SettingsApiTokensPage").then((module) => ({ default: module.SettingsApiTokensPage })),
+  import("@/features/settings/pages/SettingsApiTokensPage").then((module) => ({
+    default: module.SettingsApiTokensPage,
+  })),
 );
 
 const SettingsEmailPage = lazy(() =>
-  import("@/features/settings/pages/SettingsEmailPage").then((module) => ({ default: module.SettingsEmailPage })),
+  import("@/features/settings/pages/SettingsEmailPage").then((module) => ({
+    default: module.SettingsEmailPage,
+  })),
 );
 
 const SettingsReauthenticatePage = lazy(() =>
-  import("@/features/settings/pages/SettingsReauthenticatePage").then((module) => ({ default: module.SettingsReauthenticatePage })),
+  import("@/features/settings/pages/SettingsReauthenticatePage").then((module) => ({
+    default: module.SettingsReauthenticatePage,
+  })),
 );
 
 const SettingsDataExportPage = lazy(() =>
-  import("@/features/settings/pages/SettingsDataExportPage").then((module) => ({ default: module.SettingsDataExportPage })),
+  import("@/features/settings/pages/SettingsDataExportPage").then((module) => ({
+    default: module.SettingsDataExportPage,
+  })),
 );
 
 const SettingsDeleteAccountPage = lazy(() =>
-  import("@/features/settings/pages/SettingsDeleteAccountPage").then((module) => ({ default: module.SettingsDeleteAccountPage })),
+  import("@/features/settings/pages/SettingsDeleteAccountPage").then((module) => ({
+    default: module.SettingsDeleteAccountPage,
+  })),
 );
 
 const OnboardingAliasRedirect = lazy(() =>
-  import("@/features/onboarding/pages/OnboardingPage").then((module) => ({ default: module.OnboardingAliasRedirect })),
+  import("@/features/onboarding/pages/OnboardingPage").then((module) => ({
+    default: module.OnboardingAliasRedirect,
+  })),
 );
 
 const OnboardingPage = lazy(() =>
-  import("@/features/onboarding/pages/OnboardingPage").then((module) => ({ default: module.OnboardingPage })),
+  import("@/features/onboarding/pages/OnboardingPage").then((module) => ({
+    default: module.OnboardingPage,
+  })),
 );
 
 const AnnouncementsPage = lazy(() =>
-  import("@/features/announcements/pages/AnnouncementsPage").then((module) => ({ default: module.AnnouncementsPage })),
+  import("@/features/announcements/pages/AnnouncementsPage").then((module) => ({
+    default: module.AnnouncementsPage,
+  })),
 );
 
 const AnnouncementDetailPage = lazy(() =>
-  import("@/features/announcements/pages/AnnouncementDetailPage").then((module) => ({ default: module.AnnouncementDetailPage })),
+  import("@/features/announcements/pages/AnnouncementDetailPage").then((module) => ({
+    default: module.AnnouncementDetailPage,
+  })),
 );
 
 const GuideIndexPage = lazy(() =>
-  import("@/features/guide/pages/GuideIndexPage").then((module) => ({ default: module.GuideIndexPage })),
+  import("@/features/guide/pages/GuideIndexPage").then((module) => ({
+    default: module.GuideIndexPage,
+  })),
 );
 
 const GuideDetailPage = lazy(() =>
-  import("@/features/guide/pages/GuideDetailPage").then((module) => ({ default: module.GuideDetailPage })),
+  import("@/features/guide/pages/GuideDetailPage").then((module) => ({
+    default: module.GuideDetailPage,
+  })),
 );
 
 const RulesPage = lazy(() =>
@@ -231,31 +283,45 @@ const RulesPage = lazy(() =>
 );
 
 const RecommendationFeedbackPage = lazy(() =>
-  import("@/features/feedback/pages/RecommendationFeedbackPage").then((module) => ({ default: module.RecommendationFeedbackPage })),
+  import("@/features/feedback/pages/RecommendationFeedbackPage").then((module) => ({
+    default: module.RecommendationFeedbackPage,
+  })),
 );
 
 const CollectionsPage = lazy(() =>
-  import("@/features/collections/pages/CollectionsPage").then((module) => ({ default: module.CollectionsPage })),
+  import("@/features/collections/pages/CollectionsPage").then((module) => ({
+    default: module.CollectionsPage,
+  })),
 );
 
 const CollectionManagePage = lazy(() =>
-  import("@/features/collections/pages/CollectionManagePage").then((module) => ({ default: module.CollectionManagePage })),
+  import("@/features/collections/pages/CollectionManagePage").then((module) => ({
+    default: module.CollectionManagePage,
+  })),
 );
 
 const CollectionPublicPage = lazy(() =>
-  import("@/features/collections/pages/CollectionPublicPage").then((module) => ({ default: module.CollectionPublicPage })),
+  import("@/features/collections/pages/CollectionPublicPage").then((module) => ({
+    default: module.CollectionPublicPage,
+  })),
 );
 
 const BookshelfPage = lazy(() =>
-  import("@/features/bookshelf/pages/BookshelfPage").then((module) => ({ default: module.BookshelfPage })),
+  import("@/features/bookshelf/pages/BookshelfPage").then((module) => ({
+    default: module.BookshelfPage,
+  })),
 );
 
 const MomentsPage = lazy(() =>
-  import("@/features/moments/pages/MomentsPage").then((module) => ({ default: module.MomentsPage })),
+  import("@/features/moments/pages/MomentsPage").then((module) => ({
+    default: module.MomentsPage,
+  })),
 );
 
 const MomentDetailPage = lazy(() =>
-  import("@/features/moments/pages/MomentDetailPage").then((module) => ({ default: module.MomentDetailPage })),
+  import("@/features/moments/pages/MomentDetailPage").then((module) => ({
+    default: module.MomentDetailPage,
+  })),
 );
 
 const StudioPage = lazy(() =>
@@ -263,111 +329,165 @@ const StudioPage = lazy(() =>
 );
 
 const MySubmissionsPage = lazy(() =>
-  import("@/features/studio/pages/MySubmissionsPage").then((module) => ({ default: module.MySubmissionsPage })),
+  import("@/features/studio/pages/MySubmissionsPage").then((module) => ({
+    default: module.MySubmissionsPage,
+  })),
 );
 
 const SubmissionDetailPage = lazy(() =>
-  import("@/features/studio/pages/SubmissionDetailPage").then((module) => ({ default: module.SubmissionDetailPage })),
+  import("@/features/studio/pages/SubmissionDetailPage").then((module) => ({
+    default: module.SubmissionDetailPage,
+  })),
 );
 
 const ArticleVersionsPage = lazy(() =>
-  import("@/features/studio/pages/ArticleVersionsPage").then((module) => ({ default: module.ArticleVersionsPage })),
+  import("@/features/studio/pages/ArticleVersionsPage").then((module) => ({
+    default: module.ArticleVersionsPage,
+  })),
 );
 
 const StudioAnalyticsPage = lazy(() =>
-  import("@/features/studio/pages/StudioAnalyticsPage").then((module) => ({ default: module.StudioAnalyticsPage })),
+  import("@/features/studio/pages/StudioAnalyticsPage").then((module) => ({
+    default: module.StudioAnalyticsPage,
+  })),
 );
 
 const CollaborationInvitePage = lazy(() =>
-  import("@/features/studio/pages/CollaborationInvitePage").then((module) => ({ default: module.CollaborationInvitePage })),
+  import("@/features/studio/pages/CollaborationInvitePage").then((module) => ({
+    default: module.CollaborationInvitePage,
+  })),
 );
 
 const CollaborationAcceptPage = lazy(() =>
-  import("@/features/studio/pages/CollaborationAcceptPage").then((module) => ({ default: module.CollaborationAcceptPage })),
+  import("@/features/studio/pages/CollaborationAcceptPage").then((module) => ({
+    default: module.CollaborationAcceptPage,
+  })),
 );
 
 const StudioCategoriesPage = lazy(() =>
-  import("@/features/studio/pages/StudioCategoriesPage").then((module) => ({ default: module.StudioCategoriesPage })),
+  import("@/features/studio/pages/StudioCategoriesPage").then((module) => ({
+    default: module.StudioCategoriesPage,
+  })),
 );
 
 const ContentListPage = lazy(() =>
-  import("@/features/studio/pages/ContentListPage").then((module) => ({ default: module.ContentListPage })),
+  import("@/features/studio/pages/ContentListPage").then((module) => ({
+    default: module.ContentListPage,
+  })),
 );
 
 const SeriesListPage = lazy(() =>
-  import("@/features/series/pages/SeriesListPage").then((module) => ({ default: module.SeriesListPage })),
+  import("@/features/series/pages/SeriesListPage").then((module) => ({
+    default: module.SeriesListPage,
+  })),
 );
 
 const SeriesNewPage = lazy(() =>
-  import("@/features/series/pages/SeriesNewPage").then((module) => ({ default: module.SeriesNewPage })),
+  import("@/features/series/pages/SeriesNewPage").then((module) => ({
+    default: module.SeriesNewPage,
+  })),
 );
 
 const SeriesEditPage = lazy(() =>
-  import("@/features/series/pages/SeriesEditPage").then((module) => ({ default: module.SeriesEditPage })),
+  import("@/features/series/pages/SeriesEditPage").then((module) => ({
+    default: module.SeriesEditPage,
+  })),
 );
 
 const SeriesArticlesPage = lazy(() =>
-  import("@/features/series/pages/SeriesArticlesPage").then((module) => ({ default: module.SeriesArticlesPage })),
+  import("@/features/series/pages/SeriesArticlesPage").then((module) => ({
+    default: module.SeriesArticlesPage,
+  })),
 );
 
 const PublicSeriesListPage = lazy(() =>
-  import("@/features/series/pages/PublicSeriesListPage").then((module) => ({ default: module.PublicSeriesListPage })),
+  import("@/features/series/pages/PublicSeriesListPage").then((module) => ({
+    default: module.PublicSeriesListPage,
+  })),
 );
 
 const PublicSeriesDetailPage = lazy(() =>
-  import("@/features/series/pages/PublicSeriesDetailPage").then((module) => ({ default: module.PublicSeriesDetailPage })),
+  import("@/features/series/pages/PublicSeriesDetailPage").then((module) => ({
+    default: module.PublicSeriesDetailPage,
+  })),
 );
 
 const PublicSeriesReadPage = lazy(() =>
-  import("@/features/series/pages/PublicSeriesReadPage").then((module) => ({ default: module.PublicSeriesReadPage })),
+  import("@/features/series/pages/PublicSeriesReadPage").then((module) => ({
+    default: module.PublicSeriesReadPage,
+  })),
 );
 
 const GalaxyListPage = lazy(() =>
-  import("@/features/galaxies/pages/GalaxyListPage").then((module) => ({ default: module.GalaxyListPage })),
+  import("@/features/galaxies/pages/GalaxyListPage").then((module) => ({
+    default: module.GalaxyListPage,
+  })),
 );
 
 const GalaxyDetailPage = lazy(() =>
-  import("@/features/galaxies/pages/GalaxyDetailPage").then((module) => ({ default: module.GalaxyDetailPage })),
+  import("@/features/galaxies/pages/GalaxyDetailPage").then((module) => ({
+    default: module.GalaxyDetailPage,
+  })),
 );
 
 const GalaxyMembersPage = lazy(() =>
-  import("@/features/galaxies/pages/GalaxyMembersPage").then((module) => ({ default: module.GalaxyMembersPage })),
+  import("@/features/galaxies/pages/GalaxyMembersPage").then((module) => ({
+    default: module.GalaxyMembersPage,
+  })),
 );
 
 const GalaxyContentPage = lazy(() =>
-  import("@/features/galaxies/pages/GalaxyContentPage").then((module) => ({ default: module.GalaxyContentPage })),
+  import("@/features/galaxies/pages/GalaxyContentPage").then((module) => ({
+    default: module.GalaxyContentPage,
+  })),
 );
 
 const MyGalaxiesPage = lazy(() =>
-  import("@/features/galaxies/pages/MyGalaxiesPage").then((module) => ({ default: module.MyGalaxiesPage })),
+  import("@/features/galaxies/pages/MyGalaxiesPage").then((module) => ({
+    default: module.MyGalaxiesPage,
+  })),
 );
 
 const MyFollowingPage = lazy(() =>
-  import("@/features/social/pages/FollowListPage").then((module) => ({ default: module.MyFollowingPage })),
+  import("@/features/social/pages/FollowListPage").then((module) => ({
+    default: module.MyFollowingPage,
+  })),
 );
 
 const MyFollowersPage = lazy(() =>
-  import("@/features/social/pages/FollowListPage").then((module) => ({ default: module.MyFollowersPage })),
+  import("@/features/social/pages/FollowListPage").then((module) => ({
+    default: module.MyFollowersPage,
+  })),
 );
 
 const NotificationsPage = lazy(() =>
-  import("@/features/notifications/pages/NotificationsPage").then((module) => ({ default: module.NotificationsPage })),
+  import("@/features/notifications/pages/NotificationsPage").then((module) => ({
+    default: module.NotificationsPage,
+  })),
 );
 
 const MailboxPage = lazy(() =>
-  import("@/features/messages/pages/MailboxPage").then((module) => ({ default: module.MailboxPage })),
+  import("@/features/messages/pages/MailboxPage").then((module) => ({
+    default: module.MailboxPage,
+  })),
 );
 
 const ConversationAssetsPage = lazy(() =>
-  import("@/features/messages/pages/ConversationAssetsPage").then((module) => ({ default: module.ConversationAssetsPage })),
+  import("@/features/messages/pages/ConversationAssetsPage").then((module) => ({
+    default: module.ConversationAssetsPage,
+  })),
 );
 
 const SearchMessagesPage = lazy(() =>
-  import("@/features/messages/pages/SearchMessagesPage").then((module) => ({ default: module.SearchMessagesPage })),
+  import("@/features/messages/pages/SearchMessagesPage").then((module) => ({
+    default: module.SearchMessagesPage,
+  })),
 );
 
 const SavedMessagesPage = lazy(() =>
-  import("@/features/messages/pages/SavedMessagesPage").then((module) => ({ default: module.SavedMessagesPage })),
+  import("@/features/messages/pages/SavedMessagesPage").then((module) => ({
+    default: module.SavedMessagesPage,
+  })),
 );
 
 const EventsPage = lazy(() =>
@@ -375,71 +495,105 @@ const EventsPage = lazy(() =>
 );
 
 const EventDetailPage = lazy(() =>
-  import("@/features/events/pages/EventDetailPage").then((module) => ({ default: module.EventDetailPage })),
+  import("@/features/events/pages/EventDetailPage").then((module) => ({
+    default: module.EventDetailPage,
+  })),
 );
 
 const EventSubmitPage = lazy(() =>
-  import("@/features/events/pages/EventSubmitPage").then((module) => ({ default: module.EventSubmitPage })),
+  import("@/features/events/pages/EventSubmitPage").then((module) => ({
+    default: module.EventSubmitPage,
+  })),
 );
 
 const MyEventsPage = lazy(() =>
-  import("@/features/events/pages/MyEventsPage").then((module) => ({ default: module.MyEventsPage })),
+  import("@/features/events/pages/MyEventsPage").then((module) => ({
+    default: module.MyEventsPage,
+  })),
 );
 
 const MyMomentsPage = lazy(() =>
-  import("@/features/moments/pages/MyMomentsPage").then((module) => ({ default: module.MyMomentsPage })),
+  import("@/features/moments/pages/MyMomentsPage").then((module) => ({
+    default: module.MyMomentsPage,
+  })),
 );
 
 const MyLikesPage = lazy(() =>
-  import("@/features/me-activity/pages/MyLikesPage").then((module) => ({ default: module.MyLikesPage })),
+  import("@/features/me-activity/pages/MyLikesPage").then((module) => ({
+    default: module.MyLikesPage,
+  })),
 );
 
 const MyCommentsPage = lazy(() =>
-  import("@/features/me-activity/pages/MyCommentsPage").then((module) => ({ default: module.MyCommentsPage })),
+  import("@/features/me-activity/pages/MyCommentsPage").then((module) => ({
+    default: module.MyCommentsPage,
+  })),
 );
 
 const AchievementBadgesPage = lazy(() =>
-  import("@/features/me-growth/pages/AchievementBadgesPage").then((module) => ({ default: module.AchievementBadgesPage })),
+  import("@/features/me-growth/pages/AchievementBadgesPage").then((module) => ({
+    default: module.AchievementBadgesPage,
+  })),
 );
 
 const ExplorationInterestsPage = lazy(() =>
-  import("@/features/me-growth/pages/ExplorationInterestsPage").then((module) => ({ default: module.ExplorationInterestsPage })),
+  import("@/features/me-growth/pages/ExplorationInterestsPage").then((module) => ({
+    default: module.ExplorationInterestsPage,
+  })),
 );
 
 const GroupJoinRequestsPage = lazy(() =>
-  import("@/features/me-growth/pages/GroupJoinRequestsPage").then((module) => ({ default: module.GroupJoinRequestsPage })),
+  import("@/features/me-growth/pages/GroupJoinRequestsPage").then((module) => ({
+    default: module.GroupJoinRequestsPage,
+  })),
 );
 
 const GrowthPage = lazy(() =>
-  import("@/features/me-growth/pages/GrowthPage").then((module) => ({ default: module.GrowthPage })),
+  import("@/features/me-growth/pages/GrowthPage").then((module) => ({
+    default: module.GrowthPage,
+  })),
 );
 
 const MyGroupsPage = lazy(() =>
-  import("@/features/me-growth/pages/MyGroupsPage").then((module) => ({ default: module.MyGroupsPage })),
+  import("@/features/me-growth/pages/MyGroupsPage").then((module) => ({
+    default: module.MyGroupsPage,
+  })),
 );
 
 const MyReportsPage = lazy(() =>
-  import("@/features/moderation/pages/MyReportsPage").then((module) => ({ default: module.MyReportsPage })),
+  import("@/features/moderation/pages/MyReportsPage").then((module) => ({
+    default: module.MyReportsPage,
+  })),
 );
 
 const ReportDetailPage = lazy(() =>
-  import("@/features/moderation/pages/ReportDetailPage").then((module) => ({ default: module.ReportDetailPage })),
+  import("@/features/moderation/pages/ReportDetailPage").then((module) => ({
+    default: module.ReportDetailPage,
+  })),
 );
 
 const NewReportPage = lazy(() =>
-  import("@/features/moderation/pages/NewReportPage").then((module) => ({ default: module.NewReportPage })),
+  import("@/features/moderation/pages/NewReportPage").then((module) => ({
+    default: module.NewReportPage,
+  })),
 );
 
 const MyAppealsPage = lazy(() =>
-  import("@/features/moderation/pages/MyAppealsPage").then((module) => ({ default: module.MyAppealsPage })),
+  import("@/features/moderation/pages/MyAppealsPage").then((module) => ({
+    default: module.MyAppealsPage,
+  })),
 );
 
 const AppealDetailPage = lazy(() =>
-  import("@/features/moderation/pages/AppealDetailPage").then((module) => ({ default: module.AppealDetailPage })),
+  import("@/features/moderation/pages/AppealDetailPage").then((module) => ({
+    default: module.AppealDetailPage,
+  })),
 );
 
 const NewAppealPage = lazy(() =>
-  import("@/features/moderation/pages/NewAppealPage").then((module) => ({ default: module.NewAppealPage })),
+  import("@/features/moderation/pages/NewAppealPage").then((module) => ({
+    default: module.NewAppealPage,
+  })),
 );
 
 export function AppRoutes() {
@@ -451,7 +605,6 @@ export function AppRoutes() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/topics" element={<TopicsPage />} />
         <Route path="/topics/:slug" element={<TopicDetailPage />} />
-
         {/* Phase 2K-1: /creators is a PURE FRONT-END AGGREGATION page — there is
             no /api/v1/creators endpoint. It fans out to /topics +
             /topics/{slug}/creators + /users/{username}[/works], all of which are
@@ -459,14 +612,12 @@ export function AppRoutes() {
             the follow button is the only signed-in action, and it simply fails
             with an auth error for guests. */}
         <Route path="/creators" element={<CreatorsPage />} />
-
         {/* Phase 2B: public static info. Guest-reachable, no login gate. */}
         <Route path="/announcements" element={<AnnouncementsPage />} />
         <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
         <Route path="/guide" element={<GuideIndexPage />} />
         <Route path="/guide/:slug" element={<GuideDetailPage />} />
         <Route path="/rules" element={<RulesPage />} />
-
         {/* Phase 3F: 推荐反馈. Session-scoped on BOTH verbs — `GET` and `POST
             /me/recommendation-feedback` are each 401 for a guest (probed
             2026-09-28; unlike `/explore/me`, these map 401 correctly). Source-
@@ -481,17 +632,14 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-
         {/* Phase 2C: public collection detail. 404 hides PRIVATE/UNLISTED. */}
         <Route path="/collections/:id" element={<CollectionPublicPage />} />
-
         {/* Phase 2D: public moments. The whole feed is guest-readable;
             only the publish CTA sends guests to login. Publishing lives here as
             a form on the feed page (POST /moments), so there is no /moments/new
             or /moments/:id/edit; the owner's history is /me/moments (Phase 2I-5). */}
         <Route path="/moments" element={<MomentsPage />} />
         <Route path="/moments/:id" element={<MomentDetailPage />} />
-
         {/* Phase 2G: public series. Guest-readable square + detail; the reader
             needs no session either. Subscribing is the only signed-in action.
             `/series/:id/read` must be declared after `/series` and `/series/:id`
@@ -499,7 +647,6 @@ export function AppRoutes() {
         <Route path="/series" element={<PublicSeriesListPage />} />
         <Route path="/series/:seriesId" element={<PublicSeriesDetailPage />} />
         <Route path="/series/:seriesId/read" element={<PublicSeriesReadPage />} />
-
         {/* Phase 2H: public galaxies. Guest-readable square + detail + roster +
             content feed; only joining needs a session. All four are keyed by
             `slug`, which is what the backend routes on. */}
@@ -507,7 +654,6 @@ export function AppRoutes() {
         <Route path="/galaxies/:slug" element={<GalaxyDetailPage />} />
         <Route path="/galaxies/:slug/members" element={<GalaxyMembersPage />} />
         <Route path="/galaxies/:slug/content" element={<GalaxyContentPage />} />
-
         {/* Phase 3I: 我加入的星系. Same `GET /me/galaxies` call GalaxyShell
             already makes for its join-button state, promoted to a page — the
             public square cannot answer "which ones did I join" because
@@ -521,7 +667,6 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-
         {/* Phase 2I-4: community events. The square and the detail page are
             public and guest-readable (GET /events is unauthenticated); only the
             submit flow and 我的活动 need a session, because registration and
@@ -547,14 +692,8 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-
         {/* Phase 1B: real article + public profile */}
-        <Route
-          path="/articles/:articleId"
-          element={
-            <ArticleDetailPage />
-          }
-        />
+        <Route path="/articles/:articleId" element={<ArticleDetailPage />} />
         <Route path="/u/:username" element={<UserProfilePage />} />
         {/* /me is only an entry point to the current user's own profile. */}
         <Route path="/me" element={<MeRedirectPage />} />
@@ -771,7 +910,8 @@ export function AppRoutes() {
               <NotificationsPage />
             </RequireAuth>
           }
-        />        {/* Phase 2I-3: the private message centre. Both hosts need a session —
+        />{" "}
+        {/* Phase 2I-3: the private message centre. Both hosts need a session —
             every /api/v1/messages endpoint is scoped by the community session.
             Declared as two flat routes (not a nested index/child pair) because
             MailboxPage renders the thread slot itself from the param. */}
@@ -912,7 +1052,6 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-
         {/* Phase 2A-3: onboarding. Subpaths are aliases so Legacy bookmarks
             land on the same step machine (the server `step` field). */}
         <Route
@@ -927,7 +1066,6 @@ export function AppRoutes() {
         <Route path="/onboarding/interests" element={<OnboardingAliasRedirect />} />
         <Route path="/onboarding/follows" element={<OnboardingAliasRedirect />} />
         <Route path="/onboarding/profile" element={<OnboardingAliasRedirect />} />
-
         {/* Phase 2A-1: Settings.
             The layout route is PATHLESS on purpose: `/settings` itself stays a
             Legacy redirect (see redirects.tsx), and a pathless parent cannot
@@ -948,11 +1086,13 @@ export function AppRoutes() {
               self-service endpoints (email change, data export, account
               deactivation) plus the re-auth grant the email change depends on. */}
           <Route path="/settings/security/email" element={<SettingsEmailPage />} />
-          <Route path="/settings/security/re-authenticate" element={<SettingsReauthenticatePage />} />
+          <Route
+            path="/settings/security/re-authenticate"
+            element={<SettingsReauthenticatePage />}
+          />
           <Route path="/settings/data/export" element={<SettingsDataExportPage />} />
           <Route path="/settings/data/delete-account" element={<SettingsDeleteAccountPage />} />
         </Route>
-
         {/* Phase 2L: version history and analytics. Both are owner-only views of
             data the API already exposes (listRevisions / me/insights). */}
         <Route
@@ -971,7 +1111,6 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-
         {/* Phase 2M: collaboration invites. Both pages are RequireAuth.
             The invite format is a strictly POST-a-session operation
             (`POST /me/collaboration-invites`). Accept (`POST
@@ -1004,7 +1143,6 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-
         {/* Phase 2N: creation-space categories. Not a migration — the backend
             CRUD (`/me/creation-space/categories`) was fully implemented while
             Legacy shipped no page for it (`app/studio/categories/` has no
@@ -1018,7 +1156,6 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-
         {/* Phase 1C-1: editor. One route covers both "existing draft" and
             "new article" (Legacy used the same magic `new` id). */}
         <Route
@@ -1029,7 +1166,6 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-
         <Route path="*" element={<NotFound />} />
       </Route>
 

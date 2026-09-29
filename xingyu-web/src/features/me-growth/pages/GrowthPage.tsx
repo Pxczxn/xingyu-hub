@@ -10,7 +10,10 @@ import { myCommentsApi } from "@/api/me-activity/me-activity.api";
 import type { MyCommentView } from "@/api/me-activity/me-activity.types";
 import { meInsightsApi } from "@/api/moments/moments.api";
 import type { InsightsView } from "@/api/moments/moments.types";
-import { readingHistoryApi, type ReadingHistoryItem } from "@/api/reading-history/reading-history.api";
+import {
+  readingHistoryApi,
+  type ReadingHistoryItem,
+} from "@/api/reading-history/reading-history.api";
 import { contentHref } from "@/components/shared/ContentCard";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -53,15 +56,14 @@ import {
  *   - reading   -> new in this phase: there was no client for it at all
  */
 
-type Section<T> =
-  | { kind: "loading" }
-  | { kind: "error" }
-  | { kind: "ready"; data: T };
+type Section<T> = { kind: "loading" } | { kind: "error" } | { kind: "ready"; data: T };
 
 const INITIAL: Section<never> = { kind: "loading" };
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 function formatTime(value?: string): string {
@@ -183,7 +185,9 @@ export function GrowthPage() {
                     >
                       {label}
                       {count && count > 1 ? (
-                        <span className="ml-2 text-xs text-muted-foreground">{pendingCountLabel(count)}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {pendingCountLabel(count)}
+                        </span>
                       ) : null}
                     </Link>
                   ) : (
@@ -303,7 +307,9 @@ export function GrowthPage() {
             {comments.data.map((comment) => (
               <li key={comment.id} className="rounded-md border border-border px-4 py-3">
                 <p className="text-sm text-foreground">{comment.body}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{formatTime(comment.createdAt)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatTime(comment.createdAt)}
+                </p>
               </li>
             ))}
           </ul>
@@ -311,7 +317,10 @@ export function GrowthPage() {
       </section>
 
       <p className="flex flex-wrap justify-center gap-3">
-        <Link to="/studio/analytics" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>
+        <Link
+          to="/studio/analytics"
+          className={cn(buttonVariants({ variant: "outline" }), "text-sm")}
+        >
           查看创作数据
         </Link>
         <Link to="/me/likes" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>
@@ -330,4 +339,3 @@ function Stat({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
-

@@ -76,7 +76,12 @@ export function ApiTokenSecretPanel({
       </dl>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button variant="primary" size="sm" data-testid="api-token-copy" onClick={() => void copy()}>
+        <Button
+          variant="primary"
+          size="sm"
+          data-testid="api-token-copy"
+          onClick={() => void copy()}
+        >
           {copyState === "copied" ? "已复制" : "复制"}
         </Button>
         <Button
@@ -99,11 +104,14 @@ export function ApiTokenSecretPanel({
         </p>
       ) : null}
       {copyState === "failed" ? (
-        <p role="alert" data-testid="api-token-copy-status" className="mt-2 text-xs text-destructive">
+        <p
+          role="alert"
+          data-testid="api-token-copy-status"
+          className="mt-2 text-xs text-destructive"
+        >
           复制失败，请手动选中上面的内容复制。
         </p>
       ) : null}
     </section>
   );
 }
-

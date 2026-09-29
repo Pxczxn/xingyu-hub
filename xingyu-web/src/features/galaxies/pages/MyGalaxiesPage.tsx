@@ -34,8 +34,7 @@ type LoadState =
 
 function isAuthError(err: unknown): boolean {
   return (
-    err instanceof ApiError &&
-    (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
   );
 }
 
@@ -123,4 +122,3 @@ export function MyGalaxiesPage() {
     </div>
   );
 }
-

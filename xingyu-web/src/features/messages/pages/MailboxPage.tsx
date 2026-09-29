@@ -39,7 +39,9 @@ type LoadState =
   | { kind: "ready"; items: Conversation[] };
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 export function MailboxPage() {
@@ -135,4 +137,3 @@ export function MailboxPage() {
     </div>
   );
 }
-

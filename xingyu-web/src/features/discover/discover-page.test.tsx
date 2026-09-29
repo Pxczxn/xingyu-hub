@@ -30,7 +30,11 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocked.getDiscoverNav.mockResolvedValue({ mode: "guest", sectionTitle: "热门星域", feedHint: "提示语" });
+  mocked.getDiscoverNav.mockResolvedValue({
+    mode: "guest",
+    sectionTitle: "热门星域",
+    feedHint: "提示语",
+  });
 });
 
 describe("discover page", () => {
@@ -73,4 +77,3 @@ describe("discover page", () => {
     await waitFor(() => expect(screen.getByTestId("page-state-empty")).toBeInTheDocument());
   });
 });
-

@@ -244,7 +244,9 @@ describe("MyMomentsPage — counters", () => {
 
 describe("MyMomentsPage — header", () => {
   it("prefers the display name, falling back to the username", async () => {
-    mockedUsers.getMyProfile.mockResolvedValue(profile({ displayName: "星野", username: "hoshino" }));
+    mockedUsers.getMyProfile.mockResolvedValue(
+      profile({ displayName: "星野", username: "hoshino" }),
+    );
     renderPage();
     await screen.findByTestId("page-state-empty");
 
@@ -260,4 +262,3 @@ describe("MyMomentsPage — header", () => {
     expect(screen.getByRole("heading", { name: "hoshino" })).toBeInTheDocument();
   });
 });
-

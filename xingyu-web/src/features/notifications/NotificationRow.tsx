@@ -1,11 +1,4 @@
-import {
-  Bell,
-  Heart,
-  Megaphone,
-  MessageCircle,
-  UserPlus,
-  type LucideIcon,
-} from "lucide-react";
+import { Bell, Heart, Megaphone, MessageCircle, UserPlus, type LucideIcon } from "lucide-react";
 import type { Notification } from "@/api/notifications/notifications.types";
 import { cn } from "@/lib/cn";
 
@@ -146,4 +139,3 @@ export function NotificationRow({
     </li>
   );
 }
-

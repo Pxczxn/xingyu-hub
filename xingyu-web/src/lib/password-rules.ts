@@ -14,10 +14,7 @@ export type PasswordRuleCheck = {
 
 const SPECIAL_PATTERN = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
 
-export function getPasswordRuleChecks(
-  value: string,
-  policy?: PasswordPolicy,
-): PasswordRuleCheck[] {
+export function getPasswordRuleChecks(value: string, policy?: PasswordPolicy): PasswordRuleCheck[] {
   if (!policy) return [];
 
   const checks: PasswordRuleCheck[] = [];

@@ -193,9 +193,7 @@ describe("SavedMessagesPage — removal", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /取消收藏/ }));
 
-    expect(
-      await screen.findByText("这条收藏已经不存在了，刷新后可看到最新列表。"),
-    ).toBeTruthy();
+    expect(await screen.findByText("这条收藏已经不存在了，刷新后可看到最新列表。")).toBeTruthy();
     expect(screen.getByTestId("saved-message-row")).toBeTruthy();
   });
 
@@ -210,4 +208,3 @@ describe("SavedMessagesPage — removal", () => {
     expect(screen.getByTestId("saved-message-row")).toBeTruthy();
   });
 });
-

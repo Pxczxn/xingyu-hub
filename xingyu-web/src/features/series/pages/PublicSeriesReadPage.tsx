@@ -27,7 +27,9 @@ const LAYOUTS = [
 type LayoutKey = (typeof LAYOUTS)[number][0];
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 /**
@@ -74,7 +76,9 @@ export function PublicSeriesReadPage() {
   }, [seriesId]);
 
   const chapters =
-    state.kind === "ready" ? [...(state.series.chapters ?? [])].sort((a, b) => a.position - b.position) : [];
+    state.kind === "ready"
+      ? [...(state.series.chapters ?? [])].sort((a, b) => a.position - b.position)
+      : [];
   const current = chapters[currentIndex] ?? chapters[0];
 
   useEffect(() => {
@@ -126,7 +130,10 @@ export function PublicSeriesReadPage() {
   return (
     <div className="section-gap lg:flex lg:gap-6">
       <aside className="lg:w-64 lg:shrink-0">
-        <Link to={`/series/${encodeURIComponent(series.id)}`} className="text-sm text-muted-foreground hover:text-accent">
+        <Link
+          to={`/series/${encodeURIComponent(series.id)}`}
+          className="text-sm text-muted-foreground hover:text-accent"
+        >
           ← 返回系列
         </Link>
         <h2 className="mt-2 text-base font-semibold text-primary">{series.title}</h2>
@@ -139,7 +146,9 @@ export function PublicSeriesReadPage() {
                 onClick={() => void openChapter(index)}
                 className={cn(
                   "w-full rounded-md px-3 py-2 text-left text-sm",
-                  index === currentIndex ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted",
+                  index === currentIndex
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted",
                 )}
               >
                 <span className="mr-2 tabular-nums">{String(index + 1).padStart(2, "0")}</span>
@@ -156,7 +165,11 @@ export function PublicSeriesReadPage() {
 
       <article className="min-w-0 flex-1">
         {!current ? (
-          <PageState kind="empty" title="暂无可阅读章节" description="该系列发布章节后会显示在这里。" />
+          <PageState
+            kind="empty"
+            title="暂无可阅读章节"
+            description="该系列发布章节后会显示在这里。"
+          />
         ) : (
           <>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -214,7 +227,11 @@ export function PublicSeriesReadPage() {
               {articleState === "loading" ? (
                 <PageState kind="loading" />
               ) : articleState === "error" ? (
-                <PageState kind="empty" title="章节正文暂不可读" description="该文章可能尚未公开。" />
+                <PageState
+                  kind="empty"
+                  title="章节正文暂不可读"
+                  description="该文章可能尚未公开。"
+                />
               ) : (
                 <div className="mt-4">
                   <ArticleMarkdownBody body={prepared?.markdown ?? article?.body ?? ""} />
@@ -244,4 +261,3 @@ export function PublicSeriesReadPage() {
     </div>
   );
 }
-

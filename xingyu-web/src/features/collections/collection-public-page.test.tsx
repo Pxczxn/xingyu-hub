@@ -59,4 +59,3 @@ describe("CollectionPublicPage", () => {
     expect(screen.queryByText("你没有权限")).not.toBeInTheDocument();
   });
 });
-

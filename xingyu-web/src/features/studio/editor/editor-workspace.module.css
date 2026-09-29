@@ -162,7 +162,9 @@
   font-size: 0.75rem;
   line-height: 1.45;
   text-align: left;
-  transition: color 160ms ease, border-color 160ms ease;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
   cursor: pointer;
 }
 
@@ -543,7 +545,9 @@
   border-radius: 8px;
   background: transparent;
   color: hsl(var(--muted-foreground));
-  transition: background-color 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
   cursor: pointer;
 }
 
@@ -763,8 +767,9 @@
   border-right: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.5);
   color: hsl(var(--muted-foreground) / 0.8);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
   font-size: 1rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.85;
@@ -904,10 +909,17 @@ textarea.bodySurface {
   background: linear-gradient(90deg, hsl(var(--accent) / 0.14) 0%, hsl(var(--accent) / 0.04) 100%);
   border-radius: 8px;
   box-shadow: inset 3px 0 0 hsl(var(--accent));
-  transition: background-color 160ms ease, box-shadow 160ms ease;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
-:global(.xy-editor-milkdown.is-focused .milkdown .ProseMirror > .xy-editor-block-active:has(li.xy-editor-block-active)) {
+:global(
+  .xy-editor-milkdown.is-focused
+    .milkdown
+    .ProseMirror
+    > .xy-editor-block-active:has(li.xy-editor-block-active)
+) {
   box-shadow: none;
   background: transparent;
 }
@@ -1013,7 +1025,10 @@ textarea.bodySurface {
   background: hsl(var(--muted) / 0.5);
   color: hsl(var(--muted-foreground));
   font-size: 0.6875rem;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
   cursor: pointer;
 }
 

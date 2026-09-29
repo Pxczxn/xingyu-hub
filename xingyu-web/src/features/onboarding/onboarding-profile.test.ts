@@ -10,7 +10,11 @@ describe("buildOnboardingProfilePatch", () => {
 
   it("omits empty strings so a clear is never submitted", () => {
     expect(
-      buildOnboardingProfilePatch(2, { displayName: "alice", bio: "简介" }, { displayName: "", bio: "" }),
+      buildOnboardingProfilePatch(
+        2,
+        { displayName: "alice", bio: "简介" },
+        { displayName: "", bio: "" },
+      ),
     ).toBeNull();
   });
 

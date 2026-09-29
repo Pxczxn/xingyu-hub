@@ -71,7 +71,10 @@ describe("ConversationRow", () => {
   it("prefers the real group title over the fallback", () => {
     render(
       <MemoryRouter>
-        <ConversationRow conversation={conversation({ type: "GROUP", title: "读书会" })} active={false} />
+        <ConversationRow
+          conversation={conversation({ type: "GROUP", title: "读书会" })}
+          active={false}
+        />
       </MemoryRouter>,
     );
     expect(screen.getByText("读书会")).toBeInTheDocument();
@@ -272,7 +275,9 @@ describe("MessageBubble", () => {
     unmount();
 
     renderBubble({ showSender: false, mine: false });
-    expect(within(screen.getByRole("listitem")).queryByText(senderLabel("u-2"))).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("listitem")).queryByText(senderLabel("u-2")),
+    ).not.toBeInTheDocument();
   });
 
   it("marks a pending recall and disables the button", () => {
@@ -288,4 +293,3 @@ describe("MessageBubble", () => {
     expect(onRecall).toHaveBeenCalledWith(expect.objectContaining({ id: "m1" }));
   });
 });
-

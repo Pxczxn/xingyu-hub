@@ -133,10 +133,9 @@ describe("restoreRevision (Phase 2L)", () => {
     apiRequestMock.mockResolvedValue(draft);
 
     await expect(articlesApi.restoreRevision("a1", "r1")).resolves.toEqual(draft);
-    expect(apiRequestMock).toHaveBeenCalledWith(
-      "/api/v1/me/articles/a1/revisions/r1/restore",
-      { method: "POST" },
-    );
+    expect(apiRequestMock).toHaveBeenCalledWith("/api/v1/me/articles/a1/revisions/r1/restore", {
+      method: "POST",
+    });
   });
 
   it("encodes both ids independently", async () => {

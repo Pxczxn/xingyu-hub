@@ -10,10 +10,7 @@ import {
   readMarkdownLinkDraft,
   removeMarkdownLink,
 } from "@/lib/article-editor-markdown-link";
-import {
-  applyMarkdownFormatAction,
-  insertAtCursor,
-} from "@/lib/article-editor-markdown-insert";
+import { applyMarkdownFormatAction, insertAtCursor } from "@/lib/article-editor-markdown-insert";
 import { readMarkdownFormatState } from "@/lib/article-editor-markdown-format-state";
 import {
   MarkdownFormatHistory,
@@ -22,10 +19,7 @@ import {
 import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
 import { ArticleMarkdownBody } from "@/lib/article-markdown";
 import { extractMarkdownImages } from "@/lib/article-editor-images";
-import {
-  describeEditorImageUploadError,
-  uploadEditorImage,
-} from "./editor-image-upload";
+import { describeEditorImageUploadError, uploadEditorImage } from "./editor-image-upload";
 
 /*
  * Migrated from Legacy components/studio/article-editor-markdown-body.tsx.
@@ -109,7 +103,13 @@ export function ArticleEditorMarkdownBody({
   );
 
   const runAction = useCallback(
-    (action: (textarea: HTMLTextAreaElement) => { next: string; cursorStart: number; cursorEnd: number }) => {
+    (
+      action: (textarea: HTMLTextAreaElement) => {
+        next: string;
+        cursorStart: number;
+        cursorEnd: number;
+      },
+    ) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
       historyRef.current.recordBefore(readSnapshot(textarea));
@@ -285,9 +285,7 @@ export function ArticleEditorMarkdownBody({
       }
       onDrop={handleDrop}
     >
-      <div
-        className={cn(styles.bodyInputWrap, previewEnabled && styles.isInlinePreview)}
-      >
+      <div className={cn(styles.bodyInputWrap, previewEnabled && styles.isInlinePreview)}>
         {previewEnabled ? (
           <div
             className={cn(styles.bodyPreviewReadonly, styles.bodySurface, "xy-article-body")}
@@ -301,11 +299,7 @@ export function ArticleEditorMarkdownBody({
           className={cn(styles.bodySource, previewEnabled && styles.isSourceHidden)}
           aria-hidden={previewEnabled}
         >
-          <div
-            ref={lineNumbersRef}
-            className={cn(styles.bodyLineNumbers)}
-            aria-hidden="true"
-          >
+          <div ref={lineNumbersRef} className={cn(styles.bodyLineNumbers)} aria-hidden="true">
             {Array.from({ length: lineCount }, (_, index) => (
               <span key={index + 1}>{index + 1}</span>
             ))}
@@ -332,12 +326,7 @@ export function ArticleEditorMarkdownBody({
         <div className={cn(styles.bodyImages)} aria-label="文中图片预览">
           {images.map((image) => (
             <figure key={`${image.lineIndex}-${image.url}`} className={cn(styles.bodyImage)}>
-              <img
-                src={image.url}
-                alt={image.alt || "文中插图"}
-                width={560}
-                height={320}
-              />
+              <img src={image.url} alt={image.alt || "文中插图"} width={560} height={320} />
             </figure>
           ))}
         </div>
@@ -351,4 +340,3 @@ export function ArticleEditorMarkdownBody({
     </div>
   );
 }
-

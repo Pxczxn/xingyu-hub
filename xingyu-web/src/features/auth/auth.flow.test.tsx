@@ -43,9 +43,7 @@ function Probe() {
       <span data-testid="token">{token ?? ""}</span>
       <button
         type="button"
-        onClick={() =>
-          void login({ login: "alice", password: "Passw0rd!" }).catch(() => undefined)
-        }
+        onClick={() => void login({ login: "alice", password: "Passw0rd!" }).catch(() => undefined)}
       >
         login
       </button>
@@ -191,4 +189,3 @@ describe("register validation", () => {
     expect(mocked.register).not.toHaveBeenCalled();
   });
 });
-

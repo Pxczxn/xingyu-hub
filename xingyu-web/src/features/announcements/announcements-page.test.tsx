@@ -107,7 +107,10 @@ describe("AnnouncementDetailPage", () => {
     renderDetail("ann-1");
     expect(screen.getByTestId("page-state-loading")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "维护通知" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "返回公告列表" })).toHaveAttribute("href", "/announcements");
+    expect(screen.getByRole("link", { name: "返回公告列表" })).toHaveAttribute(
+      "href",
+      "/announcements",
+    );
   });
 
   it("shows a resource-unavailable state for 404", async () => {
@@ -126,4 +129,3 @@ describe("AnnouncementDetailPage", () => {
     expect(screen.queryByText("公告不存在或未发布")).not.toBeInTheDocument();
   });
 });
-

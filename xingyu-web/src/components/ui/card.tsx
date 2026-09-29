@@ -5,7 +5,10 @@ import { cn } from "@/lib/cn";
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("rounded-lg border border-border bg-card text-card-foreground shadow-sm", className)}
+      className={cn(
+        "rounded-lg border border-border bg-card text-card-foreground shadow-sm",
+        className,
+      )}
       {...props}
     />
   );
@@ -19,10 +22,7 @@ export function CardTitle({ className, children, ...props }: HTMLAttributes<HTML
   // `children` is destructured explicitly rather than left inside `...props`
   // so the heading is statically known to have content (jsx-a11y/heading-has-content).
   return (
-    <h3
-      className={cn("text-base font-semibold leading-none tracking-tight", className)}
-      {...props}
-    >
+    <h3 className={cn("text-base font-semibold leading-none tracking-tight", className)} {...props}>
       {children}
     </h3>
   );

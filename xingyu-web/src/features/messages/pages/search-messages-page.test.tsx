@@ -213,4 +213,3 @@ describe("SearchMessagesPage — errors", () => {
     expect(screen.getByRole("link", { name: "去登录" })).toHaveAttribute("href", "/login");
   });
 });
-

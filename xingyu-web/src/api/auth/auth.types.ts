@@ -61,7 +61,12 @@ export type PublicConfig = {
     requireSpecial: boolean;
   };
   storage: { maxSize: number; allowTypes: string };
-  login: { rememberMe: boolean; captchaEnabled: boolean; captchaType: string; maxRetryCount: number };
+  login: {
+    rememberMe: boolean;
+    captchaEnabled: boolean;
+    captchaType: string;
+    maxRetryCount: number;
+  };
   sms: { enabled: boolean };
   siteName: string;
 };

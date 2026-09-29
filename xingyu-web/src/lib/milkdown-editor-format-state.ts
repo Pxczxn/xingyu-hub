@@ -20,14 +20,7 @@ import { TextSelection } from "@milkdown/kit/prose/state";
 import { redoDepth, undoDepth } from "@milkdown/kit/prose/history";
 
 export type EditorBlockType =
-  | "paragraph"
-  | "h1"
-  | "h2"
-  | "h3"
-  | "h4"
-  | "quote"
-  | "codeBlock"
-  | "hr";
+  "paragraph" | "h1" | "h2" | "h3" | "h4" | "quote" | "codeBlock" | "hr";
 
 export type EditorFormatState = {
   bold: boolean;

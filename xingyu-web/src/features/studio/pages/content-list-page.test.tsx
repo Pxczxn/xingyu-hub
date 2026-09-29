@@ -161,9 +161,7 @@ describe("ContentListPage", () => {
 
   it("does not offer 移入回收站 while an article is in the review queue", async () => {
     // TrashService rejects in-review articles with 409, so no button must exist.
-    mocked.listMine.mockResolvedValue([
-      article({ id: "r1", status: "REVIEW", title: "审核中的" }),
-    ]);
+    mocked.listMine.mockResolvedValue([article({ id: "r1", status: "REVIEW", title: "审核中的" })]);
     renderPage();
     await screen.findByText("审核中的");
     expect(screen.queryByRole("button", { name: "移入回收站" })).not.toBeInTheDocument();
@@ -271,4 +269,3 @@ describe("ContentListPage — trash tab", () => {
     expect(screen.getByRole("button", { name: "重新加载" })).toBeInTheDocument();
   });
 });
-

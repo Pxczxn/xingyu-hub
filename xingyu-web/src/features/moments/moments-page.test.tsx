@@ -142,10 +142,11 @@ describe("MomentsPage", () => {
     mocked.list.mockResolvedValue([]);
     mocked.create.mockResolvedValue(VIEW);
     renderFeed();
-    fireEvent.change(await screen.findByLabelText("动态正文"), { target: { value: "今晚看见流星" } });
+    fireEvent.change(await screen.findByLabelText("动态正文"), {
+      target: { value: "今晚看见流星" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "发布动态" }));
     expect(await screen.findByTestId("detail-page")).toBeInTheDocument();
     expect(mocked.create).toHaveBeenCalledWith({ body: "今晚看见流星" });
   });
 });
-

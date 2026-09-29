@@ -135,7 +135,10 @@ export function MyAppealsPage() {
         ) : (
           <ul aria-label="我的申诉列表" className="divide-y divide-border">
             {appeals.map((appeal) => (
-              <li key={appeal.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]">
+              <li
+                key={appeal.id}
+                className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
+              >
                 <time
                   dateTime={appeal.createdAt}
                   className="text-xs tabular-nums text-muted-foreground"
@@ -171,4 +174,3 @@ export function MyAppealsPage() {
     </div>
   );
 }
-

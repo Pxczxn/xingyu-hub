@@ -273,4 +273,3 @@ describe("unblocking", () => {
     expect(screen.getByTestId("profile-unblock")).toBeInTheDocument();
   });
 });
-

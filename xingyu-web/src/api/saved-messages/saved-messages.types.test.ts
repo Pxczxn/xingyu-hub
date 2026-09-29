@@ -54,9 +54,9 @@ describe("savedConversationLabel", () => {
   });
 
   it("falls back to 私信 for a DIRECT conversation with a null title", () => {
-    expect(savedConversationLabel(row({ conversationType: "DIRECT", conversationTitle: null }))).toBe(
-      "私信",
-    );
+    expect(
+      savedConversationLabel(row({ conversationType: "DIRECT", conversationTitle: null })),
+    ).toBe("私信");
   });
 
   it("falls back to 未命名群聊 for a title-less group", () => {
@@ -74,12 +74,10 @@ describe("savedConversationLabel", () => {
 
 describe("savedBodyRepeatsAttachment", () => {
   it("is true only when the body equals the attachment URL", () => {
-    expect(
-      savedBodyRepeatsAttachment(row({ body: "/a.png", attachmentUrl: "/a.png" })),
-    ).toBe(true);
-    expect(
-      savedBodyRepeatsAttachment(row({ body: "看这个", attachmentUrl: "/a.png" })),
-    ).toBe(false);
+    expect(savedBodyRepeatsAttachment(row({ body: "/a.png", attachmentUrl: "/a.png" }))).toBe(true);
+    expect(savedBodyRepeatsAttachment(row({ body: "看这个", attachmentUrl: "/a.png" }))).toBe(
+      false,
+    );
   });
 
   it("is false when either side is missing", () => {
@@ -112,7 +110,9 @@ describe("savedMessageBody", () => {
 
 describe("savedAttachmentKind", () => {
   it("classifies IMAGE and FILE", () => {
-    expect(savedAttachmentKind(row({ messageType: "IMAGE", attachmentUrl: "/a.png" }))).toBe("image");
+    expect(savedAttachmentKind(row({ messageType: "IMAGE", attachmentUrl: "/a.png" }))).toBe(
+      "image",
+    );
     expect(savedAttachmentKind(row({ messageType: "FILE", attachmentUrl: "/a.pdf" }))).toBe("file");
   });
 

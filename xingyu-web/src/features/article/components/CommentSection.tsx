@@ -115,7 +115,10 @@ export function CommentSection({
           ) : null}
 
           {!loading && !error && comments.length === 0 ? (
-            <p data-testid="comments-empty" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+            <p
+              data-testid="comments-empty"
+              className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
+            >
               还没有评论，来抢沙发。
             </p>
           ) : null}
@@ -126,7 +129,10 @@ export function CommentSection({
                 <li key={comment.id} className="rounded-lg border border-border bg-card p-4">
                   <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                     {comment.authorUsername ? (
-                      <Link to={`/u/${comment.authorUsername}`} className="font-medium text-foreground hover:text-accent">
+                      <Link
+                        to={`/u/${comment.authorUsername}`}
+                        className="font-medium text-foreground hover:text-accent"
+                      >
                         {comment.authorUsername}
                       </Link>
                     ) : (
@@ -144,4 +150,3 @@ export function CommentSection({
     </section>
   );
 }
-

@@ -236,4 +236,3 @@ describe("collaboration accept page", () => {
     });
   });
 });
-

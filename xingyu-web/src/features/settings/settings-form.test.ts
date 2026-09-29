@@ -126,7 +126,9 @@ describe("buildProfilePatch", () => {
   });
 
   it("trims values before sending them", () => {
-    expect(buildProfilePatch(form(), form({ displayName: "  昵称  " }), 1).displayName).toBe("昵称");
+    expect(buildProfilePatch(form(), form({ displayName: "  昵称  " }), 1).displayName).toBe(
+      "昵称",
+    );
   });
 
   it("sends no field keys at all when nothing changed", () => {

@@ -39,9 +39,22 @@ const SEND_FAILED = "附件发送失败，请重试。";
 
 /** The `accept` attribute — the same sixteen extensions the backend allows. */
 const ACCEPT_ATTR = [
-  ".jpg", ".jpeg", ".png", ".gif", ".webp",
-  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-  ".txt", ".md", ".csv", ".zip",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".zip",
 ].join(",");
 
 export function AttachmentPicker({
@@ -144,4 +157,3 @@ export function AttachmentPicker({
     </div>
   );
 }
-

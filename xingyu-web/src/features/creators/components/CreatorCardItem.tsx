@@ -1,11 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  creatorDisplayName,
-  creatorInitial,
-  type CreatorCard,
-} from "../creator-card";
+import { creatorDisplayName, creatorInitial, type CreatorCard } from "../creator-card";
 
 /*
  * One creator card on /creators.
@@ -105,4 +101,3 @@ export function CreatorCardItem({
     </Card>
   );
 }
-

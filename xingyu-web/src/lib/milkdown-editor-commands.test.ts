@@ -2,10 +2,7 @@ import { Crepe, CrepeFeature } from "@milkdown/crepe";
 import { editorViewCtx } from "@milkdown/kit/core";
 import { TextSelection } from "@milkdown/kit/prose/state";
 import { describe, expect, it } from "vitest";
-import {
-  clearMilkdownInlineFormat,
-  runMilkdownFormatAction,
-} from "@/lib/milkdown-editor-commands";
+import { clearMilkdownInlineFormat, runMilkdownFormatAction } from "@/lib/milkdown-editor-commands";
 
 const CREPE_FEATURES = {
   [CrepeFeature.Toolbar]: false,

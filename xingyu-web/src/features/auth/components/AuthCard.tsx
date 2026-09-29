@@ -29,4 +29,3 @@ export function AuthCard({
     </Card>
   );
 }
-

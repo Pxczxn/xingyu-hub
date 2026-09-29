@@ -48,9 +48,7 @@ describe("extractMarkdownImages", () => {
     const body = "段落\n\n![示意图](https://cdn.example.com/a.png)\n\n结尾\n";
     const images = extractMarkdownImages(body);
 
-    expect(images).toEqual([
-      { alt: "示意图", url: "https://cdn.example.com/a.png", lineIndex: 2 },
-    ]);
+    expect(images).toEqual([{ alt: "示意图", url: "https://cdn.example.com/a.png", lineIndex: 2 }]);
   });
 
   it("ignores inline images embedded in a paragraph", () => {

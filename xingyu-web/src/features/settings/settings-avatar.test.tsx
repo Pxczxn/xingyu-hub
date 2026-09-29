@@ -431,7 +431,9 @@ describe("avatar — preview survives StrictMode", () => {
 describe("avatar — the text form stays independent", () => {
   it("does not include the avatar in the profile patch", async () => {
     mockedUsers.getMyProfile.mockResolvedValue(profile({ avatar: SAVED_AVATAR }));
-    mockedUsers.updateMyProfile.mockResolvedValue(profile({ displayName: "新昵称", lockVersion: 4 }));
+    mockedUsers.updateMyProfile.mockResolvedValue(
+      profile({ displayName: "新昵称", lockVersion: 4 }),
+    );
 
     await renderPage();
     const displayName = screen.getByLabelText("昵称");
@@ -447,4 +449,3 @@ describe("avatar — the text form stays independent", () => {
     expect(mockedSettings.updateAvatar).not.toHaveBeenCalled();
   });
 });
-

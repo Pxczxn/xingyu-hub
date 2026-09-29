@@ -26,7 +26,12 @@ vi.mock("@/api/topics/topics.api", () => ({
 }));
 
 vi.mock("@/api/users/users.api", () => ({
-  usersApi: { getProfile: vi.fn(), getUserWorks: vi.fn(), followUser: vi.fn(), unfollowUser: vi.fn() },
+  usersApi: {
+    getProfile: vi.fn(),
+    getUserWorks: vi.fn(),
+    followUser: vi.fn(),
+    unfollowUser: vi.fn(),
+  },
 }));
 
 const mockedTopics = vi.mocked(topicsApi);
@@ -78,7 +83,15 @@ describe("CreatorsPage — loading and failure", () => {
   });
 
   it("fails the page when GET /topics fails — there is nothing to aggregate from", async () => {
-    mockedTopics.getTopics.mockRejectedValue(new ApiError({ type: "about:blank", title: "", status: 500, detail: "", code: "INTERNAL_ERROR" }));
+    mockedTopics.getTopics.mockRejectedValue(
+      new ApiError({
+        type: "about:blank",
+        title: "",
+        status: 500,
+        detail: "",
+        code: "INTERNAL_ERROR",
+      }),
+    );
     renderPage();
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
     expect(screen.queryByLabelText("推荐作者列表")).not.toBeInTheDocument();
@@ -100,13 +113,23 @@ describe("CreatorsPage — fan-out boundaries", () => {
     );
     mockedTopics.getTopicCreators.mockResolvedValue([]);
     renderPage();
-    await waitFor(() => expect(mockedTopics.getTopicCreators).toHaveBeenCalledTimes(CREATOR_TOPIC_LIMIT));
+    await waitFor(() =>
+      expect(mockedTopics.getTopicCreators).toHaveBeenCalledTimes(CREATOR_TOPIC_LIMIT),
+    );
   });
 
   it("degrades a single failing topic to an empty list instead of failing the page", async () => {
     mockedTopics.getTopics.mockResolvedValue([topic("t1", "星语"), topic("t2", "写作")]);
     mockedTopics.getTopicCreators
-      .mockRejectedValueOnce(new ApiError({ type: "about:blank", title: "", status: 500, detail: "", code: "INTERNAL_ERROR" }))
+      .mockRejectedValueOnce(
+        new ApiError({
+          type: "about:blank",
+          title: "",
+          status: 500,
+          detail: "",
+          code: "INTERNAL_ERROR",
+        }),
+      )
       .mockResolvedValueOnce([creatorRow("bob")]);
     mockedUsers.getProfile.mockResolvedValue(profile("bob", false));
     mockedUsers.getUserWorks.mockResolvedValue({
@@ -126,8 +149,24 @@ describe("CreatorsPage — fan-out boundaries", () => {
   it("still renders the card when the decorative profile fetch fails", async () => {
     mockedTopics.getTopics.mockResolvedValue([topic("t1", "星语")]);
     mockedTopics.getTopicCreators.mockResolvedValue([creatorRow("alice")]);
-    mockedUsers.getProfile.mockRejectedValue(new ApiError({ type: "about:blank", title: "", status: 500, detail: "", code: "INTERNAL_ERROR" }));
-    mockedUsers.getUserWorks.mockRejectedValue(new ApiError({ type: "about:blank", title: "", status: 500, detail: "", code: "INTERNAL_ERROR" }));
+    mockedUsers.getProfile.mockRejectedValue(
+      new ApiError({
+        type: "about:blank",
+        title: "",
+        status: 500,
+        detail: "",
+        code: "INTERNAL_ERROR",
+      }),
+    );
+    mockedUsers.getUserWorks.mockRejectedValue(
+      new ApiError({
+        type: "about:blank",
+        title: "",
+        status: 500,
+        detail: "",
+        code: "INTERNAL_ERROR",
+      }),
+    );
     renderPage();
 
     const list = await screen.findByLabelText("推荐作者列表");
@@ -146,14 +185,20 @@ describe("CreatorsPage — card content", () => {
     expect(within(list).getByText("alice 档案名")).toBeInTheDocument();
     expect(within(list).getByText("星语")).toBeInTheDocument();
     expect(within(list).getByText("第一篇")).toBeInTheDocument();
-    expect(within(list).getByRole("link", { name: "查看主页" })).toHaveAttribute("href", "/u/alice");
+    expect(within(list).getByRole("link", { name: "查看主页" })).toHaveAttribute(
+      "href",
+      "/u/alice",
+    );
   });
 
   it("links the latest work to its article page", async () => {
     wireHappyPath();
     renderPage();
     const list = await screen.findByLabelText("推荐作者列表");
-    expect(within(list).getByRole("link", { name: /第一篇/ })).toHaveAttribute("href", "/articles/w1");
+    expect(within(list).getByRole("link", { name: /第一篇/ })).toHaveAttribute(
+      "href",
+      "/articles/w1",
+    );
   });
 
   it("shows an explicit note when the creator has no public work", async () => {
@@ -224,7 +269,15 @@ describe("CreatorsPage — follow control", () => {
   it("keeps the previous state and surfaces an error when follow fails", async () => {
     // Legacy flipped the button optimistically and left it flipped on failure.
     wireHappyPath();
-    mockedUsers.followUser.mockRejectedValue(new ApiError({ type: "about:blank", title: "", status: 401, detail: "", code: "AUTH_REQUIRED" }));
+    mockedUsers.followUser.mockRejectedValue(
+      new ApiError({
+        type: "about:blank",
+        title: "",
+        status: 401,
+        detail: "",
+        code: "AUTH_REQUIRED",
+      }),
+    );
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "关注" }));
@@ -259,7 +312,15 @@ describe("CreatorsPage — follow control", () => {
   it("clears a previous follow error on the next attempt", async () => {
     wireHappyPath();
     mockedUsers.followUser
-      .mockRejectedValueOnce(new ApiError({ type: "about:blank", title: "", status: 401, detail: "", code: "AUTH_REQUIRED" }))
+      .mockRejectedValueOnce(
+        new ApiError({
+          type: "about:blank",
+          title: "",
+          status: 401,
+          detail: "",
+          code: "AUTH_REQUIRED",
+        }),
+      )
       .mockResolvedValueOnce(undefined);
     renderPage();
 
@@ -387,7 +448,8 @@ describe("CreatorsPage — topic filter and search", () => {
     // 全部 + sampled topics, and NOT the unsampled ones.
     expect(screen.getByRole("button", { name: "全部" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "专题0" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: `专题${CREATOR_TOPIC_LIMIT}` })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: `专题${CREATOR_TOPIC_LIMIT}` }),
+    ).not.toBeInTheDocument();
   });
 });
-

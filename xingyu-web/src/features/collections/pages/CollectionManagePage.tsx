@@ -19,7 +19,9 @@ type LoadState =
   | { kind: "ready"; collection: CollectionDetail };
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 function objectTypeLabel(type: string): string {
@@ -30,7 +32,8 @@ function objectTypeLabel(type: string): string {
 }
 
 function itemHref(objectType: string, objectId: string): string | null {
-  if (objectType.toUpperCase() === "ARTICLE" && objectId) return `/articles/${encodeURIComponent(objectId)}`;
+  if (objectType.toUpperCase() === "ARTICLE" && objectId)
+    return `/articles/${encodeURIComponent(objectId)}`;
   return null;
 }
 
@@ -63,7 +66,9 @@ export function CollectionManagePage() {
         const collection = await collectionsApi.getById(id);
         if (!active) return;
         setTitle(collection.title);
-        setVisibility(isCollectionVisibility(collection.visibility) ? collection.visibility : "UNLISTED");
+        setVisibility(
+          isCollectionVisibility(collection.visibility) ? collection.visibility : "UNLISTED",
+        );
         setState({ kind: "ready", collection });
       } catch (err: unknown) {
         if (!active) return;
@@ -135,7 +140,11 @@ export function CollectionManagePage() {
   if (state.kind === "notfound") {
     return (
       <div className="section-gap">
-        <PageState kind="empty" title="收藏夹不存在或暂不可访问" description="地址可能有误，或该收藏夹当前不可查看。" />
+        <PageState
+          kind="empty"
+          title="收藏夹不存在或暂不可访问"
+          description="地址可能有误，或该收藏夹当前不可查看。"
+        />
         <BackLink />
       </div>
     );
@@ -149,7 +158,10 @@ export function CollectionManagePage() {
       <BackLink />
       <h1 className="text-xl font-semibold text-primary">{collection.title}</h1>
 
-      <form onSubmit={(event) => void onSave(event)} className="space-y-3 rounded-lg border border-border bg-card p-4">
+      <form
+        onSubmit={(event) => void onSave(event)}
+        className="space-y-3 rounded-lg border border-border bg-card p-4"
+      >
         <label className="block text-sm font-medium">
           名称
           <input
@@ -200,13 +212,18 @@ export function CollectionManagePage() {
               return (
                 <li key={item.id} className="px-4 py-3">
                   {href ? (
-                    <Link to={href} className="text-sm font-medium text-foreground hover:text-accent">
+                    <Link
+                      to={href}
+                      className="text-sm font-medium text-foreground hover:text-accent"
+                    >
                       {item.title}
                     </Link>
                   ) : (
                     <p className="text-sm font-medium text-foreground">{item.title}</p>
                   )}
-                  <p className="mt-1 text-xs text-muted-foreground">{objectTypeLabel(item.objectType)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {objectTypeLabel(item.objectType)}
+                  </p>
                 </li>
               );
             })}
@@ -249,4 +266,3 @@ function BackLink() {
     </Link>
   );
 }
-

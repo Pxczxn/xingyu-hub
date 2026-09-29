@@ -130,9 +130,7 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
     <div className="section-gap">
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-primary">社区活动</h1>
-        <p className="text-sm text-muted-foreground">
-          发现正在进行的活动，和同好一起参与创作。
-        </p>
+        <p className="text-sm text-muted-foreground">发现正在进行的活动，和同好一起参与创作。</p>
       </header>
 
       {state.kind === "error" ? (
@@ -180,18 +178,24 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
                     type="button"
                     aria-label="上个月"
                     onClick={() =>
-                      setCalendarDate((date) => new Date(date.getFullYear(), date.getMonth() - 1, 1))
+                      setCalendarDate(
+                        (date) => new Date(date.getFullYear(), date.getMonth() - 1, 1),
+                      )
                     }
                     className="grid h-7 w-7 place-items-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
                   </button>
-                  <span className="min-w-20 text-center text-xs text-muted-foreground">{monthTitle}</span>
+                  <span className="min-w-20 text-center text-xs text-muted-foreground">
+                    {monthTitle}
+                  </span>
                   <button
                     type="button"
                     aria-label="下个月"
                     onClick={() =>
-                      setCalendarDate((date) => new Date(date.getFullYear(), date.getMonth() + 1, 1))
+                      setCalendarDate(
+                        (date) => new Date(date.getFullYear(), date.getMonth() + 1, 1),
+                      )
                     }
                     className="grid h-7 w-7 place-items-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
@@ -200,7 +204,11 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-7 gap-1 text-center" role="grid" aria-label={monthTitle}>
+              <div
+                className="mt-3 grid grid-cols-7 gap-1 text-center"
+                role="grid"
+                aria-label={monthTitle}
+              >
                 {WEEKDAYS.map((weekday) => (
                   <span key={weekday} className="text-[10px] text-muted-foreground">
                     {weekday}
@@ -333,4 +341,3 @@ function EventCard({ event, now }: { event: EventView; now: number }) {
     </article>
   );
 }
-

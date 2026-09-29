@@ -104,7 +104,7 @@ export function SubmissionDetailPage() {
               // Apply the server's status; keep the rest of the row as-is.
               submission: { ...current.submission, status: result.status },
             }
-          : current
+          : current,
       );
       setConfirming(false);
     } catch (error) {
@@ -147,11 +147,16 @@ export function SubmissionDetailPage() {
 
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-primary">投稿详情</h1>
-        <p className="text-sm text-muted-foreground">{submissionStatusDescription(submission.status)}</p>
+        <p className="text-sm text-muted-foreground">
+          {submissionStatusDescription(submission.status)}
+        </p>
       </header>
 
       {actionError ? (
-        <p role="alert" className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive"
+        >
           {actionError}
         </p>
       ) : null}
@@ -232,4 +237,3 @@ export function SubmissionDetailPage() {
     </div>
   );
 }
-

@@ -131,7 +131,10 @@ describe("studio categories page", () => {
       fireEvent.click(screen.getByTestId("category-create"));
 
       await waitFor(() => {
-        expect(mockedApi.createCategory).toHaveBeenCalledWith({ name: "My Essay", slug: "my-essay" });
+        expect(mockedApi.createCategory).toHaveBeenCalledWith({
+          name: "My Essay",
+          slug: "my-essay",
+        });
       });
     });
 
@@ -326,4 +329,3 @@ describe("studio categories page", () => {
     expect(buttons.some((l) => l.includes("别名"))).toBe(false);
   });
 });
-

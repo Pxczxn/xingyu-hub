@@ -26,14 +26,20 @@ import type {
 export const interactionsApi = {
   // ---- Likes (works) ----
   like: (objectType: string, objectId: string): Promise<void> =>
-    apiRequest<void>(`/api/v1/likes/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}`, {
-      method: "POST",
-    }),
+    apiRequest<void>(
+      `/api/v1/likes/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}`,
+      {
+        method: "POST",
+      },
+    ),
 
   unlike: (objectType: string, objectId: string): Promise<void> =>
-    apiRequest<void>(`/api/v1/likes/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}`, {
-      method: "DELETE",
-    }),
+    apiRequest<void>(
+      `/api/v1/likes/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}`,
+      {
+        method: "DELETE",
+      },
+    ),
 
   getLikeStatus: (objectType: string, objectId: string): Promise<LikeStatus> =>
     apiRequest<LikeStatus>(

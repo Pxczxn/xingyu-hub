@@ -130,7 +130,10 @@ export function SettingsBlocksPage() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                屏蔽于 <span data-testid={`blocked-at-${user.username}`}>{formatInstant(user.blockedAt)}</span>
+                屏蔽于{" "}
+                <span data-testid={`blocked-at-${user.username}`}>
+                  {formatInstant(user.blockedAt)}
+                </span>
               </p>
 
               <Button
@@ -149,4 +152,3 @@ export function SettingsBlocksPage() {
     </div>
   );
 }
-

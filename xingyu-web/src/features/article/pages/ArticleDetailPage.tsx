@@ -85,7 +85,10 @@ export function ArticleDetailPage() {
         <h1 className="text-2xl font-semibold leading-snug text-primary">{article.title}</h1>
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <Link to={`/u/${article.ownerUsername}`} className="flex items-center gap-2 hover:text-accent">
+          <Link
+            to={`/u/${article.ownerUsername}`}
+            className="flex items-center gap-2 hover:text-accent"
+          >
             {article.ownerAvatar ? (
               <img src={article.ownerAvatar} alt="" className="h-7 w-7 rounded-full object-cover" />
             ) : (
@@ -133,12 +136,16 @@ export function ArticleDetailPage() {
       <ArticleMarkdownBody body={prepared?.markdown ?? article.body} />
 
       {prepared?.recoveredFromHtml ? (
-        <p className="text-xs text-muted-foreground">（本文正文来自旧版富文本，已自动转换为 Markdown 渲染）</p>
+        <p className="text-xs text-muted-foreground">
+          （本文正文来自旧版富文本，已自动转换为 Markdown 渲染）
+        </p>
       ) : null}
 
       {outline.length > 0 ? (
         <nav aria-label="文章目录" className="rounded-lg border border-border bg-card p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">目录</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            目录
+          </p>
           <ul className="flex flex-col gap-1">
             {outline.map((item) => (
               <li key={item.id} style={{ paddingLeft: `${(item.level - 2) * 12}px` }}>
@@ -157,4 +164,3 @@ export function ArticleDetailPage() {
     </article>
   );
 }
-

@@ -61,7 +61,12 @@ export function DiscoverPage() {
 
   return (
     <div className="section-gap">
-      <PageHero eyebrow="EXPLORE" title={nav?.sectionTitle ?? "发现"} description={nav?.feedHint ?? "从新的内容、作者与观点开始，找到下一颗值得停留的星。"} tone="blue" />
+      <PageHero
+        eyebrow="EXPLORE"
+        title={nav?.sectionTitle ?? "发现"}
+        description={nav?.feedHint ?? "从新的内容、作者与观点开始，找到下一颗值得停留的星。"}
+        tone="blue"
+      />
 
       {loading ? <PageState kind="loading" /> : null}
       {!loading && error ? <PageState kind="error" /> : null}

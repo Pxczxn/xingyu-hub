@@ -37,11 +37,7 @@ export function AnnouncementPanel({
         </Link>
       </div>
 
-      <SectionState
-        status={status}
-        emptyText="暂无公告"
-        className="border-0 bg-transparent p-0"
-      >
+      <SectionState status={status} emptyText="暂无公告" className="border-0 bg-transparent p-0">
         <ul className="flex flex-col gap-3">
           {items.map((item) => (
             <li key={item.id}>

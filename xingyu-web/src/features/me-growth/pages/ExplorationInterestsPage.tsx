@@ -63,7 +63,9 @@ type LoadState =
   | { kind: "ready"; map: ExploreDomain[] };
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 export function ExplorationInterestsPage() {
@@ -151,7 +153,10 @@ export function ExplorationInterestsPage() {
     setSaveMessage(null);
     setSaveFailed(false);
     try {
-      const next = await explorationApi.updateMine({ domainIds: selectedIds, customLabels: labels });
+      const next = await explorationApi.updateMine({
+        domainIds: selectedIds,
+        customLabels: labels,
+      });
       // Re-seed from the server: a re-minted personal label comes back with a
       // fresh id, and its echoed `customLabels` is authoritative.
       const ids = selectedOfficialIds(next);
@@ -190,7 +195,10 @@ export function ExplorationInterestsPage() {
           description="官方领域星图还没有可选的子领域，请稍后再试。"
         />
       ) : (
-        <section aria-label="官方领域" className="space-y-6 rounded-lg border border-border bg-card p-5">
+        <section
+          aria-label="官方领域"
+          className="space-y-6 rounded-lg border border-border bg-card p-5"
+        >
           <h2 className="text-sm font-semibold text-foreground">官方领域</h2>
           {state.map.map((group) => {
             const children = group.children ?? [];
@@ -234,8 +242,8 @@ export function ExplorationInterestsPage() {
       <section aria-label="个人兴趣" className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground">个人兴趣标签</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          例如 Java、独立开发、逆向研究——只对你可见，不进入官方星图。
-          最多 {MAX_CUSTOM_LABELS} 个，每个不超过 {MAX_CUSTOM_LABEL_LENGTH} 个字符。
+          例如 Java、独立开发、逆向研究——只对你可见，不进入官方星图。 最多 {MAX_CUSTOM_LABELS}{" "}
+          个，每个不超过 {MAX_CUSTOM_LABEL_LENGTH} 个字符。
         </p>
 
         <ul aria-label="已添加的兴趣" className="mt-3 flex flex-wrap gap-2">
@@ -314,4 +322,3 @@ export function ExplorationInterestsPage() {
     </div>
   );
 }
-

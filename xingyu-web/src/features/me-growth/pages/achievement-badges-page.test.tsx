@@ -143,4 +143,3 @@ describe("AchievementBadgesPage — resilience", () => {
     expect(screen.getByRole("link", { name: "去登录" })).toBeInTheDocument();
   });
 });
-

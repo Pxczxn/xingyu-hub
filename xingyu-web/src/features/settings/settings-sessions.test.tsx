@@ -98,7 +98,13 @@ describe("SettingsSessionsPage — list", () => {
 
   it("surfaces a load failure and offers a retry", async () => {
     mocked.list.mockRejectedValueOnce(
-      new ApiError({ type: "about:blank", title: "x", status: 500, detail: "boom", code: "INTERNAL_ERROR" }),
+      new ApiError({
+        type: "about:blank",
+        title: "x",
+        status: 500,
+        detail: "boom",
+        code: "INTERNAL_ERROR",
+      }),
     );
 
     render(<SettingsSessionsPage />);
@@ -155,7 +161,13 @@ describe("SettingsSessionsPage — revoke one", () => {
   it("reports a revoke failure and keeps the session listed", async () => {
     mocked.list.mockResolvedValue([currentSession, otherSession]);
     mocked.revoke.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "x", status: 404, detail: "会话不存在", code: "NOT_FOUND" }),
+      new ApiError({
+        type: "about:blank",
+        title: "x",
+        status: 404,
+        detail: "会话不存在",
+        code: "NOT_FOUND",
+      }),
     );
 
     render(<SettingsSessionsPage />);
@@ -201,7 +213,13 @@ describe("SettingsSessionsPage — revoke others", () => {
   it("reports a revoke-others failure", async () => {
     mocked.list.mockResolvedValue([currentSession, otherSession]);
     mocked.revokeOthers.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "x", status: 500, detail: "系统繁忙", code: "INTERNAL_ERROR" }),
+      new ApiError({
+        type: "about:blank",
+        title: "x",
+        status: 500,
+        detail: "系统繁忙",
+        code: "INTERNAL_ERROR",
+      }),
     );
 
     render(<SettingsSessionsPage />);
@@ -213,4 +231,3 @@ describe("SettingsSessionsPage — revoke others", () => {
     expect(screen.getByText("旧设备")).toBeInTheDocument();
   });
 });
-

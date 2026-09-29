@@ -54,7 +54,9 @@ type LoadState =
   | { kind: "ready"; rows: RecommendationFeedback[] };
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 export function RecommendationFeedbackPage() {
@@ -182,7 +184,11 @@ export function RecommendationFeedbackPage() {
           <p className={cn("text-xs", overLimit ? "text-destructive" : "text-muted-foreground")}>
             还可输入 {remaining} 字
           </p>
-          <Button type="button" onClick={() => void handleSubmit()} disabled={submitting || !body.trim()}>
+          <Button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={submitting || !body.trim()}
+          >
             {submitting ? (
               <>
                 <LoaderCircle className="mr-2 h-4 w-4 animate-spin" aria-hidden />
@@ -251,4 +257,3 @@ export function RecommendationFeedbackPage() {
     </div>
   );
 }
-

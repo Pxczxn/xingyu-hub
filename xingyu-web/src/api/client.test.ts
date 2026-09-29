@@ -7,7 +7,10 @@ import { getStoredToken, setStoredToken, TOKEN_KEY } from "@/lib/storage";
  * Verifies the sa-token contract is preserved end-to-end.
  */
 
-function jsonResponse(body: unknown, init: { status?: number; headers?: Record<string, string> } = {}) {
+function jsonResponse(
+  body: unknown,
+  init: { status?: number; headers?: Record<string, string> } = {},
+) {
   const status = init.status ?? 200;
   return {
     ok: status >= 200 && status < 300,
@@ -125,7 +128,9 @@ describe("api client", () => {
       ),
     );
 
-    await expect(apiRequest("/api/v1/auth/login", { method: "POST", body: {} })).rejects.toMatchObject({
+    await expect(
+      apiRequest("/api/v1/auth/login", { method: "POST", body: {} }),
+    ).rejects.toMatchObject({
       name: "ApiError",
       problem: { status: 400, code: "VALIDATION_FAILED", detail: "invalid payload" },
     });

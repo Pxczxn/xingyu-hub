@@ -14,7 +14,11 @@ beforeEach(() => {
 
 describe("socialApi", () => {
   it("hits the /me endpoints with a limit and unwraps the envelope", async () => {
-    mocked.mockResolvedValue({ items: [{ userId: "u1", username: "alice" }], nextCursor: null, total: 1 });
+    mocked.mockResolvedValue({
+      items: [{ userId: "u1", username: "alice" }],
+      nextCursor: null,
+      total: 1,
+    });
 
     const following = await socialApi.listMyFollowing(30);
 

@@ -24,7 +24,9 @@ import { mapUsernameFieldError, validateUsernameClient } from "@/lib/username-ru
 export function RegisterPage() {
   const navigate = useNavigate();
   const idempotencyKey = useRef(
-    typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()),
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : String(Date.now()),
   );
 
   const [email, setEmail] = useState("");
@@ -64,8 +66,11 @@ export function RegisterPage() {
         setPasswordRules(config.password);
         setRegistrationOpen(config.registration?.enabled !== false);
         setVerifyEmailRequired(config.registration?.verifyEmail === true);
-        setVerifyPhoneRequired(config.registration?.verifyPhone === true && config.sms?.enabled === true);
-        const on = config.registration?.captchaEnabled === true || config.login?.captchaEnabled === true;
+        setVerifyPhoneRequired(
+          config.registration?.verifyPhone === true && config.sms?.enabled === true,
+        );
+        const on =
+          config.registration?.captchaEnabled === true || config.login?.captchaEnabled === true;
         setCaptchaEnabled(on);
         if (on) void loadCaptcha();
       })
@@ -81,7 +86,9 @@ export function RegisterPage() {
       const match = detail.match(/^(\w+): (.+)$/);
       if (match) {
         const [, field, message] = match;
-        setFieldErrors({ [field]: field === "username" ? mapUsernameFieldError(message) : message });
+        setFieldErrors({
+          [field]: field === "username" ? mapUsernameFieldError(message) : message,
+        });
       } else if (err.problem.status >= 500) {
         setError("服务器处理失败，请稍后重试");
       } else {
@@ -193,7 +200,9 @@ export function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          {fieldErrors.email ? <p className="text-sm text-destructive">{fieldErrors.email}</p> : null}
+          {fieldErrors.email ? (
+            <p className="text-sm text-destructive">{fieldErrors.email}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -230,12 +239,22 @@ export function RegisterPage() {
             <Label htmlFor="phone">手机号</Label>
             <div className="flex items-center gap-2">
               <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-              <Button type="button" variant="outline" onClick={() => void sendSmsCode()} disabled={sendingSms || !phone}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void sendSmsCode()}
+                disabled={sendingSms || !phone}
+              >
                 {sendingSms ? "发送中…" : "发送验证码"}
               </Button>
             </div>
             <Label htmlFor="smsCode">短信验证码</Label>
-            <Input id="smsCode" value={smsCode} onChange={(e) => setSmsCode(e.target.value)} required />
+            <Input
+              id="smsCode"
+              value={smsCode}
+              onChange={(e) => setSmsCode(e.target.value)}
+              required
+            />
           </div>
         ) : null}
 
@@ -243,7 +262,12 @@ export function RegisterPage() {
           <div className="flex flex-col gap-2">
             <Label htmlFor="captcha">验证码</Label>
             <div className="flex items-center gap-2">
-              <Input id="captcha" value={captchaCode} onChange={(e) => setCaptchaCode(e.target.value)} required />
+              <Input
+                id="captcha"
+                value={captchaCode}
+                onChange={(e) => setCaptchaCode(e.target.value)}
+                required
+              />
               {captcha?.img ? (
                 <img src={captcha.img} alt="验证码" className="h-10 rounded border border-border" />
               ) : null}
@@ -264,4 +288,3 @@ export function RegisterPage() {
     </AuthCard>
   );
 }
-

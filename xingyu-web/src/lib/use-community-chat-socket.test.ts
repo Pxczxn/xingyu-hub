@@ -166,9 +166,12 @@ describe("useCommunityChatSocket", () => {
   });
 
   it("reads handlers through a ref, so an inline handler does not force a reconnect", () => {
-    const { rerender } = renderHook(({ n }) => useCommunityChatSocket(true, { onMessage: vi.fn(() => n) }), {
-      initialProps: { n: 1 },
-    });
+    const { rerender } = renderHook(
+      ({ n }) => useCommunityChatSocket(true, { onMessage: vi.fn(() => n) }),
+      {
+        initialProps: { n: 1 },
+      },
+    );
     expect(FakeSocket.instances).toHaveLength(1);
 
     rerender({ n: 2 });

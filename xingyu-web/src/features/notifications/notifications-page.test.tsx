@@ -305,7 +305,13 @@ describe("NotificationsPage mark-all-read", () => {
   it("keeps the unread state when mark-all fails", async () => {
     mocked.list.mockResolvedValue([FOLLOW]);
     mocked.markAllRead.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "t", status: 500, detail: "全部标记失败", code: "UNKNOWN" }),
+      new ApiError({
+        type: "about:blank",
+        title: "t",
+        status: 500,
+        detail: "全部标记失败",
+        code: "UNKNOWN",
+      }),
     );
     renderPage();
     await screen.findByText("1 条未读");
@@ -323,4 +329,3 @@ describe("NotificationsPage mark-all-read", () => {
     expect(screen.getByRole("button", { name: /全部已读/ })).toBeDisabled();
   });
 });
-

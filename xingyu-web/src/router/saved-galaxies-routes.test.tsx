@@ -103,7 +103,16 @@ vi.mock("@/api/galaxies/galaxies.api", () => ({
 
 function renderAt(path: string) {
   const router = createMemoryRouter(
-    [{ path: "*", element: <AppProviders><AppRoutes /></AppProviders> }],
+    [
+      {
+        path: "*",
+        element: (
+          <AppProviders>
+            <AppRoutes />
+          </AppProviders>
+        ),
+      },
+    ],
     { initialEntries: [path] },
   );
   return { router, ...render(<RouterProvider router={router} />) };

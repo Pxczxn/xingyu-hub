@@ -51,9 +51,7 @@ export function ProfileBlockControl({
       } catch (err) {
         // Keep the previous relationship state; only report the failure.
         setConfirming(false);
-        setError(
-          err instanceof ApiError ? err.problem.detail : "操作失败，请稍后重试",
-        );
+        setError(err instanceof ApiError ? err.problem.detail : "操作失败，请稍后重试");
       } finally {
         pendingRef.current = false;
         setPending(false);
@@ -132,4 +130,3 @@ export function ProfileBlockControl({
     </div>
   );
 }
-

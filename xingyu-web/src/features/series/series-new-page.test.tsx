@@ -86,4 +86,3 @@ describe("SeriesNewPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("slug: 别名已被占用");
   });
 });
-

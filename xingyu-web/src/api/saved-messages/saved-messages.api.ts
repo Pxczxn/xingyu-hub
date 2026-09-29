@@ -67,8 +67,7 @@ export const savedMessagesApi = {
    * Resolves to void (204 No Content).
    */
   remove: (messageId: string): Promise<void> =>
-    apiRequest<void>(
-      `/api/v1/me/saved-messages/${encodeURIComponent(messageId)}`,
-      { method: "DELETE" },
-    ),
+    apiRequest<void>(`/api/v1/me/saved-messages/${encodeURIComponent(messageId)}`, {
+      method: "DELETE",
+    }),
 };

@@ -72,8 +72,7 @@ export function joinModeNote(mode: string | null | undefined): string | null {
 }
 
 export type CreateGroupResult =
-  | { ok: true; title: string }
-  | { ok: false; reason: "empty" | "too_long"; message: string };
+  { ok: true; title: string } | { ok: false; reason: "empty" | "too_long"; message: string };
 
 /**
  * Validate a new group title before calling the API.
@@ -90,7 +89,11 @@ export function validateGroupTitle(raw: string): CreateGroupResult {
   const value = (raw ?? "").trim();
   if (!value) return { ok: false, reason: "empty", message: "请输入群聊名称" };
   if (value.length > MAX_GROUP_TITLE_LENGTH) {
-    return { ok: false, reason: "too_long", message: `群聊名称不超过 ${MAX_GROUP_TITLE_LENGTH} 个字符` };
+    return {
+      ok: false,
+      reason: "too_long",
+      message: `群聊名称不超过 ${MAX_GROUP_TITLE_LENGTH} 个字符`,
+    };
   }
   return { ok: true, title: value };
 }

@@ -29,9 +29,7 @@ const VISIBILITY_VALUES = VISIBILITY_OPTIONS.map((option) => option.value);
 
 function normalizeVisibility(value: string | null | undefined): ArticleVisibility {
   const upper = (value ?? "").toUpperCase();
-  return (VISIBILITY_VALUES as string[]).includes(upper)
-    ? (upper as ArticleVisibility)
-    : "PRIVATE";
+  return (VISIBILITY_VALUES as string[]).includes(upper) ? (upper as ArticleVisibility) : "PRIVATE";
 }
 
 /** The editable surface of a draft. Everything here is a string / string[] (no nulls). */

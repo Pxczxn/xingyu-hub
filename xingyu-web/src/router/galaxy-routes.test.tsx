@@ -27,7 +27,13 @@ vi.mock("@/api/home/home.api", () => ({
   },
 }));
 
-const GALAXY = { id: "g-1", slug: "xingyu-official", name: "星语", official: true, memberCount: 12 };
+const GALAXY = {
+  id: "g-1",
+  slug: "xingyu-official",
+  name: "星语",
+  official: true,
+  memberCount: 12,
+};
 
 vi.mock("@/api/galaxies/galaxies.api", () => ({
   galaxiesApi: {
@@ -85,7 +91,10 @@ describe("phase 2H galaxy routes", () => {
 
   it("renders the content feed for a guest", async () => {
     renderAt("/galaxies/xingyu-official/content");
-    expect(await screen.findByRole("link", { name: "内容" })).toHaveAttribute("aria-current", "page");
+    expect(await screen.findByRole("link", { name: "内容" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("does not send guests to login from any galaxy route", async () => {

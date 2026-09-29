@@ -24,7 +24,7 @@ function renderPage() {
       <Routes>
         <Route path="/reports/new" element={<NewReportPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -56,7 +56,7 @@ describe("NewReportPage", () => {
         objectType: "ARTICLE",
         objectId: "a1",
         reason: "SPAM",
-      })
+      }),
     );
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/reports/r-new"));
   });
@@ -80,9 +80,7 @@ describe("NewReportPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "提交举报" }));
 
     await waitFor(() =>
-      expect(mockedSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ detail: "详细描述" })
-      )
+      expect(mockedSubmit).toHaveBeenCalledWith(expect.objectContaining({ detail: "详细描述" })),
     );
   });
 
@@ -94,9 +92,7 @@ describe("NewReportPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "提交举报" }));
 
     await waitFor(() =>
-      expect(mockedSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ objectType: "MOMENT" })
-      )
+      expect(mockedSubmit).toHaveBeenCalledWith(expect.objectContaining({ objectType: "MOMENT" })),
     );
   });
 
@@ -106,7 +102,7 @@ describe("NewReportPage", () => {
     fireEvent.submit(screen.getByRole("button", { name: "提交举报" }).closest("form")!);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "请填写对象类型、对象 ID 与举报原因。"
+      "请填写对象类型、对象 ID 与举报原因。",
     );
     expect(mockedSubmit).not.toHaveBeenCalled();
   });
@@ -136,4 +132,3 @@ describe("NewReportPage", () => {
     expect(screen.getByRole("link", { name: "取消" })).toHaveAttribute("href", "/reports");
   });
 });
-

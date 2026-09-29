@@ -100,7 +100,13 @@ describe("article detail", () => {
 
   it("shows a not-found state on 404", async () => {
     mocked.getArticle.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "资源不存在", status: 404, detail: "资源不存在", code: "NOT_FOUND" }),
+      new ApiError({
+        type: "about:blank",
+        title: "资源不存在",
+        status: 404,
+        detail: "资源不存在",
+        code: "NOT_FOUND",
+      }),
     );
     renderAt("missing");
 
@@ -114,4 +120,3 @@ describe("article detail", () => {
     await waitFor(() => expect(screen.getByTestId("page-state-error")).toBeInTheDocument());
   });
 });
-

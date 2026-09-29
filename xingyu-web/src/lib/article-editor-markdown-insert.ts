@@ -41,9 +41,11 @@ export function prefixLines(
   return { next, cursorStart: lineStart, cursorEnd: lineStart + prefixed.length };
 }
 
-export function prefixOrderedLines(
-  { value, selectionStart, selectionEnd }: MarkdownSelection,
-): MarkdownInsertResult {
+export function prefixOrderedLines({
+  value,
+  selectionStart,
+  selectionEnd,
+}: MarkdownSelection): MarkdownInsertResult {
   const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
   const lineEnd = value.indexOf("\n", selectionEnd);
   const blockEnd = lineEnd === -1 ? value.length : lineEnd;
@@ -68,8 +70,7 @@ export function insertAtCursor(
   return { next, cursorStart: cursor, cursorEnd: cursor };
 }
 
-const BLOCK_PREFIX_PATTERN =
-  /^(?:#{1,4}\s+|>\s+|-\s\[[xX ]\]\s+|-\s+|\d+\.\s+)/;
+const BLOCK_PREFIX_PATTERN = /^(?:#{1,4}\s+|>\s+|-\s\[[xX ]\]\s+|-\s+|\d+\.\s+)/;
 
 function stripBlockPrefix(line: string) {
   return line.replace(BLOCK_PREFIX_PATTERN, "");
@@ -133,9 +134,7 @@ export function applyMarkdownFormatAction(
     case "taskList":
       return prefixLines(selection, "- [ ] ");
     case "codeBlock": {
-      const snippet = selected
-        ? `\n\`\`\`\n${selected}\n\`\`\`\n`
-        : "\n```\n\n```\n";
+      const snippet = selected ? `\n\`\`\`\n${selected}\n\`\`\`\n` : "\n```\n\n```\n";
       return insertAtCursor(selection, snippet);
     }
     case "hr":

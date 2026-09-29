@@ -135,9 +135,7 @@ export function countUnread(items: Notification[]): number {
  * - Anything else has no safe destination, so it returns null and the row is
  *   rendered as plain text instead of a link. A dead link is worse than no link.
  */
-export function notificationFallbackHref(
-  category: string | null | undefined,
-): string | null {
+export function notificationFallbackHref(category: string | null | undefined): string | null {
   const value = normalizeCategory(category);
   if (value === "FOLLOW") return "/me/followers";
   if (value === "ANNOUNCE") return "/announcements";

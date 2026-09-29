@@ -75,7 +75,13 @@ vi.mock("@/api/articles/articles.api", () => ({
 vi.mock("@/api/users/users.api", () => ({
   usersApi: {
     getProfile: vi.fn(async () => ({ username: "tester", displayName: "Tester", owner: false })),
-    getUserWorks: vi.fn(async () => ({ username: "tester", spaceSlug: "default", owner: false, categories: [], works: [] })),
+    getUserWorks: vi.fn(async () => ({
+      username: "tester",
+      spaceSlug: "default",
+      owner: false,
+      categories: [],
+      works: [],
+    })),
     followUser: vi.fn(),
     unfollowUser: vi.fn(),
     getMyProfile: vi.fn(),

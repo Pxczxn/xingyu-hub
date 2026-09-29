@@ -53,7 +53,9 @@ describe("SeriesArticlesPage", () => {
   it("labels untitled drafts instead of rendering a blank row", async () => {
     mockedSeries.getMine.mockResolvedValue({
       ...DETAIL,
-      chapters: [{ id: "ch-1", articleId: "50640d78-bac5-43ce-8863-060cf0861748", title: null, position: 1 }],
+      chapters: [
+        { id: "ch-1", articleId: "50640d78-bac5-43ce-8863-060cf0861748", title: null, position: 1 },
+      ],
     });
     mockedArticles.listMine.mockResolvedValue([
       {
@@ -106,4 +108,3 @@ describe("SeriesArticlesPage", () => {
     );
   });
 });
-

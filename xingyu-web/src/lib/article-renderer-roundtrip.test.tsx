@@ -88,10 +88,7 @@ async function milkdownEditRoundTrip(source: string, edit: (editor: Crepe["edito
 function buildMarkdownFromInserts() {
   let value = "小节\n\n重点\n\n任务\n";
 
-  value = applyMarkdownFormatAction(
-    { value, selectionStart: 0, selectionEnd: 2 },
-    "h4",
-  )!.next;
+  value = applyMarkdownFormatAction({ value, selectionStart: 0, selectionEnd: 2 }, "h4")!.next;
 
   const strikeStart = value.indexOf("重点");
   value = applyMarkdownFormatAction(
@@ -148,9 +145,7 @@ describe("Markdown → Milkdown → ArticleMarkdownBody", () => {
     expect(root.querySelector("pre code")).toBeTruthy();
     expect(root.querySelector("ul:not(.contains-task-list)")).toBeTruthy();
     expect(root.querySelector("ol")).toBeTruthy();
-    expect(
-      root.querySelector("ul.contains-task-list, li.task-list-item"),
-    ).toBeTruthy();
+    expect(root.querySelector("ul.contains-task-list, li.task-list-item")).toBeTruthy();
     expect(root.querySelector('img[src="https://example.com/demo.png"]')).toBeTruthy();
     expect(root.querySelector("hr")).toBeTruthy();
   });

@@ -69,7 +69,8 @@ export function getTextareaCaretAnchor(textarea: HTMLTextAreaElement): EditorCar
   const markerRect = marker.getBoundingClientRect();
   document.body.removeChild(mirror);
 
-  const lineHeight = Number.parseFloat(computed.lineHeight) || Number.parseFloat(computed.fontSize) * 1.85;
+  const lineHeight =
+    Number.parseFloat(computed.lineHeight) || Number.parseFloat(computed.fontSize) * 1.85;
 
   return {
     top: textareaRect.top + (markerRect.top - mirrorRect.top) - textarea.scrollTop,

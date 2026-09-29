@@ -136,7 +136,9 @@ describe("MyGroupsPage — listing", () => {
   });
 
   it("explains an empty group list and still offers creation", async () => {
-    listConversations.mockResolvedValue([{ id: "d1", type: "DIRECT", title: null, unreadCount: 0 }]);
+    listConversations.mockResolvedValue([
+      { id: "d1", type: "DIRECT", title: null, unreadCount: 0 },
+    ]);
     renderPage();
     expect(await screen.findByText("暂无群聊")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /创建群聊/ })).toBeInTheDocument();
@@ -239,4 +241,3 @@ describe("MyGroupsPage — creating", () => {
     expect(screen.queryByRole("button", { name: /退出/ })).not.toBeInTheDocument();
   });
 });
-

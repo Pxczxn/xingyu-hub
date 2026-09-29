@@ -80,9 +80,10 @@ describe("EventsPage — list", () => {
     renderPage();
 
     // The feature is a section above the list; its own link text gives it away.
-    expect(
-      await screen.findByRole("link", { name: "立即参与" }),
-    ).toHaveAttribute("href", "/events/e1");
+    expect(await screen.findByRole("link", { name: "立即参与" })).toHaveAttribute(
+      "href",
+      "/events/e1",
+    );
   });
 
   it("shows the empty state rather than an empty shell", async () => {
@@ -109,9 +110,7 @@ describe("EventsPage — list", () => {
   it("falls back to a plain statement without a detail", async () => {
     mocked.list.mockRejectedValue(new Error("network"));
     renderPage();
-    expect(
-      await screen.findByText("无法读取活动列表，请稍后重试。"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("无法读取活动列表，请稍后重试。")).toBeInTheDocument();
   });
 });
 
@@ -148,9 +147,7 @@ describe("EventsPage — status copy", () => {
   it("does not say 已结束 when endsAt is unknown", async () => {
     // "We do not know" is not "finished" — the absence of a date must not be
     // rendered as an ending.
-    mocked.list.mockResolvedValue([
-      event({ endsAt: null, submissionOpen: true }),
-    ]);
+    mocked.list.mockResolvedValue([event({ endsAt: null, submissionOpen: true })]);
     renderPage(NOW);
     await screen.findByLabelText("活动列表");
     expect(screen.getAllByText("开放投稿").length).toBeGreaterThan(0);
@@ -162,9 +159,7 @@ describe("EventsPage — calendar", () => {
   const SEPTEMBER = new Date("2026-09-01T00:00:00Z").getTime();
 
   it("marks the CST day of an event", async () => {
-    mocked.list.mockResolvedValue([
-      event({ startsAt: "2026-09-15T02:00:00Z" }),
-    ]);
+    mocked.list.mockResolvedValue([event({ startsAt: "2026-09-15T02:00:00Z" })]);
     renderPage(SEPTEMBER);
     await screen.findByLabelText("活动列表");
 
@@ -176,16 +171,11 @@ describe("EventsPage — calendar", () => {
   it("marks the NEXT day when the instant falls after CST midnight", async () => {
     // 16:30 UTC on the 15th is 00:30 on the 16th in Shanghai — a naive
     // local-time read would mark the wrong square.
-    mocked.list.mockResolvedValue([
-      event({ startsAt: "2026-09-15T16:30:00Z" }),
-    ]);
+    mocked.list.mockResolvedValue([event({ startsAt: "2026-09-15T16:30:00Z" })]);
     renderPage(SEPTEMBER);
     await screen.findByLabelText("活动列表");
 
-    expect(screen.getByLabelText("16 日有活动")).toHaveAttribute(
-      "data-event",
-      "true",
-    );
+    expect(screen.getByLabelText("16 日有活动")).toHaveAttribute("data-event", "true");
     expect(screen.queryByLabelText("15 日有活动")).not.toBeInTheDocument();
   });
 
@@ -206,9 +196,7 @@ describe("EventsPage — calendar", () => {
   });
 
   it("links upcoming events from the sidebar", async () => {
-    mocked.list.mockResolvedValue([
-      event({ id: "e9", title: "即将开始的活动" }),
-    ]);
+    mocked.list.mockResolvedValue([event({ id: "e9", title: "即将开始的活动" })]);
     renderPage(SEPTEMBER);
     await screen.findByLabelText("活动列表");
 
@@ -229,4 +217,3 @@ describe("EventsPage — calendar navigation", () => {
     expect(mocked.list).toHaveBeenCalledTimes(1);
   });
 });
-

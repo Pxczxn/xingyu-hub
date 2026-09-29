@@ -66,4 +66,3 @@ describe("NotificationRow", () => {
     expect(screen.getByText("关注")).toBeInTheDocument();
   });
 });
-

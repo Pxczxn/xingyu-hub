@@ -80,7 +80,11 @@ export function SettingsDataExportPage() {
 
       {phase === "idle" || phase === "loading" ? (
         <div>
-          <Button onClick={() => void load()} disabled={phase === "loading"} data-testid="export-load">
+          <Button
+            onClick={() => void load()}
+            disabled={phase === "loading"}
+            data-testid="export-load"
+          >
             {phase === "loading" ? "正在准备…" : "准备导出"}
           </Button>
         </div>
@@ -122,4 +126,3 @@ export function SettingsDataExportPage() {
     </div>
   );
 }
-

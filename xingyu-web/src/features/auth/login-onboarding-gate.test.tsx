@@ -148,4 +148,3 @@ describe("login onboarding gate", () => {
     expect(mockedOnboarding.get).not.toHaveBeenCalled();
   });
 });
-

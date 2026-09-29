@@ -9,7 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 export function ProfileWorks({ works }: { works: SpaceWorks }) {
   if (works.works.length === 0) {
     return (
-      <p data-testid="works-empty" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+      <p
+        data-testid="works-empty"
+        className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
+      >
         还没有公开作品。
       </p>
     );
@@ -40,4 +43,3 @@ export function ProfileWorks({ works }: { works: SpaceWorks }) {
     </ul>
   );
 }
-

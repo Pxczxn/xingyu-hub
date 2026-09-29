@@ -45,7 +45,10 @@ describe("GalaxyListPage", () => {
       "href",
       "/galaxies/xingyu-official",
     );
-    expect(screen.getByRole("link", { name: /开发日志/ })).toHaveAttribute("href", "/galaxies/dev-log");
+    expect(screen.getByRole("link", { name: /开发日志/ })).toHaveAttribute(
+      "href",
+      "/galaxies/dev-log",
+    );
   });
 
   it("labels official and community galaxies", async () => {
@@ -100,4 +103,3 @@ describe("GalaxyListPage", () => {
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
   });
 });
-

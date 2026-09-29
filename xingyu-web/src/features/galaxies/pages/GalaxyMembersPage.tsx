@@ -8,12 +8,12 @@ import { formatJoinedAt, galaxyMemberRoleLabel } from "../galaxy-labels";
 import { GalaxyShell } from "../GalaxyShell";
 
 type LoadState =
-  | { kind: "loading" }
-  | { kind: "error" }
-  | { kind: "ready"; members: GalaxyMember[] };
+  { kind: "loading" } | { kind: "error" } | { kind: "ready"; members: GalaxyMember[] };
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 /**
@@ -86,7 +86,9 @@ function GalaxyMembers({ slug }: { slug: string }) {
                     {galaxyMemberRoleLabel(member.role)}
                   </small>
                 </span>
-                <time className="shrink-0 text-xs text-muted-foreground">{formatJoinedAt(member.joinedAt)}</time>
+                <time className="shrink-0 text-xs text-muted-foreground">
+                  {formatJoinedAt(member.joinedAt)}
+                </time>
               </Link>
             </li>
           ))}
@@ -95,4 +97,3 @@ function GalaxyMembers({ slug }: { slug: string }) {
     </section>
   );
 }
-

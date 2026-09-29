@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CalendarClock, CheckCircle2, Clock3, FileText, PenLine, Sparkles, UsersRound } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  PenLine,
+  Sparkles,
+  UsersRound,
+} from "lucide-react";
 import { ApiError } from "@/api/client";
 import { eventsApi } from "@/api/events/events.api";
 import {
@@ -179,11 +187,7 @@ export function EventDetailPage() {
           </span>
           <span className="flex items-center gap-1">
             <Clock3 className="h-3.5 w-3.5" aria-hidden />
-            {countdown
-              ? `距离结束 ${countdown}`
-              : ended
-                ? "活动已结束"
-                : "结束时间待公布"}
+            {countdown ? `距离结束 ${countdown}` : ended ? "活动已结束" : "结束时间待公布"}
           </span>
         </p>
 
@@ -209,7 +213,11 @@ export function EventDetailPage() {
                 {registrationBusy ? "处理中…" : "已报名 · 取消报名"}
               </Button>
             ) : (
-              <Button variant="outline" disabled={registrationBusy} onClick={() => void onRegister()}>
+              <Button
+                variant="outline"
+                disabled={registrationBusy}
+                onClick={() => void onRegister()}
+              >
                 {registrationBusy ? "处理中…" : "报名参加"}
               </Button>
             )
@@ -244,9 +252,7 @@ export function EventDetailPage() {
               <Meta label="结束时间" value={formatEventDateTime(event.endsAt) ?? "待公布"} />
               <Meta
                 label="投稿状态"
-                value={
-                  ended ? "活动已结束" : event.submissionOpen ? "开放中" : "暂未开放投稿"
-                }
+                value={ended ? "活动已结束" : event.submissionOpen ? "开放中" : "暂未开放投稿"}
               />
               <Meta label="参与方式" value="提交已发布的内容即可参与" />
             </dl>
@@ -346,4 +352,3 @@ function Meta({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

@@ -34,9 +34,7 @@ describe("SettingsDeleteAccountPage", () => {
 
   it("warns there is no self-service way back", () => {
     renderPage();
-    expect(screen.getByTestId("delete-account-warning")).toHaveTextContent(
-      "没有提供自助恢复入口",
-    );
+    expect(screen.getByTestId("delete-account-warning")).toHaveTextContent("没有提供自助恢复入口");
   });
 
   it("lists the concrete consequences, including that content is NOT removed", () => {
@@ -104,4 +102,3 @@ describe("SettingsDeleteAccountPage", () => {
     expect(screen.queryByRole("button", { name: /取消停用/ })).not.toBeInTheDocument();
   });
 });
-

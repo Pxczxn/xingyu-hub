@@ -21,7 +21,10 @@ export const MIN_PASSWORD_LENGTH = 8;
 
 export type FieldCheck = { ok: true } | { ok: false; message: string };
 
-export function checkNewEmail(newEmail: string, currentEmail: string | null | undefined): FieldCheck {
+export function checkNewEmail(
+  newEmail: string,
+  currentEmail: string | null | undefined,
+): FieldCheck {
   const value = newEmail.trim();
   if (!value) return { ok: false, message: "请输入新邮箱。" };
   if (!EMAIL_SHAPE.test(value)) return { ok: false, message: "邮箱格式不正确。" };

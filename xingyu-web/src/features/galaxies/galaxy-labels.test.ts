@@ -65,7 +65,12 @@ describe("formatJoinedAt", () => {
 
 describe("GALAXY_CONTENT_FILTERS", () => {
   it("exposes the four filters the feed renders, starting unfiltered", () => {
-    expect(GALAXY_CONTENT_FILTERS.map((item) => item.label)).toEqual(["全部", "文章", "系列", "动态"]);
+    expect(GALAXY_CONTENT_FILTERS.map((item) => item.label)).toEqual([
+      "全部",
+      "文章",
+      "系列",
+      "动态",
+    ]);
     expect(GALAXY_CONTENT_FILTERS[0].value).toBeNull();
   });
 });

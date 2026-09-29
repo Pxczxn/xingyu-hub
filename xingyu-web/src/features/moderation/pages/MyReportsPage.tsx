@@ -135,7 +135,10 @@ export function MyReportsPage() {
         ) : (
           <ul aria-label="我的举报列表" className="divide-y divide-border">
             {reports.map((report) => (
-              <li key={report.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]">
+              <li
+                key={report.id}
+                className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
+              >
                 <time
                   dateTime={report.updatedAt}
                   className="text-xs tabular-nums text-muted-foreground"
@@ -144,9 +147,7 @@ export function MyReportsPage() {
                 </time>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {report.targetType}
-                    </p>
+                    <p className="text-xs font-medium text-muted-foreground">{report.targetType}</p>
                     {/* Echoes unknown statuses verbatim rather than guessing. */}
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
                       {reportStatusLabel(report.status)}
@@ -176,4 +177,3 @@ export function MyReportsPage() {
     </div>
   );
 }
-

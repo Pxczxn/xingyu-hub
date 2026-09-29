@@ -36,14 +36,20 @@ export function BookshelfPage() {
       {loading ? <PageState kind="loading" /> : null}
       {!loading && error ? <PageState kind="error" /> : null}
       {!loading && !error && items.length === 0 ? (
-        <PageState kind="empty" title="暂时还没有订阅的系列" description="订阅系列后会显示在书架中。" />
+        <PageState
+          kind="empty"
+          title="暂时还没有订阅的系列"
+          description="订阅系列后会显示在书架中。"
+        />
       ) : null}
       {!loading && !error && items.length > 0 ? (
         <ul className="grid gap-3">
           {items.map((item) => (
             <li key={item.id} className="rounded-lg border border-border bg-card p-4">
               <h2 className="text-sm font-medium text-foreground">{item.title}</h2>
-              {item.summary ? <p className="mt-1 text-sm text-muted-foreground">{item.summary}</p> : null}
+              {item.summary ? (
+                <p className="mt-1 text-sm text-muted-foreground">{item.summary}</p>
+              ) : null}
               <p className="mt-2 text-xs text-muted-foreground">
                 {item.objectType === "SERIES" || !item.objectType ? "系列" : item.objectType}
               </p>
@@ -54,4 +60,3 @@ export function BookshelfPage() {
     </div>
   );
 }
-

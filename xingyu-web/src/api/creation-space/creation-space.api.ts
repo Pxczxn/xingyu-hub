@@ -48,8 +48,7 @@ export const creationSpaceApi = {
 
   /** Really deletes. Archive instead if the intent is "hide but keep". */
   deleteCategory: (categoryId: string): Promise<void> =>
-    apiRequest<void>(
-      `/api/v1/me/creation-space/categories/${encodeURIComponent(categoryId)}`,
-      { method: "DELETE" },
-    ),
+    apiRequest<void>(`/api/v1/me/creation-space/categories/${encodeURIComponent(categoryId)}`, {
+      method: "DELETE",
+    }),
 };

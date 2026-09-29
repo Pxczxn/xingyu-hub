@@ -74,9 +74,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   topicsMocked.getTopics.mockResolvedValue([]);
-  homeMocked.getAnnouncements.mockResolvedValue([
-    { id: "n1", title: "社区公告一", body: "内容" },
-  ]);
+  homeMocked.getAnnouncements.mockResolvedValue([{ id: "n1", title: "社区公告一", body: "内容" }]);
 });
 
 describe("home (guest)", () => {

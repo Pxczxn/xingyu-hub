@@ -179,7 +179,9 @@ export function CollaborationAcceptPage() {
         <Card>
           <CardContent className="flex flex-col gap-2 p-5">
             {invite.note?.trim() ? (
-              <p className="text-sm text-muted-foreground">{inviter} 的留言：{invite.note}</p>
+              <p className="text-sm text-muted-foreground">
+                {inviter} 的留言：{invite.note}
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">{inviter} 没有留下备注。</p>
             )}
@@ -280,4 +282,3 @@ export function CollaborationAcceptPage() {
     </div>
   );
 }
-

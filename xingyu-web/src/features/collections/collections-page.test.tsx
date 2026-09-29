@@ -99,7 +99,9 @@ describe("CollectionsPage", () => {
     renderList();
     fireEvent.click(await screen.findByRole("button", { name: "新建收藏夹" }));
     const radios = screen.getAllByRole("radio");
-    expect(radios.map((el) => (el as HTMLInputElement).value)).toEqual([...COLLECTION_VISIBILITIES]);
+    expect(radios.map((el) => (el as HTMLInputElement).value)).toEqual([
+      ...COLLECTION_VISIBILITIES,
+    ]);
     fireEvent.change(screen.getByLabelText("名称"), { target: { value: "新夹" } });
     fireEvent.click(screen.getByDisplayValue("PUBLIC"));
     fireEvent.click(screen.getByRole("button", { name: "创建" }));
@@ -117,4 +119,3 @@ describe("CollectionsPage", () => {
     });
   });
 });
-

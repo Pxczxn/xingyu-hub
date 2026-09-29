@@ -63,10 +63,9 @@ export const eventsApi = {
    * to handle. 404 when the event is missing or not ACTIVE.
    */
   register: (eventId: string): Promise<EventRegistration> =>
-    apiRequest<EventRegistration>(
-      `/api/v1/me/events/${encodeURIComponent(eventId)}/register`,
-      { method: "POST" },
-    ),
+    apiRequest<EventRegistration>(`/api/v1/me/events/${encodeURIComponent(eventId)}/register`, {
+      method: "POST",
+    }),
 
   /**
    * Cancels the caller's registration. Answers 204.

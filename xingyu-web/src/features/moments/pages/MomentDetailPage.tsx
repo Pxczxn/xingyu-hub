@@ -18,7 +18,9 @@ type LoadState =
   | { kind: "ready"; moment: MomentView };
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 function isEditWindowConflict(err: unknown): boolean {
@@ -171,18 +173,24 @@ export function MomentDetailPage() {
       {windowHint ? <p className="text-sm text-muted-foreground">已超过可编辑时间</p> : null}
 
       {canEdit && !editing ? (
-        <Button type="button" onClick={() => {
-          setDraft(moment.body);
-          setDraftError(null);
-          setSaveError(null);
-          setEditing(true);
-        }}>
+        <Button
+          type="button"
+          onClick={() => {
+            setDraft(moment.body);
+            setDraftError(null);
+            setSaveError(null);
+            setEditing(true);
+          }}
+        >
           编辑动态
         </Button>
       ) : null}
 
       {editing ? (
-        <form onSubmit={(event) => void onSave(event)} className="space-y-3 rounded-lg border border-border bg-card p-4">
+        <form
+          onSubmit={(event) => void onSave(event)}
+          className="space-y-3 rounded-lg border border-border bg-card p-4"
+        >
           <label className="block text-sm font-medium">
             动态正文
             <textarea
@@ -209,7 +217,11 @@ export function MomentDetailPage() {
 
       {ownerConfirmed ? (
         <div>
-          <Button variant="destructive" onClick={() => setConfirmDelete(true)} disabled={pendingRef.current}>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmDelete(true)}
+            disabled={pendingRef.current}
+          >
             删除动态
           </Button>
         </div>
@@ -227,7 +239,11 @@ export function MomentDetailPage() {
             <Button variant="destructive" onClick={() => void onTrash()}>
               确认删除
             </Button>
-            <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={pendingRef.current}>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete(false)}
+              disabled={pendingRef.current}
+            >
               取消
             </Button>
           </div>
@@ -236,4 +252,3 @@ export function MomentDetailPage() {
     </article>
   );
 }
-

@@ -166,9 +166,7 @@ export function ArticleEditorBody({
       // value — declaring without one avoids a dead assignment.
       let markdown: string;
       try {
-        markdown = ensureCanonicalMarkdownBody(
-          controllerRef.current?.getMarkdown?.() ?? value,
-        );
+        markdown = ensureCanonicalMarkdownBody(controllerRef.current?.getMarkdown?.() ?? value);
       } catch {
         markdown = ensureCanonicalMarkdownBody(value);
       }
@@ -273,4 +271,3 @@ export function ArticleEditorBody({
     </div>
   );
 }
-

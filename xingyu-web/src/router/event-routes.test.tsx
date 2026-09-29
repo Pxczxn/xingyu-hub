@@ -79,9 +79,7 @@ vi.mock("@/api/articles/articles.api", () => ({
   articlesApi: { listMine: vi.fn(async () => []) },
   normalizeLifecycleStatus: (value: string | null | undefined) => {
     const upper = (value ?? "").toUpperCase();
-    return ["DRAFT", "IN_REVIEW", "PUBLISHED"].includes(upper)
-      ? upper
-      : "DRAFT";
+    return ["DRAFT", "IN_REVIEW", "PUBLISHED"].includes(upper) ? upper : "DRAFT";
   },
 }));
 vi.mock("@/api/series/series.api", () => ({
@@ -111,12 +109,8 @@ describe("phase 2I-4 route resolution", () => {
   it("routes /events to the public square for a guest", async () => {
     renderAt("/events", false);
 
-    expect(
-      await screen.findByRole("heading", { name: "社区活动" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "登录" }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "社区活动" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "登录" })).not.toBeInTheDocument();
   });
 
   it("routes /events/:id/submit to the submit page, not to the detail page", async () => {
@@ -124,22 +118,16 @@ describe("phase 2I-4 route resolution", () => {
     // detail route swallowed the segment, submission would silently open detail.
     renderAt("/events/e1/submit", true);
 
-    expect(
-      await screen.findByRole("heading", { name: "活动投稿" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "活动投稿" })).toBeInTheDocument();
   });
 
   it("still routes a bare /events/:id to the detail page, not to submit", async () => {
     renderAt("/events/e1", true);
 
-    expect(
-      await screen.findByRole("heading", { name: "星语创作赛" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "星语创作赛" })).toBeInTheDocument();
     // The detail page has its own 活动投稿 SECTION heading; the submit PAGE's
     // marker is the 1./2. step headings, which only it renders.
-    expect(
-      screen.queryByRole("heading", { name: "1. 选择投稿内容" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "1. 选择投稿内容" })).not.toBeInTheDocument();
   });
 });
 
@@ -148,30 +136,20 @@ describe("phase 2I-4 route guards", () => {
     renderAt("/events/e1/submit", false);
 
     // RequireAuth redirects; the login page is what a guest actually sees.
-    expect(
-      await screen.findByRole("heading", { name: "登录星语" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "1. 选择投稿内容" }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "登录星语" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "1. 选择投稿内容" })).not.toBeInTheDocument();
   });
 
   it("bounces a guest from /me/events to login", async () => {
     renderAt("/me/events", false);
 
-    expect(
-      await screen.findByRole("heading", { name: "登录星语" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "我的活动" }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "登录星语" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "我的活动" })).not.toBeInTheDocument();
   });
 
   it("lets a signed-in user into /me/events", async () => {
     renderAt("/me/events", true);
 
-    expect(
-      await screen.findByRole("heading", { name: "我的活动" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "我的活动" })).toBeInTheDocument();
   });
 });

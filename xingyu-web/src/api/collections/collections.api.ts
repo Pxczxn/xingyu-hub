@@ -15,7 +15,8 @@ import type {
 } from "./collections.types";
 
 export const collectionsApi = {
-  listMine: (): Promise<CollectionSummary[]> => apiRequest<CollectionSummary[]>("/api/v1/me/collections"),
+  listMine: (): Promise<CollectionSummary[]> =>
+    apiRequest<CollectionSummary[]>("/api/v1/me/collections"),
 
   create: (payload: CreateCollectionPayload): Promise<CollectionSummary> =>
     apiRequest<CollectionSummary>("/api/v1/me/collections", { method: "POST", body: payload }),

@@ -46,8 +46,7 @@ type LoadState =
 
 function isAuthError(err: unknown): boolean {
   return (
-    err instanceof ApiError &&
-    (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
   );
 }
 
@@ -81,7 +80,10 @@ export function SavedMessagesPage() {
       await savedMessagesApi.remove(item.messageId);
       setState((current) =>
         current.kind === "ready"
-          ? { kind: "ready", items: current.items.filter((row) => row.messageId !== item.messageId) }
+          ? {
+              kind: "ready",
+              items: current.items.filter((row) => row.messageId !== item.messageId),
+            }
           : current,
       );
     } catch (err: unknown) {
@@ -142,7 +144,11 @@ export function SavedMessagesPage() {
           description="在会话中收藏一条消息后，它会出现在这里。"
         />
       ) : (
-        <ul aria-label="收藏的私信" className="flex flex-col gap-2" data-testid="saved-message-rows">
+        <ul
+          aria-label="收藏的私信"
+          className="flex flex-col gap-2"
+          data-testid="saved-message-rows"
+        >
           {items.map((item) => {
             const attachment = savedAttachmentKind(item);
             const body = savedMessageBody(item);
@@ -200,7 +206,9 @@ export function SavedMessagesPage() {
                           </p>
                         ) : null}
                         {!body && !attachment ? (
-                          <p className="mt-2 text-sm text-muted-foreground">这条消息没有可展示的内容。</p>
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            这条消息没有可展示的内容。
+                          </p>
                         ) : null}
                       </>
                     )}
@@ -243,4 +251,3 @@ export function SavedMessagesPage() {
     </div>
   );
 }
-

@@ -74,9 +74,7 @@ beforeEach(() => {
 describe("phase 2N route resolution", () => {
   it("routes /studio/categories to the category manager", async () => {
     renderAt("/studio/categories", true);
-    expect(
-      await screen.findByRole("heading", { name: "创作空间分类" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "创作空间分类" })).toBeInTheDocument();
     expect(screen.getByLabelText("分类列表")).toBeInTheDocument();
   });
 

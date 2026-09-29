@@ -19,7 +19,12 @@ function getLinkMarkAt(state: EditorState, pos: number, linkType: MarkType) {
   return linkType.isInSet(state.storedMarks || $pos.marks());
 }
 
-function expandLinkRange(state: EditorState, from: number, to: number, linkType: MarkType): LinkRange | null {
+function expandLinkRange(
+  state: EditorState,
+  from: number,
+  to: number,
+  linkType: MarkType,
+): LinkRange | null {
   const doc = state.doc;
   const size = doc.content.size;
   const probe = from === to ? from : from;

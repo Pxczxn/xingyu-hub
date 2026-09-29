@@ -106,7 +106,14 @@ describe("isDraftDirty", () => {
 describe("buildDraftSavePayload", () => {
   it("sends only the editable fields plus lockVersion", () => {
     const fields = toEditorDraftFields(
-      draft({ title: "T", summary: "S", body: "B", bodyMode: "RICH_TEXT", visibility: "UNLISTED", topicIds: ["t1"] }),
+      draft({
+        title: "T",
+        summary: "S",
+        body: "B",
+        bodyMode: "RICH_TEXT",
+        visibility: "UNLISTED",
+        topicIds: ["t1"],
+      }),
     );
 
     expect(buildDraftSavePayload(fields, 7)).toEqual({

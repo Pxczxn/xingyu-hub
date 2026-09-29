@@ -119,7 +119,13 @@ describe("user profile", () => {
 
   it("shows not-found for an unknown user", async () => {
     mocked.getProfile.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "资源不存在", status: 404, detail: "资源不存在", code: "NOT_FOUND" }),
+      new ApiError({
+        type: "about:blank",
+        title: "资源不存在",
+        status: 404,
+        detail: "资源不存在",
+        code: "NOT_FOUND",
+      }),
     );
     renderAt("ghost");
 
@@ -187,4 +193,3 @@ describe("user follow", () => {
     expect(mocked.followUser).not.toHaveBeenCalled();
   });
 });
-

@@ -12,7 +12,9 @@ type LoadState =
   | { kind: "ready"; page: GuidePage };
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 export function GuideDetailPage() {
@@ -52,7 +54,11 @@ export function GuideDetailPage() {
   if (state.kind === "notfound") {
     return (
       <div className="section-gap">
-        <PageState kind="empty" title="指南不存在或未发布" description="这篇指南可能已下线，或地址有误。" />
+        <PageState
+          kind="empty"
+          title="指南不存在或未发布"
+          description="这篇指南可能已下线，或地址有误。"
+        />
         <BackToGuide />
       </div>
     );
@@ -92,4 +98,3 @@ function formatPublishedAt(value: string): string {
     timeZone: "UTC",
   });
 }
-

@@ -40,7 +40,9 @@ type SearchState =
 const LIMIT = 50;
 
 function isAuthError(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED");
+  return (
+    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+  );
 }
 
 export function SearchMessagesPage() {
@@ -119,7 +121,11 @@ export function SearchMessagesPage() {
       </form>
 
       {state.kind === "idle" ? (
-        <PageState kind="empty" title="输入关键词开始搜索" description="搜索结果会显示来自所有会话的匹配消息。" />
+        <PageState
+          kind="empty"
+          title="输入关键词开始搜索"
+          description="搜索结果会显示来自所有会话的匹配消息。"
+        />
       ) : null}
 
       {state.kind === "loading" ? <PageState kind="loading" /> : null}
@@ -182,4 +188,3 @@ export function SearchMessagesPage() {
     </div>
   );
 }
-

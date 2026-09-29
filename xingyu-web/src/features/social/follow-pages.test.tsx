@@ -24,7 +24,12 @@ vi.mock("@/api/users/users.api", () => ({
 const mockedSocial = vi.mocked(socialApi);
 const mockedUsers = vi.mocked(usersApi);
 
-const ALICE = { userId: "u1", username: "alice", displayName: "爱丽丝", followedAt: "2026-09-20T10:00:00Z" };
+const ALICE = {
+  userId: "u1",
+  username: "alice",
+  displayName: "爱丽丝",
+  followedAt: "2026-09-20T10:00:00Z",
+};
 const BOB = { userId: "u2", username: "bob", displayName: null, followedAt: null };
 
 function renderFollowing() {
@@ -100,7 +105,13 @@ describe("MyFollowingPage", () => {
 
   it("explains an expired session on 401 rather than showing an empty list", async () => {
     mockedSocial.listMyFollowing.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "请先登录", status: 401, detail: "请先登录", code: "AUTH_REQUIRED" }),
+      new ApiError({
+        type: "about:blank",
+        title: "请先登录",
+        status: 401,
+        detail: "请先登录",
+        code: "AUTH_REQUIRED",
+      }),
     );
     renderFollowing();
     expect(await screen.findByText("登录状态已过期，请重新登录。")).toBeInTheDocument();
@@ -157,7 +168,13 @@ describe("MyFollowersPage", () => {
   it("surfaces a follow failure and keeps the button available", async () => {
     mockedSocial.listMyFollowers.mockResolvedValue([BOB]);
     mockedUsers.followUser.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "t", status: 500, detail: "关注失败", code: "UNKNOWN" }),
+      new ApiError({
+        type: "about:blank",
+        title: "t",
+        status: 500,
+        detail: "关注失败",
+        code: "UNKNOWN",
+      }),
     );
     renderFollowers();
 
@@ -174,4 +191,3 @@ describe("MyFollowersPage", () => {
     expect(await screen.findByText("还没有粉丝")).toBeInTheDocument();
   });
 });
-

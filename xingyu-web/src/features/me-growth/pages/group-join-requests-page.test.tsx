@@ -171,4 +171,3 @@ describe("GroupJoinRequestsPage — failures", () => {
     expect(await screen.findByText("登录状态已过期，请重新登录。")).toBeInTheDocument();
   });
 });
-

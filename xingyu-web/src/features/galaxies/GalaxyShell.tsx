@@ -30,7 +30,9 @@ export type GalaxyLoadState =
   | { kind: "ready"; galaxy: GalaxySummary };
 
 function isNotFound(err: unknown): boolean {
-  return err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND");
+  return (
+    err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
+  );
 }
 
 const TABS = [
@@ -164,7 +166,10 @@ function GalaxyJoinControl({ slug }: { slug: string }) {
 
   if (!isAuthenticated) {
     return (
-      <Link to={`/login?returnTo=${encodeURIComponent(`/galaxies/${slug}`)}`} className="text-sm text-accent hover:underline">
+      <Link
+        to={`/login?returnTo=${encodeURIComponent(`/galaxies/${slug}`)}`}
+        className="text-sm text-accent hover:underline"
+      >
         登录后加入星系
       </Link>
     );
@@ -181,8 +186,17 @@ function GalaxyJoinControl({ slug }: { slug: string }) {
   return (
     <div className="flex w-full flex-col gap-2">
       <div className="flex items-center gap-3">
-        <Button variant="primary" size="sm" disabled={status === "joining" || status === "applying"} onClick={() => void act()}>
-          {status === "joining" ? "正在加入…" : status === "applying" ? "正在提交申请…" : "加入星系"}
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={status === "joining" || status === "applying"}
+          onClick={() => void act()}
+        >
+          {status === "joining"
+            ? "正在加入…"
+            : status === "applying"
+              ? "正在提交申请…"
+              : "加入星系"}
         </Button>
         <span className="text-xs text-muted-foreground">若该星系需要审核，将转为提交申请。</span>
       </div>
@@ -237,7 +251,11 @@ export function GalaxyShell({
   if (state.kind === "unavailable") {
     return (
       <div className="section-gap">
-        <PageState kind="empty" title="星系不存在或尚未公开" description="它可能已被移除，或链接有误。" />
+        <PageState
+          kind="empty"
+          title="星系不存在或尚未公开"
+          description="它可能已被移除，或链接有误。"
+        />
         <p className="text-center">
           <Link to="/galaxies" className="text-sm text-accent hover:underline">
             返回星系广场
@@ -288,4 +306,3 @@ export function GalaxyShell({
     </article>
   );
 }
-

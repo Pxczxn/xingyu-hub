@@ -16,10 +16,7 @@ import { formatMessageTime } from "./MessageBubble";
 
 export function AttachmentMediaGrid({ items }: { items: ChatMessage[] }) {
   return (
-    <ul
-      aria-label="图片列表"
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
-    >
+    <ul aria-label="图片列表" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((message) => {
         const at = formatMessageTime(message.createdAt);
         return (
@@ -47,4 +44,3 @@ export function AttachmentMediaGrid({ items }: { items: ChatMessage[] }) {
     </ul>
   );
 }
-

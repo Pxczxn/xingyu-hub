@@ -35,9 +35,7 @@ function event(overrides: Partial<EventView> = {}): EventView {
   };
 }
 
-function submission(
-  overrides: Partial<EventSubmissionView> = {},
-): EventSubmissionView {
+function submission(overrides: Partial<EventSubmissionView> = {}): EventSubmissionView {
   return {
     id: "s1",
     eventId: "e1",
@@ -78,10 +76,7 @@ describe("MyEventsPage — empty and error", () => {
     expect(await screen.findByTestId("page-state-empty")).toBeInTheDocument();
     expect(screen.getByText("还没有参与活动")).toBeInTheDocument();
     expect(screen.getByText("还没有活动投稿记录")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "浏览活动" })).toHaveAttribute(
-      "href",
-      "/events",
-    );
+    expect(screen.getByRole("link", { name: "浏览活动" })).toHaveAttribute("href", "/events");
   });
 
   it("asks the user to sign in again when the session expired", async () => {
@@ -96,13 +91,8 @@ describe("MyEventsPage — empty and error", () => {
     );
     renderPage();
 
-    expect(
-      await screen.findByText("登录状态已过期，请重新登录。"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "去登录" })).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    expect(await screen.findByText("登录状态已过期，请重新登录。")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "去登录" })).toHaveAttribute("href", "/login");
   });
 
   it("prefers the backend's own wording for a non-auth failure", async () => {
@@ -128,26 +118,23 @@ describe("MyEventsPage — the join", () => {
 
     const list = await screen.findByLabelText("投稿记录");
     expect(within(list).getByText("星语创作赛")).toBeInTheDocument();
-    expect(
-      within(list).getByRole("link", { name: "查看活动" }),
-    ).toHaveAttribute("href", "/events/e1");
+    expect(within(list).getByRole("link", { name: "查看活动" })).toHaveAttribute(
+      "href",
+      "/events/e1",
+    );
   });
 
   it("keeps an orphaned submission's row but drops its dead link", async () => {
     // The event list is ACTIVE-only, so a taken-down event leaves the submission
     // orphaned. Dropping the row would erase the user's own history.
-    mocked.listMySubmissions.mockResolvedValue([
-      submission({ eventId: "gone" }),
-    ]);
+    mocked.listMySubmissions.mockResolvedValue([submission({ eventId: "gone" })]);
     mocked.list.mockResolvedValue([event({ id: "e1" })]);
     renderPage();
 
     const list = await screen.findByLabelText("投稿记录");
     expect(within(list).getByText("我的星空")).toBeInTheDocument();
     expect(within(list).getByText("活动已不在开放列表")).toBeInTheDocument();
-    expect(
-      within(list).queryByRole("link", { name: "查看活动" }),
-    ).not.toBeInTheDocument();
+    expect(within(list).queryByRole("link", { name: "查看活动" })).not.toBeInTheDocument();
   });
 
   it("still renders the history when the event list fails", async () => {
@@ -176,15 +163,9 @@ describe("MyEventsPage — grouping", () => {
     await screen.findByLabelText("投稿记录");
     const tabs = screen.getByLabelText("投稿状态");
     // APPROVED is the legacy spelling of ACCEPTED and must land in the same tab.
-    expect(
-      within(tabs).getByRole("button", { name: /^待审核/ }),
-    ).toHaveTextContent("1");
-    expect(
-      within(tabs).getByRole("button", { name: /^已通过/ }),
-    ).toHaveTextContent("2");
-    expect(
-      within(tabs).getByRole("button", { name: /^未通过/ }),
-    ).toHaveTextContent("1");
+    expect(within(tabs).getByRole("button", { name: /^待审核/ })).toHaveTextContent("1");
+    expect(within(tabs).getByRole("button", { name: /^已通过/ })).toHaveTextContent("2");
+    expect(within(tabs).getByRole("button", { name: /^未通过/ })).toHaveTextContent("1");
   });
 
   it("shows only the selected bucket's rows", async () => {
@@ -210,9 +191,7 @@ describe("MyEventsPage — grouping", () => {
   });
 
   it("explains an empty bucket instead of showing nothing", async () => {
-    mocked.listMySubmissions.mockResolvedValue([
-      submission({ status: "SUBMITTED" }),
-    ]);
+    mocked.listMySubmissions.mockResolvedValue([submission({ status: "SUBMITTED" })]);
     mocked.list.mockResolvedValue([event()]);
     renderPage();
 
@@ -250,12 +229,11 @@ describe("MyEventsPage — recommendations", () => {
     renderPage();
 
     await screen.findByLabelText("投稿记录");
-    expect(
-      screen.getByRole("link", { name: /可以参加的活动/ }),
-    ).toHaveAttribute("href", "/events/e2");
-    expect(
-      screen.queryByRole("link", { name: /已参与的活动/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /可以参加的活动/ })).toHaveAttribute(
+      "href",
+      "/events/e2",
+    );
+    expect(screen.queryByRole("link", { name: /已参与的活动/ })).not.toBeInTheDocument();
   });
 
   it("says so when every active event has already been entered", async () => {
@@ -264,9 +242,7 @@ describe("MyEventsPage — recommendations", () => {
     renderPage();
 
     await screen.findByLabelText("投稿记录");
-    expect(
-      screen.getByText("你已经参与了所有进行中的活动。"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("你已经参与了所有进行中的活动。")).toBeInTheDocument();
   });
 
   it("says there is nothing to recommend when there are no submissions either", async () => {
@@ -274,4 +250,3 @@ describe("MyEventsPage — recommendations", () => {
     expect(await screen.findByText("暂无可推荐活动。")).toBeInTheDocument();
   });
 });
-

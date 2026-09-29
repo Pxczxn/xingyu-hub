@@ -225,4 +225,3 @@ describe("collaboration invite page", () => {
     expect(text).not.toContain("协作空间");
   });
 });
-

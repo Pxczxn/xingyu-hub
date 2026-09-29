@@ -62,7 +62,10 @@ describe("SeriesListPage", () => {
     expect(screen.getByText("3 篇文章")).toBeInTheDocument();
     expect(screen.queryByText("封面")).not.toBeInTheDocument();
     expect(screen.queryByText("阅读量")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "编辑" })).toHaveAttribute("href", "/studio/series/ser-1/edit");
+    expect(screen.getByRole("link", { name: "编辑" })).toHaveAttribute(
+      "href",
+      "/studio/series/ser-1/edit",
+    );
     expect(screen.getByRole("link", { name: "文章编排" })).toHaveAttribute(
       "href",
       "/studio/series/ser-1/articles",
@@ -83,4 +86,3 @@ describe("SeriesListPage", () => {
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
   });
 });
-

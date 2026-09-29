@@ -134,9 +134,9 @@ describe("hasUnknownBadges", () => {
   });
 
   it("is true when the backend added an id we do not know", () => {
-    expect(hasUnknownBadges([...KNOWN_BADGE_IDS.map((id) => badge({ id })), badge({ id: "new" })])).toBe(
-      true,
-    );
+    expect(
+      hasUnknownBadges([...KNOWN_BADGE_IDS.map((id) => badge({ id })), badge({ id: "new" })]),
+    ).toBe(true);
   });
 
   it("is false for an empty list", () => {

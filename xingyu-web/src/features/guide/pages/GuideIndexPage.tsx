@@ -33,7 +33,16 @@ export function GuideIndexPage() {
 
   return (
     <div className="section-gap">
-      <PageHero eyebrow="GUIDE" title="使用指南" description="从第一次进入星语，到找到自己的创作与交流方式。" action={<Link to="/rules" className="text-sm text-accent hover:underline">社区规则</Link>} />
+      <PageHero
+        eyebrow="GUIDE"
+        title="使用指南"
+        description="从第一次进入星语，到找到自己的创作与交流方式。"
+        action={
+          <Link to="/rules" className="text-sm text-accent hover:underline">
+            社区规则
+          </Link>
+        }
+      />
 
       {loading ? <PageState kind="loading" /> : null}
       {!loading && error ? <PageState kind="error" /> : null}
