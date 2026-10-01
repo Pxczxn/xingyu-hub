@@ -54,4 +54,27 @@ public interface ContentLikeMapper extends BaseMapper<ContentLike> {
             """)
     List<ObjectCountRow> countByObjectIds(
             @Param("objectType") String objectType, @Param("objectIds") List<String> objectIds);
+
+    /**
+     * Which of `objectIds` this user has already liked, in one round trip.
+     *
+     * <p>Same shape of batching as {@link #countByObjectIds}, but VIEWER-SCOPED — the answer
+     * differs per user. Without it a feed would have to ask per row (N+1) just to draw the
+     * heart in the right state.
+     *
+     * <p>Callers must pass a non-empty list; an empty IN () is invalid SQL.
+     */
+    @Select("""
+            <script>
+            SELECT object_id FROM content_like
+            WHERE user_id = #{userId}
+              AND object_type = #{objectType}
+              AND object_id IN
+              <foreach collection='objectIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            </script>
+            """)
+    List<String> findLikedObjectIds(
+            @Param("userId") String userId,
+            @Param("objectType") String objectType,
+            @Param("objectIds") List<String> objectIds);
 }

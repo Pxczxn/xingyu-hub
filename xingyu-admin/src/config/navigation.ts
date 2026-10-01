@@ -80,6 +80,7 @@ export const adminNavigation: NavigationNode[] = [
       { label: '字典管理', key: '/system/dict', icon: 'LibraryOutline' },
       { label: '定时任务', key: '/monitor/job', icon: 'TimerOutline' },
       { label: '在线用户', key: '/monitor/online', icon: 'PeopleCircleOutline' },
+      { label: '搜索索引', key: '/monitor/search-index', icon: 'SearchOutline' },
       { label: '操作日志', key: '/log/operlog', icon: 'ClipboardOutline' },
       { label: '登录日志', key: '/log/loginlog', icon: 'LogInOutline' }
     ]
@@ -112,6 +113,7 @@ export const navigationLabels: Record<string, string> = {
   '/system/menu': '菜单权限',
   '/system/dict': '字典管理',
   '/monitor/job': '定时任务',
+  '/monitor/search-index': '搜索索引',
   '/monitor/online': '在线用户',
   '/log/operlog': '操作日志',
   '/log/loginlog': '登录日志',

@@ -5,9 +5,11 @@ import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
 import top.pxczxn.xingyu.community.entity.Series;
+import top.pxczxn.xingyu.community.entity.SeriesChapter;
 import top.pxczxn.xingyu.community.entity.SeriesReaderState;
 import top.pxczxn.xingyu.community.entity.SeriesSubscription;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
+import top.pxczxn.xingyu.community.mapper.SeriesChapterMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesReaderStateMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesSubscriptionMapper;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +31,7 @@ public class ReadingService {
     private final SeriesReaderStateMapper readerStateMapper;
     private final SeriesSubscriptionMapper seriesSubscriptionMapper;
     private final SeriesMapper seriesMapper;
+    private final SeriesChapterMapper seriesChapterMapper;
     private final SearchDocumentMapper searchDocumentMapper;
     private final ClientSettingsService clientSettingsService;
     private final ContentCoverService contentCoverService;
@@ -41,6 +45,10 @@ public class ReadingService {
         }
         return readerStateMapper.listRecentByUser(user.getId(), limit).stream()
                 .map(this::toContinueReadingCard)
+                // `toContinueReadingCard` answers null when the series is gone AND no
+                // chapter was recorded. Without this filter that null would be
+                // serialised as a literal `null` entry inside the feed array.
+                .filter(Objects::nonNull)
                 .toList();
     }
 
@@ -142,18 +150,66 @@ public class ReadingService {
     private ContentCardView toContinueReadingCard(SeriesReaderState state) {
         Series series = seriesMapper.selectById(state.getSeriesId());
         if (series != null) {
-            return ContentCardView.builder()
+            ContentCardView card = ContentCardView.builder()
                     .id(series.getId())
                     .objectType("SERIES")
                     .title(series.getTitle())
                     .summary(series.getDescription())
                     .updatedAt(state.getLastReadAt())
                     .build();
+            return withChapterProgress(card, state);
         }
         if (state.getLastReadArticleId() != null) {
             return toContentCard("ARTICLE", state.getLastReadArticleId());
         }
         return null;
+    }
+
+    /**
+     * Adds "how far did I get" to a continue-reading card.
+     *
+     * <p>There is NO percentage anywhere in the schema. {@code series_reader_state}
+     * records only the last-read article and when; {@code series_chapter} only
+     * knows each chapter's ordinal. So progress is expressed in CHAPTERS
+     * ({@code chapterIndex} / {@code chapterCount}) — a client must never render a
+     * percent number, because nothing here can produce an honest one.
+     *
+     * <p>The cover is the LAST-READ CHAPTER's cover, not the series' own (a series
+     * has no cover column at all). That is deliberate: this card exists to resume
+     * the chapter you stopped on, and the label alongside it names that chapter.
+     */
+    private ContentCardView withChapterProgress(ContentCardView card, SeriesReaderState state) {
+        List<SeriesChapter> chapters = seriesChapterMapper.listBySeriesId(state.getSeriesId());
+        if (chapters.isEmpty()) {
+            return card;
+        }
+
+        int index = 0;
+        for (int i = 0; i < chapters.size(); i++) {
+            String articleId = chapters.get(i).getArticleId();
+            if (articleId != null && articleId.equals(state.getLastReadArticleId())) {
+                index = i + 1;
+                break;
+            }
+        }
+
+        String chapterTitle = null;
+        String cover = null;
+        if (index > 0) {
+            SearchDocument document =
+                    searchDocumentMapper.findByObject("ARTICLE", state.getLastReadArticleId());
+            chapterTitle = document == null ? null : document.getTitle();
+            cover = contentCoverService.resolveArticleCoverUrl("ARTICLE", state.getLastReadArticleId());
+        }
+
+        // index == 0 means the recorded chapter is no longer part of the series
+        // (removed or reordered). Report the total only; a guessed index would be wrong.
+        return card.toBuilder()
+                .chapterIndex(index > 0 ? index : null)
+                .chapterCount(chapters.size())
+                .chapterTitle(chapterTitle)
+                .cover(cover)
+                .build();
     }
 
     private ContentCardView toContentCard(String objectType, String objectId) {

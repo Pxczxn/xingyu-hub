@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { topicsApi } from "@/api/topics/topics.api";
-import type { TopicContentSort, TopicSummary } from "@/api/topics/topics.types";
+import type { TopicContentSort, TopicCreatorSummary, TopicSummary } from "@/api/topics/topics.types";
 import type { ContentSummary } from "@/api/common.types";
-import { ContentCard } from "@/components/shared/ContentCard";
 import { PageState } from "@/components/shared/PageState";
+import type { SectionStatus } from "@/components/shared/SectionState";
 import { cn } from "@/lib/cn";
+import { TopicHeader } from "@/features/topics/components/TopicHeader";
+import { TopicContentItem } from "@/features/topics/components/TopicContentItem";
+import { TopicCreatorsPanel } from "@/features/topics/components/TopicCreatorsPanel";
 
 /*
  * Topic detail (Phase 1A).
@@ -24,6 +27,9 @@ export function TopicDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [contentStatus, setContentStatus] = useState<SectionStatus>("loading");
+  const [creators, setCreators] = useState<TopicCreatorSummary[]>([]);
+  const [creatorsStatus, setCreatorsStatus] = useState<SectionStatus>("loading");
 
   useEffect(() => {
     let active = true;
@@ -49,71 +55,81 @@ export function TopicDetailPage() {
   useEffect(() => {
     if (!slug) return;
     let active = true;
+    setContentStatus("loading");
     topicsApi
       .getTopicContent(slug, sort, 12)
       .then((data) => {
-        if (active) setContent(data);
+        if (!active) return;
+        setContent(data);
+        setContentStatus(data.length > 0 ? "ready" : "empty");
       })
       .catch(() => {
-        if (active) setContent([]);
+        if (!active) return;
+        setContent([]);
+        setContentStatus("error");
       });
     return () => {
       active = false;
     };
   }, [slug, sort, topic?.id]);
 
+  useEffect(() => {
+    if (!slug) return;
+    let active = true;
+    setCreatorsStatus("loading");
+    Promise.resolve(topicsApi.getTopicCreators(slug, 8))
+      .then((data) => {
+        if (!active) return;
+        const next = data ?? [];
+        setCreators(next);
+        setCreatorsStatus(next.length > 0 ? "ready" : "empty");
+      })
+      .catch(() => {
+        if (active) setCreatorsStatus("error");
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
   if (loading) return <PageState kind="loading" />;
   if (error) return <PageState kind="error" />;
   if (!topic) return <PageState kind="empty" />;
 
   return (
-    <div className="section-gap">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-primary">{topic.name}</h1>
-          {topic.description ? (
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{topic.description}</p>
-          ) : null}
-          <p className="mt-2 text-xs text-muted-foreground">
-            {topic.followerCount ?? 0} 关注 · {topic.contentCount ?? 0} 内容
-          </p>
-        </div>
+    <div className="section-gap gap-5">
+      <TopicHeader topic={topic} />
 
-        {/*
-          Follow control intentionally NOT rendered.
-          Verified during Phase 1A acceptance: no working topic-follow endpoint
-          (POST/DELETE /api/v1/follows/topics/{id} -> 404). The contract stays in
-          topicsApi; the UI exposes it only once the backend supports it.
-        */}
-      </header>
-
-      <div className="flex items-center gap-2" role="group" aria-label="内容排序">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <main className="min-w-0">
+          <div className="flex items-center gap-5 border-b border-border/70" role="group" aria-label="内容排序">
         {(["latest", "hot"] as TopicContentSort[]).map((key) => (
           <button
             key={key}
             type="button"
             onClick={() => setSort(key)}
             className={cn(
-              "rounded-md px-3 py-1.5 text-sm transition-colors",
+              "border-b-2 px-0 pb-2 text-sm transition-colors",
               sort === key
-                ? "bg-accent text-accent-foreground"
-                : "border border-border bg-card text-foreground hover:bg-muted",
+                ? "border-accent font-medium text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary",
             )}
           >
             {key === "latest" ? "最新" : "热门"}
           </button>
         ))}
-      </div>
+          </div>
 
-      {content.length === 0 ? (
-        <PageState kind="empty" />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="topic-content">
-          {content.map((item) => (
-            <ContentCard key={item.id} item={item} />
-          ))}
-        </div>
-      )}
+          <section className="mt-3 rounded-lg border border-border/50 bg-card/70 px-4" data-testid="topic-content">
+            {contentStatus === "loading" ? <PageState kind="loading" className="border-0 bg-transparent p-4" /> : null}
+            {contentStatus === "error" ? <PageState kind="error" className="border-0 bg-transparent p-4" /> : null}
+            {contentStatus === "empty" ? <PageState kind="empty" className="border-0 bg-transparent p-4" /> : null}
+            {contentStatus === "ready" ? <div>{content.map((item) => <TopicContentItem key={item.id} item={item} />)}</div> : null}
+          </section>
+        </main>
+
+        {creatorsStatus === "ready" ? <TopicCreatorsPanel creators={creators} /> : null}
+      </div>
     </div>
   );
 }

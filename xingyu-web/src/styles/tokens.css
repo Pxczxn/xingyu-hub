@@ -40,6 +40,11 @@
   --ring: 38 92% 50%; /* gold focus ring */
 
   --radius: 0.5rem;
+
+  /* surface hierarchy: keep page, cards, compact rows and media visually distinct */
+  --radius-surface: 0.75rem;
+  --radius-compact: 0.5rem;
+  --radius-media: 0.5rem;
 }
 
 /* Dark shell is out of scope for Phase 0; keep a single light theme. */

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { topicsApi } from "@/api/topics/topics.api";
 import { AuthProvider } from "@/features/auth/auth.store";
@@ -68,31 +68,96 @@ beforeEach(() => {
 describe("topics page", () => {
   it("renders the topic list", async () => {
     renderPage();
-    await waitFor(() => expect(mocked.getTopics).toHaveBeenCalled());
-    expect(await screen.findByText("AI")).toBeInTheDocument();
+    const list = await screen.findByTestId("topic-list");
+    expect(within(list).getByRole("link", { name: /AI/ })).toBeInTheDocument();
   });
 
-  it("filters by keyword", async () => {
+  it("sorts featured topics by real contentCount and excludes zero-count topics", async () => {
     mocked.getTopics.mockResolvedValue([
-      { id: "t1", slug: "ai", name: "AI", contentCount: 1 },
-      { id: "t2", slug: "design", name: "设计", contentCount: 1 },
+      { id: "t1", slug: "ai", name: "AI", contentCount: 2 },
+      { id: "t2", slug: "design", name: "设计", contentCount: 8 },
+      { id: "t3", slug: "empty", name: "空话题", contentCount: 0 },
     ]);
 
     renderPage();
-    await waitFor(() => expect(mocked.getTopics).toHaveBeenCalled());
 
-    expect(await screen.findByText("AI")).toBeInTheDocument();
-    expect(screen.getByText("设计")).toBeInTheDocument();
+    const featured = await screen.findByTestId("featured-topics");
+    const links = within(featured).getAllByRole("link");
+    expect(links[0]).toHaveTextContent("设计");
+    expect(links[1]).toHaveTextContent("AI");
+    expect(within(featured).queryByText("空话题")).not.toBeInTheDocument();
+  });
+
+  it("hides featured topics when every contentCount is zero", async () => {
+    mocked.getTopics.mockResolvedValue([
+      { id: "t1", slug: "empty", name: "空话题", contentCount: 0 },
+    ]);
+
+    renderPage();
+
+    await screen.findByTestId("topic-list");
+    expect(screen.queryByTestId("featured-topics")).not.toBeInTheDocument();
+  });
+
+  it("links each topic to its real slug", async () => {
+    renderPage();
+
+    const list = await screen.findByTestId("topic-list");
+    expect(within(list).getByRole("link", { name: /AI/ })).toHaveAttribute("href", "/topics/ai");
+  });
+
+  it("filters by keyword and hides featured topics while searching", async () => {
+    mocked.getTopics.mockResolvedValue([
+      { id: "t1", slug: "ai", name: "AI", contentCount: 4 },
+      { id: "t2", slug: "design", name: "设计", description: "产品体验", contentCount: 1 },
+    ]);
+
+    renderPage();
+    await screen.findByTestId("featured-topics");
+    fireEvent.change(screen.getByRole("textbox", { name: "搜索话题" }), {
+      target: { value: "设计" },
+    });
+
+    const list = screen.getByTestId("topic-list");
+    expect(within(list).getByRole("link", { name: /设计/ })).toBeInTheDocument();
+    expect(within(list).queryByRole("link", { name: /AI/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("featured-topics")).not.toBeInTheDocument();
+  });
+
+  it("shows a lightweight empty result for an unmatched search", async () => {
+    renderPage();
+    await screen.findByTestId("topic-list");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "搜索话题" }), {
+      target: { value: "不存在" },
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent("没有找到匹配的话题");
   });
 
   it("does NOT expose a follow control (backend endpoint unavailable)", async () => {
     renderPage();
-    await waitFor(() => expect(mocked.getTopics).toHaveBeenCalled());
-    await screen.findByText("AI");
+    await screen.findByTestId("topic-list");
 
     expect(screen.queryByRole("button", { name: "关注" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "已关注" })).not.toBeInTheDocument();
     expect(mocked.followTopic).not.toHaveBeenCalled();
     expect(mocked.unfollowTopic).not.toHaveBeenCalled();
+  });
+
+  it("keeps loading, error and empty states", async () => {
+    mocked.getTopics.mockReturnValueOnce(new Promise(() => {}));
+    const { unmount } = renderPage();
+    expect(screen.getByTestId("page-state-loading")).toBeInTheDocument();
+    unmount();
+
+    mocked.getTopics.mockRejectedValueOnce(new Error("boom"));
+    const errorView = renderPage();
+    expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
+    errorView.unmount();
+
+    mocked.getTopics.mockResolvedValueOnce([]);
+    renderPage();
+    expect(await screen.findByTestId("page-state-empty")).toBeInTheDocument();
   });
 });

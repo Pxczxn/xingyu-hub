@@ -1,19 +1,18 @@
 import { Suspense, useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { PageState } from "@/components/shared/PageState";
+import { UserMenu } from "@/components/shared/UserMenu";
 import {
   Bell,
   BookOpen,
   Compass,
   Hash,
   Home,
-  LogOut,
   Mail,
   Map,
   MessageCircle,
   Orbit,
   PenLine,
-  User as UserIcon,
 } from "lucide-react";
 import { homeApi } from "@/api/home/home.api";
 import { messagesApi } from "@/api/messages/messages.api";
@@ -36,6 +35,11 @@ import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
  * Phase 2I-3 landed the message centre, so the 私信 entry is now a REAL link to
  * /messages with its own unread count. (A stale comment here claimed the inbox
  * was unbuilt and the icon deliberately absent — both had stopped being true.)
+ *
+ * 2026-09-29: the user entry became a MENU (components/shared/UserMenu.tsx) instead of the
+ * fourteen /me/* links that used to sit inline in the header. The prototype's header ends at
+ * 创作 / 通知 / 私信 / 用户菜单, and a wall of links is not a user menu. That component is now
+ * the ONLY entry point for those routes — read its header before changing it.
  */
 
 /*
@@ -159,9 +163,9 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-full flex-col bg-background">
-      <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="content-shell flex items-center gap-3 py-3">
-          <Link to="/" className="text-lg font-semibold text-primary">
+      <header className="sticky top-0 z-30 border-b border-border/80 bg-card/95 backdrop-blur-xl">
+        <div className="content-shell flex items-center gap-3 py-2.5">
+          <Link to="/" className="text-[19px] font-bold tracking-tight text-primary">
             星语
           </Link>
 
@@ -173,7 +177,7 @@ export function AppLayout() {
                   key={item.to}
                   to={item.to}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                    "flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
                     location.pathname === item.to ||
                       (item.to !== "/" && location.pathname.startsWith(`${item.to}/`))
                       ? "bg-primary text-primary-foreground shadow-sm"
@@ -193,7 +197,7 @@ export function AppLayout() {
               name="q"
               placeholder="搜索文章、话题、用户"
               aria-label="搜索"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 w-full rounded-md border border-input/90 bg-muted/30 px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/80 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-ring"
             />
           </form>
 
@@ -246,138 +250,10 @@ export function AppLayout() {
                   ) : null}
                 </Link>
 
-                {/* /api/v1/me does not expose a username, so link to /me, which
-                    resolves the real username via /api/v1/me/profile. Never hardcode. */}
-                <Link
-                  to="/me"
-                  className="flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
-                >
-                  <UserIcon className="h-4 w-4" aria-hidden />
-                  {user?.username ?? "我的主页"}
-                </Link>
-                <Link
-                  to="/me/collections"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  收藏夹
-                </Link>
-                <Link
-                  to="/me/bookshelf"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  书架
-                </Link>
-                {/* Phase 2I-1: the follow graph. Kept next to the other /me
-                    shortcuts; both are RequireAuth, so they only appear here
-                    (this whole block is the signed-in branch). */}
-                <Link
-                  to="/me/following"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  关注
-                </Link>
-                {/* Phase 2I-5: the owner's own moment history. Signed-in only,
-                    like the other /me shortcuts — the public feed is in the
-                    main nav as 动态. */}
-                <Link
-                  to="/me/moments"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  我的动态
-                </Link>
-                {/* Phase 2J-1: the rest of 我的互动. Same slot and same reason as
-                    我的动态 — these are session-scoped trails, so they belong in
-                    the signed-in branch. `/me/history` is intentionally missing:
-                    the backend has no such route. */}
-                <Link
-                  to="/me/likes"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  我的喜欢
-                </Link>
-                <Link
-                  to="/me/comments"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  我的评论
-                </Link>
-                {/* Phase 3A: 徽章成就. Session-scoped like the rest of this
-                    branch — `/me/badges` needs a session and has no public
-                    counterpart (badges are never shown on someone else's
-                    profile). */}
-                <Link
-                  to="/me/badges"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  徽章
-                </Link>
-                {/* Phase 3B: 成长记录. The aggregate view (data + badges + reading
-                    + comments); `/me/badges` remains the badge-only page. */}
-                <Link
-                  to="/me/growth"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  成长
-                </Link>
-                {/* Phase 3C: 关系请求. Only group join requests can appear here
-                    (following is open, so no follow request exists). Session-scoped. */}
-                <Link
-                  to="/me/requests"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  关系请求
-                </Link>
-                {/* Phase 3D: 我的探索. Personal exploration preferences (official
-                    domains + personal labels). Session-scoped. */}
-                <Link
-                  to="/me/interests"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  我的探索
-                </Link>
-                {/* Phase 3E: 我的群聊. Group-only view of the mailbox + creation. */}
-                <Link
-                  to="/me/groups"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  我的群聊
-                </Link>
-                {/* Phase 3I: 收藏的私信. The bookmark store — a sibling of the
-                    mailbox, not a filter of it, because a bookmark outlives the
-                    conversation's position in the list. Session-scoped. */}
-                <Link
-                  to="/messages/saved"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  收藏的私信
-                </Link>
-                {/* Phase 3I: 我加入的星系. The signed-in counterpart of the public
-                    square in the main nav — the square lists every galaxy and
-                    carries no membership flag, so this is the only place that
-                    answers "which ones did I join". */}
-                <Link
-                  to="/me/galaxies"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  我的星系
-                </Link>
-                {/* Phase 2J-2: 举报与申诉. Session-scoped like the rest of this
-                    branch. The public 社区规则 link stays in the footer next to
-                    the other informational links. */}
-                <Link
-                  to="/reports"
-                  className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-                >
-                  举报与申诉
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => void logout()}
-                  className="flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <LogOut className="h-4 w-4" aria-hidden />
-                  退出
-                </button>
+                {/* The user entry is a MENU, not a row of links — the prototype's 用户菜单.
+                    Every destination it holds lives in UserMenu, which is their ONLY entry
+                    point; read the note there before removing anything. */}
+                <UserMenu username={user?.username ?? "我的主页"} onLogout={() => void logout()} />
               </div>
             ) : (
               <div className="flex items-center gap-2">

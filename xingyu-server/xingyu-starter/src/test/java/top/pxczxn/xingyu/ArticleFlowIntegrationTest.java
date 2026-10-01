@@ -14,8 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -29,6 +29,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ArticleFlowIntegrationTest {
+
+    /**
+     * The session-token header name for BOTH the admin and the community API.
+     *
+     * <p>V001 seeded {@code sys_config_group.security.tokenName = "Authorization"}, but
+     * {@code V027__align_community_token_header.sql} changed it to {@code "satoken"}.
+     * This test kept sending {@code Authorization}, so every admin call answered 200 with a
+     * {@code Result} body carrying {@code code: 401} — and because the queue parse below then
+     * found no submission, the test returned early and still passed. It asserted nothing
+     * about publishing for as long as that lasted.
+     */
+    private static final String ADMIN_TOKEN_HEADER = "satoken";
 
     @Autowired
     private MockMvc mockMvc;
@@ -98,21 +110,30 @@ class ArticleFlowIntegrationTest {
                 .andExpect(status().isOk());
 
         MvcResult queueResult = mockMvc.perform(get("/api/v1/admin/review/queue")
-                        .header("Authorization", adminToken()))
+                        .header(ADMIN_TOKEN_HEADER, adminToken()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        JsonNode queue = objectMapper.readTree(queueResult.getResponse().getContentAsString());
-        assertNotNull(queue);
-        String submissionId = queue.isArray() && queue.size() > 0
-                ? queue.get(0).get("submissionId").asText()
-                : null;
-        if (submissionId == null) {
-            return;
+        // The admin API wraps every payload in Result<T>, so the list lives under `data`.
+        // Parsing it as a bare array silently yields no submission — which is exactly how
+        // this test used to skip its own publish step and still report green.
+        JsonNode queueBody = objectMapper.readTree(queueResult.getResponse().getContentAsString());
+        JsonNode queue = queueBody.isArray() ? queueBody : queueBody.path("data");
+        assertTrue(queue.isArray(), "审核队列响应不是数组：" + queueBody);
+
+        // Match by articleId instead of taking element 0 — the queue can hold submissions
+        // left behind by earlier runs.
+        String submissionId = null;
+        for (JsonNode item : queue) {
+            if (articleId.equals(item.path("articleId").asText(null))) {
+                submissionId = item.path("submissionId").asText(null);
+                break;
+            }
         }
+        assertNotNull(submissionId, "审核队列里找不到本次提交的文章：" + articleId);
 
         mockMvc.perform(post("/api/v1/admin/review/" + submissionId + "/decide")
-                        .header("Authorization", adminToken())
+                        .header(ADMIN_TOKEN_HEADER, adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"APPROVED\",\"comment\":\"ok\"}"))
                 .andExpect(status().isOk());

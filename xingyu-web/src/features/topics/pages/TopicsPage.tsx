@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { topicsApi } from "@/api/topics/topics.api";
 import type { TopicSummary } from "@/api/topics/topics.types";
-import { Input } from "@/components/ui/input";
 import { PageState } from "@/components/shared/PageState";
-import { PageHero } from "@/components/shared/PageHero";
+import { TopicsHero } from "@/features/topics/components/TopicsHero";
+import { FeaturedTopics } from "@/features/topics/components/FeaturedTopics";
+import { TopicCard } from "@/features/topics/components/TopicCard";
 
 /*
  * Topics plaza (Phase 1A).
@@ -53,55 +53,55 @@ export function TopicsPage() {
     );
   }, [topics, keyword]);
 
+  const featuredTopics = useMemo(
+    () =>
+      topics
+        .filter((topic) => (topic.contentCount ?? 0) > 0)
+        .map((topic, index) => ({ topic, index }))
+        .sort(
+          (a, b) => (b.topic.contentCount ?? 0) - (a.topic.contentCount ?? 0) || a.index - b.index,
+        )
+        .slice(0, 6)
+        .map(({ topic }) => topic),
+    [topics],
+  );
+
+  const searching = keyword.trim().length > 0;
+
   return (
-    <div className="section-gap">
-      <PageHero
-        eyebrow="TOPICS"
-        title="话题广场"
-        description="用一个关键词，连接正在发生的讨论与同频的人。"
-        tone="violet"
-      />
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          placeholder="搜索话题"
-          aria-label="搜索话题"
-          className="sm:max-w-xs"
-        />
-      </header>
+    <div className="section-gap gap-7">
+      <TopicsHero keyword={keyword} onKeywordChange={setKeyword} />
 
       {loading ? <PageState kind="loading" /> : null}
       {!loading && error ? <PageState kind="error" /> : null}
-      {!loading && !error && visible.length === 0 ? <PageState kind="empty" /> : null}
+      {!loading && !error && topics.length === 0 ? <PageState kind="empty" /> : null}
 
-      {!loading && !error && visible.length > 0 ? (
-        <ul className="grid gap-3 sm:grid-cols-2" data-testid="topic-list">
-          {visible.map((topic) => (
-            <li
-              key={topic.id}
-              className="flex items-center gap-3 rounded-lg border border-border bg-card p-4"
-            >
-              <div className="min-w-0 flex-1">
-                <Link
-                  to={`/topics/${topic.slug}`}
-                  className="block truncate text-sm font-medium hover:text-accent"
-                >
-                  {topic.name}
-                </Link>
-                {topic.description ? (
-                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                    {topic.description}
-                  </p>
-                ) : null}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {topic.followerCount ?? 0} 关注 · {topic.contentCount ?? 0} 内容
-                </p>
+      {!loading && !error && topics.length > 0 ? (
+        <>
+          {!searching ? <FeaturedTopics topics={featuredTopics} /> : null}
+          <section aria-labelledby="all-topics">
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <h2 id="all-topics" className="text-lg font-semibold tracking-tight text-primary">
+                全部话题
+              </h2>
+              <span className="text-sm text-muted-foreground">共 {visible.length} 个</span>
+            </div>
+            {visible.length > 0 ? (
+              <ul className="grid grid-cols-3 gap-x-6" data-testid="topic-list">
+                {visible.map((topic) => (
+                  <TopicCard key={topic.id} topic={topic} />
+                ))}
+              </ul>
+            ) : (
+              <div
+                role="status"
+                className="rounded-lg border border-border/70 bg-card/70 p-4 text-sm text-muted-foreground"
+              >
+                没有找到匹配的话题
               </div>
-              {/* Follow control intentionally NOT rendered — see note below. */}
-            </li>
-          ))}
-        </ul>
+            )}
+          </section>
+        </>
       ) : null}
     </div>
   );

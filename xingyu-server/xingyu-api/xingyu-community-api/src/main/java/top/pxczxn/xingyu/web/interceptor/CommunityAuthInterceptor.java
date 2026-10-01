@@ -28,6 +28,11 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (isPublicRead(request)) {
+            // A public read can still be made BY a signed-in user, and some of these endpoints
+            // are viewer-dependent (bookmark status is true only for the viewer who saved it).
+            // Populate the context when a token is present, and carry on as a guest when it is
+            // not — refusing here would break the guest case these endpoints exist for.
+            populateContextIfPresent(request);
             return true;
         }
         String token = request.getHeader("satoken");
@@ -45,6 +50,28 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    /**
+     * Best-effort session resolution for endpoints that also serve guests.
+     *
+     * <p>An absent, invalid or expired token is NOT an error here — the endpoint is allowed to
+     * answer without one — so the request simply continues as a guest.
+     */
+    private void populateContextIfPresent(HttpServletRequest request) {
+        String token = request.getHeader("satoken");
+        if (token == null || token.isBlank()) {
+            return;
+        }
+        try {
+            CommunitySession session = accountService.requireActiveSession(token);
+            CommunityUser user = userMapper.selectById(session.getUserId());
+            if (user != null) {
+                CommunityAuthContext.set(user, session);
+            }
+        } catch (Exception ignored) {
+            // Treat an unusable token as "not signed in" rather than failing a public read.
+        }
+    }
+
     private boolean isPublicRead(HttpServletRequest request) {
         if (!"GET".equalsIgnoreCase(request.getMethod())) {
             return false;
@@ -52,7 +79,17 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
         String uri = request.getRequestURI();
         return "/api/v1/moments".equals(uri)
                 || uri.startsWith("/api/v1/moments/")
-                || "/api/v1/me/home".equals(uri);
+                || "/api/v1/me/home".equals(uri)
+                // The guest home endpoint. It serves signed-out readers, but for a signed-in
+                // one it must still report the session's unread count and the viewer's
+                // bookmark state — so it is "public, but carry the identity if there is one".
+                // Without this the notification badge was permanently 0.
+                || "/api/v1/home".equals(uri)
+                // Viewer-dependent, but answerable for a guest (false). Without this the
+                // interceptor never ran for the route, the context stayed empty, and the
+                // endpoint answered `bookmarked: false` for EVERYONE — including the user who
+                // had just bookmarked the object.
+                || "/api/v1/bookmarks/status".equals(uri);
     }
 
     private boolean isPasswordChangeAllowed(HttpServletRequest request) {

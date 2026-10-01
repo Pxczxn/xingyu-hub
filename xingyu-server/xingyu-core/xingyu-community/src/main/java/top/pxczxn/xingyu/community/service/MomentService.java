@@ -10,6 +10,7 @@ import top.pxczxn.xingyu.community.entity.MomentRevision;
 import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.MomentRevisionMapper;
 import top.pxczxn.xingyu.community.config.CommunityProperties;
+import top.pxczxn.xingyu.community.support.CommunityEventSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class MomentService {
     private final MomentMapper momentMapper;
     private final MomentRevisionMapper momentRevisionMapper;
     private final CommunityProperties communityProperties;
+    private final CommunityEventSupport eventSupport;
 
     public List<MomentView> listPublished(int limit) {
         if (limit <= 0) {
@@ -75,6 +77,7 @@ public class MomentService {
         revision.setRevisionNumber(1);
         revision.setCreatedAt(now);
         momentRevisionMapper.insert(revision);
+        publishMomentChanged(moment);
         return toView(moment);
     }
 
@@ -107,6 +110,7 @@ public class MomentService {
         momentRevisionMapper.insert(revision);
         moment.setUpdatedAt(now);
         momentMapper.updateById(moment);
+        publishMomentChanged(moment);
         return toView(moment);
     }
 
@@ -119,7 +123,29 @@ public class MomentService {
         moment.setStatus("TRASHED");
         moment.setUpdatedAt(Instant.now());
         momentMapper.updateById(moment);
+        publishMomentChanged(moment);
         return toView(moment);
+    }
+
+    /**
+     * Queues a moment index refresh.
+     *
+     * <p>⚠️ LENGTH MATTERS. `reliable_event.event_id` is varchar(64) and a moment id alone is
+     * 36 characters, so the prefix has to stay short. A first cut used
+     * {@code "moment-changed:" + id + ":" + epochMilli} = 65 characters, which made MySQL
+     * reject the insert and turned every moment creation into a 500.
+     *
+     * <p>The event id is keyed on `updatedAt`, which every mutation (publish / update / trash)
+     * bumps, so distinct mutations produce distinct events while a retry of the same mutation
+     * is deduplicated by the outbox.
+     */
+    private void publishMomentChanged(Moment moment) {
+        long stamp = moment.getUpdatedAt() == null ? 0L : moment.getUpdatedAt().toEpochMilli();
+        eventSupport.publishContentEvent(
+                "moment:" + moment.getId() + ":" + stamp,
+                CommunityEventSupport.MOMENT_CHANGED,
+                CommunityEventSupport.AGGREGATE_TYPE_MOMENT,
+                moment.getId());
     }
 
     private MomentView toView(Moment moment) {
