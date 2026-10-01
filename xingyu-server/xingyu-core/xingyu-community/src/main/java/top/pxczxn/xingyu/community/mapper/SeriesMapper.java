@@ -17,6 +17,10 @@ public interface SeriesMapper extends BaseMapper<Series> {
             """)
     List<Series> listByOwnerId(String ownerId);
 
+    /** Every series that belongs in the public index (bulk form, for a rebuild). */
+    @Select("SELECT id FROM series WHERE status = 'ACTIVE'")
+    List<String> listIndexableIds();
+
     @Select("""
             SELECT * FROM series
             WHERE status = 'ACTIVE'

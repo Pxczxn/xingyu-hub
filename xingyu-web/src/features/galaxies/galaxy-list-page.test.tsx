@@ -84,6 +84,29 @@ describe("GalaxyListPage", () => {
     expect(mocked.list).toHaveBeenCalledTimes(1);
   });
 
+  it("filters by slug and presents a unified search result section", async () => {
+    mocked.list.mockResolvedValue(GALAXIES);
+    renderList();
+
+    const input = await screen.findByLabelText("搜索星系");
+    const { default: userEvent } = await import("@testing-library/user-event");
+    await userEvent.setup().type(input, "xingyu-official");
+
+    expect(screen.getByRole("heading", { name: "搜索结果" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /星语/ })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "官方星系" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "社区星系" })).not.toBeInTheDocument();
+  });
+
+  it("hides an empty official or community section", async () => {
+    mocked.list.mockResolvedValue([GALAXIES[0]]);
+    renderList();
+
+    expect(await screen.findByRole("heading", { name: "官方星系" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "社区星系" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /加入/ })).not.toBeInTheDocument();
+  });
+
   it("shows a no-match state when the filter matches nothing", async () => {
     mocked.list.mockResolvedValue(GALAXIES);
     renderList();

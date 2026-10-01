@@ -19,9 +19,21 @@
 }
 
 @layer components {
-  /* Shared content container per design system: max-w-6xl, comfortable padding. */
+  .surface-card {
+    @apply rounded-xl border border-border/70 bg-card;
+  }
+
+  .surface-compact {
+    @apply rounded-lg border border-border/60 bg-card/80;
+  }
+
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  /* Shared shell: 90% of the viewport, capped for ultra-wide screens. */
   .content-shell {
-    @apply mx-auto w-full max-w-content px-4 py-6 md:px-6 md:py-8;
+    @apply mx-auto w-[90%] max-w-[1440px] px-4 py-6 md:px-6 md:py-8;
   }
   .section-gap {
     @apply flex flex-col gap-6;

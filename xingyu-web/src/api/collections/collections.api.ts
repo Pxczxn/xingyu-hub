@@ -4,7 +4,9 @@
  * VERIFIED live 2026-09-24:
  *   list/create/rename/visibility/delete work
  *   GET /collections/{id} is 200 for PUBLIC (anyone) and owner PRIVATE/UNLISTED
- *   item add / bookmark stay HIDDEN — wrappers are not provided
+ *   item add / bookmark stay HIDDEN — wrappers are not provided. The reason is NOT a broken
+ *   endpoint: nothing is written to `search_document`, so `validateObject` 404s every object.
+ *   See the header note in `interactions.api.ts`.
  */
 import { apiRequest } from "@/api/client";
 import type {

@@ -130,6 +130,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '缓存监控', icon: 'ServerOutline' }
       },
       {
+        path: 'monitor/search-index',
+        name: 'MonitorSearchIndex',
+        component: () => import('@/views/monitor/search-index/index.vue'),
+        meta: { title: '搜索索引', icon: 'SearchOutline' }
+      },
+      {
         path: 'monitor/api-access',
         name: 'MonitorApiAccess',
         component: () => import('@/views/monitor/api-access/index.vue'),

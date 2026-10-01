@@ -24,7 +24,22 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+/**
+ * The home composition endpoint pair ({@code GET /home} for guests,
+ * {@code GET /me/home} for members).
+ *
+ * <p>Every rail is assembled here and then handed to
+ * {@link HomeFeedEnrichmentService} in a SINGLE pass. The mappers below only
+ * know what {@code search_document} carries, so without that pass the cards
+ * would render with no author, no avatar, no counters and no tags — and doing
+ * the lookups rail-by-rail would multiply the query count for no benefit.
+ *
+ * <p>{@code draftArticles} is deliberately NOT enriched: a draft is not in
+ * {@code search_document}, so it has no public counters, and rendering "0 赞"
+ * next to an unpublished draft would be noise rather than information.
+ */
 @Service
 @RequiredArgsConstructor
 public class HomeService {
@@ -39,25 +54,33 @@ public class HomeService {
     private final ReadingService readingService;
     private final RecommendationService recommendationService;
     private final ContentCoverService contentCoverService;
+    private final HomeFeedEnrichmentService enrichmentService;
 
     public HomeCompositionView compose(CommunityUser user) {
         long unread = user == null ? 0L : notificationMapper.countUnread(user.getId());
         List<SearchResultView> discoveries = toSearchViews(searchDocumentMapper.listActiveByHot(10));
-        List<SearchResultView> followingUpdates = new ArrayList<>();
-        if (user != null) {
-            followingUpdates = followingUpdatesFor(user);
-        }
+        List<SearchResultView> followingUpdates = user == null ? List.of() : followingUpdatesFor(user);
+
+        // One enrichment pass across both rails — see HomeFeedEnrichmentService.
+        List<HomeFeedEnrichmentService.FeedObject> refs = new ArrayList<>();
+        refs.addAll(HomeFeedEnrichmentService.refsOfViews(discoveries));
+        refs.addAll(HomeFeedEnrichmentService.refsOfViews(followingUpdates));
+        // The guest endpoint serves signed-in users too (AppLayout counts unread from it), so
+        // pass the viewer when there is one — `bookmarked` is viewer-scoped.
+        Map<String, HomeFeedEnrichmentService.Presentation> enrichment =
+                enrichmentService.enrich(refs, user == null ? null : user.getId());
+
         return HomeCompositionView.builder()
                 .unreadNotifications(unread)
                 .continueReading(List.of())
-                .followingUpdates(followingUpdates)
-                .discoveries(discoveries)
+                .followingUpdates(enrichmentService.applyViews(followingUpdates, enrichment))
+                .discoveries(enrichmentService.applyViews(discoveries, enrichment))
                 .build();
     }
 
     public MeHomeView composeForMe(CommunityUser user) {
         List<ContentCardView> continueReading = readingService.continueReading(user, 10);
-        List<ContentCardView> followUpdates = compose(user).getFollowingUpdates().stream()
+        List<ContentCardView> followUpdates = followingUpdatesFor(user).stream()
                 .map(this::toContentCard)
                 .toList();
         List<ContentCardView> recommendations = recommendationService.recommend(user, 12).getItems();
@@ -87,10 +110,19 @@ public class HomeService {
                         "/studio/reviewing"));
             }
         }
+
+        // One enrichment pass across all three content rails.
+        List<HomeFeedEnrichmentService.FeedObject> refs = new ArrayList<>();
+        refs.addAll(HomeFeedEnrichmentService.refsOfCards(continueReading));
+        refs.addAll(HomeFeedEnrichmentService.refsOfCards(followUpdates));
+        refs.addAll(HomeFeedEnrichmentService.refsOfCards(recommendations));
+        Map<String, HomeFeedEnrichmentService.Presentation> enrichment =
+                enrichmentService.enrich(refs, user.getId());
+
         return MeHomeView.builder()
-                .continueReading(continueReading)
-                .followUpdates(followUpdates)
-                .recommendations(recommendations)
+                .continueReading(enrichmentService.applyCards(continueReading, enrichment))
+                .followUpdates(enrichmentService.applyCards(followUpdates, enrichment))
+                .recommendations(enrichmentService.applyCards(recommendations, enrichment))
                 .draftArticles(draftArticles)
                 .pendingActions(pendingActions)
                 .build();
@@ -140,10 +172,16 @@ public class HomeService {
             limit = 20;
         }
         List<ContentCardView> items = recommendationService.recommend(null, limit).getItems();
+        // Same enrichment the home rails get. `ContentCard` renders `authorName`, so without
+        // this the discover grid shows anonymous cards while the home feed shows authors —
+        // the same content, described two different ways.
+        // No viewer here: /discover is a public endpoint and takes no session.
+        List<ContentCardView> enriched = enrichmentService.applyCards(
+                items, enrichmentService.enrich(HomeFeedEnrichmentService.refsOfCards(items), null));
         return PageResultView.<ContentCardView>builder()
-                .items(items)
+                .items(enriched)
                 .nextCursor(null)
-                .total((long) items.size())
+                .total((long) enriched.size())
                 .build();
     }
 
@@ -158,6 +196,9 @@ public class HomeService {
                 .title(doc.getTitle())
                 .summary(doc.getSummary())
                 .cover(contentCoverService.resolveCoverUrl(doc))
+                // `indexedAt` is the only timestamp this document carries; SearchService
+                // already treats it as the hit's updatedAt, so the two surfaces agree.
+                .updatedAt(doc.getIndexedAt() == null ? null : doc.getIndexedAt().toString())
                 .build();
     }
 
@@ -168,17 +209,6 @@ public class HomeService {
                 .title(view.getTitle())
                 .summary(view.getSummary())
                 .cover(view.getCover())
-                .build();
-    }
-
-    private ContentCardView toContentCard(SearchDocument doc) {
-        return ContentCardView.builder()
-                .id(doc.getObjectId())
-                .objectType(doc.getObjectType())
-                .title(doc.getTitle())
-                .summary(doc.getSummary())
-                .cover(contentCoverService.resolveCoverUrl(doc))
-                .updatedAt(doc.getIndexedAt())
                 .build();
     }
 }

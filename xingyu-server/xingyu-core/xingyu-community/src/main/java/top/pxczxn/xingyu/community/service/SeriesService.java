@@ -15,6 +15,7 @@ import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesChapterMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
+import top.pxczxn.xingyu.community.support.CommunityEventSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class SeriesService {
     private final SeriesChapterMapper chapterMapper;
     private final ArticleMapper articleMapper;
     private final SearchDocumentMapper searchDocumentMapper;
+    private final CommunityEventSupport eventSupport;
 
     public List<SeriesSummaryView> listForOwner(CommunityUser user) {
         return seriesMapper.listByOwnerId(user.getId()).stream()
@@ -75,6 +77,7 @@ public class SeriesService {
         series.setCreatedAt(now);
         series.setUpdatedAt(now);
         seriesMapper.insert(series);
+        publishSeriesChanged(series);
         return toView(series, List.of());
     }
 
@@ -127,7 +130,24 @@ public class SeriesService {
         if (body.containsKey("chapterArticleIds")) {
             syncChapters(series, body.get("chapterArticleIds"));
         }
+        publishSeriesChanged(series);
         return toView(series, chapterMapper.listBySeriesId(seriesId));
+    }
+
+    /**
+     * Queues a series index refresh.
+     *
+     * <p>The event id includes the lock version, which is bumped on every update — so two
+     * distinct edits produce two events, while a retried publish of the same version is
+     * deduplicated by the outbox. Creation starts at version 0.
+     */
+    private void publishSeriesChanged(Series series) {
+        long version = series.getLockVersion() == null ? 0L : series.getLockVersion();
+        eventSupport.publishContentEvent(
+                "series-changed:" + series.getId() + ":" + version,
+                CommunityEventSupport.SERIES_CHANGED,
+                CommunityEventSupport.AGGREGATE_TYPE_SERIES,
+                series.getId());
     }
 
     private void syncChapters(Series series, Object raw) {

@@ -1,13 +1,16 @@
 package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import top.pxczxn.xingyu.community.dto.ArticleTopicNameRow;
 import top.pxczxn.xingyu.community.dto.TopicOwnerStat;
 import top.pxczxn.xingyu.community.entity.ArticleTopic;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.Collection;
 import java.util.List;
 
 @Mapper
@@ -15,6 +18,28 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
 
     @Select("SELECT * FROM article_topic WHERE article_id = #{articleId}")
     List<ArticleTopic> listByArticleId(String articleId);
+
+    /**
+     * Topic names for many articles in one round trip, for feed tags.
+     *
+     * <p>Topics are the ONLY tag source this codebase has — there is no free-form
+     * tag column — so a feed tag is literally "a topic this article was filed
+     * under". Articles with no topics are absent from the result; callers must
+     * treat that as "no tags", not as "unknown".
+     *
+     * <p>Callers must pass a non-empty list; an empty IN () is invalid SQL.
+     */
+    @Select("""
+            <script>
+            SELECT at.article_id AS articleId, t.name AS name
+            FROM article_topic at
+            INNER JOIN topic t ON t.id = at.topic_id
+            WHERE at.article_id IN
+            <foreach collection='articleIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            ORDER BY at.article_id ASC, t.name ASC
+            </script>
+            """)
+    List<ArticleTopicNameRow> listTopicNamesByArticleIds(@Param("articleIds") Collection<String> articleIds);
 
     @Select("SELECT * FROM article_topic WHERE topic_id = #{topicId}")
     List<ArticleTopic> listByTopicId(String topicId);

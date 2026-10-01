@@ -57,4 +57,12 @@ public interface ReliableEventMapper {
             WHERE id = #{id}
             """)
     int updateOutcome(ReliableEvent event);
+
+    /**
+     * How many events sit in a given status — the backlog / dead-letter read behind the
+     * index health view. Read-only and unbounded on purpose: an operator needs the real
+     * number, not a sample.
+     */
+    @Select("SELECT COUNT(*) FROM reliable_event WHERE status = #{status}")
+    long countByStatus(String status);
 }

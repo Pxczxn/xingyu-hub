@@ -42,9 +42,6 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      maxWidth: {
-        content: "72rem", // max-w-6xl for main community pages
-      },
       fontFamily: {
         sans: [
           "ui-sans-serif",

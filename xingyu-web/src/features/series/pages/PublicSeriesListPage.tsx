@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { seriesApi } from "@/api/series/series.api";
 import type { PublicSeriesSummary } from "@/api/series/series.types";
 import { PageState } from "@/components/shared/PageState";
-import { Button } from "@/components/ui/button";
-import { formatUpdatedAt, seriesStatusLabel } from "../series-labels";
 import { PageHero } from "@/components/shared/PageHero";
+import { SeriesDirectoryItem } from "../components/SeriesDirectoryItem";
 
 type LoadState = "loading" | "error" | "ready";
 
@@ -59,7 +57,8 @@ export function PublicSeriesListPage() {
       <PageHero
         eyebrow="SERIES"
         title="系列广场"
-        description="沿着一条主题线索，慢慢读完一个完整的故事。"
+        description="沿着一条主题线索，完整读完一个系列。"
+        compact
       />
 
       {items.length === 0 ? (
@@ -70,55 +69,43 @@ export function PublicSeriesListPage() {
         />
       ) : (
         <>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-5 border-b border-border/70" role="group" aria-label="系列排序">
             {(
               [
                 ["default", "全部系列"],
                 ["recent", "最近更新"],
               ] as const
             ).map(([mode, label]) => (
-              <Button
+              <button
                 key={mode}
-                variant={sort === mode ? "primary" : "outline"}
-                size="sm"
+                type="button"
                 onClick={() => setSort(mode)}
+                className={
+                  sort === mode
+                    ? "border-b-2 border-accent pb-2 text-sm font-medium text-primary"
+                    : "border-b-2 border-transparent pb-2 text-sm text-muted-foreground transition-colors hover:text-primary"
+                }
               >
                 {label}
-              </Button>
+              </button>
             ))}
           </div>
 
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {visible.map((item) => (
-              <li key={item.id}>
-                <Link
-                  to={`/series/${encodeURIComponent(item.id)}`}
-                  className="block rounded-lg border border-border bg-card p-4 hover:border-accent"
-                >
-                  <p className="text-sm font-medium text-foreground">{item.title}</p>
-                  {item.description ? (
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                      {item.description}
-                    </p>
-                  ) : null}
-                  <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>{seriesStatusLabel(item.status)}</span>
-                    <span>{`${item.chapterCount} 篇文章`}</span>
-                    <span>{formatUpdatedAt(item.updatedAt)}</span>
-                  </p>
-                </Link>
-              </li>
+          <ul className="rounded-xl border border-border/60 bg-card/70 px-4 sm:px-5">
+            {visible.map((item, index) => (
+              <SeriesDirectoryItem key={item.id} item={item} index={index} />
             ))}
           </ul>
 
           {items.length > visibleCount ? (
             <div className="text-center">
-              <Button
-                variant="outline"
+              <button
+                type="button"
+                className="rounded-md border border-border bg-card px-4 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
               >
                 加载更多系列
-              </Button>
+              </button>
             </div>
           ) : null}
         </>

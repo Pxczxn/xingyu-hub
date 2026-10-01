@@ -18,6 +18,10 @@ public interface MomentMapper extends BaseMapper<Moment> {
             """)
     List<Moment> listPublished(int limit);
 
+    /** Every moment that belongs in the public index (bulk form, for a rebuild). */
+    @Select("SELECT id FROM moment WHERE status = 'PUBLISHED'")
+    List<String> listIndexableIds();
+
     @Select("""
             SELECT * FROM moment
             WHERE author_id = #{authorId} AND status = 'PUBLISHED'

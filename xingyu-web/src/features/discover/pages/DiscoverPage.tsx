@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { discoverApi } from "@/api/discover/discover.api";
-import type { ExploreNav } from "@/api/discover/discover.types";
 import type { ContentSummary } from "@/api/common.types";
-import { ContentCard } from "@/components/shared/ContentCard";
+import type { TopicSummary } from "@/api/topics/topics.types";
+import { topicsApi } from "@/api/topics/topics.api";
 import { PageState } from "@/components/shared/PageState";
-import { PageHero } from "@/components/shared/PageHero";
+import type { SectionStatus } from "@/components/shared/SectionState";
+import { DiscoverHero } from "@/features/discover/components/DiscoverHero";
+import { ExploreTopics } from "@/features/discover/components/ExploreTopics";
+import { DiscoverFocusGrid } from "@/features/discover/components/DiscoverFocusGrid";
 
 /*
  * Discover (Phase 1A, revised after live acceptance).
@@ -13,25 +16,27 @@ import { PageHero } from "@/components/shared/PageHero";
  * The previous /api/v1/explore/feed call returns 500 INTERNAL_ERROR on the
  * current backend, so it is not used.
  *
- * /api/v1/discover/nav is fetched only for the section copy. Its domain/sort
- * tabs are deliberately NOT rendered as filters: the backend ignores those
- * query params on /api/v1/discover, so showing them would be fake controls.
+ * The discover nav endpoint exposes domain/sort tabs, but they are deliberately
+ * not rendered: the current discover endpoint does not honour those filters.
  */
 export function DiscoverPage() {
-  const [nav, setNav] = useState<ExploreNav | null>(null);
+  const [topics, setTopics] = useState<TopicSummary[]>([]);
+  const [topicsStatus, setTopicsStatus] = useState<SectionStatus>("loading");
   const [items, setItems] = useState<ContentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     let active = true;
-    discoverApi
-      .getDiscoverNav()
+    topicsApi
+      .getTopics()
       .then((data) => {
-        if (active) setNav(data);
+        if (!active) return;
+        setTopics(data);
+        setTopicsStatus(data.length > 0 ? "ready" : "empty");
       })
       .catch(() => {
-        /* nav copy is optional */
+        if (active) setTopicsStatus("error");
       });
     return () => {
       active = false;
@@ -60,25 +65,15 @@ export function DiscoverPage() {
   }, []);
 
   return (
-    <div className="section-gap">
-      <PageHero
-        eyebrow="EXPLORE"
-        title={nav?.sectionTitle ?? "发现"}
-        description={nav?.feedHint ?? "从新的内容、作者与观点开始，找到下一颗值得停留的星。"}
-        tone="blue"
-      />
+    <div className="section-gap gap-5">
+      <DiscoverHero />
+      <ExploreTopics status={topicsStatus} topics={topics} />
 
       {loading ? <PageState kind="loading" /> : null}
       {!loading && error ? <PageState kind="error" /> : null}
       {!loading && !error && items.length === 0 ? <PageState kind="empty" /> : null}
 
-      {!loading && !error && items.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="discover-results">
-          {items.map((item) => (
-            <ContentCard key={item.id} item={item} />
-          ))}
-        </div>
-      ) : null}
+      {!loading && !error && items.length > 0 ? <DiscoverFocusGrid items={items} /> : null}
     </div>
   );
 }
