@@ -530,8 +530,47 @@ public class ConversationService {
                 .announcementUpdatedAt(conversation.getAnnouncementUpdatedAt())
                 .joinMode(conversation.getJoinMode() == null ? JOIN_OPEN : conversation.getJoinMode())
                 .myRole(member == null ? null : member.getRole())
+                .counterpartDisplayName(resolveCounterpartDisplayName(conversation, userId))
                 .messages(messages)
                 .build();
+    }
+
+    /**
+     * Display name of the OTHER participant in a DIRECT conversation, or null.
+     *
+     * Why the client needs it: a DIRECT conversation carries no {@code title}, so
+     * the mailbox row and the thread header had nothing to show but 「私信」. On
+     * the thread screen that is also the page heading, so the reader saw the same
+     * word twice and never learned who they were talking to.
+     *
+     * Returns null for GROUP conversations — their title IS the group name — and
+     * null when the counterpart's profile cannot be read, so the client falls
+     * back to its own label instead of rendering a blank.
+     *
+     * Cost: two extra lookups per DIRECT conversation (members, then profile).
+     * The caller already performs three per conversation (member, last message,
+     * unread count), so this does not introduce a new class of problem — but it
+     * does mean a mailbox of N conversations is 5N queries, and this loop is the
+     * obvious place to batch if that ever becomes the bottleneck.
+     */
+    private String resolveCounterpartDisplayName(Conversation conversation, String userId) {
+        if (!"DIRECT".equals(conversation.getType())) {
+            return null;
+        }
+        return memberMapper.listByConversationId(conversation.getId()).stream()
+                .filter(m -> !userId.equals(m.getUserId()))
+                .findFirst()
+                .map(other -> {
+                    CommunityProfile profile = profileMapper.findByUserId(other.getUserId());
+                    if (profile == null) {
+                        return other.getUserId();
+                    }
+                    String displayName = profile.getDisplayName();
+                    return displayName == null || displayName.isBlank()
+                            ? profile.getUsername()
+                            : displayName;
+                })
+                .orElse(null);
     }
 
     private GroupJoinRequestView toJoinRequestView(GroupJoinRequest request) {

@@ -121,6 +121,43 @@ describe("conversationLabel", () => {
     expect(conversationLabel(makeConversation({ title: "" }))).toBe("私信");
     expect(conversationLabel(makeConversation({ type: "GROUP", title: "  " }))).toBe("未命名群聊");
   });
+
+  /*
+   * Added 2026-10-03 with the backend's `counterpartDisplayName`. Before it,
+   * every direct surface printed 「私信」 — and on the thread screen that was also
+   * the page heading, so the reader saw the same word twice and never learned
+   * who they were talking to.
+   */
+  it("prefers the counterpart name for a DIRECT conversation", () => {
+    expect(
+      conversationLabel(
+        makeConversation({ type: "DIRECT", title: null, counterpartDisplayName: "爱丽丝" }),
+      ),
+    ).toBe("爱丽丝");
+  });
+
+  it("still prefers a real title over the counterpart name", () => {
+    // A titled conversation keeps its title; the counterpart field is a fallback,
+    // not an override.
+    expect(
+      conversationLabel(
+        makeConversation({ type: "DIRECT", title: "读书会", counterpartDisplayName: "爱丽丝" }),
+      ),
+    ).toBe("读书会");
+  });
+
+  it("ignores a blank counterpart name", () => {
+    expect(
+      conversationLabel(
+        makeConversation({ type: "DIRECT", title: null, counterpartDisplayName: "  " }),
+      ),
+    ).toBe("私信");
+  });
+
+  it("tolerates a backend that has not shipped the field yet", () => {
+    // Additive field: the frontend must be deployable ahead of the server.
+    expect(conversationLabel(makeConversation({ type: "DIRECT", title: null }))).toBe("私信");
+  });
 });
 
 describe("sortBySequence / mergeMessages", () => {

@@ -130,6 +130,14 @@ export type Conversation = {
    * this must stay nullable rather than being normalised to "".
    */
   title: string | null;
+  /**
+   * Display name of the OTHER participant, DIRECT conversations only.
+   *
+   * Optional because it is additive: a backend that has not shipped this field
+   * yet simply omits it, and `conversationLabel` falls through to the generic
+   * 「私信」. That keeps the frontend deployable ahead of the server.
+   */
+  counterpartDisplayName?: string | null;
   /** Null for a brand-new conversation with no messages yet. */
   updatedAt?: string | null;
   /** Server-formatted preview: text, 「[图片]」, 「[文件] name」, 「[消息已撤回]」. */
@@ -347,13 +355,26 @@ export function isRecalled(message: ChatMessage): boolean {
  *
  * A DIRECT conversation has NO title on the backend: the column is documented
  * as 「群聊标题」 (V016), `openDirect` never calls `setTitle`, and the only two
- * `setTitle` call sites in ConversationService are both GROUP paths. Nothing
- * derives the peer's name into it, so the fallback below is the normal path for
- * DIRECT, not an edge case.
+ * `setTitle` call sites in ConversationService are both GROUP paths. So the
+ * fallback below is the normal path for DIRECT, not an edge case.
+ *
+ * 2026-10-03 — the fallback is now the LAST resort rather than the only one.
+ * The backend gained `counterpartDisplayName` for DIRECT rows (ConversationView),
+ * resolved from the other member's profile: `displayName`, falling back to
+ * `username`. Until then every direct surface printed 「私信」, which on the
+ * thread screen was also the page heading — the reader saw the same word twice
+ * and never learned who they were talking to.
+ *
+ * Order matters: title → counterpart name → generic label. A GROUP conversation
+ * returns a null counterpart by design, so it lands on its title or 「未命名群聊」.
  */
 export function conversationLabel(conversation: Conversation): string {
   const title = conversation.title?.trim();
   if (title) return title;
+
+  const counterpart = conversation.counterpartDisplayName?.trim();
+  if (counterpart) return counterpart;
+
   return conversation.type === "GROUP" ? "未命名群聊" : "私信";
 }
 
