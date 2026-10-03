@@ -33,6 +33,18 @@
    *
    * Safari below 18.2 does not support this property and keeps today's behaviour —
    * unchanged, not worse.
+   *
+   * Measured, not assumed. Reproducing this needs classic scrollbars: the default
+   * Chromium on this machine uses overlay ones, which take no layout space, so the
+   * shift simply does not occur and every check looks green. Launching with
+   * `--disable-features=FluentOverlayScrollbar` restores the 15px scrollbar and the
+   * effect appears. A/B over the same four routes, reading the left edge and width
+   * of `#main`:
+   *
+   *   scrollbar-gutter: auto    /rules 64.00 / 1152.00   /discover 63.24 / 1138.31
+   *   scrollbar-gutter: stable  /rules 63.24 / 1138.31   /discover 63.24 / 1138.31
+   *
+   * i.e. 13.69px of sideways movement on every short<->tall navigation, gone.
    */
   html {
     scrollbar-gutter: stable;
