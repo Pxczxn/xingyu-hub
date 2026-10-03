@@ -29,4 +29,10 @@ function Badge({ className, variant, ...props }: BadgeProps) {
   return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
-export { Badge, badgeVariants };
+/*
+ * Only the component is exported. `badgeVariants` stays module-private: this file
+ * is a component module, and exporting a non-component alongside it disables Vite
+ * fast refresh for the whole file (react-refresh/only-export-components).
+ * Nothing outside this file used it.
+ */
+export { Badge };
