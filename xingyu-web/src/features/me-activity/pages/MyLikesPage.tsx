@@ -107,7 +107,7 @@ export function MyLikesPage() {
   return (
     <div className="section-gap">
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <Heart className="h-5 w-5" aria-hidden />
           我的喜欢
         </h1>
@@ -118,7 +118,7 @@ export function MyLikesPage() {
 
       <section className="rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold text-foreground">点赞记录</h2>
+          <h2 className="section-heading">点赞记录</h2>
           {/* No "load more": the endpoint returns a bare array with no cursor. */}
           <span className="text-xs text-muted-foreground">最多 {MY_ACTIVITY_LIMIT} 条</span>
         </div>

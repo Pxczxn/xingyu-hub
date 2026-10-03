@@ -152,7 +152,7 @@ export function ArticleVersionsPage() {
       </nav>
 
       <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">历史版本</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">历史版本</h1>
         <p className="text-sm text-muted-foreground">
           查看这篇文章每次发布时定格的版本，并可将其中一个恢复为当前草稿。
         </p>
@@ -231,7 +231,7 @@ export function ArticleVersionsPage() {
               {selected ? (
                 <>
                   <div className="flex flex-col gap-1">
-                    <h2 className="text-base font-semibold text-foreground">
+                    <h2 className="text-card font-semibold text-primary">
                       {revisionTitle(selected)}
                     </h2>
                     <p className="text-xs text-muted-foreground">
@@ -263,7 +263,7 @@ export function ArticleVersionsPage() {
                     {restorable ? (
                       <Button
                         type="button"
-                        variant="primary"
+                        variant="default"
                         size="sm"
                         disabled={pending}
                         onClick={() => setConfirming(true)}
@@ -302,7 +302,7 @@ export function ArticleVersionsPage() {
             ，建议先另存一份再恢复。
           </p>
           <div className="mt-3 flex gap-2">
-            <Button variant="primary" disabled={pending} onClick={() => void onRestore()}>
+            <Button variant="default" disabled={pending} onClick={() => void onRestore()}>
               确认恢复
             </Button>
             <Button variant="outline" disabled={pending} onClick={() => setConfirming(false)}>

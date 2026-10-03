@@ -128,7 +128,7 @@ export function GrowthPage() {
   return (
     <div className="section-gap">
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <TrendingUp className="h-5 w-5" aria-hidden />
           成长记录
         </h1>
@@ -148,7 +148,7 @@ export function GrowthPage() {
 
       {/* ---- 创作数据 ---- */}
       <section className="rounded-lg border border-border bg-card p-5" aria-label="创作数据">
-        <h2 className="text-sm font-semibold text-foreground">创作数据</h2>
+        <h2 className="section-heading">创作数据</h2>
         {insights.kind === "loading" ? (
           <p className="mt-2 text-sm text-muted-foreground">正在读取…</p>
         ) : insights.kind === "error" ? (
@@ -170,7 +170,7 @@ export function GrowthPage() {
       {/* ---- 待处理 ---- */}
       {pending.kind === "ready" && dedupedPending.length > 0 ? (
         <section className="rounded-lg border border-border bg-card p-5" aria-label="待处理">
-          <h2 className="text-sm font-semibold text-foreground">待处理</h2>
+          <h2 className="section-heading">待处理</h2>
           <ul className="mt-3 space-y-2">
             {dedupedPending.map((action, index) => {
               const href = resolvePendingHref(action);

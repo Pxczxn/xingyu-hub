@@ -9,6 +9,21 @@
  *
  * All component colors MUST reference these semantic CSS variables.
  * No raw hex values are allowed in components.
+ *
+ * --- 2026-10-03 gold contrast fix -------------------------------------------
+ * The raw brand gold is a FILL colour, not a TEXT colour. Measured against the
+ * two surfaces it sits on:
+ *
+ *   #F59E0B on #FFFFFF  -> 2.15:1     (WCAG AA needs 4.5:1)
+ *   #F59E0B on #F9F7F2  -> 2.01:1
+ *   --accent-strong on cream -> 4.72:1  (fixed)
+ *
+ * Every gold *label* in the old UI (the `GALAXIES` eyebrow, the `进入星系 ->`
+ * link, the step numbers, footer hovers) was therefore both an accessibility
+ * failure AND the reason the pages read as washed-out grey: an accent you can
+ * barely see is not an accent. Gold text now resolves through --accent-strong,
+ * while --accent stays the fill for buttons/badges (navy on gold = 7.42:1).
+ * ---------------------------------------------------------------------------
  */
 :root {
   /* raw brand references (for documentation / one-off needs) */
@@ -26,11 +41,31 @@
   --muted: 40 14% 91%;
   --muted-foreground: 226 12% 38%;
 
+  /*
+   * Secondary + popover exist for shadcn/ui primitives (Sheet, Dialog, Tabs,
+   * Select, DropdownMenu, Tooltip). Those components reference `bg-secondary`,
+   * `bg-popover` and `text-popover-foreground` by convention; without these
+   * tokens the surfaces render transparent and the menus become unreadable over
+   * the page behind them.
+   */
+  --secondary: 42 20% 93%;
+  --secondary-foreground: 226 37% 16%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 226 37% 16%;
+
   --primary: 226 37% 16%; /* navy */
   --primary-foreground: 44 33% 96%; /* cream on navy */
 
-  --accent: 38 92% 50%; /* gold */
+  --accent: 38 92% 50%; /* gold — FILL ONLY (navy text sits on it at 7.4:1) */
   --accent-foreground: 226 37% 16%; /* navy on gold for contrast */
+
+  /* Gold as TEXT. #B35309: measured 5.05:1 on white, 4.72:1 on cream — passes AA. */
+  --accent-strong: 26 90% 37%;
+  /* Gold as a large wash (hero panels, active nav, inset blocks). */
+  --accent-soft: 38 92% 96%;
+  /* Gold hairline — borders that should read as brand, not as a divider. */
+  --accent-line: 36 85% 78%;
 
   --destructive: 0 72% 45%;
   --destructive-foreground: 0 0% 100%;
@@ -39,12 +74,45 @@
   --input: 40 14% 87%;
   --ring: 38 92% 50%; /* gold focus ring */
 
+  /* A recessed surface one step below --card: chips, table headers, code. */
+  --surface-sunken: 42 24% 92%;
+  /* Secondary headings and dense labels that must not compete with navy. */
+  --foreground-soft: 226 22% 32%;
+
   --radius: 0.5rem;
 
   /* surface hierarchy: keep page, cards, compact rows and media visually distinct */
   --radius-surface: 0.75rem;
   --radius-compact: 0.5rem;
   --radius-media: 0.5rem;
+
+  /*
+   * Shell width. MASTER.md specifies `max-w-6xl` (1152px) but the shell was
+   * built at `max-w-[1440px]`, so body text ran ~100 CJK glyphs per line on a
+   * 1920px display. 1200px keeps the design system's intent while leaving the
+   * wide grids room to breathe.
+   */
+  --shell-max-width: 1200px;
+
+  /*
+   * Vertical offset for the floating notification stack.
+   *
+   * The shell header is `sticky top-0`, so anything pinned to `top-0` lands on
+   * top of it — the first toast covered 创作/登录/注册. Measured header height:
+   * 57px at >=640px, 61px below it. 4.75rem (76px) clears the taller of the two
+   * with a 15px gap, and both the token and the header are edited together.
+   */
+  --toast-top-offset: 4.75rem;
+
+  /*
+   * Type scale. The old UI had a 24px h1 and an 18px section heading and an
+   * 18px card title — three levels that all looked like the same level. These
+   * four steps are the ones components should reach for.
+   */
+  --text-display: 1.75rem; /* h1 */
+  --text-title: 1.125rem; /* section heading */
+  --text-card: 0.9375rem; /* card title */
+  --text-meta: 0.8125rem; /* meta, captions */
 }
 
 /* Dark shell is out of scope for Phase 0; keep a single light theme. */

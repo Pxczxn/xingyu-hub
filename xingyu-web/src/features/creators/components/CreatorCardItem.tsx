@@ -34,7 +34,7 @@ export function CreatorCardItem({
         <div className="flex items-start gap-3">
           <span
             aria-hidden="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-medium text-muted-foreground"
+            className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-sunken text-base font-semibold text-foreground-soft"
           >
             {avatar ? (
               <img src={avatar} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -43,7 +43,7 @@ export function CreatorCardItem({
             )}
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-semibold text-foreground">
+            <h2 className="truncate text-base font-semibold text-primary">
               <Link to={`/u/${encodeURIComponent(creator.username)}`} className="hover:text-accent">
                 {name}
               </Link>
@@ -64,7 +64,7 @@ export function CreatorCardItem({
             className="block rounded-md border border-border p-3 hover:border-accent"
           >
             <span className="block text-xs text-muted-foreground">最新公开作品</span>
-            <span className="line-clamp-2 text-sm font-medium text-foreground">
+            <span className="line-clamp-2 text-meta font-medium text-foreground-soft">
               {work.title || "未命名作品"}
             </span>
           </Link>
@@ -88,7 +88,7 @@ export function CreatorCardItem({
             <Button
               type="button"
               size="sm"
-              variant={following ? "outline" : "primary"}
+              variant={following ? "outline" : "default"}
               className="ml-auto"
               disabled={followPending}
               onClick={() => onToggleFollow(creator)}

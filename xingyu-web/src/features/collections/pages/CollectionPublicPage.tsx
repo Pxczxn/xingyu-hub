@@ -65,27 +65,66 @@ export function CollectionPublicPage() {
   const items = collection.items ?? [];
 
   return (
+    /*
+      A collection is a CURATED SET, so it is presented as a set of cards rather
+      than a table of contents.
+      The old markup was `h1 + one muted line + ul.divide-y` — literally the same
+      skeleton as the announcements list, which is a different thing entirely: an
+      announcement list is a chronological log you scan, a collection is a
+      hand-picked group you look over. Cards also give the content type a place
+      to live as a badge instead of a second grey line under every title.
+
+      The `<ul>`/`<li>` structure is kept — only the visual treatment changes, so
+      the list semantics survive.
+    */
     <article className="section-gap">
-      <h1 className="text-xl font-semibold text-primary">{collection.title}</h1>
-      <p className="text-sm text-muted-foreground">{visibilityLabel(collection.visibility)}</p>
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">{collection.title}</h1>
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-meta">
+          <span className="text-muted-foreground">{visibilityLabel(collection.visibility)}</span>
+          <span className="text-muted-foreground">
+            收录{" "}
+            <span className="font-medium tabular-nums text-foreground-soft">{items.length}</span> 项
+          </span>
+        </div>
+      </header>
+
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">暂时没有收录内容</p>
+        <p
+          role="status"
+          className="rounded-xl border border-dashed border-border bg-card/60 px-4 py-10 text-center text-meta text-muted-foreground"
+        >
+          暂时没有收录内容
+        </p>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+        <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {
             const href = itemHref(item.objectType, item.objectId);
+            const typeLabel = objectTypeLabel(item.objectType);
             return (
-              <li key={item.id} className="px-4 py-3">
+              <li key={item.id} className="min-w-0">
                 {href ? (
-                  <Link to={href} className="text-sm font-medium hover:text-accent">
-                    {item.title}
+                  <Link
+                    to={href}
+                    className="focus-ring flex h-full flex-col gap-2 rounded-xl border border-border/70 bg-card p-4 transition-colors hover:border-accent-line"
+                  >
+                    <span className="w-fit rounded-md bg-surface-sunken px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      {typeLabel}
+                    </span>
+                    <span className="line-clamp-3 text-card font-medium text-primary">
+                      {item.title}
+                    </span>
                   </Link>
                 ) : (
-                  <p className="text-sm font-medium">{item.title}</p>
+                  <div className="flex h-full flex-col gap-2 rounded-xl border border-border/70 bg-card p-4">
+                    <span className="w-fit rounded-md bg-surface-sunken px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      {typeLabel}
+                    </span>
+                    <span className="line-clamp-3 text-card font-medium text-primary">
+                      {item.title}
+                    </span>
+                  </div>
                 )}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {objectTypeLabel(item.objectType)}
-                </p>
               </li>
             );
           })}

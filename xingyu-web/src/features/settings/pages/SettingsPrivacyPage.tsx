@@ -4,7 +4,7 @@ import { usersApi } from "@/api/users/users.api";
 import type { FollowersVisibility } from "@/api/users/users.types";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/cn";
 import {
   FOLLOWERS_VISIBILITY_OPTIONS,
   toFollowersVisibility,
@@ -29,6 +29,24 @@ import {
  * NOTE: this endpoint ignores lockVersion and unconditionally increments it, so a
  * save here can never 409 — but it DOES move the version, which is why the profile
  * form always re-reads on mount.
+ *
+ * --- 2026-10-03 structure pass ---------------------------------------------
+ * This page used to be the same four-step vertical stack as every other settings
+ * page: 标题 → 说明 → 竖排单选堆叠 → 下方浮动保存按钮. That shape is wrong for
+ * this page, because this page holds exactly ONE enum with TWO values. A stack of
+ * two radios plus a detached save button gives a one-bit setting the same visual
+ * weight as the profile form.
+ *
+ * It is now a single SETTING ROW: the label and its explanation sit on the left,
+ * the control sits on the right of the same line, and the save affordance lives
+ * beside the control it saves. Reading it top-to-bottom takes one line, which is
+ * what a one-bit setting deserves.
+ *
+ * The explicit-save behaviour is deliberately KEPT (radios + a disabled-until-dirty
+ * 保存 button). Instant-save was considered and rejected: an accidental tap on a
+ * privacy control would silently publish the reader's follow graph, and the
+ * existing tests pin the "never send a no-op PATCH" rule.
+ * ---------------------------------------------------------------------------
  */
 
 type LoadState = "loading" | "error" | "ready";
@@ -107,59 +125,99 @@ export function SettingsPrivacyPage() {
   return (
     <div className="section-gap">
       <section aria-labelledby="settings-privacy-heading">
-        <h2 id="settings-privacy-heading" className="text-base font-semibold text-primary">
+        <h2 id="settings-privacy-heading" className="section-heading">
           隐私
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">控制谁可以看到你的关注关系。</p>
+        <p className="lede mt-1.5 max-w-2xl">控制谁可以看到你的关注关系。</p>
       </section>
 
       <form
-        className="section-gap max-w-xl"
         onSubmit={(event) => {
           event.preventDefault();
           void save();
         }}
+        className="overflow-hidden rounded-xl border border-border/70 bg-card"
       >
-        <fieldset className="flex flex-col gap-3" disabled={saving}>
-          <legend className="text-sm font-medium text-foreground">关注列表可见性</legend>
-          {FOLLOWERS_VISIBILITY_OPTIONS.map((option) => (
-            <div key={option.value} className="flex items-center gap-2">
-              <input
-                id={`followersVisibility-${option.value}`}
-                type="radio"
-                name="followersVisibility"
-                value={option.value}
-                checked={value === option.value}
-                onChange={() => {
-                  setValue(option.value);
-                  setSaved(false);
-                  setSaveError(null);
-                }}
-                className="h-4 w-4 border-input text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <Label htmlFor={`followersVisibility-${option.value}`} className="font-normal">
-                {option.label}
-              </Label>
-            </div>
-          ))}
-        </fieldset>
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-5">
+          <div className="min-w-0">
+            <p className="text-card font-medium text-primary">关注列表可见性</p>
+            <p className="mt-0.5 text-meta text-muted-foreground">决定谁能看到你关注了哪些人。</p>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {/* Segmented control. The native radios stay the real control (and the
+                labelled element the tests click) — they are visually hidden and
+                driven by the label, so keyboard arrow-key navigation still works. */}
+            <fieldset
+              className="flex items-center gap-1 rounded-lg bg-surface-sunken p-1"
+              disabled={saving}
+            >
+              <legend className="sr-only">关注列表可见性</legend>
+              {FOLLOWERS_VISIBILITY_OPTIONS.map((option) => {
+                const selected = value === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={cn(
+                      "cursor-pointer rounded-md px-3 py-1.5 text-meta transition-colors",
+                      selected
+                        ? "bg-card font-medium text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                      saving && "cursor-not-allowed opacity-60",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="followersVisibility"
+                      value={option.value}
+                      checked={selected}
+                      onChange={() => {
+                        setValue(option.value);
+                        setSaved(false);
+                        setSaveError(null);
+                      }}
+                      className="sr-only"
+                    />
+                    {option.label}
+                  </label>
+                );
+              })}
+            </fieldset>
+
+            {/* The save affordance changes weight with the dirty state: a solid
+                navy block that is permanently disabled is the heaviest thing on
+                the page and says nothing. Outlined when clean, filled when there
+                is something to save. */}
+            <Button
+              type="submit"
+              size="sm"
+              variant={dirty ? "default" : "outline"}
+              disabled={!dirty || saving}
+            >
+              {saving ? "保存中…" : "保存"}
+            </Button>
+
+            {saved ? (
+              <span
+                role="status"
+                data-testid="privacy-saved"
+                className="text-meta font-medium text-accent-strong"
+              >
+                已保存
+              </span>
+            ) : null}
+          </div>
+        </div>
 
         {saveError ? (
-          <p role="alert" data-testid="privacy-save-error" className="text-sm text-destructive">
+          <p
+            role="alert"
+            data-testid="privacy-save-error"
+            className="border-t border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
+          >
             {saveError}
           </p>
         ) : null}
-
-        <div className="flex items-center gap-3">
-          <Button type="submit" disabled={!dirty || saving}>
-            {saving ? "保存中…" : "保存"}
-          </Button>
-          {saved ? (
-            <span role="status" data-testid="privacy-saved" className="text-sm text-primary">
-              已保存
-            </span>
-          ) : null}
-        </div>
       </form>
     </div>
   );

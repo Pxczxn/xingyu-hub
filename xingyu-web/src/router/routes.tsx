@@ -1169,14 +1169,36 @@ export function AppRoutes() {
         <Route path="*" element={<NotFound />} />
       </Route>
 
-      <Route element={<AuthLayout />}>
+      {/*
+        Auth screens, split by the WIDTH the screen actually needs (2026-10-03).
+
+        These were one `<AuthLayout />` group with a hard-coded `max-w-md`. That is
+        the right column for a form and the wrong one for a two-column screen, so
+        the layout now takes a `width` variant and the groups declare it:
+
+          narrow  every single-column screen — login, the two password resets,
+                  email verification, pending audit, forced password change
+          wide    register, which puts the form beside the reason to fill it in
+
+        Two groups rather than one with per-route config because the app mounts
+        `<Routes>` declaratively inside a splat route: `useMatches()` reports only
+        that splat match, so a layout cannot discover which child auth page is
+        active. Splitting the group is the only way to vary the layout per screen.
+
+        Path matching is unchanged — the same seven paths resolve to the same
+        seven elements, just under two parents instead of one.
+      */}
+      <Route element={<AuthLayout width="narrow" />}>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
         <Route path="/register/pending-audit" element={<PendingAuditPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/force-change-password" element={<ForceChangePasswordPage />} />
+      </Route>
+
+      <Route element={<AuthLayout width="wide" />}>
+        <Route path="/register" element={<RegisterPage />} />
       </Route>
 
       {LEGACY_REDIRECTS.map((redirect) => (

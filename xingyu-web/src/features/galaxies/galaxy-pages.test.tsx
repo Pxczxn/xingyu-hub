@@ -154,6 +154,45 @@ describe("GalaxyDetailPage", () => {
     // displayName is null for u-2, so the username is the label.
     expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute("href", "/u/alice");
   });
+
+  it("renders the shared GalaxyVisual and caps the content preview at four rows", async () => {
+    mocked.listContent.mockResolvedValue([
+      ...CONTENT,
+      { id: "c-4", objectType: "ARTICLE", objectId: "art-4", title: "第四篇", pinned: false },
+      { id: "c-5", objectType: "ARTICLE", objectId: "art-5", title: "第五篇", pinned: false },
+    ]);
+    renderPage("/galaxies/xingyu-official", <GalaxyDetailPage />, "/galaxies/:slug");
+
+    expect(await screen.findByTestId("galaxy-visual")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "第四篇" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "第五篇" })).not.toBeInTheDocument();
+  });
+
+  it("keeps members visible when content fails", async () => {
+    mocked.listContent.mockRejectedValue(new Error("content unavailable"));
+    renderPage("/galaxies/xingyu-official", <GalaxyDetailPage />, "/galaxies/:slug");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("最近内容暂时不可用");
+    expect(screen.getByRole("link", { name: "探针" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "星语" })).toBeInTheDocument();
+  });
+
+  it("keeps content visible when members fail", async () => {
+    mocked.listMembers.mockRejectedValue(new Error("members unavailable"));
+    renderPage("/galaxies/xingyu-official", <GalaxyDetailPage />, "/galaxies/:slug");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("成员暂时不可用");
+    expect(screen.getByRole("link", { name: "置顶系列" })).toBeInTheDocument();
+  });
+
+  it("uses compact independent empty states", async () => {
+    mocked.listMembers.mockResolvedValue([]);
+    mocked.listContent.mockResolvedValue([]);
+    renderPage("/galaxies/xingyu-official", <GalaxyDetailPage />, "/galaxies/:slug");
+
+    expect(await screen.findByText(/暂无内容，运营关联的内容/)).toBeInTheDocument();
+    expect(screen.getByText("暂无公开成员")).toBeInTheDocument();
+  });
 });
 
 describe("GalaxyMembersPage", () => {

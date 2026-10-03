@@ -11,6 +11,7 @@ import { PageState } from "@/components/shared/PageState";
 import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
 import { cn } from "@/lib/cn";
 import { ConversationRow } from "../ConversationRow";
+import { ConversationThreadPage } from "./ConversationThreadPage";
 import { NewMessageComposer } from "../NewMessageComposer";
 
 /*
@@ -114,26 +115,55 @@ export function MailboxPage() {
         <NewMessageComposer />
       </header>
 
-      {items.length === 0 ? (
-        <PageState
-          kind="empty"
-          title="还没有会话"
-          description="在别人的主页点「私信」，或从上方新建一条私信，会话会出现在这里。"
-        />
-      ) : (
-        <ul
-          aria-label="会话列表"
-          className={cn("flex flex-col gap-2", threadOpen && "lg:max-w-sm")}
-        >
-          {items.map((conversation) => (
-            <ConversationRow
-              key={conversation.id}
-              conversation={conversation}
-              active={conversation.id === conversationId}
+      {/*
+        Master / detail.
+        ============================================================
+        BUG FIXED HERE (2026-10-03): this page never actually rendered the
+        thread. `ConversationThreadPage` had a full test suite and a real route,
+        but no import anywhere in src/ — so `/messages/:conversationId` narrowed
+        the list to `lg:max-w-sm` and left roughly 700px of the viewport EMPTY
+        where the conversation was supposed to be. On mobile the list just looked
+        normal, which is why it survived.
+
+        The two panes are now real. Breakpoint behaviour is deliberate:
+          >= lg   list on the left at a fixed 320px, conversation on the right
+          <  lg   ONE pane at a time — opening a conversation replaces the list
+                  (the thread's own 「返回会话列表」 link is the way back), because
+                  a 390px viewport has no room for two columns.
+        The placeholder only exists at >= lg: on mobile there is no second pane
+        to be empty.
+      */}
+      <div className="lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-6">
+        <div className={cn("min-w-0", threadOpen && "max-lg:hidden")}>
+          {items.length === 0 ? (
+            <PageState
+              kind="empty"
+              title="还没有会话"
+              description="在别人的主页点「私信」，或从上方新建一条私信，会话会出现在这里。"
             />
-          ))}
-        </ul>
-      )}
+          ) : (
+            <ul aria-label="会话列表" className="flex list-none flex-col gap-2 p-0">
+              {items.map((conversation) => (
+                <ConversationRow
+                  key={conversation.id}
+                  conversation={conversation}
+                  active={conversation.id === conversationId}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className={cn("min-w-0", !threadOpen && "hidden lg:block")}>
+          {threadOpen ? (
+            <ConversationThreadPage />
+          ) : (
+            <p className="rounded-xl border border-dashed border-border bg-card/60 px-4 py-16 text-center text-meta text-muted-foreground">
+              从左侧选择一个会话开始阅读。
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

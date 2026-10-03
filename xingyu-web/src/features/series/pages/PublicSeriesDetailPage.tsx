@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { seriesApi } from "@/api/series/series.api";
 import type { PublicSeriesDetail } from "@/api/series/series.types";
+import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth.store";
@@ -138,12 +139,11 @@ export function PublicSeriesDetailPage() {
         </div>
       </header>
 
-      <section>
-        <h2 className="text-lg font-semibold text-primary">章节目录</h2>
+      <PageSection id="series-chapters" title="章节目录" count={chapters.length}>
         {chapters.length === 0 ? (
           <PageState kind="empty" title="暂无章节" description="章节发布后会显示在这里。" />
         ) : (
-          <ol className="mt-3 divide-y divide-border rounded-lg border border-border bg-card">
+          <ol className="divide-y divide-border rounded-xl border border-border/70 bg-card">
             {chapters.map((chapter, index) => (
               <li key={chapter.id} className="flex items-center gap-4 px-4 py-3">
                 <span className="text-sm tabular-nums text-muted-foreground">
@@ -162,7 +162,7 @@ export function PublicSeriesDetailPage() {
             ))}
           </ol>
         )}
-      </section>
+      </PageSection>
     </article>
   );
 }

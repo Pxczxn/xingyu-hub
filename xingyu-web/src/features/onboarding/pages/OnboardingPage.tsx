@@ -229,22 +229,43 @@ export function OnboardingPage() {
 
   return (
     <section className="mx-auto max-w-2xl space-y-6">
-      <header className="space-y-2">
-        <p className="text-sm text-muted-foreground">入门引导</p>
-        <h1 className="text-xl font-semibold text-primary">设置你的星语档案</h1>
-        <ol className="flex flex-wrap gap-2 text-xs" aria-label="引导步骤">
+      {/*
+        A guided flow, so it opens like one: the same eyebrow treatment the other
+        page banners use, an L1 title, and a step rail that is legible rather
+        than decorative.
+        The rail keeps its three states (done / current / ahead) but gains step
+        numbers — "2 of 4" is the single most useful thing to know inside a
+        wizard, and a row of coloured pills alone does not say it.
+      */}
+      <header className="space-y-2.5">
+        <p className="eyebrow">ONBOARDING</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">设置你的星语档案</h1>
+        <ol className="flex flex-wrap gap-2 text-meta" aria-label="引导步骤">
           {STEPS.map((item, index) => (
             <li
               key={item.key}
               className={cn(
-                "rounded-full border px-2.5 py-1",
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
                 index === stepIndex
-                  ? "border-accent bg-accent text-accent-foreground"
+                  ? "border-accent bg-accent font-medium text-accent-foreground"
                   : index < stepIndex
                     ? "border-border bg-muted text-foreground"
                     : "border-border text-muted-foreground",
               )}
             >
+              <span
+                aria-hidden
+                className={cn(
+                  "grid h-4 w-4 shrink-0 place-items-center rounded-full text-[10px] font-semibold tabular-nums",
+                  index === stepIndex
+                    ? "bg-accent-foreground/15"
+                    : index < stepIndex
+                      ? "bg-foreground/10"
+                      : "bg-muted-foreground/10",
+                )}
+              >
+                {index + 1}
+              </span>
               {item.label}
             </li>
           ))}
@@ -254,7 +275,7 @@ export function OnboardingPage() {
       {currentStep === "WELCOME" ? (
         <div className="rounded-lg border border-border bg-card p-6">
           <Sparkles className="mb-2 h-5 w-5 text-accent" aria-hidden />
-          <h2 className="text-lg font-medium">欢迎来到星语</h2>
+          <h2 className="text-lg font-semibold text-primary">欢迎来到星语</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             用几步记录你关心的领域，并补上展示名称。兴趣只保存在入门资料里。
           </p>

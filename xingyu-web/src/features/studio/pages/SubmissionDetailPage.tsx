@@ -146,7 +146,7 @@ export function SubmissionDetailPage() {
       </nav>
 
       <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">投稿详情</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">投稿详情</h1>
         <p className="text-sm text-muted-foreground">
           {submissionStatusDescription(submission.status)}
         </p>
@@ -165,9 +165,7 @@ export function SubmissionDetailPage() {
         <CardContent className="flex flex-col gap-4 p-5">
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <h2 className="text-base font-semibold text-foreground">
-                {submissionTitle(submission)}
-              </h2>
+              <h2 className="section-heading">{submissionTitle(submission)}</h2>
               <span
                 className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground"
                 data-testid="submission-status"

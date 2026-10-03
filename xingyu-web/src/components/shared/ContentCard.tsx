@@ -59,40 +59,55 @@ export function ContentCard({
     ? CONTENT_TYPE_LABELS[(item.objectType ?? "").toUpperCase()]
     : undefined;
 
+  /*
+   * 2026-10-03 (layout pass) — information hierarchy.
+   *
+   * The card used to be five stacked items of near-identical weight: a grey type
+   * chip, a 16px title, a 13px summary and a 12px author row, all separated by
+   * the same 8px. Nothing told the eye where to land.
+   *
+   * Now: the type cue lives INSIDE the plate (so it stops being a third grey
+   * chip in the text column), the title owns the largest step in the card, the
+   * summary is the only muted paragraph, and the meta row is pushed to the
+   * bottom on a hairline so the footer of every card in a grid aligns.
+   */
   return (
     <Card
       className={cn(
-        "h-full transition-[border-color,box-shadow] hover:border-accent/40 hover:shadow-sm",
+        "h-full transition-[border-color,box-shadow] hover:border-accent-line hover:shadow-sm",
         className,
       )}
     >
-      <CardContent className="flex flex-col gap-2 p-5">
+      <CardContent className="flex h-full flex-col gap-3 p-4">
         {item.cover || showFallbackVisual ? (
           <ContentVisual
             stableKey={item.id || item.title}
             objectType={item.objectType}
             cover={item.cover}
             variant="card"
-            className="mb-1"
+            label={typeLabel}
           />
         ) : null}
-        {typeLabel ? (
-          <span className="w-fit rounded-md bg-muted px-2 py-0.5 text-[11px] leading-4 text-muted-foreground">
-            {typeLabel}
-          </span>
-        ) : null}
-        <Link
-          to={contentHref(item)}
-          className="focus-ring line-clamp-2 text-base font-semibold leading-5 text-foreground hover:text-accent"
-        >
-          {item.title}
-        </Link>
-        {item.summary ? (
-          <p className="line-clamp-2 text-[13px] leading-5 text-muted-foreground">{item.summary}</p>
-        ) : null}
-        <div className="mt-auto flex items-center gap-2 pt-1 text-xs text-muted-foreground">
-          {item.authorName ? <span className="truncate">{item.authorName}</span> : null}
-          {item.readMinutes ? <span>· {item.readMinutes} 分钟</span> : null}
+
+        <div className="flex flex-1 flex-col gap-1.5">
+          {typeLabel && !showFallbackVisual && !item.cover ? (
+            <span className="w-fit rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium leading-4 text-accent-strong">
+              {typeLabel}
+            </span>
+          ) : null}
+          <Link
+            to={contentHref(item)}
+            className="focus-ring line-clamp-2 text-card font-semibold text-primary transition-colors hover:text-accent-strong"
+          >
+            {item.title}
+          </Link>
+          {item.summary ? (
+            <p className="line-clamp-2 text-meta leading-5 text-muted-foreground">{item.summary}</p>
+          ) : null}
+          <div className="mt-auto flex items-center gap-2 border-t border-border/50 pt-2.5 text-meta text-muted-foreground">
+            {item.authorName ? <span className="truncate">{item.authorName}</span> : null}
+            {item.readMinutes ? <span>· {item.readMinutes} 分钟</span> : null}
+          </div>
         </div>
       </CardContent>
     </Card>

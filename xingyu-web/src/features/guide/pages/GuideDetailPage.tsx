@@ -67,15 +67,39 @@ export function GuideDetailPage() {
   const { page } = state;
 
   return (
+    /*
+      A TUTORIAL, so it has a beginning and an end.
+      The back link moves ABOVE the header into a proper step-back affordance, and
+      the page closes with a way to continue — a guide that just stops leaves the
+      reader at a dead end. The footer points at the guide index rather than a
+      "next guide", because this contract has no sibling ordering: inventing a
+      next-slug would produce a link to a page that may not exist.
+    */
     <article className="section-gap">
       <BackToGuide />
-      <header className="space-y-2">
-        <h1 className="text-xl font-semibold text-primary">{page.title}</h1>
+
+      <header className="border-b border-border/70 pb-5">
+        <p className="eyebrow mb-2.5">GUIDE</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">{page.title}</h1>
         {page.publishedAt ? (
-          <p className="text-sm text-muted-foreground">{formatPublishedAt(page.publishedAt)}</p>
+          <p className="mt-2 text-meta text-muted-foreground">
+            发布于 <time dateTime={page.publishedAt}>{formatPublishedAt(page.publishedAt)}</time>
+          </p>
         ) : null}
       </header>
-      <div className="whitespace-pre-wrap text-sm leading-7 text-foreground">{page.body}</div>
+
+      <div className="max-w-[68ch] whitespace-pre-wrap text-[15px] leading-8 text-foreground">
+        {page.body}
+      </div>
+
+      <footer className="max-w-[68ch] border-t border-border/70 pt-5">
+        <Link
+          to="/guide"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-meta font-medium text-foreground transition-colors hover:bg-surface-sunken"
+        >
+          返回指南列表，继续下一篇
+        </Link>
+      </footer>
     </article>
   );
 }

@@ -106,7 +106,7 @@ export function MyCommentsPage() {
   return (
     <div className="section-gap">
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <MessageCircle className="h-5 w-5" aria-hidden />
           我的评论
         </h1>
@@ -117,7 +117,7 @@ export function MyCommentsPage() {
 
       <section className="rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold text-foreground">评论记录</h2>
+          <h2 className="section-heading">评论记录</h2>
           {/* No "load more": the endpoint returns a bare array with no cursor. */}
           <span className="text-xs text-muted-foreground">最多 {MY_ACTIVITY_LIMIT} 条</span>
         </div>

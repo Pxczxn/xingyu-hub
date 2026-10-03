@@ -118,7 +118,7 @@ export function GroupJoinRequestsPage() {
   return (
     <div className="section-gap">
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <UserPlus className="h-5 w-5" aria-hidden />
           关系请求
         </h1>
@@ -139,7 +139,7 @@ export function GroupJoinRequestsPage() {
           {pending.length > 0 ? (
             <section aria-label="待处理" className="rounded-lg border border-border bg-card">
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <h2 className="text-sm font-semibold text-foreground">待处理</h2>
+                <h2 className="section-heading">待处理</h2>
                 <span className="text-xs text-muted-foreground">{pending.length} 条</span>
               </div>
               <ul className="divide-y divide-border">
@@ -153,7 +153,7 @@ export function GroupJoinRequestsPage() {
           {resolved.length > 0 ? (
             <section aria-label="历史记录" className="rounded-lg border border-border bg-card">
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <h2 className="text-sm font-semibold text-foreground">历史记录</h2>
+                <h2 className="section-heading">历史记录</h2>
                 <span className="text-xs text-muted-foreground">{resolved.length} 条</span>
               </div>
               <ul className="divide-y divide-border">

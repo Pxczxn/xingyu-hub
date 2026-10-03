@@ -144,7 +144,7 @@ export function ContentListPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-primary">内容管理</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">内容管理</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             管理你的全部文章：草稿、已发布、审核状态与回收站。
           </p>

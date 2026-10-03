@@ -11,6 +11,7 @@ import {
   type EventView,
 } from "@/api/events/events.types";
 import { PageState } from "@/components/shared/PageState";
+import { EventDateBlock } from "../components/EventDateBlock";
 import { cn } from "@/lib/cn";
 
 /*
@@ -280,33 +281,47 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
 function FeatureCard({ event, now }: { event: EventView; now: number }) {
   const countdown = eventCountdown(event, now);
   return (
-    <article className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/5 p-5">
-      <span className="self-start rounded border border-accent/40 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-        {statusLabel(event, now)}
-      </span>
-      <h2 className="text-lg font-semibold text-primary">{event.title}</h2>
-      <p className="text-sm text-muted-foreground">
-        {event.body?.trim() || "活动说明将在详情页中展示。"}
-      </p>
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        {event.startsAt ? (
-          <span className="flex items-center gap-1">
-            <Clock3 className="h-3.5 w-3.5" aria-hidden />
-            开始 {formatEventDateTime(event.startsAt)}
-          </span>
-        ) : (
-          <span>开始时间待公布</span>
-        )}
-        {/* Countdown only when there is an end still ahead; "undefined 小时"
-            would be worse than saying nothing. */}
-        {countdown ? <span>距离结束 {countdown}</span> : null}
-      </p>
-      <Link
-        to={`/events/${encodeURIComponent(event.id)}`}
-        className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90"
-      >
-        {event.submissionOpen ? "立即参与" : "查看活动"}
-      </Link>
+    <article className="flex flex-col gap-4 rounded-xl border border-accent-line/50 bg-accent-soft/40 p-5 sm:flex-row sm:gap-5">
+      <EventDateBlock startsAt={event.startsAt} size="large" />
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+        <span className="self-start rounded border border-accent-line/60 bg-card px-1.5 py-0.5 text-[10px] font-medium text-accent-strong">
+          {statusLabel(event, now)}
+        </span>
+        <h2 className="text-lg font-semibold text-primary">{event.title}</h2>
+        <p className="text-meta text-muted-foreground">
+          {event.body?.trim() || "活动说明将在详情页中展示。"}
+        </p>
+
+        {/*
+          The exact instant and the countdown are the reason this row exists, so
+          they are set at a readable size instead of the muted 12px they used to
+          share with everything else. The countdown is the single gold element:
+          it is the one number that changes what the reader does next.
+        */}
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
+          {event.startsAt ? (
+            <span className="flex items-center gap-1 text-foreground-soft">
+              <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              开始 {formatEventDateTime(event.startsAt)}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">开始时间待公布</span>
+          )}
+          {/* Countdown only when there is an end still ahead; "undefined 小时"
+              would be worse than saying nothing. */}
+          {countdown ? (
+            <span className="font-medium text-accent-strong">距离结束 {countdown}</span>
+          ) : null}
+        </p>
+
+        <Link
+          to={`/events/${encodeURIComponent(event.id)}`}
+          className="focus-ring mt-1 self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+        >
+          {event.submissionOpen ? "立即参与" : "查看活动"}
+        </Link>
+      </div>
     </article>
   );
 }
@@ -315,25 +330,32 @@ function EventCard({ event, now }: { event: EventView; now: number }) {
   const day = formatEventDay(event.startsAt);
   const ended = isEventEnded(event, now) === true;
   return (
-    <article className="flex h-full flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <article className="flex h-full flex-col gap-3 rounded-xl border border-border/70 bg-card p-4">
       <div className="flex items-start gap-3">
-        <time className="grid h-11 w-14 shrink-0 place-items-center rounded-md bg-muted text-xs font-semibold tabular-nums text-foreground">
-          {day ?? "待定"}
-        </time>
+        {/* Date block rather than a 12px chip. The literal MM/DD stays available
+            through `title` so nothing is lost for a reader who wants it. */}
+        <span title={day ?? undefined}>
+          <EventDateBlock startsAt={event.startsAt} />
+        </span>
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-foreground">{event.title}</h3>
-          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+          <h3 className="truncate text-card font-semibold text-primary">{event.title}</h3>
+          <p className="mt-0.5 line-clamp-2 text-meta text-muted-foreground">
             {event.body?.trim() || "活动详情将在进入活动后展示。"}
           </p>
         </div>
       </div>
       <div className="mt-auto flex items-center justify-between gap-2">
-        <span className={cn("text-[10px]", ended ? "text-muted-foreground" : "text-accent")}>
+        <span
+          className={cn(
+            "text-[11px] font-medium",
+            ended ? "text-muted-foreground" : "text-accent-strong",
+          )}
+        >
           {statusLabel(event, now)}
         </span>
         <Link
           to={`/events/${encodeURIComponent(event.id)}`}
-          className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-muted"
+          className="focus-ring rounded-md border border-input px-3 py-1.5 text-meta text-foreground transition-colors hover:bg-surface-sunken"
         >
           {ended ? "查看详情" : event.submissionOpen ? "去参与" : "查看详情"}
         </Link>

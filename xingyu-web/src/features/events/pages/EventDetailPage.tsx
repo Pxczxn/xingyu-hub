@@ -22,6 +22,7 @@ import {
   type EventView,
 } from "@/api/events/events.types";
 import { PageState } from "@/components/shared/PageState";
+import { EventDateBlock } from "../components/EventDateBlock";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/features/auth/auth.store";
@@ -167,31 +168,53 @@ export function EventDetailPage() {
         </Link>
       </nav>
 
-      <header className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded border border-accent/40 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-            {ended ? "已结束" : event.submissionOpen ? "开放投稿" : "暂未开放投稿"}
-          </span>
-          <span className="text-xs text-muted-foreground">社区活动</span>
-        </div>
-        <h1 className="text-xl font-semibold text-primary">{event.title}</h1>
-        {event.body?.trim() ? (
-          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{event.body}</p>
-        ) : (
-          <p className="text-sm text-muted-foreground">主办方暂未提供详细说明。</p>
-        )}
-        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-            {event.startsAt ? `开始：${formatEventDateTime(event.startsAt)}` : "开始时间待公布"}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock3 className="h-3.5 w-3.5" aria-hidden />
-            {countdown ? `距离结束 ${countdown}` : ended ? "活动已结束" : "结束时间待公布"}
-          </span>
-        </p>
+      {/*
+        Same date block as the plaza card, for the same reason.
+        This header used to set the start time and the countdown in a muted 12px
+        line under a 20px title — on a page whose entire purpose is "can I still
+        make it, and do I need to register". The block answers that before the
+        reader has read a word of the title.
+      */}
+      <header className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card p-5 sm:flex-row sm:gap-5">
+        <EventDateBlock startsAt={event.startsAt} size="large" />
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded border border-accent-line/60 bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent-strong">
+              {ended ? "已结束" : event.submissionOpen ? "开放投稿" : "暂未开放投稿"}
+            </span>
+            <span className="text-meta text-muted-foreground">社区活动</span>
+          </div>
+
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">{event.title}</h1>
+
+          {event.body?.trim() ? (
+            <p className="whitespace-pre-wrap text-meta leading-6 text-muted-foreground">
+              {event.body}
+            </p>
+          ) : (
+            <p className="text-meta text-muted-foreground">主办方暂未提供详细说明。</p>
+          )}
+
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-meta">
+            <span className="flex items-center gap-1 text-foreground-soft">
+              <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {event.startsAt ? `开始：${formatEventDateTime(event.startsAt)}` : "开始时间待公布"}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {countdown ? (
+                <span className="font-medium text-accent-strong">距离结束 {countdown}</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  {ended ? "活动已结束" : "结束时间待公布"}
+                </span>
+              )}
+            </span>
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           {canSubmit ? (
             <Link
               to={`/events/${encodeURIComponent(event.id)}/submit`}

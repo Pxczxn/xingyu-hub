@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxyMember } from "@/api/galaxies/galaxies.types";
+import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { formatJoinedAt, galaxyMemberRoleLabel } from "../galaxy-labels";
 import { GalaxyShell } from "../GalaxyShell";
@@ -61,13 +62,15 @@ function GalaxyMembers({ slug }: { slug: string }) {
   const { members } = state;
 
   return (
-    <section>
-      <h2 className="text-lg font-semibold text-primary">成员</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{`共 ${members.length} 位公开成员`}</p>
+    <PageSection
+      id="galaxy-members"
+      title="成员"
+      description={`共 ${members.length} 位公开成员`}
+    >
       {members.length === 0 ? (
         <PageState kind="empty" title="暂无公开成员" description="成员加入后会显示在这里。" />
       ) : (
-        <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {members.map((member) => (
             <li key={member.userId}>
               <Link
@@ -94,6 +97,6 @@ function GalaxyMembers({ slug }: { slug: string }) {
           ))}
         </ul>
       )}
-    </section>
+    </PageSection>
   );
 }

@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppProviders } from "./providers/AppProviders";
 import { AppRoutes } from "@/router/routes";
+import { RouteErrorPage } from "@/components/shared/RouteErrorPage";
 
 /**
  * Web V2 application root.
@@ -22,6 +23,19 @@ const router = createBrowserRouter([
         <AppRoutes />
       </AppProviders>
     ),
+    /*
+     * Router-level fallback (2026-10-03).
+     *
+     * The app had no error boundary at all before this — a whole-repo grep for
+     * `ErrorBoundary` / `componentDidCatch` returned zero hits, so any render
+     * throw unmounted the whole tree and the reader got a blank page (or a raw
+     * stack trace in dev) with no way back.
+     *
+     * This one catches what escapes AppLayout's inner boundary: a failure in the
+     * shell, in a provider, or during route matching. It renders OUTSIDE
+     * AppProviders, which is exactly why RouteErrorPage uses no context.
+     */
+    errorElement: <RouteErrorPage />,
   },
 ]);
 

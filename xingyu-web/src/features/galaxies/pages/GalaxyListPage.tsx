@@ -1,61 +1,88 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { LogIn, Network, Search, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxySummary } from "@/api/galaxies/galaxies.types";
-import { GalaxyVisual } from "@/components/visual/GalaxyVisual";
 import { PageHero } from "@/components/shared/PageHero";
+import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
+import { GalaxyVisual } from "@/components/visual/GalaxyVisual";
+import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
-import { galaxyKindLabel } from "../galaxy-labels";
+import { GalaxyTile } from "../components/GalaxyTile";
 
-type LoadState = "loading" | "error" | "ready";
+type PublicLoadState = "loading" | "error" | "ready";
+type MineLoadState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error" }
+  | { kind: "ready"; items: GalaxySummary[] };
 
-function memberLabel(memberCount: number): string {
-  return memberCount > 0 ? `${memberCount} 位成员` : "暂无成员";
-}
+const GALAXY_STEPS = [
+  {
+    index: "01",
+    title: "找到星系",
+    description: "发现或搜索感兴趣的社区",
+    icon: Search,
+  },
+  {
+    index: "02",
+    title: "加入星系",
+    description: "加入星系；需要审核时提交申请",
+    icon: UserPlus,
+  },
+  {
+    index: "03",
+    title: "参与其中",
+    description: "查看星系内容和成员，持续参与社区",
+    icon: Network,
+  },
+] as const;
 
-function GalaxyLink({ item, featured = false }: { item: GalaxySummary; featured?: boolean }) {
+function GalaxyGrid({
+  items,
+  variant,
+  className,
+  featured = false,
+}: {
+  items: GalaxySummary[];
+  variant: "mine" | "official" | "community";
+  className?: string;
+  featured?: boolean;
+}) {
   return (
-    <li>
-      <Link
-        to={`/galaxies/${encodeURIComponent(item.slug)}`}
-        className={cn(
-          "group focus-ring block transition-colors hover:border-accent/55 hover:bg-card",
-          featured ? "surface-compact p-4" : "rounded-lg border border-border/60 bg-card/70 p-4",
-        )}
-      >
-        <div className={cn("flex items-center gap-4", !featured && "gap-3")}>
-          <GalaxyVisual
-            stableKey={item.slug}
-            official={item.official}
-            variant={featured ? "spotlight" : "compact"}
-          />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-base font-semibold text-primary transition-colors group-hover:text-accent">
-              {item.name}
-            </span>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              {galaxyKindLabel(item.official)} · {memberLabel(item.memberCount)}
-            </span>
-            {featured ? (
-              <span className="mt-2 block text-xs font-medium text-accent">进入星系</span>
-            ) : null}
-          </span>
-          <ArrowRight
-            className="h-4 w-4 shrink-0 text-muted-foreground/60 opacity-70 transition-[transform,opacity,color] group-hover:translate-x-1 group-hover:text-accent group-hover:opacity-100"
-            aria-hidden
-          />
-        </div>
-      </Link>
-    </li>
+    <ul className={cn("grid list-none gap-3 p-0", className)}>
+      {items.map((item) => (
+        <li key={item.id} className="min-w-0">
+          <GalaxyTile galaxy={item} variant={variant} featured={featured} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
-/** Public galaxy directory. Search remains a client-side filter over the live list API. */
+/*
+ * Galaxy plaza.
+ *
+ * 2026-10-03 (layout pass) — this page used to carry its own SectionHeader and
+ * its own banner, while the other six top-level surfaces used <PageHero/> and a
+ * hand-rolled heading. Three consequences, all visible:
+ *
+ *   1. the banner's eyebrow/title/illustration breakpoints drifted from the rest
+ *      of the site;
+ *   2. the section headings were 18px — the same size as the banner h1 — so the
+ *      page had no readable outline;
+ *   3. a single official galaxy was capped at `max-w-[680px]`, leaving ~300px of
+ *      dead space to its right on a 1200px shell.
+ *
+ * Both are now the shared primitives (PageHero / PageSection), and the official
+ * grid collapses to one full-width column when there is only one card.
+ */
 export function GalaxyListPage() {
-  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const { isAuthenticated } = useAuth();
+  const [publicState, setPublicState] = useState<PublicLoadState>("loading");
   const [items, setItems] = useState<GalaxySummary[]>([]);
+  const [mineState, setMineState] = useState<MineLoadState>({ kind: "idle" });
   const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
@@ -65,115 +92,242 @@ export function GalaxyListPage() {
       .then((data) => {
         if (!active) return;
         setItems(data);
-        setLoadState("ready");
+        setPublicState("ready");
       })
       .catch(() => {
-        if (active) setLoadState("error");
+        if (active) setPublicState("error");
       });
     return () => {
       active = false;
     };
   }, []);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMineState({ kind: "idle" });
+      return;
+    }
+
+    let active = true;
+    setMineState({ kind: "loading" });
+    galaxiesApi
+      .listMine()
+      .then((mine) => {
+        if (active) setMineState({ kind: "ready", items: mine });
+      })
+      .catch(() => {
+        if (active) setMineState({ kind: "error" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
+
   const visible = useMemo(() => {
     const trimmed = keyword.trim();
     if (!trimmed) return items;
+    const normalized = trimmed.toLowerCase();
     return items.filter(
-      (item) =>
-        item.name.includes(trimmed) || item.slug.toLowerCase().includes(trimmed.toLowerCase()),
+      (item) => item.name.includes(trimmed) || item.slug.toLowerCase().includes(normalized),
     );
   }, [items, keyword]);
 
   const searching = keyword.trim().length > 0;
-  const officialGalaxies = visible.filter((item) => item.official);
-  const communityGalaxies = visible.filter((item) => !item.official);
+  const officialGalaxies = items.filter((item) => item.official);
+  const communityGalaxies = items.filter((item) => !item.official);
+  const minePreview = mineState.kind === "ready" ? mineState.items.slice(0, 6) : [];
 
-  if (loadState === "loading") return <PageState kind="loading" />;
-  if (loadState === "error") return <PageState kind="error" />;
+  if (publicState === "loading") return <PageState kind="loading" />;
+  if (publicState === "error") return <PageState kind="error" />;
 
   return (
     <div className="section-gap">
       <PageHero
-        compact
         eyebrow="GALAXIES"
         title="星系"
         description="围绕共同兴趣聚合内容与成员，找到属于你的社区轨道。"
-        tone="blue"
+        immersive
+        illustration={
+          <GalaxyVisual stableKey="galaxy-plaza-hero" variant="hero" className="h-32 w-full max-w-sm" />
+        }
+        actions={
+          <label className="block w-full max-w-md">
+            <span className="sr-only">搜索星系</span>
+            <span className="relative block">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                placeholder="搜索星系名称"
+                aria-label="搜索星系"
+                className="focus-ring h-10 w-full rounded-lg border border-input bg-surface-sunken/60 pl-9 pr-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground/70 focus-visible:border-accent-line focus-visible:bg-card"
+              />
+            </span>
+          </label>
+        }
+        announcement={
+          !isAuthenticated ? (
+            <p className="flex items-center gap-1.5 text-meta text-muted-foreground">
+              <LogIn className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
+              登录后可以快速查看你已加入的星系。
+            </p>
+          ) : undefined
+        }
       />
 
-      <label className="block max-w-sm">
-        <span className="sr-only">搜索星系</span>
-        <input
-          type="search"
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
-          placeholder="搜索星系名称"
-          aria-label="搜索星系"
-          className="focus-ring h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-        />
-      </label>
-
-      {items.length === 0 ? (
-        <PageState kind="empty" title="还没有星系" description="星系创建后会显示在这里。" />
-      ) : searching ? (
-        <section aria-labelledby="galaxy-search-results">
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <h2
-              id="galaxy-search-results"
-              className="text-lg font-semibold tracking-tight text-primary"
+      {searching ? (
+        <PageSection
+          id="galaxy-search-results"
+          title="搜索结果"
+          count={visible.length}
+          action={
+            <button
+              type="button"
+              onClick={() => setKeyword("")}
+              className="focus-ring rounded-sm text-meta text-muted-foreground transition-colors hover:text-accent-strong"
             >
-              搜索结果
-            </h2>
-            <span className="text-sm text-muted-foreground">共 {visible.length} 个</span>
-          </div>
+              清除搜索
+            </button>
+          }
+        >
           {visible.length > 0 ? (
-            <ul className="grid gap-3 lg:grid-cols-3">
-              {visible.map((item) => (
-                <GalaxyLink key={item.id} item={item} />
-              ))}
-            </ul>
+            <GalaxyGrid
+              items={visible}
+              variant="community"
+              className="sm:grid-cols-2 xl:grid-cols-3"
+            />
           ) : (
-            <PageState kind="empty" title="没有匹配的星系" description="换个关键词试试。" />
+            <p
+              role="status"
+              className="rounded-xl border border-dashed border-border bg-card/60 px-4 py-8 text-center text-meta text-muted-foreground"
+            >
+              没有匹配的星系
+            </p>
           )}
-        </section>
+        </PageSection>
       ) : (
         <>
+          {isAuthenticated ? (
+            <PageSection
+              id="my-galaxies"
+              title="我的星系"
+              count={mineState.kind === "ready" ? mineState.items.length : undefined}
+              action={
+                mineState.kind === "ready" && mineState.items.length > 0 ? (
+                  <Link
+                    to="/me/galaxies"
+                    className="focus-ring rounded-sm text-meta text-muted-foreground transition-colors hover:text-accent-strong"
+                  >
+                    查看全部 →
+                  </Link>
+                ) : undefined
+              }
+            >
+              {mineState.kind === "loading" ? (
+                <p role="status" className="py-3 text-meta text-muted-foreground">
+                  正在加载你加入的星系…
+                </p>
+              ) : null}
+              {mineState.kind === "error" ? (
+                <p role="alert" className="py-3 text-meta text-muted-foreground">
+                  暂时无法读取你加入的星系，仍可继续浏览其他星系。
+                </p>
+              ) : null}
+              {mineState.kind === "ready" && minePreview.length === 0 ? (
+                <p role="status" className="py-3 text-meta text-muted-foreground">
+                  你还没有加入星系，去下面看看有哪些社区吧。
+                </p>
+              ) : null}
+              {mineState.kind === "ready" && minePreview.length > 0 ? (
+                <GalaxyGrid
+                  items={minePreview}
+                  variant="mine"
+                  className="sm:grid-cols-2 xl:grid-cols-3"
+                />
+              ) : null}
+            </PageSection>
+          ) : null}
+
+          {items.length === 0 ? (
+            <p
+              role="status"
+              className="rounded-xl border border-dashed border-border bg-card/60 px-4 py-8 text-center text-meta text-muted-foreground"
+            >
+              还没有星系，星系创建后会显示在这里。
+            </p>
+          ) : null}
+
           {officialGalaxies.length > 0 ? (
-            <section aria-labelledby="official-galaxies">
-              <h2
-                id="official-galaxies"
-                className="mb-3 text-lg font-semibold tracking-tight text-primary"
-              >
-                官方星系
-              </h2>
-              <ul
-                className={cn(
-                  "grid gap-3",
-                  officialGalaxies.length > 1 ? "lg:grid-cols-2" : "max-w-3xl",
-                )}
-              >
-                {officialGalaxies.map((item) => (
-                  <GalaxyLink key={item.id} item={item} featured />
-                ))}
-              </ul>
-            </section>
+            <PageSection id="official-galaxies" title="官方星系">
+              <GalaxyGrid
+                items={officialGalaxies}
+                variant="official"
+                featured
+                className={officialGalaxies.length > 1 ? "sm:grid-cols-2" : undefined}
+              />
+            </PageSection>
           ) : null}
 
           {communityGalaxies.length > 0 ? (
-            <section aria-labelledby="community-galaxies">
-              <h2
-                id="community-galaxies"
-                className="mb-3 text-lg font-semibold tracking-tight text-primary"
-              >
-                社区星系
-              </h2>
-              <ul className="grid gap-3 lg:grid-cols-3">
-                {communityGalaxies.map((item) => (
-                  <GalaxyLink key={item.id} item={item} />
-                ))}
-              </ul>
-            </section>
+            <PageSection
+              id="explore-galaxies"
+              title="探索星系"
+              count={communityGalaxies.length}
+            >
+              <GalaxyGrid
+                items={communityGalaxies}
+                variant="community"
+                className="sm:grid-cols-2 xl:grid-cols-3"
+              />
+            </PageSection>
           ) : null}
+
+          {/*
+            Product education. It used to be a 3-column `ol` separated by top
+            borders only, which read as a table that had lost its rows, and the
+            step icons sat in a `flex items-start gap-3` row so each description
+            started at a different x offset (the icons differ in width). Now each
+            step is a card and the number + icon share one fixed row, so the three
+            columns line up.
+          */}
+          <section aria-labelledby="about-galaxies" className="border-t border-border/70 pt-8">
+            <div className="max-w-2xl">
+              <h2 id="about-galaxies" className="section-heading">
+                如何开始？
+              </h2>
+              <p className="lede mt-1.5">从找到一个社区开始，逐步参与其中。</p>
+            </div>
+
+            <ol className="mt-5 grid list-none gap-3 p-0 sm:grid-cols-3">
+              {GALAXY_STEPS.map(({ index, title, description, icon: Icon }) => (
+                <li
+                  key={title}
+                  className="flex flex-col gap-2.5 rounded-xl border border-border/70 bg-card p-4"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent-soft text-[11px] font-semibold tabular-nums text-accent-strong">
+                      {index}
+                    </span>
+                    <Icon
+                      className="h-4 w-4 text-muted-foreground/70"
+                      strokeWidth={1.7}
+                      aria-hidden
+                    />
+                  </span>
+                  <span className="text-card font-semibold text-primary">{title}</span>
+                  <span className="text-meta leading-6 text-muted-foreground">{description}</span>
+                </li>
+              ))}
+            </ol>
+
+            <p className="mt-5 text-meta text-muted-foreground">
+              话题连接讨论方向，星系连接长期参与其中的人与内容。
+            </p>
+          </section>
         </>
       )}
     </div>

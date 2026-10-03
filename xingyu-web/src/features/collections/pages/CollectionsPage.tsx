@@ -91,7 +91,7 @@ export function CollectionsPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-primary">我的收藏夹</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">我的收藏夹</h1>
           <p className="mt-1 text-sm text-muted-foreground">按可见范围整理收藏夹。</p>
         </div>
         <Button

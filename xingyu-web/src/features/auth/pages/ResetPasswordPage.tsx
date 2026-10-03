@@ -3,6 +3,11 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import { AuthCard } from "@/features/auth/components/AuthCard";
+import {
+  AuthStatusPanel,
+  authStatusPrimaryClass,
+} from "@/features/auth/components/AuthStatusPanel";
+import { Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -62,20 +67,25 @@ export function ResetPasswordPage() {
   }
 
   if (!token) {
+    /*
+      An unusable link is a DEAD END, not a form.
+      The reader cannot fix this by typing anything — the only way forward is to
+      request a fresh link. Rendering it through the form's shell (as it was)
+      offered a body slot and a footer under a title, which reads like there is
+      something to fill in.
+    */
     return (
-      <AuthCard
+      <AuthStatusPanel
+        icon={<LinkIcon className="h-5 w-5" />}
+        disc="bg-destructive/10 text-destructive"
         title="链接无效"
-        description="重置密码需要邮件中的 token。"
-        footer={
-          <Link to="/forgot-password" className="text-accent hover:underline">
+        body="当前链接缺少 token，请回到邮箱点击完整链接。重置链接有时效，过期后需要重新申请。"
+        action={
+          <Link to="/forgot-password" className={authStatusPrimaryClass}>
             重新申请重置链接
           </Link>
         }
-      >
-        <p className="text-sm text-muted-foreground">
-          当前链接缺少 token，请回到邮箱点击完整链接。
-        </p>
-      </AuthCard>
+      />
     );
   }
 
@@ -98,7 +108,7 @@ export function ResetPasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <p className="text-xs text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
+          <p className="text-meta text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
         </div>
 
         <div className="flex flex-col gap-2">

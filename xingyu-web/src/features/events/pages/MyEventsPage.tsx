@@ -158,7 +158,7 @@ export function MyEventsPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-primary">我的活动</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">我的活动</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {rows.length > 0 ? `共参与 ${rows.length} 项活动投稿` : "还没有活动投稿记录"}
           </p>

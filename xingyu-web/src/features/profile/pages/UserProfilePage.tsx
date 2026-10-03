@@ -177,7 +177,7 @@ export function UserProfilePage() {
       <ProfileStats profile={profile} />
 
       <section aria-labelledby="works-heading">
-        <h2 id="works-heading" className="mb-3 text-base font-semibold text-primary">
+        <h2 id="works-heading" className="section-heading mb-3">
           公开作品
         </h2>
         {worksError ? (

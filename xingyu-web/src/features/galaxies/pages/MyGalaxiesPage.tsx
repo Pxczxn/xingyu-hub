@@ -85,7 +85,7 @@ export function MyGalaxiesPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-primary">我加入的星系</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">我加入的星系</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {items.length > 0 ? `共 ${items.length} 个星系` : "你加入的星系会出现在这里。"}
           </p>

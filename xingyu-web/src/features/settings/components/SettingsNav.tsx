@@ -45,11 +45,17 @@ const SETTINGS_NAV = [
 export function SettingsNav() {
   return (
     <nav aria-label="设置导航" className="min-w-0">
-      {/* Horizontal tabs on small screens, a vertical rail from md up.
+      {/* Horizontal strip on small screens, a vertical rail from md up.
           `min-w-0` is load-bearing: without it the grid item takes its
-          max-content width, so the 5 tabs push the whole document wider than a
-          375px viewport (the strip below only scrolls once the item can shrink). */}
-      <ul className="flex gap-1 overflow-x-auto border-b border-border pb-2 md:flex-col md:border-b-0 md:pb-0">
+          max-content width, so the tabs push the whole document wider than a
+          375px viewport.
+
+          2026-10-03: the strip used `overflow-x-auto`, which made the last two
+          destinations (API Token / 数据导出) reachable only by an invisible
+          horizontal scroll — and the active item sat half-clipped at the right
+          edge. A scroll container with no scroll affordance is a hidden nav. It
+          now WRAPS instead, so every destination is visible without a gesture. */}
+      <ul className="flex flex-wrap gap-1 border-b border-border pb-2 md:flex-col md:flex-nowrap md:border-b-0 md:pb-0">
         {SETTINGS_NAV.map((item) => {
           const Icon = item.icon;
           return (

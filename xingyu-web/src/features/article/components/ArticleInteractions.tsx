@@ -79,7 +79,7 @@ export function ArticleInteractions({
       {isAuthenticated ? (
         <Button
           type="button"
-          variant={liked ? "primary" : "outline"}
+          variant={liked ? "default" : "outline"}
           size="sm"
           disabled={pending}
           aria-pressed={liked}

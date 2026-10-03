@@ -154,14 +154,19 @@ describe("topic detail", () => {
 
     const sidebar = await screen.findByRole("complementary");
     expect(within(sidebar).getByText("活跃创作者")).toBeInTheDocument();
-    expect(within(sidebar).getByRole("link", { name: /Alice/ })).toHaveAttribute("href", "/u/alice");
+    expect(within(sidebar).getByRole("link", { name: /Alice/ })).toHaveAttribute(
+      "href",
+      "/u/alice",
+    );
     expect(within(sidebar).getByText("5 篇内容")).toBeInTheDocument();
   });
 
   it("hides creator sidebar errors without affecting content", async () => {
     mocked.getTopic.mockResolvedValue({ id: "t1", slug: "spring", name: "Spring 话题" });
     mocked.getTopicCreators.mockRejectedValue(new Error("boom"));
-    mocked.getTopicContent.mockResolvedValue([{ id: "c1", title: "仍然可读", objectType: "ARTICLE" }]);
+    mocked.getTopicContent.mockResolvedValue([
+      { id: "c1", title: "仍然可读", objectType: "ARTICLE" },
+    ]);
 
     renderAt("spring");
 

@@ -161,7 +161,34 @@ describe("MailboxPage — list", () => {
 });
 
 describe("MailboxPage — layout", () => {
-  it("narrows the list column once a conversation is open", async () => {
+  /*
+   * These two replace a test that asserted `list.className` contained
+   * `lg:max-w-sm`.
+   *
+   * That class was the SYMPTOM of a defect, not a specification: the list was
+   * narrowed to make room for a conversation pane that was never rendered
+   * (`ConversationThreadPage` had no import anywhere in src/), so on a wide
+   * screen the right ~700px was simply empty. The old assertion could therefore
+   * only pass while the page was broken — it pinned the bug in place.
+   *
+   * They now assert the thing that actually matters: the detail pane exists, and
+   * it switches from placeholder to thread when a conversation opens.
+   */
+  it("shows a placeholder in the detail pane when no conversation is open", async () => {
+    mocked.listConversations.mockResolvedValue([conversation()]);
+    render(
+      <MemoryRouter initialEntries={["/messages"]}>
+        <Routes>
+          <Route path="/messages" element={<MailboxPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByLabelText("会话列表")).toBeInTheDocument();
+    expect(screen.getByText("从左侧选择一个会话开始阅读。")).toBeInTheDocument();
+  });
+
+  it("replaces the placeholder with the thread once a conversation is open", async () => {
     mocked.listConversations.mockResolvedValue([conversation()]);
     render(
       <MemoryRouter initialEntries={["/messages/c1"]}>
@@ -172,7 +199,12 @@ describe("MailboxPage — layout", () => {
     );
 
     const list = await screen.findByLabelText("会话列表");
-    expect(list.className).toContain("lg:max-w-sm");
+    // No longer squeezed to make room for nothing.
+    expect(list.className).not.toContain("lg:max-w-sm");
+    // The detail pane swapped the placeholder for the real thread.
+    await waitFor(() =>
+      expect(screen.queryByText("从左侧选择一个会话开始阅读。")).not.toBeInTheDocument(),
+    );
   });
 
   it("marks the open conversation with aria-current", async () => {

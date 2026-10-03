@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { topicsApi } from "@/api/topics/topics.api";
 import type { TopicSummary } from "@/api/topics/topics.types";
+import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { TopicsHero } from "@/features/topics/components/TopicsHero";
 import { FeaturedTopics } from "@/features/topics/components/FeaturedTopics";
@@ -79,15 +80,12 @@ export function TopicsPage() {
       {!loading && !error && topics.length > 0 ? (
         <>
           {!searching ? <FeaturedTopics topics={featuredTopics} /> : null}
-          <section aria-labelledby="all-topics">
-            <div className="mb-3 flex items-center justify-between gap-4">
-              <h2 id="all-topics" className="text-lg font-semibold tracking-tight text-primary">
-                全部话题
-              </h2>
-              <span className="text-sm text-muted-foreground">共 {visible.length} 个</span>
-            </div>
+          <PageSection id="all-topics" title="全部话题" count={visible.length}>
             {visible.length > 0 ? (
-              <ul className="grid grid-cols-3 gap-x-6" data-testid="topic-list">
+              <ul
+                className="grid list-none gap-x-6 gap-y-1 p-0 sm:grid-cols-2 lg:grid-cols-3"
+                data-testid="topic-list"
+              >
                 {visible.map((topic) => (
                   <TopicCard key={topic.id} topic={topic} />
                 ))}
@@ -100,7 +98,7 @@ export function TopicsPage() {
                 没有找到匹配的话题
               </div>
             )}
-          </section>
+          </PageSection>
         </>
       ) : null}
     </div>

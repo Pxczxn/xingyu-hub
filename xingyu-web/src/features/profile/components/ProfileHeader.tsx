@@ -45,7 +45,7 @@ export function ProfileHeader({
           </span>
         )}
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-primary">{name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">{name}</h1>
           <p className="text-sm text-muted-foreground">@{profile.username}</p>
           {profile.bio ? (
             <p className="mt-2 max-w-2xl text-sm text-foreground">{profile.bio}</p>
@@ -71,7 +71,7 @@ export function ProfileHeader({
         ) : canFollow ? (
           <Button
             type="button"
-            variant={following ? "outline" : "primary"}
+            variant={following ? "outline" : "default"}
             disabled={followPending}
             onClick={onToggleFollow}
           >

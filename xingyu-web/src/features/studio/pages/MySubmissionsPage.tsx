@@ -67,9 +67,9 @@ export function MySubmissionsPage() {
 
   return (
     <div className="section-gap">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">我的投稿</h1>
-        <p className="text-sm text-muted-foreground">你提交审核的稿件及当前进展。</p>
+      <header className="flex flex-col gap-1.5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的投稿</h1>
+        <p className="text-meta leading-6 text-muted-foreground">你提交审核的稿件及当前进展。</p>
       </header>
 
       {items.length === 0 ? (
@@ -87,7 +87,7 @@ export function MySubmissionsPage() {
                 <Card>
                   <CardContent className="flex flex-col gap-2 p-5">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <h2 className="text-sm font-semibold text-foreground">
+                      <h2 className="text-card font-semibold text-primary">
                         <Link
                           to={`/studio/submissions/${encodeURIComponent(item.id)}`}
                           className="hover:text-accent"
@@ -95,7 +95,7 @@ export function MySubmissionsPage() {
                           {submissionTitle(item)}
                         </Link>
                       </h2>
-                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                      <span className="rounded-full border border-border px-2 py-0.5 text-meta text-muted-foreground">
                         {submissionStatusLabel(item.status)}
                       </span>
                     </div>

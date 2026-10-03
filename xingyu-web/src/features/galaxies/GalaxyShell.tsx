@@ -5,6 +5,7 @@ import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxySummary } from "@/api/galaxies/galaxies.types";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import { GalaxyVisual } from "@/components/visual/GalaxyVisual";
 import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
 import { galaxyKindLabel } from "./galaxy-labels";
@@ -78,6 +79,10 @@ export function useGalaxySlug(): string {
   } catch {
     return raw;
   }
+}
+
+function galaxyMemberLabel(memberCount: number): string {
+  return memberCount > 0 ? `${memberCount} 位成员` : "暂无成员";
 }
 
 type JoinStatus = "idle" | "joining" | "applying" | "joined" | "pending" | "error";
@@ -187,7 +192,7 @@ function GalaxyJoinControl({ slug }: { slug: string }) {
     <div className="flex w-full flex-col gap-2">
       <div className="flex items-center gap-3">
         <Button
-          variant="primary"
+          variant="default"
           size="sm"
           disabled={status === "joining" || status === "applying"}
           onClick={() => void act()}
@@ -269,32 +274,37 @@ export function GalaxyShell({
 
   return (
     <article className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+      <header className="surface-card p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+          <GalaxyVisual stableKey={galaxy.slug} official={galaxy.official} variant="masthead" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
               {galaxyKindLabel(galaxy.official)}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold text-primary">{galaxy.name}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{`${galaxy.memberCount} 位成员`}</p>
-          </div>
-          <div className="w-full sm:w-auto sm:min-w-[16rem]">
-            <GalaxyJoinControl slug={galaxy.slug} />
+            <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight text-primary sm:text-[28px]">
+              {galaxy.name}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {galaxyMemberLabel(galaxy.memberCount)}
+            </p>
+            <div className="mt-3">
+              <GalaxyJoinControl slug={galaxy.slug} />
+            </div>
           </div>
         </div>
       </header>
 
-      <nav aria-label="星系导航" className="flex flex-wrap gap-2">
+      <nav aria-label="星系导航" className="flex flex-wrap gap-6 border-b border-border/70">
         {TABS.map((tab) => (
           <Link
             key={tab.key}
             to={`/galaxies/${encodeURIComponent(galaxy.slug)}${tab.to}`}
             aria-current={activeTab === tab.key ? "page" : undefined}
             className={cn(
-              "rounded-md border px-3 py-1.5 text-sm",
+              "focus-ring relative rounded-none px-1 pb-2 text-sm transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:origin-center after:scale-x-0 after:bg-accent after:transition-transform",
               activeTab === tab.key
-                ? "border-accent bg-accent/10 font-medium text-accent"
-                : "border-border text-muted-foreground hover:bg-muted",
+                ? "font-medium text-primary after:scale-x-100"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {tab.label}

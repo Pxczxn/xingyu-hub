@@ -15,9 +15,23 @@ import { cn } from "@/lib/cn";
  *
  * `compact` is for a page that already knows who you are. The prototype asks for
  * 「登录：简洁欢迎语，不占太多空间」 — a reader who is signed in gets a greeting, not
- * a second marketing pitch — so this drops the artwork, the corner glow and the
+ * a second marketing pitch — so this drops the artwork, the corner accent and the
  * large title, and halves the vertical padding. It is a prop rather than a
  * className override because the title size is baked into the heading here.
+ *
+ * 2026-10-03 (layout pass) — hierarchy and flatness:
+ *
+ *   - The title was 24px, the same size as the section headings below it, so the
+ *     banner did not read as the top of the page. It now uses the `display` step
+ *     (28px) and the eyebrow uses `.eyebrow`, which carries a short gold rule and
+ *     resolves through --accent-strong (the raw brand gold measures 2.01:1 on
+ *     cream and was effectively invisible at 11px).
+ *   - The decorative corner was a 176px `blur-2xl` blob. It is now a flat
+ *     gold-tinted disc: same "this corner is brand" signal, no filter cost, and it
+ *     matches the flat-surface rule in MASTER.md.
+ *   - The illustration slot was `hidden sm:block`; it is now `hidden lg:block` so
+ *     it stops competing with the text at tablet widths where the two columns
+ *     have already stacked.
  */
 
 type PageHeroProps = {
@@ -35,12 +49,24 @@ type PageHeroProps = {
   /** Uses the illustration as a quiet scene behind the content. */
   immersive?: boolean;
   /**
-   * Reduced banner: no artwork, no glow, smaller title, less height. Use it when the
+   * Reduced banner: no artwork, no corner accent, smaller title, less height. Use it when the
    * visitor is already signed in and the banner is a greeting rather than a pitch.
    */
   compact?: boolean;
   tone?: "gold" | "blue" | "violet";
   className?: string;
+};
+
+const TONE_CORNER: Record<NonNullable<PageHeroProps["tone"]>, string> = {
+  gold: "bg-accent-soft",
+  blue: "bg-sky-100/70",
+  violet: "bg-violet-100/70",
+};
+
+const TONE_ART: Record<NonNullable<PageHeroProps["tone"]>, string> = {
+  gold: "border-accent-line/70 bg-accent-soft text-accent-strong",
+  blue: "border-sky-200 bg-sky-50 text-sky-700",
+  violet: "border-violet-200 bg-violet-50 text-violet-700",
 };
 
 export function PageHero({
@@ -60,72 +86,65 @@ export function PageHero({
     <section
       data-compact={compact ? "true" : undefined}
       className={cn(
-        "relative overflow-hidden rounded-xl border border-border/70 bg-card shadow-none",
-        immersive && "bg-card/90",
-        compact ? "px-5 py-4" : "px-5 py-5 sm:px-8 sm:py-6",
+        "relative overflow-hidden rounded-xl border border-border/70 bg-card",
+        compact ? "px-5 py-4" : "px-5 py-6 sm:px-7 sm:py-7",
         className,
       )}
     >
+      {/* Flat corner accent — replaces the old blurred blob. Sized down on
+          narrow viewports, where 160px in the corner is a third of the card. */}
+      {compact ? null : (
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-60 sm:-right-14 sm:-top-14 sm:h-40 sm:w-40 sm:opacity-70",
+            TONE_CORNER[tone],
+          )}
+        />
+      )}
+
       {immersive && illustration ? (
-        <div className="pointer-events-none absolute inset-0 hidden sm:block" aria-hidden>
-          <div className="absolute inset-0 bg-gradient-to-r from-card via-card/90 to-card/25" />
-          <div className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-end opacity-90">
+        <div className="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden>
+          <div className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-end pr-7 opacity-95">
             {illustration}
           </div>
         </div>
       ) : null}
-      {compact ? null : (
-        <div
-          className={cn(
-            "pointer-events-none absolute -right-10 -top-16 h-44 w-44 rounded-full opacity-80 blur-2xl",
-            {
-              "bg-accent/30": tone === "gold",
-              "bg-sky-300/30": tone === "blue",
-              "bg-violet-300/30": tone === "violet",
-            },
-          )}
-        />
-      )}
+
       <div
         className={cn(
           "relative z-10 flex flex-col",
-          compact ? "gap-3" : "gap-5 sm:flex-row sm:items-end sm:justify-between",
+          compact ? "gap-3" : "gap-5 lg:flex-row lg:items-center lg:justify-between",
         )}
       >
-        <div className="max-w-2xl">
-          {eyebrow ? (
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
-              {eyebrow}
-            </p>
-          ) : null}
+        <div className="min-w-0 max-w-2xl">
+          {eyebrow ? <p className="eyebrow mb-2.5">{eyebrow}</p> : null}
           <h1
             className={cn(
               "font-semibold tracking-tight text-primary",
-              compact ? "text-xl" : "text-2xl sm:text-3xl",
+              compact ? "text-2xl" : "text-display",
             )}
           >
             {title}
           </h1>
-          {description ? (
-            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-              {description}
-            </p>
-          ) : null}
-          {actions ? <div className="mt-4 flex flex-wrap items-center gap-3">{actions}</div> : null}
+          {description ? <p className="lede mt-2.5 max-w-xl sm:text-base">{description}</p> : null}
+          {actions ? <div className="mt-5 flex flex-wrap items-center gap-3">{actions}</div> : null}
           {announcement ? <div className="mt-4 max-w-xl">{announcement}</div> : null}
         </div>
+
         {compact || immersive ? null : illustration ? (
-          <div className="relative hidden shrink-0 sm:block" aria-hidden>
+          <div className="relative hidden shrink-0 lg:block" aria-hidden>
             {illustration}
           </div>
         ) : (
           <div
-            className="hidden shrink-0 rounded-full border border-border bg-background/70 p-4 sm:block"
             aria-hidden
+            className={cn("hidden shrink-0 rounded-xl border p-4 lg:block", TONE_ART[tone])}
           >
-            <Orbit className="h-8 w-8 text-accent" strokeWidth={1.5} />
+            <Orbit className="h-7 w-7" strokeWidth={1.5} />
           </div>
         )}
+
         {action ? <div className="relative shrink-0">{action}</div> : null}
       </div>
     </section>

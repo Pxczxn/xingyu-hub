@@ -30,7 +30,7 @@ export function BookshelfPage() {
   return (
     <div className="section-gap">
       <header>
-        <h1 className="text-xl font-semibold text-primary">我的书架</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的书架</h1>
         <p className="mt-1 text-sm text-muted-foreground">已订阅的系列会出现在这里。</p>
       </header>
       {loading ? <PageState kind="loading" /> : null}
