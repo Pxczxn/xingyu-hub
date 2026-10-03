@@ -2,6 +2,7 @@ package top.pxczxn.xingyu.community.service;
 
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
+import top.pxczxn.xingyu.community.dto.GuideBlockView;
 import top.pxczxn.xingyu.community.dto.GuidePageView;
 import top.pxczxn.xingyu.community.entity.GuidePage;
 import top.pxczxn.xingyu.community.mapper.GuidePageMapper;
@@ -12,6 +13,7 @@ import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -86,6 +88,7 @@ public class GuideService {
                 .slug(page.getSlug())
                 .title(page.getTitle())
                 .body(page.getBody())
+                .blocks(extractBlocks(page.getBody()))
                 .publishedAt(page.getPublishedAt())
                 .build();
     }
@@ -102,5 +105,82 @@ public class GuideService {
             return defaultValue;
         }
         return Integer.parseInt(raw.trim());
+    }
+
+    private static final String HEADING_2 = "## ";
+    private static final String HEADING_3 = "### ";
+
+    /**
+     * Split a guide / rules body into renderable blocks.
+     *
+     * The author marks a clause heading with a leading {@code ## } (or
+     * {@code ### } for a sub-clause). That is deliberate: this is a CONVENTION,
+     * not a heuristic. Nothing here tries to decide that a line "looks like a
+     * title" — an author who wants a clause in the outline writes the marker,
+     * and one who does not gets an ordinary paragraph. Guessing would produce
+     * anchors pointing at lines the author never meant as headings.
+     *
+     * A body with no markers yields paragraph blocks only and therefore no
+     * outline — identical to how these pages behaved before blocks existed, so
+     * existing content degrades rather than breaking.
+     *
+     * Headings are anchored by POSITION, not by text: two clauses may legitimately
+     * share a title, and an in-page anchor only needs to be unique within the
+     * document.
+     */
+    private static List<GuideBlockView> extractBlocks(String body) {
+        if (body == null || body.isBlank()) {
+            return List.of();
+        }
+
+        List<GuideBlockView> blocks = new ArrayList<>();
+        StringBuilder paragraph = new StringBuilder();
+        int headingIndex = 0;
+
+        for (String rawLine : body.split("\r?\n", -1)) {
+            String line = rawLine.strip();
+
+            String headingText = null;
+            int level = 0;
+            if (line.startsWith(HEADING_3)) {
+                headingText = line.substring(HEADING_3.length()).strip();
+                level = 3;
+            } else if (line.startsWith(HEADING_2)) {
+                headingText = line.substring(HEADING_2.length()).strip();
+                level = 2;
+            }
+
+            if (headingText != null && !headingText.isEmpty()) {
+                flushParagraph(blocks, paragraph);
+                blocks.add(GuideBlockView.builder()
+                        .type("heading")
+                        .text(headingText)
+                        .id("guide-heading-" + headingIndex)
+                        .level(level)
+                        .build());
+                headingIndex++;
+            } else if (line.isEmpty()) {
+                flushParagraph(blocks, paragraph);
+            } else {
+                if (paragraph.length() > 0) {
+                    paragraph.append('\n');
+                }
+                paragraph.append(line);
+            }
+        }
+        flushParagraph(blocks, paragraph);
+        return blocks;
+    }
+
+    private static void flushParagraph(List<GuideBlockView> blocks, StringBuilder paragraph) {
+        if (paragraph.length() == 0) {
+            return;
+        }
+        blocks.add(GuideBlockView.builder()
+                .type("paragraph")
+                .text(paragraph.toString())
+                .level(0)
+                .build());
+        paragraph.setLength(0);
     }
 }

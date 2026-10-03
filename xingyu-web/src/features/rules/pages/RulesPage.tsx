@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { guideOutline } from "@/api/guide/guide.types";
+import { GuideBody } from "@/features/guide/components/GuideBody";
 import { guideApi } from "@/api/guide/guide.api";
 import type { GuidePage } from "@/api/guide/guide.types";
 import { PageState } from "@/components/shared/PageState";
@@ -42,6 +44,9 @@ export function RulesPage() {
   }
 
   const { page } = state;
+  // Built from the server's heading blocks. Empty when the document was written
+  // without `## ` markers, in which case no index is shown — see GuideBody.
+  const outline = guideOutline(page.blocks);
 
   return (
     /*
@@ -80,11 +85,40 @@ export function RulesPage() {
         </div>
       </header>
 
-      {/* Reading measure, not full shell width. At 1200px a Chinese line runs
-          ~70 glyphs, well past the 30-40 that reads comfortably; `68ch` is about
-          34 CJK glyphs. Body copy also moves up a step for long-form reading. */}
-      <div className="max-w-[68ch] whitespace-pre-wrap text-[15px] leading-8 text-foreground">
-        {page.body}
+      {/*
+        Two columns from : a clause index beside the document.
+        This is the reason the body is now structured. A reader consults 社区规则
+        by looking something up — 「违规处理是怎么规定的」 — and a 2000-word
+        document with no index makes that a scroll-and-scan. The index is built
+        from the server's heading blocks, so it lists real clauses rather than
+        whatever a regex thought looked like a title.
+
+        With no headings the outline renders nothing and the body keeps the full
+        column, which is the same page as before.
+      */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start lg:gap-10">
+        <GuideBody blocks={page.blocks} body={page.body} />
+
+        {outline.length > 0 ? (
+          <nav
+            aria-label="规则条款"
+            className="rounded-xl border border-border/70 bg-card p-4 lg:sticky lg:top-24"
+          >
+            <p className="eyebrow mb-3">条款</p>
+            <ul className="flex list-none flex-col gap-1.5 p-0">
+              {outline.map((block) => (
+                <li key={block.id}>
+                  <a
+                    href={`#${block.id}`}
+                    className="focus-ring block rounded-sm text-meta leading-5 text-muted-foreground transition-colors hover:text-accent-strong"
+                  >
+                    {block.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null}
       </div>
     </article>
   );
