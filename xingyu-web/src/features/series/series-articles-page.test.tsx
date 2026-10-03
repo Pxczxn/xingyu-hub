@@ -46,7 +46,28 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  /*
+   * `resetAllMocks`, NOT `clearAllMocks` (2026-10-03).
+   *
+   * This file had a genuinely flaky test and this line was the cause. The two
+   * differ in a way that is easy to miss:
+   *
+   *   clearAllMocks  -> mock.calls / instances / results      (call history only)
+   *   resetAllMocks  -> the above AND the implementation queue
+   *
+   * The second test queues TWO `mockResolvedValueOnce` values on
+   * `seriesApi.getMine` but the page consumes only one of them, so a value stayed
+   * queued. `clearAllMocks` does not touch that queue, so the leftover survived
+   * into whichever test ran next and was handed back as that test's `getMine`
+   * result — the page then rendered against the wrong fixture and never showed
+   * the text the assertion waited for, timing out at 5s.
+   *
+   * In file order the leak happened to be harmless, which is why this looked like
+   * a random ~6% failure for a long time. Running with `--sequence.shuffle`
+   * reproduces it immediately, because the queue then lands on a test that does
+   * not expect it. That is how the culprit was identified.
+   */
+  vi.resetAllMocks();
 });
 
 describe("SeriesArticlesPage", () => {
