@@ -130,7 +130,7 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
   return (
     <div className="section-gap">
       <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">社区活动</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">社区活动</h1>
         <p className="text-sm text-muted-foreground">发现正在进行的活动，和同好一起参与创作。</p>
       </header>
 
@@ -154,7 +154,7 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
 
             <section className="flex flex-col gap-3">
               <div className="flex items-baseline justify-between">
-                <h2 className="text-sm font-semibold text-foreground">进行中的活动</h2>
+                <h2 className="section-heading">进行中的活动</h2>
                 <span className="text-xs text-muted-foreground">共 {events.length} 场</span>
               </div>
               <ul aria-label="活动列表" className="grid gap-3 sm:grid-cols-2">
@@ -242,7 +242,7 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
             </section>
 
             <section className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground">即将开始</h2>
+              <h2 className="section-heading">即将开始</h2>
               {upcoming.length === 0 ? (
                 <p className="mt-2 text-xs text-muted-foreground">暂无带开始时间的活动安排。</p>
               ) : (

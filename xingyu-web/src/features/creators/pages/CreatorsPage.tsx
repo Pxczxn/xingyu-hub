@@ -137,7 +137,7 @@ export function CreatorsPage() {
   return (
     <div className="section-gap">
       <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">推荐作者</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">推荐作者</h1>
         <p className="text-sm text-muted-foreground">从社区专题中发现值得关注的创作者。</p>
       </header>
 

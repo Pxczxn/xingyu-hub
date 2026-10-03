@@ -57,7 +57,7 @@ export function SeriesListPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-primary">我的系列</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">我的系列</h1>
           <p className="mt-1 text-sm text-muted-foreground">把已有文章组织成系列。</p>
         </div>
         <Link to="/studio/series/new" className={cn(buttonVariants({ variant: "accent" }))}>

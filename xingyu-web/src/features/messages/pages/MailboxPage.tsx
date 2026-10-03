@@ -107,7 +107,7 @@ export function MailboxPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-primary">私信</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">私信</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {unreadTotal > 0 ? `${unreadTotal} 条未读` : "没有未读消息"}
           </p>

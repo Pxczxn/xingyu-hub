@@ -46,7 +46,7 @@ export function BookshelfPage() {
         <ul className="grid gap-3">
           {items.map((item) => (
             <li key={item.id} className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-medium text-foreground">{item.title}</h2>
+              <h2 className="section-heading">{item.title}</h2>
               {item.summary ? (
                 <p className="mt-1 text-sm text-muted-foreground">{item.summary}</p>
               ) : null}

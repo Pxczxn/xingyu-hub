@@ -58,7 +58,7 @@ export function GuideIndexPage() {
                 to={`/guide/${encodeURIComponent(page.slug)}`}
                 className="block rounded-lg border border-border bg-card p-4 hover:border-accent"
               >
-                <h2 className="text-sm font-medium text-foreground">{page.title}</h2>
+                <h2 className="section-heading">{page.title}</h2>
               </Link>
             </li>
           ))}

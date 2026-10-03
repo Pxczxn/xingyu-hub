@@ -156,7 +156,7 @@ export function CollectionManagePage() {
   return (
     <div className="section-gap">
       <BackLink />
-      <h1 className="text-xl font-semibold text-primary">{collection.title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-primary">{collection.title}</h1>
 
       <form
         onSubmit={(event) => void onSave(event)}
@@ -202,7 +202,7 @@ export function CollectionManagePage() {
       </form>
 
       <section>
-        <h2 className="text-sm font-semibold text-foreground">收录内容</h2>
+        <h2 className="section-heading">收录内容</h2>
         {items.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">暂时没有收录内容</p>
         ) : (

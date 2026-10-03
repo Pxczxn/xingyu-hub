@@ -290,7 +290,7 @@ export function ConversationThreadPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold text-primary">{conversationLabel(conversation)}</h1>
+          <h2 className="section-heading">{conversationLabel(conversation)}</h2>
           {isGroup ? (
             <span className="rounded border border-border px-1 text-[10px] text-muted-foreground">
               群聊
