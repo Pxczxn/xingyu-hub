@@ -4,6 +4,7 @@ import { guideApi } from "@/api/guide/guide.api";
 import type { GuidePage } from "@/api/guide/guide.types";
 import { ApiError } from "@/api/client";
 import { PageState } from "@/components/shared/PageState";
+import { GuideBody } from "@/features/guide/components/GuideBody";
 
 type LoadState =
   | { kind: "loading" }
@@ -88,9 +89,7 @@ export function GuideDetailPage() {
         ) : null}
       </header>
 
-      <div className="max-w-[68ch] whitespace-pre-wrap text-[15px] leading-8 text-foreground">
-        {page.body}
-      </div>
+      <GuideBody blocks={page.blocks} body={page.body} />
 
       <footer className="max-w-[68ch] border-t border-border/70 pt-5">
         <Link
