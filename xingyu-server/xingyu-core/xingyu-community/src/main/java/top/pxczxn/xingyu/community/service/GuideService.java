@@ -128,7 +128,10 @@ public class GuideService {
      * share a title, and an in-page anchor only needs to be unique within the
      * document.
      */
-    private static List<GuideBlockView> extractBlocks(String body) {
+    // Package-private, not private, so the parser can be unit-tested directly.
+    // It is pure string logic with no Spring or database involvement, which makes
+    // it the one part of this change that can be verified without a running app.
+    static List<GuideBlockView> extractBlocks(String body) {
         if (body == null || body.isBlank()) {
             return List.of();
         }
