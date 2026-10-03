@@ -553,7 +553,11 @@ public class ConversationService {
      * does mean a mailbox of N conversations is 5N queries, and this loop is the
      * obvious place to batch if that ever becomes the bottleneck.
      */
-    private String resolveCounterpartDisplayName(Conversation conversation, String userId) {
+    // Package-private, not private, so it can be unit-tested with mocked mappers.
+    // It touches no database directly, so a mock is enough to verify the
+    // resolution rules (self excluded, displayName preferred over username,
+    // null-safe when the profile is missing).
+    String resolveCounterpartDisplayName(Conversation conversation, String userId) {
         if (!"DIRECT".equals(conversation.getType())) {
             return null;
         }
@@ -563,7 +567,11 @@ public class ConversationService {
                 .map(other -> {
                     CommunityProfile profile = profileMapper.findByUserId(other.getUserId());
                     if (profile == null) {
-                        return other.getUserId();
+                        // Null, NOT the raw userId. A user id is an opaque string
+                        // and printing it tells the reader nothing — the client
+                        // falls back to its own label instead. This matches how
+                        // MomentService treats a missing author profile.
+                        return null;
                     }
                     String displayName = profile.getDisplayName();
                     return displayName == null || displayName.isBlank()
