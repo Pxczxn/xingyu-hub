@@ -125,9 +125,18 @@ export function SettingsReauthenticatePage() {
             <ShieldCheck className="h-5 w-5" />
           </span>
 
-          <h2 id="reauth-heading" className="mt-3 text-center text-card font-semibold text-primary">
+          {/*
+             An h1, not the h2 it used to be. When this page lived inside
+             SettingsLayout that shell supplied the page heading, so an h2 was
+             correct. Standalone, it is the only heading on the screen and an
+             outline that starts at level 2 is a broken outline.
+           */}
+          <h1
+            id="reauth-heading"
+            className="mt-3 text-center text-xl font-semibold tracking-tight text-primary"
+          >
             身份再验证
-          </h2>
+          </h1>
           <p className="mx-auto mt-1.5 max-w-sm text-center text-meta text-muted-foreground">
             为保护账号，修改邮箱前需要先用当前密码验证身份，验证结果 15 分钟内有效。
           </p>
