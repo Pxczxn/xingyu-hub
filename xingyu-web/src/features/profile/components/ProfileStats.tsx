@@ -22,8 +22,8 @@ export function ProfileStats({ profile }: { profile: ProfileDetail }) {
     <dl className="grid grid-cols-3 gap-3" data-testid="profile-stats">
       {stats.map((stat) => (
         <div key={stat.label} className="rounded-lg border border-border bg-card p-3 text-center">
-          <dt className="text-xs text-muted-foreground">{stat.label}</dt>
-          <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground">
+          <dt className="text-meta text-muted-foreground">{stat.label}</dt>
+          <dd className="mt-1 text-lg font-semibold tabular-nums text-primary">
             {stat.to ? (
               <Link to={stat.to} className="hover:text-accent hover:underline">
                 {stat.value}

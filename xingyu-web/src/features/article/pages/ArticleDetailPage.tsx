@@ -133,30 +133,61 @@ export function ArticleDetailPage() {
         />
       ) : null}
 
-      <ArticleMarkdownBody body={prepared?.markdown ?? article.body} />
+      {/*
+        Reading layout.
+        ============================================================
+        Two things were wrong here:
 
-      {prepared?.recoveredFromHtml ? (
-        <p className="text-xs text-muted-foreground">
-          （本文正文来自旧版富文本，已自动转换为 Markdown 渲染）
-        </p>
-      ) : null}
+        1. The outline was rendered AFTER the article body. A table of contents
+           placed below the thing it indexes cannot be used to navigate it — by
+           the time the reader can see it, they have already scrolled past every
+           heading it lists.
 
-      {outline.length > 0 ? (
-        <nav aria-label="文章目录" className="rounded-lg border border-border bg-card p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            目录
-          </p>
-          <ul className="flex flex-col gap-1">
-            {outline.map((item) => (
-              <li key={item.id} style={{ paddingLeft: `${(item.level - 2) * 12}px` }}>
-                <a href={`#${item.id}`} className="text-sm text-muted-foreground hover:text-accent">
-                  {item.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      ) : null}
+        2. The body had no reading measure, so on a 1200px shell a Chinese line
+           ran ~70 glyphs. Comfortable long-form reading is 30-40 CJK glyphs;
+           `max-w-[68ch]` is about 34.
+
+        Both are fixed by one grid. `order` moves the outline ABOVE the body
+        below `lg` (where a side rail has no room) and beside it at `lg`+ as a
+        sticky rail. It is a SINGLE DOM node with CSS ordering rather than two
+        copies behind responsive `hidden` — two copies would mean two
+        `nav[aria-label="文章目录"]` landmarks, which is both an a11y smell and
+        something the tests would have to work around.
+      */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start lg:gap-10">
+        <div className="order-2 min-w-0 lg:order-1">
+          <div className="max-w-[68ch]">
+            <ArticleMarkdownBody body={prepared?.markdown ?? article.body} />
+
+            {prepared?.recoveredFromHtml ? (
+              <p className="mt-4 text-meta text-muted-foreground">
+                （本文正文来自旧版富文本，已自动转换为 Markdown 渲染）
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        {outline.length > 0 ? (
+          <nav
+            aria-label="文章目录"
+            className="order-1 rounded-xl border border-border/70 bg-card p-4 lg:order-2 lg:sticky lg:top-24"
+          >
+            <p className="eyebrow mb-3">目录</p>
+            <ul className="flex list-none flex-col gap-1.5 p-0">
+              {outline.map((item) => (
+                <li key={item.id} style={{ paddingLeft: `${(item.level - 2) * 12}px` }}>
+                  <a
+                    href={`#${item.id}`}
+                    className="focus-ring block rounded-sm text-meta leading-5 text-muted-foreground transition-colors hover:text-accent-strong"
+                  >
+                    {item.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null}
+      </div>
 
       <ArticleInteractions objectType="ARTICLE" objectId={article.id} />
 

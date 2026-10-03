@@ -263,7 +263,7 @@ export function StudioCategoriesPage() {
       </nav>
 
       <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">创作空间分类</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">创作空间分类</h1>
         <p className="text-sm text-muted-foreground">给作品分组，方便在你的主页里按分类浏览。</p>
       </header>
 
@@ -276,7 +276,7 @@ export function StudioCategoriesPage() {
               void onCreate();
             }}
           >
-            <h2 className="text-sm font-semibold text-foreground">新建分类</h2>
+            <h2 className="section-heading">新建分类</h2>
 
             <div className="flex flex-col gap-1">
               <label htmlFor="category-name" className="text-xs text-muted-foreground">
@@ -332,7 +332,7 @@ export function StudioCategoriesPage() {
             <div>
               <Button
                 type="submit"
-                variant="primary"
+                variant="default"
                 size="sm"
                 data-testid="category-create"
                 disabled={creating}
@@ -391,7 +391,7 @@ export function StudioCategoriesPage() {
                             <div className="flex gap-2">
                               <Button
                                 type="button"
-                                variant="primary"
+                                variant="default"
                                 size="sm"
                                 data-testid={`category-rename-save-${category.id}`}
                                 disabled={isPending}
@@ -416,7 +416,7 @@ export function StudioCategoriesPage() {
                         ) : (
                           <>
                             <div className="flex flex-col gap-1">
-                              <h2 className="text-sm font-semibold text-foreground">
+                              <h2 className="text-card font-semibold text-primary">
                                 {category.name}
                               </h2>
                               <p className="text-xs text-muted-foreground">别名 {category.slug}</p>

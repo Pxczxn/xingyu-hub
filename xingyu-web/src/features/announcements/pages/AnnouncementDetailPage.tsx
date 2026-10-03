@@ -67,15 +67,34 @@ export function AnnouncementDetailPage() {
   const { item } = state;
 
   return (
+    /*
+      A NOTICE, so it leads with what it is and when it takes effect.
+      An announcement is not read the way an article is — the reader arrives
+      asking "does this apply to me, and from when?". A badge states the document
+      type, and the date sits in its own meta strip rather than as a loose line of
+      grey text under the title, because for a notice the date is load-bearing.
+    */
     <article className="section-gap">
       <BackToList />
-      <header className="space-y-2">
-        <h1 className="text-xl font-semibold text-primary">{item.title}</h1>
+
+      <header className="border-b border-border/70 pb-5">
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-accent-line/60 bg-accent-soft px-2 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-accent-strong">
+          公告
+        </span>
+        <h1 className="mt-2.5 text-2xl font-semibold tracking-tight text-primary">{item.title}</h1>
         {item.publishedAt ? (
-          <p className="text-sm text-muted-foreground">{formatPublishedAt(item.publishedAt)}</p>
+          <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-meta">
+            <div className="flex gap-1.5">
+              <dt className="text-muted-foreground">发布</dt>
+              <dd className="text-foreground-soft">
+                <time dateTime={item.publishedAt}>{formatPublishedAt(item.publishedAt)}</time>
+              </dd>
+            </div>
+          </dl>
         ) : null}
       </header>
-      <div className="whitespace-pre-wrap text-sm leading-7 text-foreground">
+
+      <div className="max-w-[68ch] whitespace-pre-wrap text-[15px] leading-8 text-foreground">
         {item.body || "该公告暂未提供正文。"}
       </div>
     </article>

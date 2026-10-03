@@ -15,6 +15,27 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    /*
+     * CJK text sits better with a touch more tracking than the browser default,
+     * and `text-rendering` keeps Latin kerning from being sacrificed for speed.
+     */
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+   * Motion preference. The old build only honoured this inside the editor's own
+   * stylesheet, so every shell-level transition (nav hover, card lift, the
+   * hero's blur glow) ignored the setting.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -31,11 +52,132 @@
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
   }
 
-  /* Shared shell: 90% of the viewport, capped for ultra-wide screens. */
+  /*
+   * Shared shell: aligned with the header and footer so all three edges land on
+   * the same vertical line. Was `max-w-[1440px]`, which ran body text to ~100 CJK
+   * glyphs per line on a wide display; MASTER.md asks for 1152px. 1200px is the
+   * compromise — see --shell-max-width.
+   *
+   * `max-width` is written as plain CSS rather than `@apply max-w-shell` so the
+   * rule still resolves if the Tailwind config is ever stale (a config edit is
+   * not picked up by a running dev server without a restart).
+   */
   .content-shell {
-    @apply mx-auto w-[90%] max-w-[1440px] px-4 py-6 md:px-6 md:py-8;
+    @apply mx-auto w-[92%] px-4 py-6 sm:w-[90%] md:px-6 md:py-8;
+    max-width: var(--shell-max-width);
   }
+
+  /* Vertical rhythm between page-level blocks. One value, used everywhere. */
   .section-gap {
-    @apply flex flex-col gap-6;
+    @apply flex flex-col gap-8;
+  }
+
+  /*
+   * The gold eyebrow that opens every page banner and section. It carries a
+   * short gold rule so the label reads as a deliberate marker rather than a
+   * stray line of small text — and it uses --accent-strong, because the raw
+   * brand gold measures 2.01:1 on cream and is unreadable at this size.
+   */
+  .eyebrow {
+    @apply flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-accent-strong;
+  }
+  .eyebrow::before {
+    content: "";
+    @apply h-3 w-0.5 shrink-0 rounded-full bg-accent;
+  }
+
+  /* Section heading — one step below the page title, one above a card title. */
+  .section-heading {
+    @apply text-title font-semibold text-primary;
+  }
+
+  /* Muted body copy used under headings. Bounded so lines stay readable. */
+  .lede {
+    @apply text-meta leading-6 text-muted-foreground;
+  }
+
+  /*
+   * Rendered Markdown body (article reader + series reader).
+   *
+   * 2026-10-03: this class was APPLIED but never DEFINED — a whole-file grep for
+   * `.article-body` found only the JSX that sets it, no CSS anywhere. Tailwind's
+   * preflight resets every heading to `font-size: inherit; font-weight: inherit`,
+   * so with nothing restoring them an `<h2>` inside an article rendered exactly
+   * like the paragraph under it. On the product's primary reading surface the
+   * document outline was invisible: a reader could not tell a section break from
+   * a line break, and the table of contents pointed at headings that looked like
+   * nothing.
+   *
+   * Restoring it here rather than per-page because both readers render into the
+   * same class, and a reading surface should not typeset differently depending
+   * on which route you arrived from.
+   *
+   * Measure is NOT set here — the caller owns the column width (the article page
+   * wraps this in `max-w-[68ch]`). Setting it twice would fight.
+   */
+  .article-body {
+    @apply text-[15px] leading-8 text-foreground;
+  }
+  .article-body > * + * {
+    @apply mt-4;
+  }
+  .article-body h2 {
+    @apply mt-10 text-xl font-semibold tracking-tight text-primary;
+  }
+  .article-body h3 {
+    @apply mt-8 text-base font-semibold tracking-tight text-primary;
+  }
+  .article-body h4 {
+    @apply mt-6 text-card font-semibold text-primary;
+  }
+  /* A heading immediately after another heading should not double the gap. */
+  .article-body h2 + *,
+  .article-body h3 + *,
+  .article-body h4 + * {
+    @apply mt-3;
+  }
+  .article-body p {
+    @apply leading-8;
+  }
+  .article-body ul,
+  .article-body ol {
+    @apply flex flex-col gap-1.5 pl-6;
+  }
+  .article-body ul {
+    @apply list-disc;
+  }
+  .article-body ol {
+    @apply list-decimal;
+  }
+  .article-body blockquote {
+    @apply border-l-2 border-accent-line pl-4 text-muted-foreground;
+  }
+  .article-body code {
+    @apply rounded bg-surface-sunken px-1.5 py-0.5 font-mono text-[13px];
+  }
+  .article-body pre {
+    @apply overflow-x-auto rounded-lg border border-border/70 bg-surface-sunken p-4;
+  }
+  .article-body pre code {
+    @apply bg-transparent p-0 text-[13px];
+  }
+  .article-body a {
+    @apply text-accent-strong underline underline-offset-2;
+  }
+  .article-body img {
+    @apply rounded-lg border border-border/70;
+  }
+  .article-body hr {
+    @apply border-border/70;
+  }
+  .article-body table {
+    @apply w-full border-collapse text-meta;
+  }
+  .article-body th,
+  .article-body td {
+    @apply border border-border/70 px-3 py-2 text-left;
+  }
+  .article-body th {
+    @apply bg-surface-sunken font-medium;
   }
 }

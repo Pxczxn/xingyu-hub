@@ -161,7 +161,10 @@ export function CollaborationAcceptPage() {
     return (
       <div className="section-gap">
         <header className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold text-primary" data-testid="accept-headline">
+          <h1
+            className="text-2xl font-semibold tracking-tight text-primary"
+            data-testid="accept-headline"
+          >
             {acceptedHeadline(accept.result)}
           </h1>
         </header>
@@ -216,7 +219,7 @@ export function CollaborationAcceptPage() {
       </nav>
 
       <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">确认协作邀请</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">确认协作邀请</h1>
         <p className="text-sm text-muted-foreground">
           {inviter} 邀请你一起创作。确认前请先看完下面的说明。
         </p>
@@ -265,7 +268,7 @@ export function CollaborationAcceptPage() {
           <div className="flex flex-wrap gap-2 border-t border-border pt-4">
             <Button
               type="button"
-              variant="primary"
+              variant="default"
               size="sm"
               data-testid="accept-confirm"
               disabled={accept.kind === "pending"}

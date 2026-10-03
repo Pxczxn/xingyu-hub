@@ -111,7 +111,7 @@ export function CollaborationInvitePage() {
       </nav>
 
       <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">邀请协作</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">邀请协作</h1>
         <p className="text-sm text-muted-foreground">生成一条邀请链接，发给你想一起创作的人。</p>
       </header>
 
@@ -148,7 +148,7 @@ export function CollaborationInvitePage() {
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 type="submit"
-                variant="primary"
+                variant="default"
                 size="sm"
                 data-testid="collaboration-create"
                 disabled={state.kind === "creating"}
@@ -174,7 +174,7 @@ export function CollaborationInvitePage() {
       {state.kind === "created" ? (
         <Card>
           <CardContent className="flex flex-col gap-3 p-5" data-testid="collaboration-result">
-            <h2 className="text-sm font-semibold text-foreground">邀请链接已生成</h2>
+            <h2 className="section-heading">邀请链接已生成</h2>
 
             <div className="flex flex-col gap-1">
               <label htmlFor="collaboration-link" className="text-xs text-muted-foreground">
@@ -202,7 +202,7 @@ export function CollaborationInvitePage() {
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant="primary"
+                variant="default"
                 size="sm"
                 data-testid="collaboration-copy"
                 onClick={() => void copy()}

@@ -136,7 +136,7 @@ export function MyMomentsPage() {
     <div className="section-gap">
       <header className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold text-primary">{heading}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">{heading}</h1>
           {profile?.username ? (
             <p className="mt-1 text-xs text-muted-foreground">ID: {profile.username}</p>
           ) : null}

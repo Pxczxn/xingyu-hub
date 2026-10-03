@@ -140,15 +140,25 @@ describe("studio analytics page", () => {
     expect(link).toHaveAttribute("href", "/studio/submissions");
   });
 
-  it("does NOT link to a /studio/content list that does not exist", async () => {
-    // Only /studio/content/:articleId is routed; a bare list link would 404.
+  /*
+   * UPDATED 2026-10-03 — this assertion was inverted, not relaxed.
+   *
+   * It used to require that NO link pointed at `/studio/content`, on the stated
+   * grounds that "only /studio/content/:articleId is routed; a bare list link
+   * would 404". That was true when written. It is not true now: the bare route is
+   * registered and renders ContentListPage, and the studio hub links to it.
+   *
+   * So the old assertion was pinning a stale premise, and the page it protected
+   * had a dead end — the 稿件状态 card reports how many drafts you have and
+   * offered no way to reach them. The test now checks the link is present and
+   * points somewhere real, which is what the page actually needs.
+   */
+  it("offers the content list, which now exists", async () => {
     mockedInsights.get.mockResolvedValue(insights());
     renderPage();
     await screen.findByLabelText("创作数据");
 
-    const links = screen.getAllByRole("link");
-    for (const link of links) {
-      expect(link.getAttribute("href")).not.toBe("/studio/content");
-    }
+    const link = await screen.findByRole("link", { name: "查看全部内容" });
+    expect(link).toHaveAttribute("href", "/studio/content");
   });
 });

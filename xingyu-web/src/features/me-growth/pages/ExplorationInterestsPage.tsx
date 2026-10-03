@@ -176,7 +176,7 @@ export function ExplorationInterestsPage() {
   return (
     <div className="section-gap">
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <Sparkles className="h-5 w-5" aria-hidden />
           我的探索
         </h1>
@@ -199,7 +199,7 @@ export function ExplorationInterestsPage() {
           aria-label="官方领域"
           className="space-y-6 rounded-lg border border-border bg-card p-5"
         >
-          <h2 className="text-sm font-semibold text-foreground">官方领域</h2>
+          <h2 className="section-heading">官方领域</h2>
           {state.map.map((group) => {
             const children = group.children ?? [];
             if (children.length === 0) return null;
@@ -240,7 +240,7 @@ export function ExplorationInterestsPage() {
       )}
 
       <section aria-label="个人兴趣" className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">个人兴趣标签</h2>
+        <h2 className="section-heading">个人兴趣标签</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           例如 Java、独立开发、逆向研究——只对你可见，不进入官方星图。 最多 {MAX_CUSTOM_LABELS}{" "}
           个，每个不超过 {MAX_CUSTOM_LABEL_LENGTH} 个字符。

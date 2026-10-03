@@ -3,6 +3,7 @@ import { ApiError } from "@/api/client";
 import type { BlockedUser } from "@/api/users/users.types";
 import { loadBlockedUsers, unblockUser } from "@/features/blocks/blocked-users.store";
 import { PageState } from "@/components/shared/PageState";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
 /*
@@ -21,6 +22,19 @@ import { Button } from "@/components/ui/button";
  *
  * A failure keeps the row listed (the state the backend still reports) and
  * surfaces the reason — the UI never drops into a fake success.
+ *
+ * --- 2026-10-03 structure pass ---------------------------------------------
+ * Same `ul > li` card shape as /settings/sessions had, which is why the two were
+ * indistinguishable. They now differ by what the reader is doing:
+ *
+ *   sessions -> a RECORD with comparable fields -> table, aligned columns
+ *   blocks   -> a LIST OF PEOPLE                -> avatar rows, no table head
+ *
+ * People are recognised by face and name, not by scanning a column, so the
+ * avatar leads and the three data points collapse into two lines. There is no
+ * table header because there are only three columns' worth of content and a
+ * header row would add more ink than the data it labels.
+ * ---------------------------------------------------------------------------
  */
 
 type LoadState = "loading" | "error" | "ready";
@@ -30,6 +44,10 @@ function formatInstant(value?: string | null): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function initialOf(user: BlockedUser): string {
+  return (user.displayName || user.username || "?").slice(0, 1).toUpperCase();
 }
 
 export function SettingsBlocksPage() {
@@ -98,16 +116,23 @@ export function SettingsBlocksPage() {
   return (
     <div className="section-gap">
       <section aria-labelledby="settings-blocks-heading">
-        <h2 id="settings-blocks-heading" className="text-base font-semibold text-primary">
-          屏蔽管理
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <div className="flex items-baseline gap-2.5">
+          <h2 id="settings-blocks-heading" className="section-heading">
+            屏蔽管理
+          </h2>
+          <span className="text-meta tabular-nums text-muted-foreground">{users.length}</span>
+        </div>
+        <p className="lede mt-1.5 max-w-2xl">
           你屏蔽的用户。屏蔽会解除你们之间的关注关系，且双方无法互发私信。
         </p>
       </section>
 
       {actionError ? (
-        <p role="alert" data-testid="blocks-action-error" className="text-sm text-destructive">
+        <p
+          role="alert"
+          data-testid="blocks-action-error"
+          className="rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
+        >
           {actionError}
         </p>
       ) : null}
@@ -115,23 +140,32 @@ export function SettingsBlocksPage() {
       {users.length === 0 ? (
         <PageState kind="empty" title="还没有屏蔽任何用户" />
       ) : (
-        <ul data-testid="blocks-list" className="flex flex-col gap-3">
+        <ul data-testid="blocks-list" className="flex list-none flex-col gap-2 p-0">
           {users.map((user) => (
             <li
               key={user.userId || user.username}
               data-testid={`blocked-${user.username}`}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4"
+              className="flex items-center gap-4 rounded-xl border border-border/70 bg-card p-3.5"
             >
+              <Avatar className="h-10 w-10 shrink-0">
+                <AvatarFallback className="bg-surface-sunken text-meta font-medium text-foreground-soft">
+                  {initialOf(user)}
+                </AvatarFallback>
+              </Avatar>
+
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">
+                <p className="truncate text-card font-medium text-primary">
                   {user.displayName ?? user.username}
                 </p>
-                <p className="text-xs text-muted-foreground">@{user.username}</p>
+                <p className="truncate text-meta text-muted-foreground">@{user.username}</p>
               </div>
 
-              <p className="text-xs text-muted-foreground">
+              <p className="hidden shrink-0 text-meta text-muted-foreground sm:block">
                 屏蔽于{" "}
-                <span data-testid={`blocked-at-${user.username}`}>
+                <span
+                  data-testid={`blocked-at-${user.username}`}
+                  className="tabular-nums text-foreground-soft"
+                >
                   {formatInstant(user.blockedAt)}
                 </span>
               </p>
@@ -139,6 +173,7 @@ export function SettingsBlocksPage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="shrink-0"
                 disabled={pendingUsername !== null}
                 data-testid={`unblock-${user.username}`}
                 onClick={() => void unblock(user.username)}

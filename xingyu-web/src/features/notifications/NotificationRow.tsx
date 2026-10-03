@@ -110,9 +110,18 @@ export function NotificationRow({
     </>
   );
 
+  /*
+   * Unread rows carry a gold bar on the LEADING edge, read rows a transparent
+   * one of the same width. The bar is what makes a day group scannable as a
+   * timeline: the eye can find "where the new stuff stops" without reading a
+   * single title. Keeping the width on both states matters — otherwise every
+   * read row would shift 2px relative to the unread ones.
+   */
   const className = cn(
-    "flex w-full items-start gap-3 rounded-lg border border-border p-4 text-left transition-colors",
-    unread ? "bg-card hover:border-accent" : "bg-muted/30 hover:bg-muted",
+    "flex w-full items-start gap-3 rounded-lg border border-border border-l-2 p-4 text-left transition-colors",
+    unread
+      ? "border-l-accent bg-card hover:border-accent"
+      : "border-l-transparent bg-muted/30 hover:bg-muted",
     pending && "opacity-60",
   );
 

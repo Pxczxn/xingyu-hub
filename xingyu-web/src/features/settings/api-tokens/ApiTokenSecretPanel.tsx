@@ -77,7 +77,7 @@ export function ApiTokenSecretPanel({
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
-          variant="primary"
+          variant="default"
           size="sm"
           data-testid="api-token-copy"
           onClick={() => void copy()}

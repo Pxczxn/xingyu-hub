@@ -165,7 +165,7 @@ export function CreatorsPage() {
             <Button
               type="button"
               size="sm"
-              variant={activeTopic === "ALL" ? "primary" : "outline"}
+              variant={activeTopic === "ALL" ? "default" : "outline"}
               onClick={() => setActiveTopic("ALL")}
             >
               全部
@@ -175,7 +175,7 @@ export function CreatorsPage() {
                 key={topic.id}
                 type="button"
                 size="sm"
-                variant={activeTopic === topic.name ? "primary" : "outline"}
+                variant={activeTopic === topic.name ? "default" : "outline"}
                 onClick={() => setActiveTopic(topic.name)}
               >
                 {topic.name}

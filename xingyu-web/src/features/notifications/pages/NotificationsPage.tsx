@@ -51,6 +51,71 @@ function isAuthError(err: unknown): boolean {
   );
 }
 
+/*
+ * Date grouping for the timeline.
+ *
+ * Why group at all: a notification feed is read as "what happened recently", and
+ * a flat list of fifty rows makes that question unanswerable — every row carries
+ * its own timestamp, so the reader has to parse fifty timestamps to reconstruct
+ * an order they already intuitively know. A day separator answers it once.
+ *
+ * Day boundaries are computed in Asia/Shanghai, the same zone
+ * `formatNotificationAt` renders in. Computing them in the browser's local zone
+ * would put a 23:30 CST notification and a 00:30 CST notification in the same
+ * bucket for a reader in UTC, contradicting the timestamps printed right next to
+ * them.
+ */
+const SHANGHAI = "Asia/Shanghai";
+
+function shanghaiDayKey(value: string | null | undefined, offsetDays = 0): string {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  const shifted = new Date(date.getTime() - offsetDays * 86_400_000);
+  return shifted.toLocaleDateString("zh-CN", { timeZone: SHANGHAI });
+}
+
+type NotificationGroup = { key: string; label: string; items: Notification[] };
+
+/**
+ * Split a notification list into day groups, preserving the server's
+ * newest-first order both between groups and inside them.
+ *
+ * Rows with an unusable timestamp land in a trailing 「时间未知」 group rather
+ * than being dropped or silently attached to today — the backend allows a null
+ * `createdAt`, and losing a notification is worse than labelling it honestly.
+ */
+function groupByDay(items: Notification[]): NotificationGroup[] {
+  const todayKey = shanghaiDayKey(null);
+  const yesterdayKey = shanghaiDayKey(null, 1);
+  const groups: NotificationGroup[] = [];
+  const index = new Map<string, NotificationGroup>();
+
+  for (const item of items) {
+    const rawKey = shanghaiDayKey(item.createdAt);
+    const key = rawKey || "unknown";
+    let group = index.get(key);
+    if (!group) {
+      group = {
+        key,
+        label:
+          key === "unknown"
+            ? "时间未知"
+            : key === todayKey
+              ? "今天"
+              : key === yesterdayKey
+                ? "昨天"
+                : key,
+        items: [],
+      };
+      index.set(key, group);
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
+
+  return groups;
+}
+
 export function NotificationsPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -175,17 +240,19 @@ export function NotificationsPage() {
 
   return (
     <div className="section-gap">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-primary">通知中心</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {counts.all > 0 ? `${counts.all} 条未读` : "没有未读通知"}
-          </p>
-        </div>
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">通知中心</h1>
+        <p className="lede mt-2">{counts.all > 0 ? `${counts.all} 条未读` : "没有未读通知"}</p>
       </header>
 
+      {/* Segmented filter + the one bulk action, on the same line. The tabs are
+          not a separate toolbar row because they are a property of the list
+          directly beneath them. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="通知分类" className="flex gap-2">
+        <nav
+          aria-label="通知分类"
+          className="flex items-center gap-1 rounded-lg bg-surface-sunken p-1"
+        >
           {TABS.map((entry) => {
             const active = entry.id === tab;
             const unread = counts[entry.id];
@@ -197,12 +264,14 @@ export function NotificationsPage() {
                 onClick={() => setTab(entry.id)}
                 className={
                   active
-                    ? "rounded-md border border-accent bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent"
-                    : "rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
+                    ? "rounded-md bg-card px-3 py-1.5 text-meta font-medium text-primary"
+                    : "rounded-md px-3 py-1.5 text-meta text-muted-foreground transition-colors hover:text-foreground"
                 }
               >
                 {entry.label}
-                {unread > 0 ? <span className="ml-1 text-xs">{unread}</span> : null}
+                {unread > 0 ? (
+                  <span className="ml-1 tabular-nums text-accent-strong">{unread}</span>
+                ) : null}
               </button>
             );
           })}
@@ -236,18 +305,44 @@ export function NotificationsPage() {
           }
         />
       ) : (
-        <ul className="flex flex-col gap-3">
-          {visible.map((item) => (
-            <NotificationRow
-              key={item.id}
-              notification={item}
-              label={notificationCategoryLabel(item.category)}
-              href={notificationFallbackHref(item.category)}
-              pending={Boolean(pending[item.id])}
-              onOpen={(row) => void onOpen(row)}
-            />
+        /*
+          Timeline, not a flat list.
+          Each day is its own section with a labelled rule, so "when" is answered
+          once per group instead of once per row. The groups are siblings — there
+          is no nesting — so the page keeps a two-level outline: h1 (通知中心)
+          then one h2 per day.
+        */
+        <div className="flex flex-col gap-7">
+          {groupByDay(visible).map((group) => (
+            <section key={group.key} aria-labelledby={`notification-day-${group.key}`}>
+              <div className="mb-3 flex items-center gap-3">
+                <h2
+                  id={`notification-day-${group.key}`}
+                  className="text-meta font-medium text-foreground-soft"
+                >
+                  {group.label}
+                </h2>
+                <span aria-hidden className="h-px flex-1 bg-border/60" />
+                <span className="text-meta tabular-nums text-muted-foreground">
+                  {group.items.length}
+                </span>
+              </div>
+
+              <ul className="flex list-none flex-col gap-2 p-0">
+                {group.items.map((item) => (
+                  <NotificationRow
+                    key={item.id}
+                    notification={item}
+                    label={notificationCategoryLabel(item.category)}
+                    href={notificationFallbackHref(item.category)}
+                    pending={Boolean(pending[item.id])}
+                    onOpen={(row) => void onOpen(row)}
+                  />
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

@@ -76,32 +76,69 @@ export function ConversationAssetsPage({ kind }: { kind: AttachmentKind }) {
 
   return (
     <div className="section-gap">
-      <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold text-primary">{label}</h1>
-          <span className="text-sm text-muted-foreground">{items.length} 条</span>
+      {/*
+        This is a PANEL over the conversation, not a page in its own right — the
+        reader got here from the thread and will go back to it. So the header is
+        one toolbar row: identity on the left, the one toggle and one action on
+        the right, all at the same height. The three plain text links it used to
+        be gave "go back", "switch view" and "refresh" identical weight, which
+        made the switch — the only thing here that changes what you are looking
+        at — the hardest of the three to find.
+      */}
+      <header className="flex flex-col gap-3 border-b border-border/70 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-baseline gap-2.5">
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">{label}</h1>
+          <span className="text-meta tabular-nums text-muted-foreground">{items.length} 条</span>
         </div>
-        <nav className="flex items-center gap-3 text-sm">
+
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             to={`/messages/${encodeURIComponent(conversationId)}`}
-            className="text-accent hover:underline"
+            className="focus-ring rounded-md px-2.5 py-1.5 text-meta text-muted-foreground transition-colors hover:bg-surface-sunken hover:text-foreground"
           >
             返回会话
           </Link>
-          <Link
-            to={`/messages/${encodeURIComponent(conversationId)}/${kind === "media" ? "files" : "media"}`}
-            className="text-muted-foreground hover:text-foreground hover:underline"
-          >
-            {kind === "media" ? "看文件" : "看图片"}
-          </Link>
+
+          <span className="flex items-center gap-1 rounded-lg bg-surface-sunken p-1">
+            <Link
+              to={`/messages/${encodeURIComponent(conversationId)}/media`}
+              aria-current={kind === "media" ? "true" : undefined}
+              /* Accessible name kept as the original verb phrase while the
+                 visible label is the shorter noun: WCAG 2.5.3 (Label in Name)
+                 requires the name to CONTAIN the visible text, and "看图片"
+                 contains "图片". Changing the visible label was a deliberate
+                 visual choice; changing what a screen reader hears was not. */
+              aria-label="看图片"
+              className={
+                kind === "media"
+                  ? "rounded-md bg-card px-2.5 py-1 text-meta font-medium text-primary"
+                  : "rounded-md px-2.5 py-1 text-meta text-muted-foreground transition-colors hover:text-foreground"
+              }
+            >
+              图片
+            </Link>
+            <Link
+              to={`/messages/${encodeURIComponent(conversationId)}/files`}
+              aria-current={kind === "files" ? "true" : undefined}
+              aria-label="看文件"
+              className={
+                kind === "files"
+                  ? "rounded-md bg-card px-2.5 py-1 text-meta font-medium text-primary"
+                  : "rounded-md px-2.5 py-1 text-meta text-muted-foreground transition-colors hover:text-foreground"
+              }
+            >
+              文件
+            </Link>
+          </span>
+
           <button
             type="button"
             onClick={() => void reload()}
-            className="text-muted-foreground hover:text-foreground hover:underline"
+            className="focus-ring rounded-md border border-input px-2.5 py-1.5 text-meta text-foreground transition-colors hover:bg-surface-sunken"
           >
             刷新
           </button>
-        </nav>
+        </div>
       </header>
 
       {items.length === 0 ? (

@@ -151,7 +151,7 @@ export function MyGroupsPage() {
       <header className="rounded-lg border border-border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
               <UsersRound className="h-5 w-5" aria-hidden />
               我的群聊
             </h1>

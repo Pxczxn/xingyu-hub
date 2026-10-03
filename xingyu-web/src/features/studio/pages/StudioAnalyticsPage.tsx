@@ -66,7 +66,7 @@ export function StudioAnalyticsPage() {
 
   return (
     <div className="section-gap">
-      <nav className="text-xs text-muted-foreground" aria-label="面包屑">
+      <nav className="text-meta text-muted-foreground" aria-label="面包屑">
         <Link to="/studio" className="hover:text-foreground">
           创作中心
         </Link>
@@ -74,9 +74,9 @@ export function StudioAnalyticsPage() {
         <span>数据分析</span>
       </nav>
 
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">创作数据分析</h1>
-        <p className="text-sm text-muted-foreground">汇总你的创作与互动数据。</p>
+      <header className="flex flex-col gap-1.5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">创作数据分析</h1>
+        <p className="text-meta leading-6 text-muted-foreground">汇总你的创作与互动数据。</p>
       </header>
 
       {state.kind === "loading" ? <PageState kind="loading" /> : null}
@@ -102,7 +102,7 @@ export function StudioAnalyticsPage() {
             <Stat label="关注" value={state.insights.followingCount} />
           </ul>
 
-          <p className="text-xs text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             以上数字由服务端汇总，可能会有一小段延迟。
           </p>
         </>
@@ -110,21 +110,34 @@ export function StudioAnalyticsPage() {
 
       <Card>
         <CardContent className="flex flex-col gap-2 p-5">
-          <h2 className="text-sm font-semibold text-foreground">稿件状态</h2>
+          <h2 className="section-heading">稿件状态</h2>
           {drafts === null ? (
-            <p className="text-sm text-muted-foreground" data-testid="drafts-unavailable">
+            <p className="text-meta text-muted-foreground" data-testid="drafts-unavailable">
               暂时无法读取稿件列表，因此这里不显示数量。
             </p>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-meta leading-6 text-muted-foreground">
               共有 {drafts.length} 篇稿件，其中 {unreviewed?.length ?? 0} 篇是尚未提交审核的草稿。
             </p>
           )}
           <div className="mt-1 flex flex-wrap gap-2">
-            {/* ⚠️ No link to a "/studio/content" list — that route does not exist
-                (only /studio/content/:articleId does). Linking to it would be a
-                guaranteed 404, so the only entry point offered is the one that
-                works. */}
+            {/*
+              CORRECTED 2026-10-03. This comment used to say the bare list route
+              did not exist and that linking to it "would be a guaranteed 404".
+              That was true when written and is no longer: `/studio/content` is
+              routed (router/routes.tsx) and renders ContentListPage, and the
+              studio hub links to it.
+
+              The consequence of leaving it was a dead end — this card reports
+              "共有 N 篇稿件，其中 M 篇是尚未提交审核的草稿" and then offered no
+              way to see them. Both destinations now exist, so both are offered.
+            */}
+            <Link
+              to="/studio/content"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              查看全部内容
+            </Link>
             <Link
               to="/studio/submissions"
               className={buttonVariants({ variant: "outline", size: "sm" })}
@@ -141,7 +154,7 @@ export function StudioAnalyticsPage() {
 function Stat({ label, value, unit }: { label: string; value: number; unit?: string }) {
   return (
     <li className="rounded-lg border border-border bg-card p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="text-meta text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-primary">
         {value}
         {unit ? (

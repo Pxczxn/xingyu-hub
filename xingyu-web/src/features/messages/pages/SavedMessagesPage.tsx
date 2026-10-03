@@ -125,7 +125,7 @@ export function SavedMessagesPage() {
   return (
     <div className="section-gap">
       <header>
-        <h1 className="text-xl font-semibold text-primary">收藏的私信</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">收藏的私信</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           你在私信里收藏的消息会出现在这里。删除收藏不会删除原消息。
         </p>
@@ -144,9 +144,17 @@ export function SavedMessagesPage() {
           description="在会话中收藏一条消息后，它会出现在这里。"
         />
       ) : (
+        /*
+          Card waterfall (CSS multi-column), not a vertical stack.
+          A saved item is either a tall image, a one-line file link, or a
+          paragraph of text, so the heights vary by an order of magnitude. A
+          fixed grid would pad every short card to the height of the tallest
+          image; columns let each card keep its natural height and pack tightly.
+          `break-inside-avoid` on each card stops one being split across columns.
+        */
         <ul
           aria-label="收藏的私信"
-          className="flex flex-col gap-2"
+          className="columns-1 gap-3 sm:columns-2 xl:columns-3"
           data-testid="saved-message-rows"
         >
           {items.map((item) => {
@@ -159,7 +167,7 @@ export function SavedMessagesPage() {
             return (
               <li
                 key={item.messageId}
-                className="rounded-lg border border-border bg-card p-4"
+                className="mb-3 break-inside-avoid rounded-xl border border-border/70 bg-card p-4"
                 data-testid="saved-message-row"
               >
                 <div className="flex items-start justify-between gap-3">

@@ -4,6 +4,7 @@ import { ApiError } from "@/api/client";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxyContent } from "@/api/galaxies/galaxies.types";
 import { contentHref } from "@/components/shared/ContentCard";
+import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,19 +82,16 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
   }
 
   return (
-    <section>
-      <h2 className="text-lg font-semibold text-primary">关联内容</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{`共 ${rawItems.length} 条`}</p>
-
+    <PageSection id="galaxy-content" title="关联内容" description={`共 ${rawItems.length} 条`}>
       {rawItems.length === 0 ? (
         <PageState kind="empty" title="暂无内容" description="运营关联的内容会展示在这里。" />
       ) : (
         <>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {GALAXY_CONTENT_FILTERS.map((option) => (
               <Button
                 key={option.label}
-                variant={filter === option.value ? "primary" : "outline"}
+                variant={filter === option.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilter(option.value)}
               >
@@ -101,7 +99,7 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
               </Button>
             ))}
             <Button
-              variant={pinnedOnly ? "primary" : "outline"}
+              variant={pinnedOnly ? "default" : "outline"}
               size="sm"
               aria-pressed={pinnedOnly}
               onClick={() => setPinnedOnly((value) => !value)}
@@ -140,6 +138,6 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
           )}
         </>
       )}
-    </section>
+    </PageSection>
   );
 }
