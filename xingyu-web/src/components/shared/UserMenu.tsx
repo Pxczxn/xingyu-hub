@@ -102,13 +102,26 @@ export function UserMenu({ username, onLogout }: { username: string; onLogout: (
       <button
         ref={triggerRef}
         type="button"
+        /*
+         * The accessible name is the username, stated explicitly rather than
+         * inherited from the label below — because that label is hidden on narrow
+         * screens (2026-10-03). Without this the trigger would have NO name on a
+         * phone, where it is the only way into /me/*.
+         */
+        aria-label={username}
         aria-expanded={open}
         aria-controls="app-user-menu"
         onClick={() => setOpen((value) => !value)}
         className="flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
       >
         <UserIcon className="h-4 w-4" aria-hidden />
-        <span className="max-w-32 truncate">{username}</span>
+        {/*
+         * Hidden below `sm`. At 320px the header's action cluster needs 334px and
+         * the viewport is 320, so the whole page scrolled sideways by 14px. The
+         * username is the widest and least essential thing there — the icon and
+         * chevron still read as "your account", and the menu it opens is unchanged.
+         */}
+        <span className="hidden max-w-32 truncate sm:inline">{username}</span>
         <ChevronDown
           className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
           aria-hidden
