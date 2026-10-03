@@ -151,7 +151,9 @@ public class MomentService {
                 moment.getId());
     }
 
-    private MomentView toView(Moment moment) {
+    // Package-private, not private, so the author resolution can be unit-tested
+    // with mocked mappers — no database required.
+    MomentView toView(Moment moment) {
         MomentRevision revision = momentRevisionMapper.findLatestByMomentId(moment.getId());
         /*
          * Resolve the author here rather than leaving it to the client.
