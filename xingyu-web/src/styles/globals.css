@@ -13,6 +13,31 @@
   #root {
     height: 100%;
   }
+
+  /*
+   * Reserve the scrollbar's width whether or not it is currently needed.
+   *
+   * Without this the document's content box changes width as you navigate: a short
+   * page has no scrollbar, the next one is taller and gets one, and because the
+   * scrollbar takes layout space (Windows/Linux, non-overlay) the whole content
+   * column jumps sideways by its width — the "左右抽搐" reported on 2026-10-03.
+   *
+   * `stable` also covers the other half of the problem: a modal locks scrolling by
+   * setting `overflow: hidden` on the body, which would otherwise drop the
+   * scrollbar and shift the page the moment a dialog opens.
+   *
+   * Why not `overflow-y: scroll`: that also works, but it paints a permanent empty
+   * track on every page. `scrollbar-gutter` reserves the space without drawing
+   * anything, and is a no-op on platforms with overlay scrollbars (macOS), where
+   * there was never a shift to fix.
+   *
+   * Safari below 18.2 does not support this property and keeps today's behaviour —
+   * unchanged, not worse.
+   */
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     /*
