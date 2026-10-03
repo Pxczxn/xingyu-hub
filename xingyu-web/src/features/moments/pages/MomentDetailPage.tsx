@@ -5,6 +5,7 @@ import {
   MOMENT_EDIT_WINDOW_SECONDS,
   OWNER_LIST_LIMIT,
   type MomentView,
+  momentAuthorLabel,
 } from "@/api/moments/moments.types";
 import { ApiError } from "@/api/client";
 import { PageState } from "@/components/shared/PageState";
@@ -165,10 +166,23 @@ export function MomentDetailPage() {
       <Link to="/moments" className="text-sm text-accent hover:underline">
         返回动态
       </Link>
-      <p className="whitespace-pre-wrap text-base text-foreground">{moment.body}</p>
-      <time dateTime={moment.createdAt} className="block text-sm text-muted-foreground">
-        {formatMomentTime(moment.createdAt)}
-      </time>
+      {/*
+        Author first, then the body — the same order the feed uses.
+        Without this the author vanished on arrival: you see who wrote a moment in
+        the feed, tap it, and the detail view shows only text and a timestamp.
+        The field only became available on 2026-10-03 (the contract carried just
+        authorId before), and momentAuthorLabel still handles a server that has
+        not shipped it.
+
+        Body moves from text-base to the card step and the timestamp from
+        text-sm to the meta step, matching the feed and the type scale.
+      */}
+      <span className="flex flex-wrap items-center gap-x-2 text-meta text-muted-foreground">
+        <span className="font-medium text-foreground-soft">{momentAuthorLabel(moment)}</span>
+        <span aria-hidden>·</span>
+        <time dateTime={moment.createdAt}>{formatMomentTime(moment.createdAt)}</time>
+      </span>
+      <p className="whitespace-pre-wrap text-card leading-6 text-primary">{moment.body}</p>
 
       {windowHint ? <p className="text-sm text-muted-foreground">已超过可编辑时间</p> : null}
 
