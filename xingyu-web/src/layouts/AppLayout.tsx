@@ -321,7 +321,21 @@ export function AppLayout() {
             星语
           </Link>
 
-          <nav aria-label="主导航" className="hidden items-center gap-0.5 md:flex">
+          {/*
+           * `lg`, not `md`. 2026-10-03.
+           *
+           * Logo + this seven-item nav + the action cluster need 813px. The switch
+           * used to happen at `md` (768px), so from 768 to 812 the desktop nav
+           * appeared while there was still no room for it and every page scrolled
+           * sideways — 45px at 768, which is exactly iPad portrait. 85 of the 91
+           * routes were affected.
+           *
+           * `lg` is not a guess: the header search box in this same file already
+           * switches at `lg:block`, so this is the breakpoint header content
+           * already uses. Between 768 and 1023 the hamburger + sheet take over,
+           * which is the same navigation a phone gets.
+           */}
+          <nav aria-label="主导航" className="hidden items-center gap-0.5 lg:flex">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(location.pathname, item.to);
@@ -419,7 +433,7 @@ export function AppLayout() {
               aria-controls="mobile-nav"
               aria-label={navOpen ? "关闭导航菜单" : "打开导航菜单"}
               onClick={() => setNavOpen((open) => !open)}
-              className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-sunken md:hidden"
+              className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-sunken lg:hidden"
             >
               {navOpen ? (
                 <X className="h-5 w-5" aria-hidden />
@@ -433,7 +447,7 @@ export function AppLayout() {
         {navOpen ? (
           <div
             id="mobile-nav"
-            className="animate-sheet-in border-t border-border/70 bg-card md:hidden"
+            className="animate-sheet-in border-t border-border/70 bg-card lg:hidden"
           >
             <div className="content-shell space-y-3 py-4">
               {/* No autoFocus here on purpose: the panel exists so the reader can
