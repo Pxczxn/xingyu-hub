@@ -101,3 +101,34 @@ describe("UserMenu", () => {
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
 });
+
+/*
+ * Accessible name at every width (2026-10-03).
+ *
+ * These two exist because of a specific near-miss. The username label is now
+ * hidden below `sm` so the header stops overflowing a 320px viewport. But the
+ * trigger had no `aria-label` — the label text WAS its accessible name. Hiding it
+ * alone would have left the button unnamed on every phone, and this button is the
+ * only way into /me/*.
+ *
+ * Note why the tests above cannot catch that: happy-dom does not load Tailwind, so
+ * `hidden` never becomes `display:none` and the label text still counts toward the
+ * name. `getByRole("button", { name: /alice/ })` therefore passes either way. The
+ * assertions below look at the attribute itself, which is what actually survives
+ * in a browser.
+ */
+describe("UserMenu — accessible name does not depend on the visible label", () => {
+  it("states the name explicitly on the trigger", () => {
+    renderMenu();
+    // Not derived from the label text: this is what a screen reader reads on a
+    // phone, where the label is display:none.
+    expect(trigger()).toHaveAttribute("aria-label", "alice");
+  });
+
+  it("hides the label at the base breakpoint and restores it from `sm`", () => {
+    renderMenu();
+    const label = screen.getByText("alice");
+    expect(label.className).toContain("hidden");
+    expect(label.className).toContain("sm:inline");
+  });
+});
