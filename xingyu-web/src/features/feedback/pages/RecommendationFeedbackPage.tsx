@@ -151,7 +151,7 @@ export function RecommendationFeedbackPage() {
   return (
     <div className="section-gap">
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <MessageSquareWarning className="h-5 w-5" aria-hidden />
           推荐反馈
         </h1>
@@ -217,7 +217,7 @@ export function RecommendationFeedbackPage() {
 
       <section aria-label="历史反馈" className="rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold text-foreground">历史反馈</h2>
+          <h2 className="section-heading">历史反馈</h2>
           <span className="text-xs text-muted-foreground">{state.rows.length} 条</span>
         </div>
 

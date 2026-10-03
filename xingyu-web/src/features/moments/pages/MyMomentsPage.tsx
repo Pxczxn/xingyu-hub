@@ -153,7 +153,7 @@ export function MyMomentsPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
         <section className="rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <h2 className="text-sm font-semibold text-foreground">全部动态</h2>
+            <h2 className="section-heading">全部动态</h2>
             <span className="text-xs text-muted-foreground">按时间倒序</span>
           </div>
 
@@ -204,7 +204,7 @@ export function MyMomentsPage() {
 
         <aside className="flex flex-col gap-4">
           <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <h2 className="section-heading flex items-center gap-1.5">
               <Sparkles className="h-4 w-4" aria-hidden />
               动态概览
             </h2>
@@ -238,7 +238,7 @@ export function MyMomentsPage() {
           </section>
 
           <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground">创作足迹</h2>
+            <h2 className="section-heading">创作足迹</h2>
             <p className="mt-2 text-xs leading-6 text-muted-foreground">
               每一条公开动态都会沉淀为你在星语社区的交流轨迹。动态发布后即可公开阅读，删除后会从动态页消失。
             </p>

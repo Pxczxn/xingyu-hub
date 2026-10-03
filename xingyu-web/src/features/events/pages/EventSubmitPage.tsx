@@ -199,7 +199,7 @@ export function EventSubmitPage() {
       </nav>
 
       <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-primary">活动投稿</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">活动投稿</h1>
         <p className="text-sm text-muted-foreground">{loaded.title}</p>
       </header>
 
@@ -215,7 +215,7 @@ export function EventSubmitPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
           <form onSubmit={onSubmit} className="flex flex-col gap-6">
             <section className="rounded-lg border border-border bg-card p-5">
-              <h2 className="text-sm font-semibold text-foreground">1. 选择投稿内容</h2>
+              <h2 className="section-heading">1. 选择投稿内容</h2>
 
               <nav aria-label="投稿类型" className="mt-3 flex flex-wrap gap-2">
                 {SUBMISSION_OBJECT_TYPES.map((type) => {
@@ -281,7 +281,7 @@ export function EventSubmitPage() {
             </section>
 
             <section className="rounded-lg border border-border bg-card p-5">
-              <h2 className="text-sm font-semibold text-foreground">2. 投稿说明</h2>
+              <h2 className="section-heading">2. 投稿说明</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 可简要说明创作思路，选填，最多 {NOTE_MAX} 字。
               </p>
@@ -323,7 +323,7 @@ export function EventSubmitPage() {
 
           <aside className="flex flex-col gap-4">
             <section className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground">{loaded.title}</h2>
+              <h2 className="section-heading">{loaded.title}</h2>
               <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock3 className="h-3.5 w-3.5" aria-hidden />
                 {loaded.startsAt
@@ -337,7 +337,7 @@ export function EventSubmitPage() {
 
             {selected ? (
               <section className="rounded-lg border border-border bg-card p-4">
-                <h2 className="text-sm font-semibold text-foreground">作品预览</h2>
+                <h2 className="section-heading">作品预览</h2>
                 <p className="mt-2 text-xs font-medium text-foreground">{selected.title}</p>
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
                   内容类型：{SUBMISSION_OBJECT_LABELS[selected.objectType] ?? selected.objectType}
@@ -346,7 +346,7 @@ export function EventSubmitPage() {
             ) : null}
 
             <section className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground">投稿须知</h2>
+              <h2 className="section-heading">投稿须知</h2>
               <p className="mt-2 text-xs text-muted-foreground">
                 只能提交自己已发布的内容。投稿后需要经过审核，通过后才会在活动页公示。
               </p>

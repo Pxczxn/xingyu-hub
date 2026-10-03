@@ -55,7 +55,7 @@ export function SeriesNewPage() {
       <Link to="/studio/series" className="text-sm text-accent hover:underline">
         返回系列列表
       </Link>
-      <h1 className="text-xl font-semibold text-primary">创建系列</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-primary">创建系列</h1>
       <form
         onSubmit={(event) => void onSubmit(event)}
         className="space-y-3 rounded-lg border border-border bg-card p-4"

@@ -69,7 +69,11 @@ export function PublicSeriesListPage() {
         />
       ) : (
         <>
-          <div className="flex items-center gap-5 border-b border-border/70" role="group" aria-label="系列排序">
+          <div
+            className="flex items-center gap-5 border-b border-border/70"
+            role="group"
+            aria-label="系列排序"
+          >
             {(
               [
                 ["default", "全部系列"],

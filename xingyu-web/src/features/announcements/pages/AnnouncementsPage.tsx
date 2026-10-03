@@ -33,7 +33,7 @@ export function AnnouncementsPage() {
   return (
     <div className="section-gap">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="text-xl font-semibold text-primary">公告中心</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">公告中心</h1>
         <Link to="/guide" className="text-sm text-accent hover:underline">
           使用指南
         </Link>
@@ -57,7 +57,7 @@ export function AnnouncementsPage() {
                 to={`/announcements/${encodeURIComponent(item.id)}`}
                 className="block rounded-lg border border-border bg-card p-4 hover:border-accent"
               >
-                <h2 className="text-sm font-medium text-foreground">{item.title}</h2>
+                <h2 className="section-heading">{item.title}</h2>
                 {item.publishedAt ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {formatPublishedAt(item.publishedAt)}

@@ -100,7 +100,7 @@ export function AppealDetailPage() {
       </p>
 
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <Gavel className="h-5 w-5" aria-hidden />
           申诉详情
         </h1>
@@ -112,7 +112,7 @@ export function AppealDetailPage() {
       </header>
 
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">申诉内容</h2>
+        <h2 className="section-heading">申诉内容</h2>
         <dl className="mt-3 flex flex-col gap-4 text-sm">
           <div>
             <dt className="text-muted-foreground">申诉说明</dt>

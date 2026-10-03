@@ -101,7 +101,7 @@ export function SearchMessagesPage() {
   return (
     <div className="section-gap">
       <header className="flex flex-col gap-2">
-        <h1 className="text-xl font-semibold text-primary">搜索消息</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">搜索消息</h1>
         <p className="text-sm text-muted-foreground">在你参与的所有会话中查找消息内容。</p>
         <nav className="text-sm">
           <Link to="/messages" className="text-accent hover:underline">

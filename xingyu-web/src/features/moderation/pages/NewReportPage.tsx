@@ -97,7 +97,7 @@ export function NewReportPage() {
       </p>
 
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <ShieldAlert className="h-5 w-5" aria-hidden />
           提交举报
         </h1>

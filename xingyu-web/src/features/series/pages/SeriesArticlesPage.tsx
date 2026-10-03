@@ -112,8 +112,8 @@ export function SeriesArticlesPage() {
   return (
     <div className="section-gap">
       <BackLink />
-      <h1 className="text-xl font-semibold text-primary">{title}</h1>
-      <h2 className="text-sm font-medium text-foreground">已收录文章</h2>
+      <h1 className="text-2xl font-semibold tracking-tight text-primary">{title}</h1>
+      <h2 className="section-heading">已收录文章</h2>
       {chapters.length === 0 ? (
         <p className="text-sm text-muted-foreground">还没有收录文章。</p>
       ) : (

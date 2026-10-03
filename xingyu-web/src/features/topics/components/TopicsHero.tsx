@@ -12,7 +12,7 @@ export function TopicsHero({
     <header className="flex items-end justify-between gap-8 border-b border-border/70 pb-4">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">TOPICS</p>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight text-primary">话题广场</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-primary">话题广场</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           从感兴趣的话题出发，找到正在发生的讨论。
         </p>

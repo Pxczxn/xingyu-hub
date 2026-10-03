@@ -102,7 +102,7 @@ export function MyReportsPage() {
   return (
     <div className="section-gap">
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <ShieldAlert className="h-5 w-5" aria-hidden />
           我的举报
         </h1>
@@ -120,7 +120,7 @@ export function MyReportsPage() {
 
       <section className="rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold text-foreground">举报记录</h2>
+          <h2 className="section-heading">举报记录</h2>
           <span className="text-xs text-muted-foreground">按最近更新</span>
         </div>
 

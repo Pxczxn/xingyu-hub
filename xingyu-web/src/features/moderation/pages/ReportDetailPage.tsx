@@ -143,7 +143,7 @@ export function ReportDetailPage() {
       </p>
 
       <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <ShieldAlert className="h-5 w-5" aria-hidden />
           举报详情
         </h1>
@@ -159,7 +159,7 @@ export function ReportDetailPage() {
       </header>
 
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">举报内容</h2>
+        <h2 className="section-heading">举报内容</h2>
         <dl className="mt-3 flex flex-col gap-4 text-sm">
           <div>
             <dt className="text-muted-foreground">举报原因</dt>
@@ -186,7 +186,7 @@ export function ReportDetailPage() {
           and must not be presented as an empty case. */}
       {hasCase(report) ? (
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">关联案件</h2>
+          <h2 className="section-heading">关联案件</h2>
           <dl className="mt-3 flex flex-col gap-3 text-sm">
             <div>
               <dt className="text-muted-foreground">案件编号</dt>
@@ -222,7 +222,7 @@ export function ReportDetailPage() {
       ) : null}
 
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">补充说明</h2>
+        <h2 className="section-heading">补充说明</h2>
 
         {supplements.length > 0 ? (
           <ul aria-label="补充说明列表" className="mt-3 flex flex-col gap-3">

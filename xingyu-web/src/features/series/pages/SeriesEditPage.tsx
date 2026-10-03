@@ -99,7 +99,7 @@ export function SeriesEditPage() {
   return (
     <div className="section-gap">
       <BackLink />
-      <h1 className="text-xl font-semibold text-primary">编辑系列</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-primary">编辑系列</h1>
       <form
         onSubmit={(event) => void onSave(event)}
         className="space-y-3 rounded-lg border border-border bg-card p-4"

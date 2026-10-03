@@ -46,10 +46,7 @@ export function AuthStatusPanel({
 }) {
   return (
     <div
-      className={cn(
-        "rounded-xl border border-border/70 bg-card px-6 py-7 text-center",
-        className,
-      )}
+      className={cn("rounded-xl border border-border/70 bg-card px-6 py-7 text-center", className)}
       {...(live ? { role: "status", "aria-live": "polite" as const } : {})}
     >
       <span
@@ -58,6 +55,14 @@ export function AuthStatusPanel({
       >
         {icon}
       </span>
+      {/*
+        DELIBERATELY 20px, not the 24px L1 used by every other page title.
+        This heading is not the top of a left-aligned page header — it sits
+        centred under a 48px glyph, and at 24px it competes with that glyph
+        instead of following it. A repo-wide audit of heading steps will flag
+        these four status screens (this panel plus its three call sites) as the
+        only remaining `text-xl` h1s; that is intended, not an oversight.
+      */}
       <h1 className="mt-3 text-xl font-semibold tracking-tight text-primary">{title}</h1>
       <div className="mx-auto mt-2 max-w-sm text-meta leading-6 text-muted-foreground">{body}</div>
       {action ? <div className="mt-5 flex flex-col items-center gap-3">{action}</div> : null}
