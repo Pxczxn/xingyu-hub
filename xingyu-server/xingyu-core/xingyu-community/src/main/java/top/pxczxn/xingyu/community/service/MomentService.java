@@ -5,8 +5,10 @@ import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.dto.MomentView;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
+import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.Moment;
 import top.pxczxn.xingyu.community.entity.MomentRevision;
+import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.MomentRevisionMapper;
 import top.pxczxn.xingyu.community.config.CommunityProperties;
@@ -25,6 +27,7 @@ import java.util.Map;
 public class MomentService {
 
     private final MomentMapper momentMapper;
+    private final CommunityProfileMapper profileMapper;
     private final MomentRevisionMapper momentRevisionMapper;
     private final CommunityProperties communityProperties;
     private final CommunityEventSupport eventSupport;
@@ -150,10 +153,25 @@ public class MomentService {
 
     private MomentView toView(Moment moment) {
         MomentRevision revision = momentRevisionMapper.findLatestByMomentId(moment.getId());
+        /*
+         * Resolve the author here rather than leaving it to the client.
+         *
+         * `authorId` was the only author information on this DTO, so a moment
+         * feed could not say who wrote anything without one extra request per
+         * row — and the feed shows many rows. One profile lookup per moment is
+         * the cheaper trade, and it matches how ConversationService resolves a
+         * direct conversation's counterpart.
+         *
+         * A missing profile yields nulls, not blanks: the client decides what to
+         * print for an unknown author.
+         */
+        CommunityProfile profile = profileMapper.findByUserId(moment.getAuthorId());
         return MomentView.builder()
                 .id(moment.getId())
                 .body(revision == null ? null : revision.getBody())
                 .authorId(moment.getAuthorId())
+                .authorUsername(profile == null ? null : profile.getUsername())
+                .authorDisplayName(profile == null ? null : profile.getDisplayName())
                 .createdAt(moment.getCreatedAt())
                 .build();
     }

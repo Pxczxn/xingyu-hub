@@ -22,8 +22,39 @@ export type MomentView = {
   id: string;
   body: string;
   authorId: string;
+  /**
+   * Author's handle and display name, resolved server-side (2026-10-03).
+   *
+   * Optional because they are additive: a backend that has not shipped them yet
+   * omits them, and `momentAuthorLabel` falls through. That keeps the frontend
+   * deployable ahead of the server.
+   *
+   * There is deliberately no `authorAvatar` — the community profile table has no
+   * avatar column, so there is nothing to expose. Do not add a placeholder.
+   */
+  authorUsername?: string | null;
+  authorDisplayName?: string | null;
   createdAt: string;
 };
+
+/**
+ * Who wrote a moment, for display.
+ *
+ * `authorId` is always present but is an opaque id — printing it would tell the
+ * reader nothing. Order: display name → username → a neutral label. The label
+ * says 「某位作者」 rather than 「未知」 because on a public feed the author is not
+ * unknown to the system, only unresolvable to us; claiming otherwise would be
+ * wrong about the data.
+ */
+export function momentAuthorLabel(moment: MomentView): string {
+  const displayName = moment.authorDisplayName?.trim();
+  if (displayName) return displayName;
+
+  const username = moment.authorUsername?.trim();
+  if (username) return username;
+
+  return "某位作者";
+}
 
 /**
  * `GET /api/v1/me/insights` — the session user's own counters.

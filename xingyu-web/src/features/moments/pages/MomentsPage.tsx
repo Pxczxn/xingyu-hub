@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { momentsApi } from "@/api/moments/moments.api";
-import { FEED_LIMIT, type MomentView } from "@/api/moments/moments.types";
+import { FEED_LIMIT, momentAuthorLabel, type MomentView } from "@/api/moments/moments.types";
 import { ApiError } from "@/api/client";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
@@ -155,13 +155,26 @@ export function MomentsPage() {
                 to={`/moments/${item.id}`}
                 className="focus-ring block rounded-xl border border-border/70 bg-card p-4 transition-colors hover:border-accent-line"
               >
+                {/*
+                  Author and time share a line, above the body — the conventional
+                  feed order, and the opposite of what this card used to do
+                  (body, then a lone timestamp, with no author at all).
+
+                  The author could not be shown before 2026-10-03: the moment
+                  contract carried only `authorId`, an opaque string. The backend
+                  now resolves `authorUsername` / `authorDisplayName`, and
+                  `momentAuthorLabel` handles a server that has not shipped them
+                  yet. There is no avatar — the community profile has no avatar
+                  column, so there is nothing to render and nothing to fake.
+                */}
+                <span className="mb-2 flex flex-wrap items-center gap-x-2 text-meta text-muted-foreground">
+                  <span className="font-medium text-foreground-soft">
+                    {momentAuthorLabel(item)}
+                  </span>
+                  <span aria-hidden>·</span>
+                  <time dateTime={item.createdAt}>{formatMomentTime(item.createdAt)}</time>
+                </span>
                 <p className="whitespace-pre-wrap text-card leading-6 text-primary">{item.body}</p>
-                <time
-                  dateTime={item.createdAt}
-                  className="mt-2.5 block text-meta text-muted-foreground"
-                >
-                  {formatMomentTime(item.createdAt)}
-                </time>
               </Link>
             </li>
           ))}
