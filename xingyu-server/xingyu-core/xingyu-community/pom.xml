@@ -55,5 +55,17 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+
+        <!--
+            Added 2026-10-03. This module had no test dependency at all, so none of
+            its services could be unit-tested — which is why the guide/rules body
+            parser (pure string logic, the riskiest thing in that change) shipped
+            with only a compile check behind it.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
