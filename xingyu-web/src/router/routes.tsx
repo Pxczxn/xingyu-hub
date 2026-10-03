@@ -1082,17 +1082,38 @@ export function AppRoutes() {
           <Route path="/settings/sessions" element={<SettingsSessionsPage />} />
           <Route path="/settings/blocks" element={<SettingsBlocksPage />} />
           <Route path="/settings/api-tokens" element={<SettingsApiTokensPage />} />
-          {/* Phase 3H: account security + data sovereignty. All four are real
+          {/* Phase 3H: account security + data sovereignty. All real
               self-service endpoints (email change, data export, account
-              deactivation) plus the re-auth grant the email change depends on. */}
+              deactivation). The re-auth grant lives OUTSIDE this group — see
+              the comment below. */}
           <Route path="/settings/security/email" element={<SettingsEmailPage />} />
-          <Route
-            path="/settings/security/re-authenticate"
-            element={<SettingsReauthenticatePage />}
-          />
           <Route path="/settings/data/export" element={<SettingsDataExportPage />} />
           <Route path="/settings/data/delete-account" element={<SettingsDeleteAccountPage />} />
         </Route>
+        {/*
+          Re-authentication is a FLOW STEP, not a settings item (2026-10-03).
+
+          It used to sit inside the SettingsLayout group, so opening it showed
+          「设置」 as the page heading with the settings nav down the side — the
+          screen presented itself as a place you configure, when it is actually
+          one step of the email-change flow (the email page links here with a
+          `?returnTo=`, and this page bounces back on success).
+
+          It is hoisted out of the group rather than restyled inside it. The page
+          already renders its own centred card and has its own exits, so it needs
+          nothing from the settings shell — only the shell's own chrome was
+          wrong. The PATH is unchanged: /settings/security/email links here, and
+          rewriting a working URL to fix a layout problem would break that link
+          for no gain.
+        */}
+        <Route
+          path="/settings/security/re-authenticate"
+          element={
+            <RequireAuth>
+              <SettingsReauthenticatePage />
+            </RequireAuth>
+          }
+        />
         {/* Phase 2L: version history and analytics. Both are owner-only views of
             data the API already exposes (listRevisions / me/insights). */}
         <Route
