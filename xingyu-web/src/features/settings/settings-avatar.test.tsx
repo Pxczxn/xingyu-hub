@@ -1,4 +1,5 @@
 import { StrictMode } from "react";
+import type { UploadedFile } from "@/api/files/files.types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -187,6 +188,7 @@ describe("avatar — picker and preview", () => {
       url: SAVED_AVATAR,
       name: "avatar.png",
       mimeType: "image/png",
+      fileId: 1,
     });
     mockedSettings.updateAvatar.mockResolvedValue({ avatar: SAVED_AVATAR });
     await renderPage();
@@ -207,6 +209,7 @@ describe("avatar — the two-phase upload", () => {
       url: "/api/v1/admin/files/community/messages/new.png",
       name: "avatar.png",
       mimeType: "image/png",
+      fileId: 1,
     });
     mockedSettings.updateAvatar.mockResolvedValue({
       avatar: "/api/v1/admin/files/community/messages/new.png",
@@ -231,7 +234,7 @@ describe("avatar — the two-phase upload", () => {
   });
 
   it("never sends the same upload twice when the button is clicked twice", async () => {
-    let resolveUpload: (value: { url: string; name: string; mimeType: string }) => void = () => {};
+    let resolveUpload: (value: UploadedFile) => void = () => {};
     mockedFiles.uploadFile.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -255,7 +258,7 @@ describe("avatar — the two-phase upload", () => {
       uploadButton.click();
     });
 
-    resolveUpload({ url: SAVED_AVATAR, name: "avatar.png", mimeType: "image/png" });
+    resolveUpload({ url: SAVED_AVATAR, name: "avatar.png", mimeType: "image/png", fileId: 1 });
 
     await screen.findByTestId("avatar-saved");
     expect(mockedFiles.uploadFile).toHaveBeenCalledTimes(1);
@@ -285,6 +288,7 @@ describe("avatar — the two-phase upload", () => {
       url: "/api/v1/admin/files/community/messages/new.png",
       name: "avatar.png",
       mimeType: "image/png",
+      fileId: 1,
     });
     mockedSettings.updateAvatar.mockRejectedValue(apiError(500, "系统繁忙，请稍后再试"));
 
@@ -307,6 +311,7 @@ describe("avatar — the two-phase upload", () => {
       url: "/api/v1/admin/files/community/messages/new.png",
       name: "avatar.png",
       mimeType: "image/png",
+      fileId: 1,
     });
     mockedSettings.updateAvatar.mockRejectedValueOnce(apiError(500, "系统繁忙，请稍后再试"));
     mockedSettings.updateAvatar.mockResolvedValueOnce({
@@ -366,6 +371,7 @@ describe("avatar — existing value, fallback and reset", () => {
       url: SAVED_AVATAR,
       name: "avatar.png",
       mimeType: "image/png",
+      fileId: 1,
     });
     mockedSettings.updateAvatar.mockResolvedValue({ avatar: SAVED_AVATAR });
 

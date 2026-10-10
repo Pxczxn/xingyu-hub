@@ -2,24 +2,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { messagesApi } from "@/api/messages/messages.api";
-import { ApiError } from "@/api/client";
-import type { ChatMessage, Conversation } from "@/api/messages/messages.types";
+import type { Conversation } from "@/api/messages/messages.types";
+import { chatSocket, resetChatSocketDouble } from "@/features/chat/chat-socket.test-double";
 import { MailboxPage } from "./pages/MailboxPage";
 
-type Handlers = {
-  onConnected?: (userId: string) => void;
-  onMessage?: (conversationId: string, message: ChatMessage) => void;
-  onRead?: (conversationId: string, userId: string, sequenceNumber: number) => void;
-  onRecall?: (conversationId: string, message: ChatMessage) => void;
-};
-
-let socketHandlers: Handlers = {};
-
-vi.mock("@/lib/use-community-chat-socket", () => ({
-  useCommunityChatSocket: (_enabled: boolean, handlers: Handlers) => {
-    socketHandlers = handlers;
-  },
-}));
+/*
+ * 2026-10-06: the mailbox no longer fetches or opens a socket of its own — it renders
+ * the SHARED conversation list the provider owns. So these tests drive that list
+ * directly, which is also what makes the "page and header can never disagree" claim
+ * testable: there is only one list.
+ */
+vi.mock("@/features/chat/chat-socket.context", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/features/chat/chat-socket.context")
+  >("@/features/chat/chat-socket.context");
+  const double = await import("@/features/chat/chat-socket.test-double");
+  return { ...actual, useChatSocket: double.chatSocketValue };
+});
 
 vi.mock("@/api/messages/messages.api", () => ({
   messagesApi: {
@@ -30,8 +29,10 @@ vi.mock("@/api/messages/messages.api", () => ({
     sendDirect: vi.fn(),
     sendGroup: vi.fn(),
     listMessages: vi.fn(),
+    listMessagesAfter: vi.fn(),
     markRead: vi.fn(),
     recallMessage: vi.fn(),
+    downloadAttachment: vi.fn(),
   },
 }));
 
@@ -42,7 +43,7 @@ function conversation(overrides: Partial<Conversation> = {}): Conversation {
     id: "c1",
     type: "DIRECT",
     title: null,
-    updatedAt: "2026-09-27T02:00:00Z",
+    updatedAt: "2026-09-27T00:00:00Z",
     lastMessage: "你好",
     unreadCount: 0,
     announcement: null,
@@ -54,34 +55,57 @@ function conversation(overrides: Partial<Conversation> = {}): Conversation {
   };
 }
 
-function renderMailbox() {
+/** Put the shared list into a state the page can render. */
+function givenConversations(items: Conversation[] | null): void {
+  chatSocket.conversations = items;
+  chatSocket.conversationsStatus = items === null ? "loading" : "ready";
+  chatSocket.unreadTotal = items
+    ? items.reduce((total, item) => total + (item.unreadCount ?? 0), 0)
+    : null;
+}
+
+function renderAt(path: string) {
   return render(
-    <MemoryRouter initialEntries={["/messages"]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/messages" element={<MailboxPage />} />
-        <Route path="/messages/:conversationId" element={<div>会话详情</div>} />
+        <Route path="/messages/:conversationId" element={<MailboxPage />} />
         <Route path="/login" element={<div>登录页</div>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
+function renderMailbox() {
+  return renderAt("/messages");
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  socketHandlers = {};
+  resetChatSocketDouble();
+  givenConversations([]);
 });
 
-describe("MailboxPage — list", () => {
-  it("shows loading while the list request is in flight", () => {
-    mocked.listConversations.mockReturnValue(new Promise(() => {}));
+describe("MailboxPage — shared list", () => {
+  it("shows loading while the shared list is still being read", () => {
+    givenConversations(null);
     renderMailbox();
     expect(screen.getByTestId("page-state-loading")).toBeInTheDocument();
   });
 
+  /*
+   * The page must not fetch on its own any more: a second fetch would be a second
+   * copy of the truth, which is exactly the drift this refactor removed.
+   */
+  it("never fetches the list itself", async () => {
+    givenConversations([conversation()]);
+    renderMailbox();
+    await screen.findByLabelText("会话列表");
+    expect(mocked.listConversations).not.toHaveBeenCalled();
+  });
+
   it("renders the backend's order and never re-sorts it", async () => {
-    // The mapper already orders by updated_at DESC; a null updatedAt is
-    // possible for a brand-new conversation and must not be shuffled to an end.
-    mocked.listConversations.mockResolvedValue([
+    givenConversations([
       conversation({ id: "c-new", updatedAt: null, lastMessage: "刚建的" }),
       conversation({ id: "c-old", updatedAt: "2026-09-01T00:00:00Z", lastMessage: "很久以前" }),
     ]);
@@ -95,48 +119,47 @@ describe("MailboxPage — list", () => {
   });
 
   it("labels a title-less DIRECT conversation rather than showing a blank row", async () => {
-    mocked.listConversations.mockResolvedValue([conversation({ title: null })]);
+    givenConversations([conversation({ title: null })]);
     renderMailbox();
 
     const list = await screen.findByLabelText("会话列表");
     expect(within(list).getByText("私信")).toBeInTheDocument();
   });
 
-  it("sums unread counts across conversations for the header line", async () => {
-    mocked.listConversations.mockResolvedValue([
+  /**
+   * 2026-10-06: the page header no longer repeats the unread total.
+   *
+   * It used to say 「N 条未读」 under the title, while the same number was already on
+   * the shell header badge (account total) and on each row badge (per conversation) —
+   * three copies of one fact. Two layers are enough.
+   */
+  it("does not repeat the unread total in the page header", async () => {
+    givenConversations([
       conversation({ id: "c1", unreadCount: 2 }),
       conversation({ id: "c2", unreadCount: 3 }),
-      conversation({ id: "c3", unreadCount: 0 }),
     ]);
     renderMailbox();
+    await screen.findByLabelText("会话列表");
 
-    expect(await screen.findByText("5 条未读")).toBeInTheDocument();
-  });
-
-  it("says so plainly when there is nothing unread", async () => {
-    mocked.listConversations.mockResolvedValue([conversation({ unreadCount: 0 })]);
-    renderMailbox();
-
-    expect(await screen.findByText("没有未读消息")).toBeInTheDocument();
+    expect(screen.queryByText("5 条未读")).not.toBeInTheDocument();
+    expect(screen.queryByText("没有未读消息")).not.toBeInTheDocument();
+    // The per-row badge is still there — that is the layer that carries it.
+    const rowBadges = screen.getAllByLabelText(/条未读/);
+    expect(rowBadges).toHaveLength(2);
   });
 
   it("shows the empty state when the mailbox is empty", async () => {
-    mocked.listConversations.mockResolvedValue([]);
+    givenConversations([]);
     renderMailbox();
 
     expect(await screen.findByTestId("page-state-empty")).toBeInTheDocument();
   });
 
   it("offers a login link when the session has expired", async () => {
-    mocked.listConversations.mockRejectedValue(
-      new ApiError({
-        type: "about:blank",
-        title: "请先登录",
-        status: 401,
-        detail: "请先登录",
-        code: "AUTH_REQUIRED",
-      }),
-    );
+    chatSocket.conversations = null;
+    chatSocket.conversationsStatus = "error";
+    chatSocket.conversationsExpired = true;
+    chatSocket.conversationsError = "登录状态已过期，请重新登录。";
     renderMailbox();
 
     expect(await screen.findByText("登录状态已过期，请重新登录。")).toBeInTheDocument();
@@ -144,15 +167,10 @@ describe("MailboxPage — list", () => {
   });
 
   it("does not tell a signed-in user to log in on a non-auth failure", async () => {
-    mocked.listConversations.mockRejectedValue(
-      new ApiError({
-        type: "about:blank",
-        title: "服务异常",
-        status: 500,
-        detail: "服务异常",
-        code: "INTERNAL_ERROR",
-      }),
-    );
+    chatSocket.conversations = null;
+    chatSocket.conversationsStatus = "error";
+    chatSocket.conversationsError = "无法读取会话列表，请稍后重试。";
+    chatSocket.conversationsExpired = false;
     renderMailbox();
 
     expect(await screen.findByText("无法读取会话列表，请稍后重试。")).toBeInTheDocument();
@@ -161,64 +179,73 @@ describe("MailboxPage — list", () => {
 });
 
 describe("MailboxPage — layout", () => {
-  /*
-   * These two replace a test that asserted `list.className` contained
-   * `lg:max-w-sm`.
-   *
-   * That class was the SYMPTOM of a defect, not a specification: the list was
-   * narrowed to make room for a conversation pane that was never rendered
-   * (`ConversationThreadPage` had no import anywhere in src/), so on a wide
-   * screen the right ~700px was simply empty. The old assertion could therefore
-   * only pass while the page was broken — it pinned the bug in place.
-   *
-   * They now assert the thing that actually matters: the detail pane exists, and
-   * it switches from placeholder to thread when a conversation opens.
+  /**
+   * 2026-10-06: the 808×149 dashed placeholder box is gone. It read as a temporary
+   * skeleton inside a 540px pane; the pane now carries the empty state itself, as one
+   * quiet line — no illustration, no feature education, no suggested contacts.
    */
-  it("shows a placeholder in the detail pane when no conversation is open", async () => {
-    mocked.listConversations.mockResolvedValue([conversation()]);
-    render(
-      <MemoryRouter initialEntries={["/messages"]}>
-        <Routes>
-          <Route path="/messages" element={<MailboxPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+  it("lets the detail pane carry the empty state, with no dashed placeholder box", async () => {
+    givenConversations([conversation()]);
+    const { container } = renderAt("/messages");
 
     expect(await screen.findByLabelText("会话列表")).toBeInTheDocument();
-    expect(screen.getByText("从左侧选择一个会话开始阅读。")).toBeInTheDocument();
+    expect(screen.getByText("选择一个会话开始聊天")).toBeInTheDocument();
+    expect(container.querySelector(".border-dashed")).toBeNull();
+  });
+
+  /**
+   * 2026-10-06: the empty-mailbox copy used to promise 「在别人的主页点『私信』」 — a
+   * control that does not exist anywhere (openDirect is only called from the
+   * 新建私信 form). It now describes the path that actually works.
+   */
+  it("describes the real way to start a conversation", async () => {
+    givenConversations([]);
+    renderMailbox();
+
+    expect(await screen.findByText("还没有私信")).toBeInTheDocument();
+    expect(screen.getByText("可以通过用户名发起新的对话。")).toBeInTheDocument();
+    expect(screen.queryByText(/别人的主页/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * 2026-10-06: search is a real capability and used to have NO entry anywhere. It now
+   * sits as a quiet link beside 新建私信 — present, but not louder than the list.
+   */
+  it("offers a search entry next to 新建私信", async () => {
+    givenConversations([conversation()]);
+    renderMailbox();
+    await screen.findByLabelText("会话列表");
+
+    expect(screen.getByRole("link", { name: /搜索消息/ })).toHaveAttribute("href", "/messages/search");
   });
 
   it("replaces the placeholder with the thread once a conversation is open", async () => {
-    mocked.listConversations.mockResolvedValue([conversation()]);
-    render(
-      <MemoryRouter initialEntries={["/messages/c1"]}>
-        <Routes>
-          <Route path="/messages/:conversationId" element={<MailboxPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+    givenConversations([conversation()]);
+    renderAt("/messages/c1");
 
     const list = await screen.findByLabelText("会话列表");
     // No longer squeezed to make room for nothing.
     expect(list.className).not.toContain("lg:max-w-sm");
-    // The detail pane swapped the placeholder for the real thread.
     await waitFor(() =>
       expect(screen.queryByText("从左侧选择一个会话开始阅读。")).not.toBeInTheDocument(),
     );
   });
 
+  it("gives each desktop pane its own scroll area (2026-10-06)", async () => {
+    givenConversations([conversation()]);
+    renderAt("/messages");
+
+    const list = await screen.findByLabelText("会话列表");
+    // Before this the thread's auto-scroll moved the DOCUMENT (measured: 345px),
+    // dragging the page header and the whole left column off screen. Bounding the
+    // pane is what makes the two columns scroll independently.
+    const pane = list.closest("div");
+    expect(pane?.className).toContain("lg:overflow-y-auto");
+  });
+
   it("marks the open conversation with aria-current", async () => {
-    mocked.listConversations.mockResolvedValue([
-      conversation({ id: "c1" }),
-      conversation({ id: "c2" }),
-    ]);
-    render(
-      <MemoryRouter initialEntries={["/messages/c2"]}>
-        <Routes>
-          <Route path="/messages/:conversationId" element={<MailboxPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+    givenConversations([conversation({ id: "c1" }), conversation({ id: "c2" })]);
+    renderAt("/messages/c2");
 
     const list = await screen.findByLabelText("会话列表");
     const current = within(list)
@@ -230,56 +257,27 @@ describe("MailboxPage — layout", () => {
       "/messages/c2",
     );
   });
-});
 
-describe("MailboxPage — realtime", () => {
-  it("refetches on an incoming message, since the preview and count both moved", async () => {
-    mocked.listConversations.mockResolvedValue([conversation({ unreadCount: 0 })]);
-    renderMailbox();
+  /*
+   * 390 with a conversation open: the mailbox's big header (「私信 / N 条未读 /
+   * 新建私信」) used to stay on screen UNDER the thread's own header, so the reader saw
+   * two titles stacked. It is now the mailbox's job only.
+   */
+  it("hides the mailbox page header on mobile while a conversation is open", async () => {
+    givenConversations([conversation()]);
+    const { container } = renderAt("/messages/c1");
     await screen.findByLabelText("会话列表");
-    expect(mocked.listConversations).toHaveBeenCalledTimes(1);
 
-    mocked.listConversations.mockResolvedValue([conversation({ unreadCount: 1 })]);
-    socketHandlers.onMessage?.("c1", {
-      id: "m1",
-      conversationId: "c1",
-      conversationType: "DIRECT",
-      senderId: "u-2",
-      sequenceNumber: 1,
-      body: "hi",
-      messageType: "TEXT",
-      attachmentUrl: null,
-      attachmentName: null,
-      createdAt: "2026-09-27T03:00:00Z",
-      recalledAt: null,
-    });
-
-    await waitFor(() => expect(mocked.listConversations).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("1 条未读")).toBeInTheDocument();
+    const header = container.querySelector("header");
+    expect(header?.className).toContain("max-lg:hidden");
   });
 
-  it("keeps the existing list on screen during a socket-driven refresh", async () => {
-    mocked.listConversations.mockResolvedValue([conversation({ lastMessage: "先前的消息" })]);
-    renderMailbox();
-    await screen.findByText("先前的消息");
+  it("keeps the mailbox page header when no conversation is open", async () => {
+    givenConversations([conversation()]);
+    const { container } = renderAt("/messages");
+    await screen.findByLabelText("会话列表");
 
-    // Second load never settles: the previously rendered rows must survive.
-    mocked.listConversations.mockReturnValue(new Promise(() => {}));
-    socketHandlers.onMessage?.("c1", {
-      id: "m1",
-      conversationId: "c1",
-      conversationType: "DIRECT",
-      senderId: "u-2",
-      sequenceNumber: 1,
-      body: "hi",
-      messageType: "TEXT",
-      attachmentUrl: null,
-      attachmentName: null,
-      createdAt: "2026-09-27T03:00:00Z",
-      recalledAt: null,
-    });
-
-    expect(screen.getByText("先前的消息")).toBeInTheDocument();
-    expect(screen.queryByTestId("page-state-loading")).not.toBeInTheDocument();
+    const header = container.querySelector("header");
+    expect(header?.className).not.toContain("max-lg:hidden");
   });
 });

@@ -62,6 +62,13 @@ export type SavedMessageView = {
   body?: string | null;
   attachmentUrl?: string | null;
   attachmentName?: string | null;
+  /**
+   * 附件的 `sys_file.id`（2026-10-06）。
+   *
+   * 之前这里只有 `attachmentUrl`，而那条地址已被静态文件控制器拒绝（社区私信附件必须过
+   * membership），于是收藏页的图片/文件全部 403。有了 id 才能和会话内一样走受鉴权下载。
+   */
+  attachmentFileId?: number | null;
   senderId: string;
   /** When the message was sent. Nullable in the DB. */
   messageCreatedAt?: string | null;

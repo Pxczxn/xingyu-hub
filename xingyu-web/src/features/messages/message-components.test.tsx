@@ -3,7 +3,13 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ChatMessage, Conversation } from "@/api/messages/messages.types";
 import { ConversationRow, formatConversationTime } from "./ConversationRow";
-import { MessageBubble, formatMessageTime, senderLabel } from "./MessageBubble";
+import {
+  MessageBubble,
+  formatMessageTime,
+  senderName,
+  senderProfileHref,
+} from "./MessageBubble";
+import { messagesApi } from "@/api/messages/messages.api";
 
 /*
  * The two presentational pieces of the message centre (Phase 2I-3). They are
@@ -34,11 +40,14 @@ function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
     conversationId: "c1",
     conversationType: "DIRECT",
     senderId: "u-2",
+    // 2026-10-06: structured sender, resolved server-side at read time.
+    sender: { userId: "u-2", username: "them", displayName: "小明", avatar: null },
     sequenceNumber: 1,
     body: "你好",
     messageType: "TEXT",
     attachmentUrl: null,
     attachmentName: null,
+    attachmentFileId: null,
     createdAt: "2026-09-27T02:00:00Z",
     recalledAt: null,
     ...overrides,
@@ -137,14 +146,23 @@ describe("ConversationRow", () => {
   });
 });
 
-describe("senderLabel", () => {
-  it("falls back to a neutral phrase rather than inventing a name", () => {
-    expect(senderLabel("")).toBe("某位成员");
-    expect(senderLabel("   ")).toBe("某位成员");
+describe("senderName / senderProfileHref", () => {
+  it("prefers the display name, then the username", () => {
+    expect(senderName(message())).toBe("小明");
+    expect(
+      senderName(message({ sender: { userId: "u", username: "them", displayName: null } })),
+    ).toBe("them");
   });
 
-  it("shortens a long id", () => {
-    expect(senderLabel("a-very-long-user-id")).toBe("a-very-l…");
+  it("returns null when the profile is gone, so the UI can say 已注销用户", () => {
+    // Never the raw id: an opaque uuid tells the reader nothing and used to be
+    // exactly what a group bubble showed.
+    expect(senderName(message({ sender: null }))).toBeNull();
+    expect(senderProfileHref(message({ sender: null }))).toBeNull();
+  });
+
+  it("builds the canonical profile href from the CURRENT username", () => {
+    expect(senderProfileHref(message())).toBe("/u/them");
   });
 });
 
@@ -161,10 +179,14 @@ describe("formatMessageTime", () => {
 
 describe("MessageBubble", () => {
   function renderBubble(props: Partial<Parameters<typeof MessageBubble>[0]> = {}) {
+    // A Router is required now that the sender label is a <Link> to the canonical
+    // profile (2026-10-06) rather than a plain span.
     return render(
+      <MemoryRouter>
       <ul>
         <MessageBubble
           message={message()}
+          conversationId="c1"
           mine={false}
           showSender={false}
           canRecall={false}
@@ -172,7 +194,8 @@ describe("MessageBubble", () => {
           onRecall={vi.fn()}
           {...props}
         />
-      </ul>,
+      </ul>
+      </MemoryRouter>,
     );
   }
 
@@ -216,17 +239,41 @@ describe("MessageBubble", () => {
     expect(row).toHaveAttribute("data-recalled", "true");
   });
 
-  it("renders an image attachment as an image", () => {
+  /*
+   * 2026-10-06: attachments are fetched WITH the session token and handed to the DOM
+   * as an object URL. The raw `attachmentUrl` pointed at an unauthenticated static path
+   * (measured 200 with no token), so it must not be used as a src any more.
+   */
+  it("renders an image attachment from the authenticated download, not the raw url", async () => {
+    const download = vi
+      .spyOn(messagesApi, "downloadAttachment")
+      .mockResolvedValue(new Blob(["x"]) as never);
+    const createObjectURL = vi.fn(() => "blob:member-only");
+    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL: vi.fn() });
+
     renderBubble({
       message: message({
         messageType: "IMAGE",
         attachmentUrl: "https://cdn.example/x.png",
         attachmentName: "照片",
+        attachmentFileId: 42,
         body: "https://cdn.example/x.png",
       }),
     });
-    const img = screen.getByRole("img", { name: "照片" });
-    expect(img).toHaveAttribute("src", "https://cdn.example/x.png");
+
+    const img = await screen.findByRole("img", { name: "照片" });
+    expect(download).toHaveBeenCalledWith("c1", "m1");
+    expect(img).toHaveAttribute("src", "blob:member-only");
+    vi.unstubAllGlobals();
+    download.mockRestore();
+  });
+
+  it("says the attachment is loading instead of rendering a broken image", () => {
+    vi.spyOn(messagesApi, "downloadAttachment").mockReturnValue(new Promise(() => {}) as never);
+    renderBubble({
+      message: message({ messageType: "IMAGE", attachmentName: "照片", attachmentFileId: 42 }),
+    });
+    expect(screen.getByText("图片加载中…")).toBeInTheDocument();
   });
 
   it("suppresses a body that merely repeats the attachment URL", () => {
@@ -251,33 +298,48 @@ describe("MessageBubble", () => {
     expect(screen.getByText("看这个")).toBeInTheDocument();
   });
 
-  it("renders a file attachment as a download link", () => {
+  it("renders a file attachment as an authenticated download link", async () => {
+    const download = vi
+      .spyOn(messagesApi, "downloadAttachment")
+      .mockResolvedValue(new Blob(["x"]) as never);
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:file"), revokeObjectURL: vi.fn() });
+
     renderBubble({
       message: message({
         messageType: "FILE",
         attachmentUrl: "https://cdn.example/a.pdf",
         attachmentName: "报告.pdf",
+        attachmentFileId: 7,
         // `body` is typed non-null: the service stores the attachment URL there
         // when no caption was given, so an attachment-only message arrives as a
         // URL/URL pair, not as an empty body.
         body: "https://cdn.example/a.pdf",
       }),
     });
-    expect(screen.getByRole("link", { name: "报告.pdf" })).toHaveAttribute(
-      "href",
-      "https://cdn.example/a.pdf",
-    );
+
+    const link = await screen.findByRole("link", { name: "报告.pdf" });
+    expect(download).toHaveBeenCalledWith("c1", "m1");
+    expect(link).toHaveAttribute("href", "blob:file");
+    expect(link).toHaveAttribute("download", "报告.pdf");
+    vi.unstubAllGlobals();
+    download.mockRestore();
   });
 
-  it("shows a sender label only when asked", () => {
+  it("shows a linked sender label only when asked (2026-10-06)", () => {
     const { unmount } = renderBubble({ showSender: true, mine: false });
-    expect(within(screen.getByRole("listitem")).getByText(senderLabel("u-2"))).toBeInTheDocument();
+    // A real name that links to the canonical profile, not a truncated id.
+    expect(screen.getByRole("link", { name: "小明" })).toHaveAttribute("href", "/u/them");
     unmount();
 
     renderBubble({ showSender: false, mine: false });
-    expect(
-      within(screen.getByRole("listitem")).queryByText(senderLabel("u-2")),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "小明" })).not.toBeInTheDocument();
+  });
+
+  it("does not link a sender whose username cannot be resolved", () => {
+    renderBubble({ showSender: true, mine: false, message: message({ sender: null }) });
+    const row = within(screen.getByRole("listitem"));
+    expect(row.getByText("已注销用户")).toBeInTheDocument();
+    expect(row.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("marks a pending recall and disables the button", () => {

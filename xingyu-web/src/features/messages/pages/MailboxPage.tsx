@@ -1,94 +1,62 @@
-import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ApiError } from "@/api/client";
-import { messagesApi } from "@/api/messages/messages.api";
-import {
-  countUnreadConversations,
-  toConversations,
-  type Conversation,
-} from "@/api/messages/messages.types";
+import { Search } from "lucide-react";
 import { PageState } from "@/components/shared/PageState";
-import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
+import { useChatSocket } from "@/features/chat/chat-socket.context";
 import { cn } from "@/lib/cn";
 import { ConversationRow } from "../ConversationRow";
 import { ConversationThreadPage } from "./ConversationThreadPage";
 import { NewMessageComposer } from "../NewMessageComposer";
 
 /*
- * The mailbox (Phase 2I-3).
+ * The mailbox.
  *
  * Layout is master/detail: this page renders the conversation list, and
  * `ConversationThreadPage` renders the open conversation beside it. Both live
  * under /messages, so the list must NOT assume it is alone on the page — when a
  * conversation is open the list is the left column and the thread is the right.
  *
- * `GET /api/v1/messages` is a BARE ARRAY and the mapper already sorts
- * `updated_at DESC`. The list is rendered in that order and never re-sorted:
- * `updatedAt` is nullable for a brand-new conversation, and a client sort would
- * put those rows somewhere arbitrary.
+ * 2026-10-06: the list, its unread badges and the header badge now come from ONE
+ * shared source — `ChatSocketProvider` — instead of this page fetching
+ * `GET /messages` and holding a second WebSocket of its own. Two consequences:
+ *   - the mailbox and the header can no longer disagree, because there is only one
+ *     number and one list; a `message` / `read` frame refreshes both at once;
+ *   - a failed refresh keeps the previous (server-derived) values, so the badge
+ *     never silently drops to 0.
  *
- * Realtime: a new message on the socket bumps the list, because the row's
- * preview and unread count both change without the user doing anything. Rather
- * than patch the summary in place (the socket frame carries a message, not a
- * conversation), the list is refetched — the mailbox is small and this keeps one
- * source of truth for `lastMessage` / `unreadCount`.
+ * `GET /api/v1/messages` is a BARE ARRAY and the mapper already sorts
+ * `updated_at DESC`; the list is rendered in that order and never re-sorted.
  */
-
-type LoadState =
-  | { kind: "loading" }
-  | { kind: "error"; expired: boolean }
-  | { kind: "ready"; items: Conversation[] };
-
-function isAuthError(err: unknown): boolean {
-  return (
-    err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
-  );
-}
 
 export function MailboxPage() {
   const { conversationId } = useParams<{ conversationId?: string }>();
-  const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const [reloadToken, setReloadToken] = useState(0);
+  const {
+    conversations,
+    conversationsStatus,
+    conversationsError,
+    conversationsExpired,
+  } = useChatSocket();
+  const threadOpen = Boolean(conversationId);
 
-  useEffect(() => {
-    let active = true;
-    // Only show the full-page spinner on the first load; a socket-driven refresh
-    // must not blank a list the user is already reading.
-    setState((current) => (current.kind === "ready" ? current : { kind: "loading" }));
+  if (conversationsStatus === "idle" || conversationsStatus === "loading") {
+    return <PageState kind="loading" />;
+  }
 
-    messagesApi
-      .listConversations()
-      .then((items) => {
-        if (active) setState({ kind: "ready", items: toConversations(items) });
-      })
-      .catch((err: unknown) => {
-        if (active) setState({ kind: "error", expired: isAuthError(err) });
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [reloadToken]);
-
-  // Live refresh on any incoming message. No read/recall handling here — those
-  // only affect an open thread, which listens for itself.
-  useCommunityChatSocket(true, {
-    onMessage: () => setReloadToken((token) => token + 1),
-  });
-
-  if (state.kind === "loading") return <PageState kind="loading" />;
-
-  if (state.kind === "error") {
+  if (conversationsStatus === "error" || conversations === null) {
     return (
       <div className="section-gap">
         <PageState
           kind="error"
           title="加载失败"
           description={
-            state.expired ? "登录状态已过期，请重新登录。" : "无法读取会话列表，请稍后重试。"
+            conversationsExpired
+              ? "登录状态已过期，请重新登录。"
+              : (conversationsError ?? "无法读取会话列表，请稍后重试。")
           }
         />
-        {state.expired ? (
+        {/* Only an expired session gets a login link. Telling a signed-in user to log in
+            because a 500 happened is the kind of small lie that erodes trust in the
+            whole error surface. */}
+        {conversationsExpired ? (
           <p className="text-center">
             <Link to="/login" className="text-sm text-accent hover:underline">
               去登录
@@ -99,47 +67,89 @@ export function MailboxPage() {
     );
   }
 
-  const { items } = state;
-  const unreadTotal = countUnreadConversations(items);
-  const threadOpen = Boolean(conversationId);
+  const items = conversations;
 
   return (
     <div className="section-gap">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-primary">私信</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {unreadTotal > 0 ? `${unreadTotal} 条未读` : "没有未读消息"}
-          </p>
+      {/*
+        Page header — MAILBOX responsibility only.
+
+        On mobile the thread takes over the pane, so the big 「私信 / N 条未读 / 新建私信」
+        header is hidden while a conversation is open: otherwise the reader sees the
+        mailbox title and the conversation title stacked on top of each other.
+        2026-10-06.
+      */}
+      {/*
+        2026-10-06 — two cuts here, both from measured evidence:
+          1. The 「N 条未读」 line is GONE. The number already appears on the header
+             badge (account total) and on each row badge (per conversation); a third
+             copy under the page title said the same thing a third time.
+          2. 「搜索消息」 is a quiet text link next to 「新建私信」, not a toolbar of its
+             own. It is an auxiliary tool and must not out-shout the conversation list
+             or the conversation itself.
+      */}
+      <header
+        className={cn(
+          "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between",
+          threadOpen && "max-lg:hidden",
+        )}
+      >
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">私信</h1>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/messages/search"
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
+            <Search className="h-4 w-4" aria-hidden />
+            搜索消息
+          </Link>
+          <NewMessageComposer />
         </div>
-        <NewMessageComposer />
       </header>
 
       {/*
         Master / detail.
         ============================================================
-        BUG FIXED HERE (2026-10-03): this page never actually rendered the
-        thread. `ConversationThreadPage` had a full test suite and a real route,
-        but no import anywhere in src/ — so `/messages/:conversationId` narrowed
-        the list to `lg:max-w-sm` and left roughly 700px of the viewport EMPTY
-        where the conversation was supposed to be. On mobile the list just looked
-        normal, which is why it survived.
+        2026-10-06 (workspace): the two panes are now INDEPENDENT scroll areas at
+        >= lg, and the thread is a flex column whose message viewport is the only
+        thing that scrolls. Before this, the thread's auto-scroll used
+        `bottomRef.scrollIntoView()`, which scrolls the DOCUMENT — measured: opening
+        a conversation moved the page 345px, pushing the page header and the entire
+        left column off screen.
 
-        The two panes are now real. Breakpoint behaviour is deliberate:
-          >= lg   list on the left at a fixed 320px, conversation on the right
-          <  lg   ONE pane at a time — opening a conversation replaces the list
-                  (the thread's own 「返回会话列表」 link is the way back), because
-                  a 390px viewport has no room for two columns.
-        The placeholder only exists at >= lg: on mobile there is no second pane
-        to be empty.
+        < lg stays one pane at a time: opening a conversation replaces the list (the
+        thread's own 「返回会话列表」 is the way back), because a 390px viewport has no
+        room for two columns.
       */}
-      <div className="lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-6">
-        <div className={cn("min-w-0", threadOpen && "max-lg:hidden")}>
+      <div
+        className={cn(
+          "lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-6",
+          // Bounded desktop panes, each scrolling on its own.
+          //
+          // Two details are load-bearing, and both were measured as failures:
+          //  - no `items-start`: it sizes the grid row by content, so a child's
+          //    `h-full` resolves against an auto-height row and the pane grows with
+          //    the conversation instead of scrolling;
+          //  - `grid-rows-[minmax(0,1fr)]`: the row must itself be bounded, and
+          //    `minmax(0,…)` (not `1fr`) is what lets it shrink below content.
+          // Paired with `min-h-0` on both panes, this is the difference between
+          // "the message list scrolls" and "the whole page scrolls".
+          "lg:h-[calc(100vh-12rem)] lg:grid-rows-[minmax(0,1fr)]",
+        )}
+      >
+        <div
+          className={cn(
+            "min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1",
+            threadOpen && "max-lg:hidden",
+          )}
+        >
           {items.length === 0 ? (
             <PageState
               kind="empty"
-              title="还没有会话"
-              description="在别人的主页点「私信」，或从上方新建一条私信，会话会出现在这里。"
+              illustration={false}
+              className="border-0 bg-transparent py-10"
+              title="还没有私信"
+              description="可以通过用户名发起新的对话。"
             />
           ) : (
             <ul aria-label="会话列表" className="flex list-none flex-col gap-2 p-0">
@@ -154,12 +164,18 @@ export function MailboxPage() {
           )}
         </div>
 
-        <div className={cn("min-w-0", !threadOpen && "hidden lg:block")}>
+        <div className={cn("min-w-0 lg:h-full lg:min-h-0", !threadOpen && "hidden lg:block")}>
           {threadOpen ? (
             <ConversationThreadPage />
           ) : (
-            <p className="rounded-xl border border-dashed border-border bg-card/60 px-4 py-16 text-center text-meta text-muted-foreground">
-              从左侧选择一个会话开始阅读。
+            /*
+              2026-10-06: the 808×149 dashed placeholder box is gone. It read as a
+              temporary skeleton sitting in a 540px pane, and it said nothing. The pane
+              now carries the empty state itself — one quiet line, no illustration, no
+              feature education, no suggested contacts.
+            */
+            <p className="grid h-full place-items-center px-6 text-center text-meta text-muted-foreground">
+              选择一个会话开始聊天
             </p>
           )}
         </div>

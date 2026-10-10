@@ -1,35 +1,41 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCheck } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { notificationsApi } from "@/api/notifications/notifications.api";
 import {
-  countUnreadByBucket,
-  notificationBucket,
-  notificationCategoryLabel,
-  notificationFallbackHref,
+  countUnread,
+  notificationHref,
   type Notification,
-  type NotificationTab,
 } from "@/api/notifications/notifications.types";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { NotificationRow } from "../NotificationRow";
+import { notifyUnreadChanged } from "../unread-sync";
 
 /*
- * Notification centre (Phase 2I-2).
+ * Notification centre.
  *
- * This is a NEW page, not a port. Legacy left `/notifications` as a redirect to
- * `/` and only ever rendered notifications inside a header popover, so there is
- * nothing to copy route-wise — but its icon/bucket/label mapping is reused
- * verbatim (see notifications.types.ts) because that part was sound.
+ * 2026-10-06 (contract recovery) — three deliberate removals:
  *
- * `limit` is the only paging knob and the backend caps it at 50 with no cursor,
- * so one window is fetched and the tabs filter client-side.
+ *  1. The 「全部 / 互动 / 系统」 filter tabs are GONE. The backend has exactly one
+ *     real producer (`FOLLOW`), so those tabs offered a taxonomy over nothing:
+ *     selecting 系统 could only ever produce an empty list, and 互动 advertised
+ *     点赞/评论 that no code path writes. A filter is a promise about the data.
+ *  2. The empty-state copy no longer says "点赞或评论也会出现在这里" for the same
+ *     reason — it described producers that do not exist.
+ *  3. The row's destination is now the structured `actor` (see notificationHref),
+ *     not a per-category fallback. A follow notification opens the follower's
+ *     canonical profile.
+ *
+ * `limit` is the only paging knob and the backend caps it at 100 with no cursor,
+ * so one window is fetched. Pagination is tracked debt; nothing here claims the
+ * list is "all notifications".
  *
  * Read-state discipline, deliberately different from Legacy:
  * Legacy optimistically flipped a row to read even when the PATCH failed. That
  * paints a state the server does not have. Here a failed mark-read leaves the
- * row unread and says so.
+ * row unread and says so — and it publishes nothing to the header badge.
  */
 
 type LoadState =
@@ -39,11 +45,16 @@ type LoadState =
 
 const LIMIT = 50;
 
-const TABS: { id: NotificationTab; label: string }[] = [
-  { id: "all", label: "全部" },
-  { id: "social", label: "互动" },
-  { id: "system", label: "系统" },
-];
+/**
+ * Reading column width for the list.
+ *
+ * The shell is 1200px wide, so at 1440 the rows used to run the full ~1104px and a
+ * one-line FOLLOW notification ("小明 关注了你") was stretched across the whole page
+ * with its timestamp marooned at the far right. 42rem keeps the sentence and its
+ * time in one comfortable glance. Centred so the column reads as a deliberate
+ * measure rather than a left-hugging fragment.
+ */
+const READING_COLUMN = "mx-auto w-full max-w-2xl";
 
 function isAuthError(err: unknown): boolean {
   return (
@@ -119,10 +130,42 @@ function groupByDay(items: Notification[]): NotificationGroup[] {
 export function NotificationsPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const [tab, setTab] = useState<NotificationTab>("all");
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  /*
+   * The unread number shown here is the SERVER's account-wide count, not a count
+   * of this 50-row window.
+   *
+   * Why it matters: the header badge reads the same endpoint. If this page counted
+   * its own window instead, an account with more unread than the window would show
+   * two different numbers on the same screen — and 「全部已读」 acts account-wide, so
+   * the page would be describing a scope it is not acting on.
+   *
+   * `null` means "not read yet / unreadable": the lede then falls back to the
+   * window count so the page still says something true, and the badge is left
+   * alone rather than being set to a guess.
+   */
+  const [serverUnread, setServerUnread] = useState<number | null>(null);
+
+  /**
+   * Re-read the account-wide count and publish it to the header.
+   *
+   * Only ever called AFTER the server accepted a write. If the read fails, nothing
+   * is published — the header keeps its previous (server-derived) value instead of
+   * silently drifting. This is the whole "a failed write must not move the badge"
+   * guarantee, in one place.
+   */
+  const publishServerUnread = useCallback(async () => {
+    try {
+      const value = await notificationsApi.getUnreadCount();
+      setServerUnread(value);
+      notifyUnreadChanged(value);
+    } catch {
+      /* keep both surfaces on their previous server-derived value */
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -138,10 +181,12 @@ export function NotificationsPage() {
         if (active) setState({ kind: "error", expired: isAuthError(err) });
       });
 
+    void publishServerUnread();
+
     return () => {
       active = false;
     };
-  }, []);
+  }, [publishServerUnread]);
 
   function replaceItems(next: Notification[]) {
     setState((current) => (current.kind === "ready" ? { kind: "ready", items: next } : current));
@@ -160,7 +205,7 @@ export function NotificationsPage() {
     if (pending[item.id]) return;
     setActionError(null);
 
-    const href = notificationFallbackHref(item.category);
+    const href = notificationHref(item);
 
     if (!item.read) {
       setPending((map) => ({ ...map, [item.id]: true }));
@@ -173,6 +218,11 @@ export function NotificationsPage() {
             ),
           );
         }
+        // Server confirmed the transition — now resync the account-wide count.
+        // Not awaited: the reader is on their way to the profile, and an unmounted
+        // page's setState is a no-op while the published event still reaches the
+        // header (which stays mounted).
+        void publishServerUnread();
       } catch (err: unknown) {
         setActionError(
           err instanceof ApiError && err.problem.status === 404
@@ -199,6 +249,11 @@ export function NotificationsPage() {
       await notificationsApi.markAllRead();
       // read-all answers 204 with no payload, so reflect it locally.
       replaceItems(state.items.map((row) => ({ ...row, read: true })));
+      // The endpoint's semantics are ACCOUNT-WIDE, so 0 is not a guess: every
+      // unread row for this user was just marked read. Publishing it is exactly
+      // "page, header and database agree".
+      setServerUnread(0);
+      notifyUnreadChanged(0);
     } catch (err: unknown) {
       setActionError(
         err instanceof ApiError ? err.problem.detail : "全部标记已读失败，请稍后重试。",
@@ -234,53 +289,22 @@ export function NotificationsPage() {
   }
 
   const { items } = state;
-  const counts = countUnreadByBucket(items);
-  const visible =
-    tab === "all" ? items : items.filter((item) => notificationBucket(item.category) === tab);
+  const unread = serverUnread ?? countUnread(items);
 
   return (
-    <div className="section-gap">
+    <div className={`section-gap ${READING_COLUMN}`}>
       <header className="border-b border-border/70 pb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-primary">通知中心</h1>
-        <p className="lede mt-2">{counts.all > 0 ? `${counts.all} 条未读` : "没有未读通知"}</p>
+        <p className="lede mt-2">{unread > 0 ? `${unread} 条未读` : "没有未读通知"}</p>
       </header>
 
-      {/* Segmented filter + the one bulk action, on the same line. The tabs are
-          not a separate toolbar row because they are a property of the list
-          directly beneath them. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav
-          aria-label="通知分类"
-          className="flex items-center gap-1 rounded-lg bg-surface-sunken p-1"
-        >
-          {TABS.map((entry) => {
-            const active = entry.id === tab;
-            const unread = counts[entry.id];
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                aria-current={active ? "true" : undefined}
-                onClick={() => setTab(entry.id)}
-                className={
-                  active
-                    ? "rounded-md bg-card px-3 py-1.5 text-meta font-medium text-primary"
-                    : "rounded-md px-3 py-1.5 text-meta text-muted-foreground transition-colors hover:text-foreground"
-                }
-              >
-                {entry.label}
-                {unread > 0 ? (
-                  <span className="ml-1 tabular-nums text-accent-strong">{unread}</span>
-                ) : null}
-              </button>
-            );
-          })}
-        </nav>
-
+      {/* One bulk action, no filters. The filter strip that used to sit here offered
+          全部/互动/系统 over a backend that only ever produces FOLLOW. */}
+      <div className="flex justify-end">
         <Button
           variant="outline"
           size="sm"
-          disabled={busy || counts.all === 0}
+          disabled={busy || unread === 0}
           onClick={() => void onMarkAllRead()}
         >
           <CheckCheck className="mr-1.5 h-4 w-4" aria-hidden />
@@ -294,15 +318,19 @@ export function NotificationsPage() {
         </p>
       ) : null}
 
-      {visible.length === 0 ? (
+      {items.length === 0 ? (
+        /*
+         * Deliberately light: no illustration, no card. An account with nothing in
+         * it is the ordinary state of a new reader, and a big framed box with a
+         * drawing in it made "nothing happened yet" look like an event. The copy
+         * names the ONLY thing that can actually appear here.
+         */
         <PageState
           kind="empty"
-          title={items.length === 0 ? "暂无通知" : "这个分类下没有通知"}
-          description={
-            items.length === 0
-              ? "有人关注你、点赞或评论时，会出现在这里。"
-              : "切回「全部」查看其它通知。"
-          }
+          illustration={false}
+          className="border-0 bg-transparent py-10"
+          title="暂无通知"
+          description="有人关注你时，会出现在这里。"
         />
       ) : (
         /*
@@ -313,7 +341,7 @@ export function NotificationsPage() {
           then one h2 per day.
         */
         <div className="flex flex-col gap-7">
-          {groupByDay(visible).map((group) => (
+          {groupByDay(items).map((group) => (
             <section key={group.key} aria-labelledby={`notification-day-${group.key}`}>
               <div className="mb-3 flex items-center gap-3">
                 <h2
@@ -333,8 +361,7 @@ export function NotificationsPage() {
                   <NotificationRow
                     key={item.id}
                     notification={item}
-                    label={notificationCategoryLabel(item.category)}
-                    href={notificationFallbackHref(item.category)}
+                    href={notificationHref(item)}
                     pending={Boolean(pending[item.id])}
                     onOpen={(row) => void onOpen(row)}
                   />

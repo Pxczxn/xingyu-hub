@@ -113,6 +113,9 @@ export function AttachmentPicker({
         url: uploaded.url,
         name: uploaded.name,
         messageType,
+        // 2026-10-06: without the file id the message row has no credential to be
+        // authorized on read, and the attachment becomes undownloadable.
+        fileId: uploaded.fileId,
       });
       onSent(created);
     } catch (err: unknown) {

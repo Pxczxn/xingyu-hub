@@ -20,6 +20,12 @@ export type ArticleDetail = {
   owner: boolean;
   categorySlug?: string | null;
   topicSlugs?: string[];
+  seriesContexts: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    position: number;
+  }>;
 };
 
 /*

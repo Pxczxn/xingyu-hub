@@ -19,6 +19,9 @@ function report(overrides: Partial<UserReportView> = {}): UserReportView {
     status: "SUBMITTED",
     targetType: "ARTICLE",
     targetId: "a1",
+    targetTitle: "一篇文章",
+    targetSummary: null,
+    reason: "SPAM",
     updatedAt: "2026-09-20T10:00:00Z",
     ...overrides,
   };
@@ -48,12 +51,58 @@ describe("MyReportsPage", () => {
     expect(mockedList).toHaveBeenCalledWith();
   });
 
-  it("renders the target type and id", async () => {
-    mockedList.mockResolvedValue([report({ targetType: "MOMENT", targetId: "m-9" })]);
+  it("describes the subject in user language, never the raw enum", async () => {
+    mockedList.mockResolvedValue([report({ targetType: "MOMENT", targetTitle: "一条动态" })]);
     renderPage();
     const list = await screen.findByLabelText("我的举报列表");
-    expect(list).toHaveTextContent("MOMENT");
-    expect(list).toHaveTextContent("m-9");
+    expect(list).toHaveTextContent("动态");
+    expect(list).toHaveTextContent("一条动态");
+    // The raw enum must not leak into the UI.
+    expect(list).not.toHaveTextContent("MOMENT");
+  });
+
+  it("never renders the target UUID — a system id is not a description", async () => {
+    mockedList.mockResolvedValue([
+      report({ targetId: "11111111-2222-3333-4444-555555555555", targetTitle: "被举报的文章" }),
+    ]);
+    renderPage();
+    const list = await screen.findByLabelText("我的举报列表");
+    expect(list).not.toHaveTextContent("11111111-2222-3333-4444-555555555555");
+    expect(list).toHaveTextContent("被举报的文章");
+  });
+
+  it("shows the report reason in user language, never the raw enum", async () => {
+    // The API returns the stored enum ("PLAGIARISM"); the row must translate it
+    // to the SAME wording the report form offered. A raw enum here is a leak —
+    // the user picked a sentence, not a token.
+    mockedList.mockResolvedValue([report({ reason: "PLAGIARISM" })]);
+    renderPage();
+    await screen.findByLabelText("我的举报列表");
+    expect(screen.getByText(/抄袭或侵权/)).toBeInTheDocument();
+    expect(screen.queryByText(/PLAGIARISM/)).not.toBeInTheDocument();
+  });
+
+  it("echoes an unknown reason verbatim instead of guessing", async () => {
+    mockedList.mockResolvedValue([report({ reason: "SOME_NEW_REASON" })]);
+    renderPage();
+    await screen.findByLabelText("我的举报列表");
+    expect(screen.getByText(/SOME_NEW_REASON/)).toBeInTheDocument();
+  });
+
+  it("says 未填写 when the reason is empty rather than rendering a blank", async () => {
+    mockedList.mockResolvedValue([report({ reason: "" })]);
+    renderPage();
+    await screen.findByLabelText("我的举报列表");
+    expect(screen.getByText(/未填写/)).toBeInTheDocument();
+  });
+
+  it("falls back to a type-based description when the object is gone", async () => {
+    mockedList.mockResolvedValue([
+      report({ targetType: "COMMENT", targetTitle: null, targetSummary: null }),
+    ]);
+    renderPage();
+    const list = await screen.findByLabelText("我的举报列表");
+    expect(list).toHaveTextContent("评论（内容已不存在或不可见）");
   });
 
   it("labels SUBMITTED with a real Chinese label", async () => {
@@ -92,10 +141,10 @@ describe("MyReportsPage", () => {
     }
   });
 
-  it("links each row to the report detail page", async () => {
-    mockedList.mockResolvedValue([report({ id: "r-42", targetId: "a1" })]);
+  it("links each row to the report detail page, keyed by the description", async () => {
+    mockedList.mockResolvedValue([report({ id: "r-42", targetTitle: "被举报的文章" })]);
     renderPage();
-    const link = await screen.findByRole("link", { name: "a1" });
+    const link = await screen.findByRole("link", { name: "被举报的文章" });
     expect(link).toHaveAttribute("href", "/reports/r-42");
   });
 
@@ -135,5 +184,15 @@ describe("MyReportsPage", () => {
     renderPage();
     await screen.findByLabelText("我的举报列表");
     expect(screen.queryByRole("button", { name: /更多|加载/ })).not.toBeInTheDocument();
+  });
+
+  it("is a transaction record, not a dashboard — no stats cards", async () => {
+    mockedList.mockResolvedValue([report()]);
+    renderPage();
+    await screen.findByLabelText("我的举报列表");
+    // No total-count / success-rate / processed-stats surfaces.
+    for (const statsWord of [/共.*条/, /成功率/, /已处理.*条/, /统计/]) {
+      expect(screen.queryByText(statsWord)).not.toBeInTheDocument();
+    }
   });
 });

@@ -22,7 +22,7 @@ export type ExploreNav = {
 };
 
 export type SearchSort = "hot" | "latest";
-export type SearchType = "ALL" | "ARTICLE" | "SERIES" | "USER" | "TOPIC";
+export type SearchType = "ALL" | "ARTICLE" | "SERIES" | "MOMENT" | "USER";
 
 export type SearchParams = {
   q: string;

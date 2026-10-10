@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import { AuthCard } from "@/features/auth/components/AuthCard";
+import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import {
   AuthStatusPanel,
   authStatusLinkClass,
@@ -100,17 +101,16 @@ export function ForgotPasswordPage() {
             value={login}
             onChange={(e) => setLogin(e.target.value)}
             autoComplete="username"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "forgot-error" : undefined}
             required
           />
         </div>
 
         {error ? (
-          <p
-            role="alert"
-            className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-meta text-destructive"
-          >
+          <AuthFormError id="forgot-error" testId="forgot-password-error" focusOnMount>
             {error}
-          </p>
+          </AuthFormError>
         ) : null}
 
         <Button type="submit" disabled={submitting || !login} className="w-full">

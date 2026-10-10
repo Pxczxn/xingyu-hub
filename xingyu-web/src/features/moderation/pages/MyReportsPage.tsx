@@ -3,30 +3,43 @@ import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { reportsApi } from "@/api/moderation/moderation.api";
-import { reportStatusLabel, type UserReportView } from "@/api/moderation/moderation.types";
+import {
+  objectTypeLabel,
+  reportReasonLabel,
+  reportStatusLabel,
+  targetDescription,
+  type UserReportView,
+} from "@/api/moderation/moderation.types";
 import { PageState } from "@/components/shared/PageState";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 /*
- * My reports (Phase 2J-2) — the moderation reports the session user filed.
+ * My reports — the moderation reports the session user filed.
+ *
+ * THIS IS A PERSONAL TRANSACTION RECORD, NOT A DASHBOARD.
+ *
+ * One row needs to answer four things and nothing else:
+ *   举报了什么 · 当前状态 · 举报原因 · 时间
+ * So there is deliberately NO total-count card, NO success-rate, NO
+ * "已处理 X 条" summary strip. Those turn the user's record of an event they
+ * personally submitted into a stats console they never asked for.
+ *
+ * The row never renders `targetId`: users do not read UUIDs, and a UUID standing
+ * in for "what I reported" is not information — it is a system id wearing a
+ * content's clothes. The subject is a server-resolved description instead
+ * (`targetDescription`), and the type reads as 文章/动态/评论 via `objectTypeLabel`.
  *
  * TWO CONTRACT FACTS THAT SHAPE THIS PAGE:
  *
- * 1. `GET /me/reports` takes NO limit. `listMyReports` has no `@RequestParam`,
- *    so there is nothing to paginate and no cursor to follow. One bounded read.
+ * 1. `GET /me/reports` takes NO limit. One bounded read, no cursor, no pager.
  *
- * 2. THE STATUS MAP IS NOT LEGACY'S. Legacy maps PENDING / UNDER_REVIEW /
- *    RESOLVED / CLOSED, but the backend writes only SUBMITTED, TRIAGED and
- *    CLOSED (full-backend grep of `setStatus` on report/case/appeal). Legacy's
- *    map would therefore render 4 of its own labels as raw enums. V2 labels
- *    only what can occur and echoes anything unknown verbatim — see
- *    `reportStatusLabel`.
+ * 2. The report status vocabulary is only SUBMITTED → CLOSED (TRIAGED also
+ *    accepted). Unknown statuses are echoed verbatim, never mapped to a guess.
  *
- * The row is keyed by `report.id` (the report list has a real id, unlike likes).
- * `updatedAt` is the CASE's timestamp when a case exists, falling back to the
- * report's own createdAt — so it is labelled 「最近更新」 rather than 「提交时间」,
- * which would be a different (and wrong) claim.
+ * The row is keyed by `report.id`. `updatedAt` is the CASE's timestamp when a
+ * case exists, else the report's own createdAt — so it is labelled 「最近更新」,
+ * which is the truthful claim.
  */
 
 type LoadState =
@@ -107,7 +120,7 @@ export function MyReportsPage() {
           我的举报
         </h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          你提交过的举报记录与处理进展。举报与申诉入口同在，可切换到「我的申诉」查看申诉。
+          你提交过的举报记录与处理进展。
         </p>
       </header>
 
@@ -135,34 +148,29 @@ export function MyReportsPage() {
         ) : (
           <ul aria-label="我的举报列表" className="divide-y divide-border">
             {reports.map((report) => (
-              <li
-                key={report.id}
-                className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
-              >
-                <time
-                  dateTime={report.updatedAt}
-                  className="text-xs tabular-nums text-muted-foreground"
-                >
-                  {formatTime(report.updatedAt)}
-                </time>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs font-medium text-muted-foreground">{report.targetType}</p>
-                    {/* Echoes unknown statuses verbatim rather than guessing. */}
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
-                      {reportStatusLabel(report.status)}
-                    </span>
-                  </div>
-                  <Link
-                    to={`/reports/${encodeURIComponent(report.id)}`}
-                    className="mt-1 block truncate text-sm font-medium text-foreground hover:text-accent"
-                  >
-                    {report.targetId}
-                  </Link>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    最近更新 {formatTime(report.updatedAt)}
-                  </p>
+              <li key={report.id} className="px-5 py-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {objectTypeLabel(report.targetType)}
+                  </span>
+                  {/* Echoes unknown statuses verbatim rather than guessing. */}
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+                    {reportStatusLabel(report.status)}
+                  </span>
                 </div>
+                {/* The subject, as the server describes it — never a UUID. */}
+                <Link
+                  to={`/reports/${encodeURIComponent(report.id)}`}
+                  className="mt-1 block text-sm font-medium text-foreground hover:text-accent"
+                >
+                  {targetDescription(report)}
+                </Link>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  举报原因：{reportReasonLabel(report.reason)}
+                </p>
+                <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                  最近更新 {formatTime(report.updatedAt)}
+                </p>
               </li>
             ))}
           </ul>

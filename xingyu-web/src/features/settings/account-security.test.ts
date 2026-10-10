@@ -60,7 +60,8 @@ describe("emailChangeNotice", () => {
     const notice = emailChangeNotice({
       currentEmail: "old@pxczxn.top",
       pendingEmail: "new@pxczxn.top",
-      mailPending: false,
+      // Backend contract: mailPending=true ⇔ the mail did NOT go out.
+      mailPending: true,
     });
     // HTTP 200 but functionally a failure — must not read as success.
     expect(notice.tone).toBe("warning");
@@ -72,7 +73,7 @@ describe("emailChangeNotice", () => {
     const notice = emailChangeNotice({
       currentEmail: "old@pxczxn.top",
       pendingEmail: "new@pxczxn.top",
-      mailPending: true,
+      mailPending: false,
     });
     expect(notice.tone).toBe("success");
     expect(notice.message).toContain("new@pxczxn.top");

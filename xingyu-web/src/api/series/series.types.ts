@@ -10,11 +10,11 @@
  *   POST /api/v1/me/reading-progress
  *
  * Public (Phase 2G live probe 2026-09-27):
- *   GET  /api/v1/series?limit=N               -> SeriesSummary[]
- *   GET  /api/v1/series/{seriesId}            -> SeriesDetail
- *   GET  /api/v1/series/{username}/{slug}     -> SeriesDetail
+ *   GET  /api/v1/series?limit=N               -> PublicSeriesSummary[]
+ *   GET  /api/v1/series/{seriesId}            -> PublicSeriesDetail
+ *   GET  /api/v1/series/{username}/{slug}     -> PublicSeriesDetail
  *
- * Both public detail routes return the same SeriesDetail shape and 404
+ * Both public detail routes return the same PublicSeriesDetail shape and 404
  * (ProblemDetails code NOT_FOUND) for a missing or non-ACTIVE series.
  *
  * Binding is the same PUT with chapterArticleIds. There is no Chapter REST.
@@ -64,14 +64,26 @@ export type UpdateSeriesPayload = {
   lockVersion: number;
 };
 
-/*
- * Public read shapes (live probe 2026-09-27).
- *
- * Note the asymmetry with the creator views above: the public detail carries
- * `lockVersion` and `chapters`, but no chapterCount — the public list carries
- * `chapterCount` and no `chapters`. `GET /series/{id}` and
- * `GET /series/{username}/{slug}` both return `SeriesDetail`.
- */
-export type PublicSeriesSummary = SeriesSummary;
+export type PublicIdentity = {
+  username: string;
+  displayName: string | null;
+  avatar: string | null;
+};
 
-export type PublicSeriesDetail = SeriesDetail;
+export type PublicSeriesSummary = {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  chapterCount: number;
+  author: PublicIdentity;
+};
+
+export type PublicSeriesDetail = {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  chapters: SeriesChapterRelation[];
+  author: PublicIdentity;
+};

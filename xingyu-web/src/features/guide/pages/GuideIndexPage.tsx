@@ -3,7 +3,21 @@ import { Link } from "react-router-dom";
 import { guideApi } from "@/api/guide/guide.api";
 import type { GuidePage } from "@/api/guide/guide.types";
 import { PageState } from "@/components/shared/PageState";
-import { PageHero } from "@/components/shared/PageHero";
+
+const GUIDE_ENTRIES = [
+  {
+    slug: "getting-started",
+    title: "快速上手",
+    description: "了解浏览、创作和参与社区的基本路径。",
+    href: "/guide/getting-started",
+  },
+  {
+    slug: "community-rules",
+    title: "社区规则",
+    description: "了解社区规范，以及举报与申诉相关规则。",
+    href: "/rules",
+  },
+] as const;
 
 export function GuideIndexPage() {
   const [pages, setPages] = useState<GuidePage[]>([]);
@@ -33,16 +47,13 @@ export function GuideIndexPage() {
 
   return (
     <div className="section-gap">
-      <PageHero
-        eyebrow="GUIDE"
-        title="使用指南"
-        description="从第一次进入星语，到找到自己的创作与交流方式。"
-        action={
-          <Link to="/rules" className="text-sm text-accent hover:underline">
-            社区规则
-          </Link>
-        }
-      />
+      <header className="border-b border-border/70 pb-5">
+        <p className="eyebrow mb-2.5">GUIDE</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">使用指南</h1>
+        <p className="mt-2.5 max-w-xl text-sm leading-6 text-muted-foreground">
+          从第一次进入星语，到找到自己的创作与交流方式。
+        </p>
+      </header>
 
       {loading ? <PageState kind="loading" /> : null}
       {!loading && error ? <PageState kind="error" /> : null}
@@ -52,16 +63,23 @@ export function GuideIndexPage() {
 
       {!loading && !error && pages.length > 0 ? (
         <ul className="grid gap-3 sm:grid-cols-2">
-          {pages.map((page) => (
-            <li key={page.id}>
-              <Link
-                to={`/guide/${encodeURIComponent(page.slug)}`}
-                className="block rounded-lg border border-border bg-card p-4 hover:border-accent"
-              >
-                <h2 className="section-heading">{page.title}</h2>
-              </Link>
-            </li>
-          ))}
+          {GUIDE_ENTRIES.map((entry) => {
+            const page = pages.find((item) => item.slug === entry.slug);
+            if (!page) return null;
+            return (
+              <li key={page.id}>
+                <Link
+                  to={entry.href}
+                  className="block rounded-lg border border-border bg-card p-4 transition-colors hover:border-accent"
+                >
+                  <h2 className="section-heading">{entry.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {entry.description}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </div>

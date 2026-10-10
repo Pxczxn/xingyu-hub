@@ -178,11 +178,11 @@ export function UserProfilePage() {
 
       <section aria-labelledby="works-heading">
         <h2 id="works-heading" className="section-heading mb-3">
-          公开作品
+          公开文章
         </h2>
         {worksError ? (
           <p role="alert" data-testid="works-error" className="text-sm text-destructive">
-            作品加载失败
+            文章加载失败
           </p>
         ) : works ? (
           <ProfileWorks works={works} />

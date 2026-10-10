@@ -58,11 +58,15 @@ vi.mock("@/api/moderation/moderation.api", () => ({
         updatedAt: "2026-09-20T10:00:00Z",
       },
     ]),
+    // `supplements` is required by the detail view — the page seeds its list
+    // from this field. Omitting it would make the page throw while rendering.
     getById: vi.fn(async () => ({
       id: "r1",
       status: "SUBMITTED",
       targetType: "ARTICLE",
       targetId: "a1",
+      targetTitle: "被举报的文章",
+      targetSummary: null,
       reason: "SPAM",
       detail: "详情",
       createdAt: "2026-09-20T10:00:00Z",
@@ -70,9 +74,11 @@ vi.mock("@/api/moderation/moderation.api", () => ({
       caseId: "case-1",
       caseStatus: "OPEN",
       measureId: null,
+      supplements: [],
     })),
     addSupplement: vi.fn(),
     submit: vi.fn(),
+    previewTarget: vi.fn(),
   },
   appealsApi: {
     listMine: vi.fn(async () => [
@@ -80,7 +86,7 @@ vi.mock("@/api/moderation/moderation.api", () => ({
         id: "ap1",
         caseId: "case-1",
         body: "申诉理由",
-        status: "SUBMITTED",
+        status: "PENDING",
         createdAt: "2026-09-20T10:00:00Z",
       },
     ]),
@@ -88,7 +94,15 @@ vi.mock("@/api/moderation/moderation.api", () => ({
       id: "ap1",
       caseId: "case-1",
       body: "申诉理由",
-      status: "SUBMITTED",
+      status: "PENDING",
+      outcome: null,
+      decidedAt: null,
+      decisionNote: null,
+      targetType: "ARTICLE",
+      targetId: "a1",
+      targetTitle: "被处理的文章",
+      targetSummary: null,
+      measureType: "HIDE_CONTENT",
       createdAt: "2026-09-20T10:00:00Z",
     })),
     submit: vi.fn(),
@@ -120,16 +134,24 @@ describe("phase 2J-2 route resolution", () => {
 
   it("routes /reports/new to the create form, not to a report with id 'new'", async () => {
     renderAt("/reports/new", true);
-    expect(await screen.findByRole("heading", { name: /提交举报/ })).toBeInTheDocument();
-    expect(screen.getByLabelText("对象 ID")).toBeInTheDocument();
+    // The create page became context-driven: the target arrives via
+    // ?objectType=&objectId=. Visited bare there is no target to report, so the
+    // page shows the safe dead-end ("请从需要举报的内容页面发起举报") instead of
+    // offering a raw id field to type into, and offers a way back home.
+    expect(
+      await screen.findByText(/请从需要举报的内容页面发起举报/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /返回首页/ })).toBeInTheDocument();
+    // A user-facing id box belonged to the old contract; it must be gone.
+    expect(screen.queryByLabelText("对象 ID")).not.toBeInTheDocument();
     // The detail page would show this; the create page must not.
-    expect(screen.queryByText("举报内容")).not.toBeInTheDocument();
+    expect(screen.queryByText("举报原因与说明")).not.toBeInTheDocument();
   });
 
   it("routes /reports/:reportId to the detail page", async () => {
     renderAt("/reports/r1", true);
     expect(await screen.findByRole("heading", { name: /举报详情/ })).toBeInTheDocument();
-    expect(screen.getByText("举报内容")).toBeInTheDocument();
+    expect(screen.getByText("举报原因与说明")).toBeInTheDocument();
   });
 
   it("routes /appeals to the appeal list", async () => {
@@ -147,7 +169,7 @@ describe("phase 2J-2 route resolution", () => {
   it("routes /appeals/:appealId to the detail page", async () => {
     renderAt("/appeals/ap1", true);
     expect(await screen.findByRole("heading", { name: /申诉详情/ })).toBeInTheDocument();
-    expect(screen.getByText("申诉内容")).toBeInTheDocument();
+    expect(screen.getByText("我的申诉理由")).toBeInTheDocument();
   });
 });
 

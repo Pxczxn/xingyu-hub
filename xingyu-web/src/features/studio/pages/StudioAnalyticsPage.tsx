@@ -95,7 +95,10 @@ export function StudioAnalyticsPage() {
         <>
           <ul aria-label="创作数据" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Stat label="已发布文章" value={state.insights.articleCount} unit="篇" />
-            <Stat label="草稿" value={state.insights.draftCount} unit="篇" />
+            {/* 口径注记（Final Fix DI-2）：insights.draftCount 按 article.status 统计，
+                包含回收站中 status 仍为 DRAFT 的稿件；「稿件状态」卡基于 /me/articles
+                （不含回收站）。两个数字都真实，标签标明口径避免同页误读。 */}
+            <Stat label="草稿（含回收站）" value={state.insights.draftCount} unit="篇" />
             <Stat label="获得喜欢" value={state.insights.likeCount} />
             <Stat label="收到评论" value={state.insights.commentCount} />
             <Stat label="粉丝" value={state.insights.followerCount} />

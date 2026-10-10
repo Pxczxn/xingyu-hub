@@ -49,6 +49,7 @@ vi.mock("@/api/articles/articles.api", () => ({
       spaceSlug: "default",
       ownerUsername: "tester",
       publishedAt: null,
+      seriesContexts: [],
       owner: false,
     })),
     createDraft: vi.fn(async () => ({

@@ -60,6 +60,7 @@ vi.mock("@/api/articles/articles.api", () => ({
       spaceSlug: "default",
       ownerUsername: "tester",
       publishedAt: null,
+      seriesContexts: [],
       owner: false,
     })),
     // Phase 1C-3: present so the editor route can never hit an undefined API if a

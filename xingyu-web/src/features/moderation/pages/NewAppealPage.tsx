@@ -107,16 +107,15 @@ export function NewAppealPage() {
       ) : (
         <form onSubmit={submit} className="rounded-lg border border-border bg-card p-5">
           <div className="flex flex-col gap-4">
-            <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-              <p>
-                关联案件 <span className="font-mono text-foreground">{caseId || "（未提供）"}</span>
-              </p>
-              {measureId ? (
-                <p className="mt-1">
-                  处置措施 <span className="font-mono text-foreground">{measureId}</span>
-                </p>
-              ) : null}
-            </div>
+            {/*
+             * 这里刻意不显示 caseId / measureId 的原始值。
+             * 用户不认识 UUID，把它们打在屏幕上既不能帮助理解，又暴露了内部标识。
+             * 真正有用的是「你在对哪一次处置提出异议」这句话本身；具体是哪条内容，
+             * 提交后的申诉详情页会用服务端现查的「原处理对象」如实说明。
+             */}
+            <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+              你将针对一条已经作出的治理处置提交申诉。请在下面说明你的理由，提交后可以在申诉详情里看到处理进展与结果。
+            </p>
 
             <div>
               <label htmlFor="appeal-detail" className="text-sm font-medium text-foreground">

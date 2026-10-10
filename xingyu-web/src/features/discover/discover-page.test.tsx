@@ -101,13 +101,19 @@ describe("discover page", () => {
     expect(screen.getByRole("link", { name: /查看全部话题/ })).toHaveAttribute("href", "/topics");
   });
 
-  it("organizes three or more items into primary, secondary and more content", async () => {
+  it("organizes the editorial picks into primary, secondary and more content", async () => {
+    /*
+     * The split is driven by the server's `featured` flag, not by list position. This
+     * fixture deliberately puts the picks first AND an ordinary item last, so a test that
+     * regressed to `items[0] / items[1..3]` would still pass the shape assertions but a
+     * fixture where the picks are NOT first would fail — see DiscoverFocusGrid.test.tsx.
+     */
     mocked.getDiscover.mockResolvedValue({
       items: [
-        { id: "c1", title: "主焦点", objectType: "ARTICLE", summary: "主摘要" },
-        { id: "c2", title: "次级焦点一", objectType: "SERIES" },
-        { id: "c3", title: "次级焦点二", objectType: "MOMENT" },
-        { id: "c4", title: "更多内容", objectType: "ARTICLE" },
+        { id: "c1", title: "主焦点", objectType: "ARTICLE", summary: "主摘要", featured: true },
+        { id: "c2", title: "次级焦点一", objectType: "SERIES", featured: true },
+        { id: "c3", title: "次级焦点二", objectType: "MOMENT", featured: true },
+        { id: "c4", title: "普通内容", objectType: "ARTICLE", featured: false },
       ],
       total: 4,
       nextCursor: null,
@@ -125,11 +131,16 @@ describe("discover page", () => {
     expect(screen.getByRole("heading", { name: "更多内容" })).toBeInTheDocument();
   });
 
-  it("falls back to the regular grid for fewer than three items", async () => {
+  it("falls back to the regular grid when nothing is an editorial pick", async () => {
+    /*
+     * The old rule was `items.length < 3`. The real rule is "are there picks at all" — a
+     * long list of ordinary content has no editorial focus to present, and promoting its
+     * first item would be inventing one.
+     */
     mocked.getDiscover.mockResolvedValue({
       items: [
-        { id: "c1", title: "单条内容", objectType: "ARTICLE" },
-        { id: "c2", title: "第二条内容", objectType: "SERIES" },
+        { id: "c1", title: "单条内容", objectType: "ARTICLE", featured: false },
+        { id: "c2", title: "第二条内容", objectType: "SERIES", featured: false },
       ],
       total: 2,
       nextCursor: null,

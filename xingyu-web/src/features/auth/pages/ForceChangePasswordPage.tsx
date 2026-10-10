@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "@/api/auth/auth.api";
+import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { ShieldAlert } from "lucide-react";
 import { useAuth } from "@/features/auth/auth.store";
 import { Button } from "@/components/ui/button";
@@ -122,12 +123,9 @@ export function ForceChangePasswordPage() {
           </div>
 
           {error ? (
-            <p
-              role="alert"
-              className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-meta text-destructive"
-            >
+            <AuthFormError testId="force-change-error" focusOnMount>
               {error}
-            </p>
+            </AuthFormError>
           ) : null}
 
           <Button type="submit" disabled={submitting} className="w-full">

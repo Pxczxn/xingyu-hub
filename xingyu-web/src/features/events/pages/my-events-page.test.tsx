@@ -249,4 +249,32 @@ describe("MyEventsPage — recommendations", () => {
     renderPage();
     expect(await screen.findByText("暂无可推荐活动。")).toBeInTheDocument();
   });
+
+  it("never recommends an event that has already ended", async () => {
+    // Recommending an ended event sends the reader to a page where every write
+    // is refused. It is not a recommendation.
+    mocked.listMySubmissions.mockResolvedValue([submission({ eventId: "e1" })]);
+    mocked.list.mockResolvedValue([
+      event({ id: "e1", title: "已参与的活动" }),
+      event({ id: "e2", title: "已经结束的活动", endsAt: "2000-01-01T00:00:00Z" }),
+    ]);
+    renderPage();
+
+    await screen.findByLabelText("投稿记录");
+    expect(screen.queryByRole("link", { name: /已经结束的活动/ })).not.toBeInTheDocument();
+    expect(screen.getByText("你已经参与了所有进行中的活动。")).toBeInTheDocument();
+  });
+
+  it("marks the user's own submission row when its event has ended", async () => {
+    mocked.listMySubmissions.mockResolvedValue([submission({ eventId: "e2" })]);
+    mocked.list.mockResolvedValue([
+      event({ id: "e2", title: "已经结束的活动", endsAt: "2000-01-01T00:00:00Z" }),
+    ]);
+    renderPage();
+
+    const list = await screen.findByLabelText("投稿记录");
+    expect(within(list).getByText("已结束")).toBeInTheDocument();
+    // The record itself is preserved — history is never dropped.
+    expect(within(list).getByText("我的星空")).toBeInTheDocument();
+  });
 });

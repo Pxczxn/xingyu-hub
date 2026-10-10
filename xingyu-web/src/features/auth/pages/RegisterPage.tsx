@@ -4,6 +4,7 @@ import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import type { PasswordPolicy } from "@/api/auth/auth.types";
 import { AuthCard } from "@/features/auth/components/AuthCard";
+import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { Bookmark, PenLine, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,14 +229,21 @@ export function RegisterPage() {
                 type="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, email: "" }));
+                }}
+                aria-invalid={fieldErrors.email ? true : undefined}
+                aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 required
               />
               <p className="text-meta text-muted-foreground">
                 用于登录与找回密码，注册后需要先验证。
               </p>
               {fieldErrors.email ? (
-                <p className="text-meta text-destructive">{fieldErrors.email}</p>
+                <p id="email-error" role="alert" className="text-meta text-destructive">
+                  {fieldErrors.email}
+                </p>
               ) : null}
             </div>
 
@@ -245,14 +253,21 @@ export function RegisterPage() {
                 id="username"
                 autoComplete="username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, username: "" }));
+                }}
+                aria-invalid={fieldErrors.username ? true : undefined}
+                aria-describedby={fieldErrors.username ? "username-error" : undefined}
                 required
               />
               <p className="text-meta text-muted-foreground">
                 只能使用小写字母、数字和下划线，注册后不可修改。
               </p>
               {fieldErrors.username ? (
-                <p className="text-meta text-destructive">{fieldErrors.username}</p>
+                <p id="username-error" role="alert" className="text-meta text-destructive">
+                  {fieldErrors.username}
+                </p>
               ) : null}
             </div>
 
@@ -262,12 +277,19 @@ export function RegisterPage() {
                 id="password"
                 autoComplete="new-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, password: "" }));
+                }}
+                aria-invalid={fieldErrors.password ? true : undefined}
+                aria-describedby={fieldErrors.password ? "password-error" : undefined}
                 required
               />
               <p className="text-xs text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
               {fieldErrors.password ? (
-                <p className="text-sm text-destructive">{fieldErrors.password}</p>
+                <p id="password-error" role="alert" className="text-meta text-destructive">
+                  {fieldErrors.password}
+                </p>
               ) : null}
             </div>
 
@@ -322,9 +344,9 @@ export function RegisterPage() {
             ) : null}
 
             {error ? (
-              <p role="alert" className="text-sm text-destructive">
+              <AuthFormError testId="register-error" focusOnMount>
                 {error}
-              </p>
+              </AuthFormError>
             ) : null}
 
             <Button type="submit" disabled={submitting}>

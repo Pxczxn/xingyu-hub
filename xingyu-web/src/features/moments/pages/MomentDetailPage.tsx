@@ -10,6 +10,7 @@ import {
 import { ApiError } from "@/api/client";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { useAuth } from "@/features/auth/auth.store";
 
 type LoadState =
@@ -186,18 +187,36 @@ export function MomentDetailPage() {
 
       {windowHint ? <p className="text-sm text-muted-foreground">已超过可编辑时间</p> : null}
 
-      {canEdit && !editing ? (
-        <Button
-          type="button"
-          onClick={() => {
-            setDraft(moment.body);
-            setDraftError(null);
-            setSaveError(null);
-            setEditing(true);
-          }}
-        >
-          编辑动态
-        </Button>
+      {/* A non-owner can report this moment. Owner sees edit/delete instead —
+          and you cannot report your own content anyway. */}
+      {!ownerConfirmed ? <ReportLink objectType="MOMENT" objectId={moment.id} /> : null}
+
+      {ownerConfirmed ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {canEdit && !editing ? (
+            <Button
+              type="button"
+              className="w-fit"
+              onClick={() => {
+                setDraft(moment.body);
+                setDraftError(null);
+                setSaveError(null);
+                setEditing(true);
+              }}
+            >
+              编辑动态
+            </Button>
+          ) : null}
+
+          <Button
+            variant="outline"
+            className="w-fit border-destructive/40 text-destructive hover:border-destructive/60 hover:text-destructive"
+            onClick={() => setConfirmDelete(true)}
+            disabled={pendingRef.current}
+          >
+            删除动态
+          </Button>
+        </div>
       ) : null}
 
       {editing ? (
@@ -227,18 +246,6 @@ export function MomentDetailPage() {
         <p role="alert" className="text-sm text-destructive">
           {saveError}
         </p>
-      ) : null}
-
-      {ownerConfirmed ? (
-        <div>
-          <Button
-            variant="destructive"
-            onClick={() => setConfirmDelete(true)}
-            disabled={pendingRef.current}
-          >
-            删除动态
-          </Button>
-        </div>
       ) : null}
 
       {confirmDelete ? (

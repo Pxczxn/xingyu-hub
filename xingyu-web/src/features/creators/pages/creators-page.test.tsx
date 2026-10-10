@@ -6,13 +6,12 @@ import { topicsApi } from "@/api/topics/topics.api";
 import type { TopicCreatorSummary, TopicSummary } from "@/api/topics/topics.types";
 import { usersApi } from "@/api/users/users.api";
 import { CreatorsPage } from "./CreatorsPage";
-import { CREATOR_TOPIC_LIMIT } from "../creator-card";
 
 /*
  * /creators (Phase 2K-1) — a pure front-end aggregation page.
  *
  * The behaviours worth pinning, in rough order of risk:
- *  1. the fan-out could accidentally become unbounded (topics limit);
+ *  1. the fan-out covers the published topic list;
  *  2. a per-topic or per-profile failure must DEGRADE, not fail the page —
  *     only GET /topics is load-bearing;
  *  3. follow state flips ONLY after the request succeeds (Legacy flipped first
@@ -46,7 +45,14 @@ function creatorRow(username: string, contentCount = 1): TopicCreatorSummary {
 }
 
 function profile(username: string, following?: boolean) {
-  return { username, displayName: `${username} 档案名`, avatar: null, following };
+  return {
+    username,
+    displayName: `${username} 档案名`,
+    avatar: null,
+    following,
+    articleCount: 5,
+    seriesCount: 2,
+  };
 }
 
 function renderPage() {
@@ -94,7 +100,7 @@ describe("CreatorsPage — loading and failure", () => {
     );
     renderPage();
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
-    expect(screen.queryByLabelText("推荐作者列表")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("创作者列表")).not.toBeInTheDocument();
   });
 
   it("shows an empty state when the community has no topics", async () => {
@@ -106,15 +112,15 @@ describe("CreatorsPage — loading and failure", () => {
 });
 
 describe("CreatorsPage — fan-out boundaries", () => {
-  it("queries at most CREATOR_TOPIC_LIMIT topics", async () => {
-    // Forgetting this cap would make the page issue an unbounded number of requests.
+  it("queries every published topic returned by the API", async () => {
+    const topics = Array.from({ length: 13 }, (_, i) => topic(`t${i}`, `专题${i}`));
     mockedTopics.getTopics.mockResolvedValue(
-      Array.from({ length: CREATOR_TOPIC_LIMIT + 5 }, (_, i) => topic(`t${i}`, `专题${i}`)),
+      topics,
     );
     mockedTopics.getTopicCreators.mockResolvedValue([]);
     renderPage();
     await waitFor(() =>
-      expect(mockedTopics.getTopicCreators).toHaveBeenCalledTimes(CREATOR_TOPIC_LIMIT),
+      expect(mockedTopics.getTopicCreators).toHaveBeenCalledTimes(topics.length),
     );
   });
 
@@ -141,7 +147,7 @@ describe("CreatorsPage — fan-out boundaries", () => {
     });
     renderPage();
 
-    expect(await screen.findByLabelText("推荐作者列表")).toBeInTheDocument();
+    expect(await screen.findByLabelText("创作者列表")).toBeInTheDocument();
     expect(screen.getByText("bob 档案名")).toBeInTheDocument();
     expect(screen.queryByTestId("page-state-error")).not.toBeInTheDocument();
   });
@@ -169,7 +175,7 @@ describe("CreatorsPage — fan-out boundaries", () => {
     );
     renderPage();
 
-    const list = await screen.findByLabelText("推荐作者列表");
+    const list = await screen.findByLabelText("创作者列表");
     // Falls back to the summary displayName and shows the explicit no-work note.
     expect(within(list).getByText("alice 的名字")).toBeInTheDocument();
     expect(screen.getByTestId("creator-no-work-alice")).toBeInTheDocument();
@@ -181,9 +187,11 @@ describe("CreatorsPage — card content", () => {
     wireHappyPath();
     renderPage();
 
-    const list = await screen.findByLabelText("推荐作者列表");
+    const list = await screen.findByLabelText("创作者列表");
     expect(within(list).getByText("alice 档案名")).toBeInTheDocument();
     expect(within(list).getByText("星语")).toBeInTheDocument();
+    expect(within(list).getByText("5")).toBeInTheDocument();
+    expect(within(list).getByText("2")).toBeInTheDocument();
     expect(within(list).getByText("第一篇")).toBeInTheDocument();
     expect(within(list).getByRole("link", { name: "查看主页" })).toHaveAttribute(
       "href",
@@ -194,7 +202,7 @@ describe("CreatorsPage — card content", () => {
   it("links the latest work to its article page", async () => {
     wireHappyPath();
     renderPage();
-    const list = await screen.findByLabelText("推荐作者列表");
+    const list = await screen.findByLabelText("创作者列表");
     expect(within(list).getByRole("link", { name: /第一篇/ })).toHaveAttribute(
       "href",
       "/articles/w1",
@@ -217,7 +225,7 @@ describe("CreatorsPage — card content", () => {
     expect(await screen.findByTestId("creator-no-work-alice")).toBeInTheDocument();
   });
 
-  it("states that the filter is scoped to the sampled topics, not the whole site", async () => {
+  it("states that the filter is scoped to the published topics, not the whole site", async () => {
     // The search box is client-side only; claiming otherwise would be a lie.
     wireHappyPath();
     renderPage();
@@ -240,7 +248,7 @@ describe("CreatorsPage — follow control", () => {
     });
     renderPage();
 
-    await screen.findByLabelText("推荐作者列表");
+    await screen.findByLabelText("创作者列表");
     expect(screen.queryByRole("button", { name: "关注" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "已关注" })).not.toBeInTheDocument();
   });
@@ -335,7 +343,7 @@ describe("CreatorsPage — follow control", () => {
 describe("CreatorsPage — the two empty states are not the same", () => {
   /*
    * Verified against the live backend 2026-09-27: `listCreators` reads from
-   * `article_topic` joined to PUBLISHED articles, and all 8 sampled topics
+   * `article_topic` joined to PUBLISHED articles, and the published topics
    * returned []. So "no creators at all" is the state real data hits today —
    * it must NOT be described as a filter problem.
    */
@@ -354,7 +362,7 @@ describe("CreatorsPage — the two empty states are not the same", () => {
   it("blames the filter when creators exist but the keyword excluded them", async () => {
     wireHappyPath();
     renderPage();
-    await screen.findByLabelText("推荐作者列表");
+    await screen.findByLabelText("创作者列表");
 
     fireEvent.change(screen.getByLabelText("搜索作者"), { target: { value: "zzz" } });
 
@@ -378,7 +386,7 @@ describe("CreatorsPage — the two empty states are not the same", () => {
       works: [],
     });
     renderPage();
-    await screen.findByLabelText("推荐作者列表");
+    await screen.findByLabelText("创作者列表");
 
     fireEvent.click(screen.getByRole("button", { name: "写作" }));
 
@@ -406,7 +414,7 @@ describe("CreatorsPage — topic filter and search", () => {
   it("filters by topic chip", async () => {
     wireTwoTopics();
     renderPage();
-    await screen.findByLabelText("推荐作者列表");
+    await screen.findByLabelText("创作者列表");
 
     fireEvent.click(screen.getByRole("button", { name: "写作" }));
 
@@ -417,7 +425,7 @@ describe("CreatorsPage — topic filter and search", () => {
   it("returns to the full list via 全部", async () => {
     wireTwoTopics();
     renderPage();
-    await screen.findByLabelText("推荐作者列表");
+    await screen.findByLabelText("创作者列表");
 
     fireEvent.click(screen.getByRole("button", { name: "写作" }));
     fireEvent.click(screen.getByRole("button", { name: "全部" }));
@@ -429,27 +437,26 @@ describe("CreatorsPage — topic filter and search", () => {
   it("filters by keyword and shows the empty state when nothing matches", async () => {
     wireTwoTopics();
     renderPage();
-    await screen.findByLabelText("推荐作者列表");
+    await screen.findByLabelText("创作者列表");
 
     fireEvent.change(screen.getByLabelText("搜索作者"), { target: { value: "zzz" } });
 
     expect(screen.getByTestId("page-state-empty")).toBeInTheDocument();
-    expect(screen.queryByLabelText("推荐作者列表")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("创作者列表")).not.toBeInTheDocument();
   });
 
-  it("shows the topic chips from the sampled topics only", async () => {
+  it("shows the topic chips from every published topic", async () => {
+    const topics = Array.from({ length: 11 }, (_, i) => topic(`t${i}`, `专题${i}`));
     mockedTopics.getTopics.mockResolvedValue(
-      Array.from({ length: CREATOR_TOPIC_LIMIT + 3 }, (_, i) => topic(`t${i}`, `专题${i}`)),
+      topics,
     );
     mockedTopics.getTopicCreators.mockResolvedValue([]);
     renderPage();
 
     await waitFor(() => expect(mockedTopics.getTopicCreators).toHaveBeenCalled());
-    // 全部 + sampled topics, and NOT the unsampled ones.
+    // 全部 + every published topic.
     expect(screen.getByRole("button", { name: "全部" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "专题0" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: `专题${CREATOR_TOPIC_LIMIT}` }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "专题10" })).toBeInTheDocument();
   });
 });

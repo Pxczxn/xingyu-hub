@@ -35,13 +35,15 @@ function trashItem(over: Partial<TrashItem> = {}): TrashItem {
 }
 
 describe("CONTENT_TABS", () => {
-  it("covers all six tabs in reading order", () => {
+  it("covers the five shipped tabs in reading order — 「被退回」 is deliberately absent", () => {
+    // Seal Final Closure: identifying returned articles needs a complete
+    // backend query (latest review outcome per article) that does not exist
+    // yet; shipping a bounded-window filter would be a false promise.
     expect(CONTENT_TABS.map((tab) => tab.id)).toEqual([
       "all",
       "published",
       "drafts",
       "reviewing",
-      "returned",
       "trash",
     ]);
   });
@@ -58,6 +60,12 @@ describe("articleStatusLabel", () => {
   it("maps BOTH review spellings to one label", () => {
     expect(articleStatusLabel("REVIEW")).toBe("审核中");
     expect(articleStatusLabel("REVIEWING")).toBe("审核中");
+  });
+
+  it("maps the current backend review status IN_REVIEW to one label", () => {
+    // CB-1: the server's editorial status is IN_REVIEW — the Legacy spellings
+    // are tolerated but this is the only value the current API emits.
+    expect(articleStatusLabel("IN_REVIEW")).toBe("审核中");
   });
 
   it("echoes an unknown status verbatim instead of guessing", () => {
@@ -85,6 +93,12 @@ describe("isReviewing", () => {
     expect(isReviewing("reviewing")).toBe(true);
   });
 
+  it("recognises IN_REVIEW — the status the current backend actually emits (CB-1)", () => {
+    expect(isReviewing("IN_REVIEW")).toBe(true);
+    expect(isReviewing("in_review")).toBe(true);
+    expect(isReviewing(" In_Review ")).toBe(true);
+  });
+
   it("rejects everything else", () => {
     expect(isReviewing("DRAFT")).toBe(false);
     expect(isReviewing("PUBLISHED")).toBe(false);
@@ -104,7 +118,7 @@ describe("filterByTab", () => {
     article({ id: "2", status: "DRAFT" }),
     article({ id: "3", status: "REVIEW" }),
     article({ id: "4", status: "REVIEWING" }),
-    article({ id: "5", status: "RETURNED" }),
+    article({ id: "5", status: "IN_REVIEW" }),
     article({ id: "6", status: "ARCHIVED" }),
   ];
 
@@ -115,15 +129,24 @@ describe("filterByTab", () => {
   it("filters each known status", () => {
     expect(filterByTab(items, "published").map((a) => a.id)).toEqual(["1"]);
     expect(filterByTab(items, "drafts").map((a) => a.id)).toEqual(["2"]);
-    expect(filterByTab(items, "returned").map((a) => a.id)).toEqual(["5"]);
   });
 
-  it("groups both review spellings under the reviewing tab", () => {
-    expect(filterByTab(items, "reviewing").map((a) => a.id)).toEqual(["3", "4"]);
+  it("「被退回」 is no longer a tab — rejected articles simply remain in 草稿", () => {
+    // Seal Final Closure: no returned tab, no returned counter, no
+    // submissions-derived filtering until a complete backend query exists.
+    // The literal "returned" is intentionally NOT assignable to ContentTab;
+    // compare via the untyped id strings instead.
+    expect(CONTENT_TABS.map((tab) => tab.id as string)).not.toContain("returned");
+    // A rejected article (status DRAFT) still shows under 草稿 — data intact.
+    expect(filterByTab(items, "drafts").map((a) => a.id)).toEqual(["2"]);
+  });
+
+  it("groups review statuses — including IN_REVIEW — under the reviewing tab", () => {
+    expect(filterByTab(items, "reviewing").map((a) => a.id)).toEqual(["3", "4", "5"]);
   });
 
   it("does NOT leak unknown statuses into any filtered tab", () => {
-    const inTabs = ["published", "drafts", "reviewing", "returned"] as const;
+    const inTabs = ["published", "drafts", "reviewing"] as const;
     const ids = inTabs.flatMap((tab) => filterByTab(items, tab).map((a) => a.id));
     expect(ids).not.toContain("6");
   });
@@ -149,13 +172,16 @@ describe("countByStatus", () => {
       article({ status: "DRAFT" }),
       article({ status: "REVIEW" }),
       article({ status: "REVIEWING" }),
-      article({ status: "RETURNED" }),
     ];
-    expect(countByStatus(items)).toEqual({ published: 2, draft: 1, review: 2, returned: 1 });
+    expect(countByStatus(items)).toEqual({
+      published: 2,
+      draft: 1,
+      review: 2,
+    });
   });
 
   it("returns zeros for an empty list", () => {
-    expect(countByStatus([])).toEqual({ published: 0, draft: 0, review: 0, returned: 0 });
+    expect(countByStatus([])).toEqual({ published: 0, draft: 0, review: 0 });
   });
 
   it("ignores unknown statuses", () => {
@@ -163,7 +189,6 @@ describe("countByStatus", () => {
       published: 0,
       draft: 0,
       review: 0,
-      returned: 0,
     });
   });
 });

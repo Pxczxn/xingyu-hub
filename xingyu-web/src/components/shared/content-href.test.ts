@@ -40,7 +40,7 @@ describe("contentHref", () => {
     expect(href).not.toContain("/topics/");
   });
 
-  it("does not guess a username from an id", () => {
+  it("does not guess a username from an arbitrary user id", () => {
     const href = contentHref({ ...base, objectType: "USER" });
     expect(href).toBe("/discover");
     expect(href).not.toContain("/u/");

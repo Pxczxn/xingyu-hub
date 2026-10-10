@@ -21,6 +21,14 @@ const PAGE = {
   publishedAt: "2026-09-18T20:33:57Z",
 };
 
+const RULES_PAGE = {
+  id: "g2",
+  slug: "community-rules",
+  title: "社区公约",
+  body: "请尊重他人、文明交流。",
+  publishedAt: "2026-09-18T20:33:57Z",
+};
+
 function notFound(): ApiError {
   return new ApiError({
     type: "about:blank",
@@ -75,18 +83,30 @@ describe("GuideIndexPage", () => {
     mocked.getBySlug.mockResolvedValue(PAGE);
     renderIndex();
 
-    const link = await screen.findByRole("link", { name: "快速上手" });
+    const link = await screen.findByRole("link", { name: /快速上手/ });
     expect(link).toHaveAttribute("href", "/guide/getting-started");
+    expect(screen.getByText("了解浏览、创作和参与社区的基本路径。")).toBeInTheDocument();
     expect(screen.queryByText("查看该指南的完整说明。")).not.toBeInTheDocument();
 
     fireEvent.click(link);
-    expect(await screen.findByText(PAGE.body)).toBeInTheDocument();
+    expect(mocked.getBySlug).toHaveBeenCalledWith("getting-started");
+    expect(await screen.findByRole("heading", { name: "快速上手" })).toBeInTheDocument();
   });
 
   it("shows an error state when the catalog fails", async () => {
     mocked.list.mockRejectedValue(notFound());
     renderIndex();
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
+  });
+
+  it("exposes one clearly described rules entry through the canonical rules route", async () => {
+    mocked.list.mockResolvedValue([PAGE, RULES_PAGE]);
+    renderIndex();
+
+    const rulesLink = await screen.findByRole("link", { name: /社区规则/ });
+    expect(rulesLink).toHaveAttribute("href", "/rules");
+    expect(screen.getByText("了解社区规范，以及举报与申诉相关规则。")).toBeInTheDocument();
+    expect(document.querySelector('a[href="/guide/community-rules"]')).not.toBeInTheDocument();
   });
 });
 
@@ -97,6 +117,7 @@ describe("GuideDetailPage", () => {
     expect(await screen.findByRole("heading", { name: "快速上手" })).toBeInTheDocument();
     expect(screen.getByText(PAGE.body)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "返回指南目录" })).toHaveAttribute("href", "/guide");
+    expect(screen.getByRole("link", { name: "返回指南列表" })).toHaveAttribute("href", "/guide");
     expect(screen.queryByRole("link", { name: /联系支持/ })).not.toBeInTheDocument();
   });
 

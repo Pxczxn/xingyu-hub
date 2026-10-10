@@ -62,6 +62,48 @@ if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
 }
 
 /*
+ * jsdom HAS a WebSocket, and it really tries to connect. Since 2026-10-06 the chat
+ * socket lives in `ChatSocketProvider`, which sits above every route — so without
+ * this stub each route test that renders `AppProviders` would open a real socket to
+ * `localhost:<jsdom port>` and start a 3s reconnect loop that outlives the test.
+ *
+ * This stub deliberately never opens: `onopen` never fires, so no ping interval is
+ * started and no reconnect is scheduled. Tests that care about the socket itself
+ * drive `ChatSocketProvider` directly (features/chat/chat-socket.test.tsx) and inject
+ * their own fake.
+ */
+if (typeof globalThis !== "undefined" && !("__VITEST_WS_STUBBED__" in globalThis)) {
+  Object.defineProperty(globalThis, "__VITEST_WS_STUBBED__", { value: true });
+  class MockWebSocket {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSING = 2;
+    static CLOSED = 3;
+    readonly CONNECTING = 0;
+    readonly OPEN = 1;
+    readonly CLOSING = 2;
+    readonly CLOSED = 3;
+    readyState = 0;
+    onopen: ((event: unknown) => void) | null = null;
+    onclose: ((event: unknown) => void) | null = null;
+    onerror: ((event: unknown) => void) | null = null;
+    onmessage: ((event: unknown) => void) | null = null;
+    constructor(public url: string) {}
+    send() {}
+    close() {
+      this.readyState = 3;
+    }
+    addEventListener() {}
+    removeEventListener() {}
+  }
+  Object.defineProperty(globalThis, "WebSocket", {
+    writable: true,
+    configurable: true,
+    value: MockWebSocket,
+  });
+}
+
+/*
  * jsdom implements Element.getClientRects but NOT Range.getClientRects /
  * Range.getBoundingClientRect. Milkdown's virtual-cursor plugin (pulled in by
  * Crepe) calls them on a cloned Range whenever the editor flushes a DOM

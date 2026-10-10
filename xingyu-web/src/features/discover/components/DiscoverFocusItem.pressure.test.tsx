@@ -47,9 +47,8 @@ const seriesPressureItems: PublicSeriesSummary[] = Array.from({ length: 24 }, (_
   slug: `pressure-series-${index}`,
   title: `连续阅读路径 ${index}：一个较长的系列标题`,
   description: "用于验证系列目录在 24 条数据和较长描述下不会出现布局溢出。",
-  status: index % 2 === 0 ? "ACTIVE" : "ARCHIVED",
   chapterCount: index + 1,
-  updatedAt: "2026-09-30T15:13:42Z",
+  author: { username: `author-${index}`, displayName: `作者 ${index}`, avatar: null },
 }));
 
 describe("DiscoverFocusItem pressure fixtures", () => {

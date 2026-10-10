@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { AlertTriangle, MinusCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AlertTriangle, MinusCircle, ShieldAlert } from "lucide-react";
 import { accountApi } from "@/api/account/account.api";
 import { ApiError } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -7,29 +8,53 @@ import {
   ACCOUNT_DEACTIVATION_CONFIRM_LABEL,
   ACCOUNT_DEACTIVATION_WARNING,
 } from "@/features/settings/account-security";
+import { getStoredRecentAuth, clearStoredRecentAuth } from "@/features/settings/recent-auth";
+import { setStoredToken } from "@/lib/storage";
 
 /*
  * /settings/data/delete-account (Phase 3H).
  *
  * ⚠️ The honest description of this endpoint, which is why the page is careful:
  *
- *   `CommunityAccountService.requestAccountDeletion` (line 864) does exactly two
- *   things — `user.setStatus("SUSPENDED")` and `updateById`. There is:
+ *   `CommunityAccountService.requestAccountDeletion` does exactly ONE thing —
+ *   `user.setStatus("SUSPENDED")` and `updateById`. There is:
  *     - no confirmation email,
  *     - no grace period,
  *     - no cancel endpoint,
- *     - no erasure job for the user's content.
+ *     - no erasure or anonymisation of the user's content, anywhere.
  *
  *   So this is a **deactivation**, not a deletion, and it is effectively a
  *   one-way door from the UI. The page therefore:
  *     1. says 停用 (deactivate), never 永久删除,
- *     2. lists what actually happens (cannot log in; content is not removed),
+ *     2. lists what actually happens (cannot log in; content is NOT removed),
  *     3. requires TYPING a confirmation phrase — a single click is too cheap for
  *        an irreversible action,
  *     4. tells the user there is no self-service way back.
  *
  * Rendering a "delete everything forever" button here would misrepresent the
  * backend and could cost someone their account on a misunderstanding.
+ *
+ * --- 2026-10-08 (Settings Contract Recovery, B2) ---------------------------
+ * The endpoint now demands a FRESH, SINGLE-USE re-auth grant
+ * (`X-Recent-Auth`). Before this round any logged-in session could POST the
+ * deactivation with no proof of identity at all — one stolen/CSRF'd session was
+ * enough to permanently deactivate someone's account.
+ *
+ * Two consequences this page has to handle honestly:
+ *
+ *  1. The user may arrive with no grant (or an expired one). Rather than
+ *     failing at submit time with a bare 403, the page shows the
+ *     "需要先验证身份" state up front and links to the re-auth page with a
+ *     returnTo back here — same flow the email page already uses.
+ *  2. The grant is **consumed** by the call, so it cannot be reused. After a
+ *     failure the stored grant is cleared and `hasGrant` goes false, which is
+ *     accurate: whatever the server said about the reason, that grant is gone.
+ *
+ * The three FACTS below were re-verified against the code this round, and item
+ * 2 is new: deactivation also kills every device's session and every issued
+ * API Token. It reads as "more thorough" to the user, but the real reason the
+ * code checks is that it needs no second source of truth — account status is
+ * authoritative on its own.
  *
  * --- 2026-10-03 structure pass ---------------------------------------------
  * The danger used to be typeset exactly like every harmless setting: a section
@@ -51,7 +76,8 @@ const CONFIRM_PHRASE = "停用账号";
 
 const FACTS = [
   "停用后你无法登录，且当前页面无法撤销。",
-  "你已发布的内容不会被自动删除。",
+  "你已发布的内容不会被自动删除，也不会被匿名化。",
+  "所有设备上的登录状态与已创建的 API Token 会一并失效。",
   "我们不会向你发送确认邮件，此操作立即生效。",
 ];
 
@@ -60,14 +86,32 @@ export function SettingsDeleteAccountPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
+  const [hasGrant, setHasGrant] = useState(() => getStoredRecentAuth() !== null);
 
   async function onConfirm() {
+    const grant = getStoredRecentAuth();
+    if (!grant) {
+      setHasGrant(false);
+      setError("身份验证已过期，请先重新验证身份。");
+      return;
+    }
+    setHasGrant(true);
     setBusy(true);
     setError(null);
     try {
-      await accountApi.requestAccountDeletion();
+      await accountApi.requestAccountDeletion(grant.id);
+      // 停用后会话已失效（服务端在鉴权时按账号状态拒绝），留着本地 token 只会让
+      // 下一个请求拿到 401，看起来像"页面坏了"。清掉并广播，守卫会带用户回登录页。
+      setStoredToken(null);
+      clearStoredRecentAuth();
       setRequested(true);
     } catch (err) {
+      // 服务端在停用成功时才会消费 grant，但失败原因不止一种（网络错误时 grant
+      // 其实还可用）。所以这里**不能**假设 grant 已死，也不能留着它不管 ——
+      // 保守做法是清掉并要求重新验证：代价是多输一次密码，代价的代价是
+      // 一个可能已被消费掉的凭证被反复重放。宁可多一次验证，不可少一次防重放。
+      clearStoredRecentAuth();
+      setHasGrant(false);
       setError(err instanceof ApiError ? err.problem.detail : "操作失败，请稍后重试。");
     } finally {
       setBusy(false);
@@ -96,7 +140,7 @@ export function SettingsDeleteAccountPage() {
     );
   }
 
-  const canConfirm = typed.trim() === CONFIRM_PHRASE && !busy;
+  const canConfirm = typed.trim() === CONFIRM_PHRASE && !busy && hasGrant;
 
   return (
     <div className="section-gap">
@@ -105,6 +149,24 @@ export function SettingsDeleteAccountPage() {
           停用账号
         </h2>
       </section>
+
+      {!hasGrant ? (
+        <div
+          className="flex flex-col gap-2 rounded-xl border border-border/70 bg-surface-sunken/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+          data-testid="delete-account-need-reauth"
+        >
+          <p className="flex items-center gap-2 text-meta text-foreground">
+            <ShieldAlert className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            停用账号前需要先用当前密码验证身份。
+          </p>
+          <Link
+            to="/settings/security/re-authenticate?returnTo=/settings/data/delete-account"
+            className="focus-ring w-fit shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            去验证身份
+          </Link>
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-xl border border-destructive/30 bg-destructive/[0.03]">
         <div className="flex items-start gap-3 border-b border-destructive/20 px-4 py-4">

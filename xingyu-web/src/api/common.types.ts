@@ -38,6 +38,23 @@ export type ContentSummary = {
   /** Viewer-scoped like state. `undefined` means "nobody is signed in" — see `bookmarked`. */
   liked?: boolean;
   /*
+   * Whether this item is an EDITORIAL PICK.
+   *
+   * Tri-state on purpose, mirroring the server DTO:
+   *   true      the producer matched it against `featured_content` — a real pick
+   *   false     the producer classified it and it is NOT a pick
+   *   undefined this surface does not classify at all (continue-reading, search,
+   *             topic lists, reading history)
+   *
+   * Only `/api/v1/discover` sets it today, and it sets it on every item, so a
+   * Discover list never hides an unclassified row behind `false`.
+   *
+   * The server tells us ONE bit. There is no slot / rank / source / strategy
+   * field and there should not be: how the mix was assembled is a ranking
+   * concern, and exposing it would freeze an implementation detail into the API.
+   */
+  featured?: boolean;
+  /*
    * Continue-reading only, and only for SERIES rows.
    *
    * These describe the reader's position in CHAPTERS. There is no percentage in
@@ -70,6 +87,8 @@ export type SearchHit = {
   tags?: string[];
   bookmarked?: boolean;
   liked?: boolean;
+  /** See `ContentSummary.featured`. Absent on search hits — search does not classify. */
+  featured?: boolean;
 };
 
 export type CursorInput = {
@@ -100,6 +119,7 @@ export function toContentSummary(hit: SearchHit): ContentSummary {
     tags: hit.tags,
     bookmarked: hit.bookmarked,
     liked: hit.liked,
+    featured: hit.featured,
   };
 }
 

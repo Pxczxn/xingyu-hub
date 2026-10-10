@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { LogIn, Network, Search, UserPlus } from "lucide-react";
+import { Network, Search, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxySummary } from "@/api/galaxies/galaxies.types";
@@ -64,19 +64,9 @@ function GalaxyGrid({
 /*
  * Galaxy plaza.
  *
- * 2026-10-03 (layout pass) — this page used to carry its own SectionHeader and
- * its own banner, while the other six top-level surfaces used <PageHero/> and a
- * hand-rolled heading. Three consequences, all visible:
- *
- *   1. the banner's eyebrow/title/illustration breakpoints drifted from the rest
- *      of the site;
- *   2. the section headings were 18px — the same size as the banner h1 — so the
- *      page had no readable outline;
- *   3. a single official galaxy was capped at `max-w-[680px]`, leaving ~300px of
- *      dead space to its right on a 1200px shell.
- *
- * Both are now the shared primitives (PageHero / PageSection), and the official
- * grid collapses to one full-width column when there is only one card.
+ * The plaza keeps the shared PageHero primitive, but the galaxy mark stays a
+ * quiet masthead rather than becoming a full-width scene. The directory is the
+ * first substantial thing below it; product education stays at the page foot.
  */
 export function GalaxyListPage() {
   const { isAuthenticated } = useAuth();
@@ -146,9 +136,13 @@ export function GalaxyListPage() {
         eyebrow="GALAXIES"
         title="星系"
         description="围绕共同兴趣聚合内容与成员，找到属于你的社区轨道。"
-        immersive
+        className="py-4 sm:px-6 sm:py-5"
         illustration={
-          <GalaxyVisual stableKey="galaxy-plaza-hero" variant="hero" className="h-32 w-full max-w-sm" />
+          <GalaxyVisual
+            stableKey="galaxy-plaza-masthead"
+            variant="masthead"
+            className="h-20 w-28"
+          />
         }
         actions={
           <label className="block w-full max-w-md">
@@ -168,14 +162,6 @@ export function GalaxyListPage() {
               />
             </span>
           </label>
-        }
-        announcement={
-          !isAuthenticated ? (
-            <p className="flex items-center gap-1.5 text-meta text-muted-foreground">
-              <LogIn className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
-              登录后可以快速查看你已加入的星系。
-            </p>
-          ) : undefined
         }
       />
 
@@ -266,8 +252,10 @@ export function GalaxyListPage() {
               <GalaxyGrid
                 items={officialGalaxies}
                 variant="official"
-                featured
-                className={officialGalaxies.length > 1 ? "sm:grid-cols-2" : undefined}
+                featured={officialGalaxies.length > 1}
+                className={
+                  officialGalaxies.length > 1 ? "sm:grid-cols-2" : "max-w-xl"
+                }
               />
             </PageSection>
           ) : null}

@@ -59,11 +59,34 @@ function ContinueReadingCard({ item }: { item: ContentSummary }) {
   const chapterIndex = item.chapterIndex ?? 0;
   const hasChapterProgress = chapterCount > 0 && chapterIndex > 0;
 
+  /*
+   * The caption has three branches, and only two of them may show a time.
+   *
+   * `updatedAt` here is NOT `search_document.indexed_at` — this rail does not come
+   * from the search index at all. `ReadingService.toContinueReadingCard` fills the
+   * field two different ways:
+   *
+   *   series still exists -> updatedAt = series_reader_state.last_read_at
+   *                          a REAL "when did I last read this" time, which is
+   *                          exactly what a 继续阅读 card should show
+   *   series is gone      -> toContentCard() -> updatedAt = search_document.indexed_at
+   *                          the index-write time, i.e. NOT a content time
+   *
+   * `HomeFeedEnrichmentService.Presentation` carries no timestamp, so nothing
+   * overwrites the value afterwards.
+   *
+   * So the time survives for the SERIES branch and is suppressed for the ARTICLE
+   * fallback, where it would be an index artefact dressed up as reading history.
+   * Both cases otherwise reach this same fallback, so `objectType` is the only
+   * thing that distinguishes them.
+   */
   const caption = hasChapterProgress
     ? `上次阅读 · 第 ${chapterIndex} 章`
     : item.chapterCount
       ? `上次阅读 · 共 ${item.chapterCount} 章`
-      : (formatRelativeTime(item.updatedAt) ?? null);
+      : item.objectType === "SERIES"
+        ? (formatRelativeTime(item.updatedAt) ?? null)
+        : null;
 
   return (
     <Link
@@ -110,7 +133,7 @@ function ContinueReadingCard({ item }: { item: ContentSummary }) {
                 style={{ width: `${Math.round((chapterIndex / chapterCount) * 100)}%` }}
               />
             </div>
-            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
               {chapterIndex}/{chapterCount}
             </span>
           </div>

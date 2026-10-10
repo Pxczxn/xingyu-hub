@@ -68,9 +68,17 @@ describe("NewAppealPage — with a case/measure", () => {
     expect(screen.getByLabelText("申诉说明")).toBeInTheDocument();
   });
 
-  it("shows the carried case id", () => {
+  it("never shows the raw case id or measure id", () => {
+    // The user appeals a *decision*, not a UUID. Showing caseId/measureId leaked
+    // internal identifiers into what is meant to be a plain-language explanation.
     renderAt("?caseId=case-xyz&measureId=meas-1");
-    expect(screen.getByText("case-xyz")).toBeInTheDocument();
+    expect(screen.queryByText("case-xyz")).not.toBeInTheDocument();
+    expect(screen.queryByText("meas-1")).not.toBeInTheDocument();
+    expect(screen.queryByText("关联案件")).not.toBeInTheDocument();
+    expect(screen.queryByText("处置措施")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/你将针对一条已经作出的治理处置提交申诉/),
+    ).toBeInTheDocument();
   });
 
   it("submits both measureId and caseId when both are present", async () => {

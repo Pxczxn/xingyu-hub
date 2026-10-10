@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { MyGroupsPage } from "./MyGroupsPage";
@@ -9,8 +9,10 @@ import { MyGroupsPage } from "./MyGroupsPage";
  *
  * The non-obvious behaviours pinned here:
  *   1. DIRECT rows is filtered OUT (the mailbox mixes types in one array).
- *   2. Creation sends ONLY the title — the endpoint ignores anything else, so an
- *      "invite members" affordance must not exist.
+ *   2. Creation is RETIRED (2026-10-06): `POST /messages/group` can only ever seat
+ *      the caller as the sole OWNER and V2 has no way to add anyone, so the entry
+ *      point is hidden. The client capability and the endpoint stay for the Group
+ *      Messaging Product Phase.
  *   3. Rows link to the SHARED /messages/:id route, never Legacy's unrouted
  *      /messages/group/:id.
  */
@@ -135,101 +137,52 @@ describe("MyGroupsPage — listing", () => {
     expect(screen.queryByTestId("group-unread-g2")).not.toBeInTheDocument();
   });
 
-  it("explains an empty group list and still offers creation", async () => {
+  it("explains an empty group list WITHOUT offering creation (2026-10-06)", async () => {
     listConversations.mockResolvedValue([
       { id: "d1", type: "DIRECT", title: null, unreadCount: 0 },
     ]);
     renderPage();
     expect(await screen.findByText("暂无群聊")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /创建群聊/ })).toBeInTheDocument();
+    // Creation is retired: `POST /messages/group` only seats the caller as OWNER and
+    // V2 has no way to add anyone, so the button could only ever produce a group of
+    // one. An entry point that always yields a dead object is a fake capability.
+    expect(screen.queryByRole("button", { name: /创建群聊/ })).not.toBeInTheDocument();
   });
 });
 
-describe("MyGroupsPage — creating", () => {
-  it("reveals an inline form (no separate route) and sends ONLY the title", async () => {
-    renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /创建群聊/ }));
-    const input = screen.getByLabelText("群聊名称");
-    fireEvent.change(input, { target: { value: "  新群  " } });
-    fireEvent.click(screen.getByRole("button", { name: "创建" }));
-
-    await waitFor(() => expect(createGroup).toHaveBeenCalledTimes(1));
-    // ONLY the title — the endpoint reads nothing else from the body.
-    expect(createGroup).toHaveBeenCalledWith("新群");
-  });
-
-  it("does NOT offer a member-invite field (the endpoint would ignore it)", async () => {
-    renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /创建群聊/ }));
-    expect(screen.queryByLabelText(/成员/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/邀请/)).not.toBeInTheDocument();
-  });
-
-  it("prepends the created group without refetching", async () => {
+/*
+ * 2026-10-06 — the creation surface is intentionally gone, so the whole "creating" suite
+ * is replaced by assertions that it stays gone. Group creation itself is NOT removed:
+ * `messagesApi.createGroup` and the backend endpoint stay, and come back with the
+ * Group Messaging Product Phase (member adding + group discovery).
+ */
+describe("MyGroupsPage — creation is retired (not removed)", () => {
+  it("has no creation entry, and the API surface is untouched", async () => {
+    listConversations.mockResolvedValue([group({ id: "g1" })]);
     renderPage();
     await screen.findByText("前端交流");
-    fireEvent.click(screen.getByRole("button", { name: /创建群聊/ }));
-    fireEvent.change(screen.getByLabelText("群聊名称"), { target: { value: "新群" } });
-    fireEvent.click(screen.getByRole("button", { name: "创建" }));
-
-    expect(await screen.findByText("新群")).toBeInTheDocument();
-    // The original row is still there and the list was NOT re-read.
-    expect(screen.getByText("前端交流")).toBeInTheDocument();
-    expect(listConversations).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /创建群聊/ })).not.toBeInTheDocument();
+    // The capability itself is still wired on the client, just not offered.
+    expect(typeof createGroup).toBe("function");
   });
 
-  it("creates on Enter", async () => {
+  it("does not claim members can be added later", async () => {
+    listConversations.mockResolvedValue([group({ id: "g1" })]);
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /创建群聊/ }));
-    const input = screen.getByLabelText("群聊名称");
-    fireEvent.change(input, { target: { value: "键盘群" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    await waitFor(() => expect(createGroup).toHaveBeenCalledWith("键盘群"));
+    await screen.findByText("前端交流");
+    // The old copy said 「之后可以在群聊里添加成员」 with no such control anywhere.
+    expect(screen.queryByText(/添加成员/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/邀请/)).not.toBeInTheDocument();
   });
 
-  it("rejects an empty title locally without calling the API", async () => {
+  it("still lists groups the user is already in", async () => {
+    listConversations.mockResolvedValue([group({ id: "g1", title: "已存在的群" })]);
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /创建群聊/ }));
-    fireEvent.click(screen.getByRole("button", { name: "创建" }));
-    expect(await screen.findByText("请输入群聊名称")).toBeInTheDocument();
-    expect(createGroup).not.toHaveBeenCalled();
+    expect(await screen.findByText("已存在的群")).toBeInTheDocument();
   });
+});
 
-  it("rejects an over-long title locally", async () => {
-    renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /创建群聊/ }));
-    fireEvent.change(screen.getByLabelText("群聊名称"), { target: { value: "x".repeat(51) } });
-    fireEvent.click(screen.getByRole("button", { name: "创建" }));
-    expect(await screen.findByText("群聊名称不超过 50 个字符")).toBeInTheDocument();
-    expect(createGroup).not.toHaveBeenCalled();
-  });
-
-  it("surfaces a server rejection (e.g. blank title 400) as an inline error", async () => {
-    createGroup.mockRejectedValue(
-      new ApiError({
-        type: "about:blank",
-        title: "校验失败",
-        status: 400,
-        detail: "title: 群聊标题不能为空",
-        code: "VALIDATION_FAILED",
-      }),
-    );
-    renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /创建群聊/ }));
-    fireEvent.change(screen.getByLabelText("群聊名称"), { target: { value: "X" } });
-    fireEvent.click(screen.getByRole("button", { name: "创建" }));
-    expect(await screen.findByText("title: 群聊标题不能为空")).toBeInTheDocument();
-  });
-
-  it("can be dismissed without creating", async () => {
-    renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /创建群聊/ }));
-    fireEvent.change(screen.getByLabelText("群聊名称"), { target: { value: "算了" } });
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
-    expect(screen.queryByLabelText("群聊名称")).not.toBeInTheDocument();
-    expect(createGroup).not.toHaveBeenCalled();
-  });
-
+describe("MyGroupsPage — ownership", () => {
   it("ships NO admin controls for a group the caller owns", async () => {
     listConversations.mockResolvedValue([group({ myRole: "OWNER" })]);
     renderPage();
@@ -240,4 +193,5 @@ describe("MyGroupsPage — creating", () => {
     expect(screen.queryByRole("button", { name: /公告/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /退出/ })).not.toBeInTheDocument();
   });
+
 });

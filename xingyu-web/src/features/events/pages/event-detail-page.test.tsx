@@ -200,6 +200,38 @@ describe("EventDetailPage — submission gate", () => {
     expect(screen.getAllByText("已结束").length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: "提交作品" })).not.toBeInTheDocument();
   });
+
+  it("removes every write affordance on an ended event, including 去投稿", async () => {
+    mocked.get.mockResolvedValue(event({ submissionOpen: true, endsAt: "2000-01-01T00:00:00Z" }));
+    renderPage();
+
+    await screen.findByRole("heading", { name: "星语创作赛" });
+    expect(screen.queryByRole("link", { name: "提交作品" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "去投稿" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /报名参加/ })).not.toBeInTheDocument();
+    // 「登录后参与」 is an invitation to act — it must go too.
+    expect(screen.queryByRole("link", { name: "登录后参与" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the ended event's rules readable as history, not as instructions", async () => {
+    mocked.get.mockResolvedValue(event({ submissionOpen: true, endsAt: "2000-01-01T00:00:00Z" }));
+    renderPage();
+
+    await screen.findByRole("heading", { name: "星语创作赛" });
+    // The rules survive (they are the record of what the event was)…
+    expect(screen.getByText("参与方式（活动规则）")).toBeInTheDocument();
+    expect(screen.getByText(/活动已结束，以上为本次活动当时的参与规则/)).toBeInTheDocument();
+    // …but 投稿须知, which can only be acted on, is dropped.
+    expect(screen.queryByText("投稿须知")).not.toBeInTheDocument();
+  });
+
+  it("still says 活动已结束 in 投稿状态 rather than 暂未开放投稿", async () => {
+    mocked.get.mockResolvedValue(event({ submissionOpen: true, endsAt: "2000-01-01T00:00:00Z" }));
+    renderPage();
+
+    await screen.findByRole("heading", { name: "星语创作赛" });
+    expect(screen.queryByText("暂未开放投稿")).not.toBeInTheDocument();
+  });
 });
 
 describe("EventDetailPage — guest", () => {
@@ -209,6 +241,15 @@ describe("EventDetailPage — guest", () => {
 
     const link = await screen.findByRole("link", { name: "登录后参与" });
     expect(link).toHaveAttribute("href", "/login?returnTo=%2Fevents%2Fe1");
+  });
+
+  it("does not offer 登录后参与 on an ended event", async () => {
+    // Offering it would imply the event can still be joined.
+    mocked.get.mockResolvedValue(event({ endsAt: "2000-01-01T00:00:00Z" }));
+    renderPage();
+
+    await screen.findByRole("heading", { name: "星语创作赛" });
+    expect(screen.queryByRole("link", { name: "登录后参与" })).not.toBeInTheDocument();
   });
 
   it("does not offer the registration button to a guest", async () => {

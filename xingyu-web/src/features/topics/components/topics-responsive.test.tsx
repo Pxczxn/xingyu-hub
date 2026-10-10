@@ -65,9 +65,23 @@ describe("FeaturedTopics — grid must scale down on a phone", () => {
     expect(screen.getByTestId("featured-topics").className).toContain("lg:grid-cols-6");
   });
 
-  it("starts at three columns so a phone gets tappable cells", () => {
+  it("starts at two columns so a phone gets READABLE cells", () => {
     renderInRouter(<FeaturedTopics topics={TOPICS} />);
-    expect(screen.getByTestId("featured-topics").className).toContain("grid-cols-3");
+    const grid = screen.getByTestId("featured-topics");
+
+    /*
+     * This assertion used to require `grid-cols-3`, and that was encoding the defect.
+     *
+     * Three columns fixed the sideways scroll but not the card: at 390px a cell is 101px,
+     * and `p-3.5` (28) + the 36px visual + `gap-3` (12) + the 16px arrow leave ~9px for
+     * text — so the topic name disappeared and 「2 篇内容」 stacked one character per line.
+     * Two columns give ~157px and ~65px of text, which fits both.
+     *
+     * A class assertion, not a rendered width, because the test environment has no layout
+     * engine; the measured widths live in the design audit.
+     */
+    expect(grid.className).toContain("grid-cols-2");
+    expect(grid.className).not.toContain("grid-cols-3");
   });
 
   it("renders nothing when there are no topics", () => {

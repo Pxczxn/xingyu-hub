@@ -9,21 +9,20 @@ import { CreatorCardItem } from "../components/CreatorCardItem";
 import {
   CREATOR_CARD_LIMIT,
   CREATOR_PER_TOPIC_LIMIT,
-  CREATOR_TOPIC_LIMIT,
   filterCreators,
   mergeCreatorRows,
   type CreatorCard,
 } from "../creator-card";
 
 /*
- * /creators — 推荐作者 (Phase 2K-1)
+ * /creators — 发现创作者 (Phase 2K-1)
  *
  * This is a PURE FRONT-END AGGREGATION page: there is no `/creators` backend
  * endpoint. Legacy built the same thing, and V2 reuses the already-migrated
  * topics/users APIs — so this phase adds zero backend surface.
  *
  * Fan-out shape (matching Legacy, with the failure rules made explicit):
- *   1. GET /topics                       → take the first CREATOR_TOPIC_LIMIT
+ *   1. GET /topics                       → use the published topic list
  *   2. GET /topics/{slug}/creators       → per topic; a failing topic yields []
  *   3. GET /users/{username}             → decorative (avatar, following)
  *      GET /users/{username}/works       → decorative (latest public work)
@@ -57,7 +56,7 @@ export function CreatorsPage() {
       .getTopics()
       .then(async (allTopics) => {
         if (!active) return;
-        const selected = allTopics.slice(0, CREATOR_TOPIC_LIMIT);
+        const selected = allTopics;
 
         // Per-topic failures degrade to an empty list rather than failing the page.
         const perTopic = await Promise.all(
@@ -136,9 +135,12 @@ export function CreatorsPage() {
 
   return (
     <div className="section-gap">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">推荐作者</h1>
-        <p className="text-sm text-muted-foreground">从社区专题中发现值得关注的创作者。</p>
+      <header className="border-b border-border/70 pb-5">
+        <p className="eyebrow mb-2.5">CREATORS</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">发现创作者</h1>
+        <p className="mt-2.5 max-w-xl text-sm leading-6 text-muted-foreground">
+          从社区专题中发现持续创作的人。
+        </p>
       </header>
 
       {followError ? (
@@ -156,7 +158,7 @@ export function CreatorsPage() {
       ) : null}
 
       {!loading && !failed && !hasAnyTopic ? (
-        <PageState kind="empty" title="暂无专题" description="社区还没有可用于推荐作者的专题。" />
+        <PageState kind="empty" title="暂无专题" description="社区还没有可用于发现创作者的专题。" />
       ) : null}
 
       {!loading && !failed && hasAnyTopic ? (
@@ -192,7 +194,7 @@ export function CreatorsPage() {
           </nav>
 
           <p className="text-xs text-muted-foreground" data-testid="creators-scope-note">
-            本页收录来自前 {topics.length} 个专题的作者；筛选与搜索仅作用于已收录的作者，
+            本页收录来自 {topics.length} 个专题的作者；筛选与搜索仅作用于已收录的作者，
             不是全站搜索。
           </p>
 
@@ -202,9 +204,8 @@ export function CreatorsPage() {
              *
              *  - `creators.length === 0` means NO topic produced any creator.
              *    `listCreators` reads from `article_topic` joined to published
-             *    articles, so this is not a filter problem — the sampled topics
-             *    simply have no published articles yet. Verified against the
-             *    live backend 2026-09-27: all 8 sampled topics returned [].
+             *    articles, so this is not a filter problem — the published topics
+             *    simply have no published articles yet.
              *    Saying 「调整专题或关键词后再试」 here would be a lie.
              *  - otherwise the user's own filter/search excluded everything.
              */
@@ -212,18 +213,18 @@ export function CreatorsPage() {
               <PageState
                 kind="empty"
                 title="暂无可推荐的作者"
-                description="已收录的专题下暂时还没有已发布的内容，因此无法据此推荐作者。"
+                description="已收录的专题下暂时还没有已发布的内容，因此无法据此发现作者。"
               />
             ) : (
               <PageState kind="empty" title="暂无匹配作者" description="调整专题或关键词后再试。" />
             )
           ) : (
             <ul
-              aria-label="推荐作者列表"
+              aria-label="创作者列表"
               className="grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3"
             >
               {visible.map((creator) => (
-                <li key={creator.username}>
+                <li key={creator.username} className="max-w-[360px]">
                   <CreatorCardItem
                     creator={creator}
                     onToggleFollow={(target) => void toggleFollow(target)}

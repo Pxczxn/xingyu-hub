@@ -18,6 +18,9 @@ vi.mock("@/api/messages/messages.api", () => ({
   messagesApi: {
     listMedia: vi.fn(),
     listFiles: vi.fn(),
+    // 2026-10-06: tiles fetch their bytes through the member-checked endpoint and
+    // render an object URL, so the raw attachmentUrl is never a src any more.
+    downloadAttachment: vi.fn(async () => new Blob(["x"])),
   },
 }));
 
@@ -32,8 +35,9 @@ function image(overrides: Partial<ChatMessage> = {}): ChatMessage {
     sequenceNumber: 1,
     body: "",
     messageType: "IMAGE",
-    attachmentUrl: "/files/a.png",
+    attachmentUrl: "/api/v1/admin/files/community/messages/a.png",
     attachmentName: "a.png",
+    attachmentFileId: 5,
     createdAt: "2026-09-27T02:00:00Z",
     recalledAt: null,
     ...overrides,
@@ -44,8 +48,9 @@ function file(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
     ...image(),
     messageType: "FILE",
-    attachmentUrl: "/files/a.pdf",
+    attachmentUrl: "/api/v1/admin/files/community/messages/a.pdf",
     attachmentName: "a.pdf",
+    attachmentFileId: 6,
     ...overrides,
   };
 }
@@ -115,7 +120,9 @@ describe("ConversationAssetsPage — rendering", () => {
     renderAssets("media");
 
     expect(await screen.findByLabelText("图片列表")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "照片.png" })).toBeInTheDocument();
+    const img = await screen.findByRole("img", { name: "照片.png" });
+    expect(img).toBeInTheDocument();
+    expect(mocked.downloadAttachment).toHaveBeenCalledWith("c1", "m1");
   });
 
   it("renders the file list for files", async () => {
@@ -123,7 +130,7 @@ describe("ConversationAssetsPage — rendering", () => {
     renderAssets("files");
 
     expect(await screen.findByLabelText("文件列表")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "报告.pdf" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "报告.pdf" })).toBeInTheDocument();
   });
 
   it("filters out a recalled row instead of rendering a broken tile", async () => {
@@ -143,7 +150,8 @@ describe("ConversationAssetsPage — rendering", () => {
 
     const list = await screen.findByLabelText("图片列表");
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
-    expect(within(list).getByRole("img", { name: "ok.png" })).toBeInTheDocument();
+    // The tile only renders once its (authenticated) bytes arrive — 2026-10-06.
+    expect(await within(list).findByRole("img", { name: "ok.png" })).toBeInTheDocument();
   });
 
   it("shows the empty state once every row is recalled", async () => {

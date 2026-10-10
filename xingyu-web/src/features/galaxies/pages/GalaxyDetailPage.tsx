@@ -190,9 +190,9 @@ function GalaxyOverview({ slug }: { slug: string }) {
         ) : null}
       </section>
 
-      <section aria-labelledby="galaxy-members">
+      <section aria-labelledby="galaxy-members" className="border-t border-border/60 pt-5">
         <div className="mb-3 flex items-center justify-between gap-4">
-          <h2 id="galaxy-members" className="text-lg font-semibold tracking-tight text-primary">
+          <h2 id="galaxy-members" className="text-base font-semibold tracking-tight text-primary">
             星系成员
           </h2>
           <SectionLink to={`/galaxies/${encodeURIComponent(slug)}/members`}>全部成员</SectionLink>

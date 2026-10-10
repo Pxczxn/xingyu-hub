@@ -18,7 +18,15 @@ function appeal(overrides: Partial<AppealDetailView> = {}): AppealDetailView {
     id: "ap1",
     caseId: "case-1",
     body: "我认为该处置不当",
-    status: "SUBMITTED",
+    status: "PENDING",
+    outcome: "PENDING",
+    decidedAt: null,
+    decisionNote: null,
+    targetType: "ARTICLE",
+    targetId: "a1",
+    targetTitle: "被处理的文章",
+    targetSummary: null,
+    measureType: "HIDE_CONTENT",
     createdAt: "2026-09-20T10:00:00Z",
     ...overrides,
   };
@@ -48,24 +56,37 @@ describe("MyAppealsPage", () => {
     expect(mockedList).toHaveBeenCalledWith(20);
   });
 
-  it("renders the appeal body and its case id", async () => {
-    mockedList.mockResolvedValue([appeal({ body: "处置过重", caseId: "case-xyz" })]);
+  it("describes what the appeal is against, never the case UUID", async () => {
+    mockedList.mockResolvedValue([
+      appeal({ body: "处置过重", caseId: "case-xyz", targetTitle: "被隐藏的文章" }),
+    ]);
     renderPage();
     const list = await screen.findByLabelText("我的申诉列表");
     expect(list).toHaveTextContent("处置过重");
-    expect(list).toHaveTextContent("case-xyz");
+    expect(list).toHaveTextContent("针对：被隐藏的文章");
+    // The case UUID must not leak into the UI.
+    expect(list).not.toHaveTextContent("case-xyz");
   });
 
-  it("labels SUBMITTED", async () => {
-    mockedList.mockResolvedValue([appeal({ status: "SUBMITTED" })]);
+  it("labels PENDING", async () => {
+    mockedList.mockResolvedValue([appeal({ status: "PENDING", outcome: "PENDING" })]);
     renderPage();
-    expect(await screen.findByText("已提交")).toBeInTheDocument();
+    expect(await screen.findByText("待处理")).toBeInTheDocument();
   });
 
-  it("labels DECIDED", async () => {
-    mockedList.mockResolvedValue([appeal({ status: "DECIDED" })]);
+  it("labels APPROVED and REJECTED with distinct words", async () => {
+    // The regression that motivated the contract: the old model collapsed both
+    // outcomes into DECIDED, so the list could not tell them apart.
+    mockedList.mockResolvedValue([appeal({ id: "a-ok", status: "APPROVED", outcome: "APPROVED" })]);
     renderPage();
-    expect(await screen.findByText("已裁定")).toBeInTheDocument();
+    expect(await screen.findByText("已批准")).toBeInTheDocument();
+    expect(screen.queryByText("已驳回")).not.toBeInTheDocument();
+  });
+
+  it("labels REJECTED distinctly from APPROVED", async () => {
+    mockedList.mockResolvedValue([appeal({ id: "a-no", status: "REJECTED", outcome: "REJECTED" })]);
+    renderPage();
+    expect(await screen.findByText("已驳回")).toBeInTheDocument();
   });
 
   it("echoes an unknown status verbatim", async () => {
@@ -116,8 +137,9 @@ describe("MyAppealsPage", () => {
   });
 
   it("does not claim to know the case status, because the DTO has no such field", async () => {
-    // AppealDetailView is id/caseId/body/status/createdAt only. The case's own
-    // progress is exposed on the REPORT detail, not here.
+    // The appeal DTO carries the original object and the measure kind, but no
+    // case status. The case's own progress is exposed on the REPORT detail
+    // (`caseStatus`), not here — so nothing is claimed about it.
     mockedList.mockResolvedValue([appeal()]);
     renderPage();
     await screen.findByLabelText("我的申诉列表");

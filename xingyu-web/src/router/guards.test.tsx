@@ -41,6 +41,10 @@ function renderGuard(initialPath = "/studio") {
             }
           />
           <Route path="/login" element={<div data-testid="login-page">登录</div>} />
+          <Route
+            path="/force-change-password"
+            element={<div data-testid="force-change-page">请修改密码</div>}
+          />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -89,5 +93,42 @@ describe("RequireAuth", () => {
       expect(screen.getByTestId("current-path")).toHaveTextContent("/login");
     });
     expect(localStorage.getItem("xingyu-satoken")).toBeNull();
+  });
+
+  // 强制改密全局入口（2026-10-08）：后端在 mustChangePassword 期间对受保护接口一律 403，
+  // 若守卫不拦，页面会正常渲染但数据全空且没有可恢复导航。
+  it("redirects a must-change-password user away from a protected page", async () => {
+    setStoredToken("valid-token");
+    mockedGetMe.mockResolvedValue({
+      email: "bob@example.com",
+      emailVerified: true,
+      username: "bob",
+      mustChangePassword: true,
+    });
+
+    renderGuard();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/force-change-password");
+    });
+    expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
+    expect(screen.getByTestId("force-change-page")).toBeInTheDocument();
+  });
+
+  it("lets a must-change-password user through once the flag clears", async () => {
+    setStoredToken("valid-token");
+    mockedGetMe.mockResolvedValue({
+      email: "bob@example.com",
+      emailVerified: true,
+      username: "bob",
+      mustChangePassword: false,
+    });
+
+    renderGuard();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/studio");
   });
 });

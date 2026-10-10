@@ -33,6 +33,9 @@ function hit(overrides: Partial<ChatMessage> = {}): ChatMessage {
     // fill it for /search, unlike the thread endpoints.
     conversationType: null,
     senderId: "u-2",
+    // 2026-10-06: 搜索命中现在也带结构化 sender 与对方身份（只在 /search 填）。
+    sender: { userId: "u-2", username: "them", displayName: "小明", avatar: null },
+    counterpartDisplayName: "小李",
     sequenceNumber: 1,
     body: "关于星语的消息",
     messageType: "TEXT",
@@ -123,15 +126,38 @@ describe("SearchMessagesPage — results", () => {
     expect(within(list).getByText("关于星语的消息")).toBeInTheDocument();
   });
 
-  it("links each hit back to its conversation, encoded", async () => {
-    mocked.search.mockResolvedValue([hit({ conversationId: "a/b" })]);
+  /**
+   * 2026-10-06: 落点必须精确到「哪一条消息」，而不只是哪个会话。
+   *
+   * URL 带 messageId（稳定标识）+ sequence（让会话页一次取回目标附近的窗口，避免从
+   * 最新一页一路往前翻）。
+   */
+  it("links each hit to that exact message inside its conversation, encoded", async () => {
+    mocked.search.mockResolvedValue([
+      hit({ conversationId: "a/b", id: "m/9", sequenceNumber: 42 }),
+    ]);
     renderSearch("/messages/search?q=a");
 
     const list = await screen.findByLabelText("搜索结果");
-    expect(within(list).getByRole("link", { name: "查看所在会话" })).toHaveAttribute(
-      "href",
-      "/messages/a%2Fb",
-    );
+    const link = within(list).getByRole("link", { name: "在会话中查看这条消息" });
+    const url = new URL(link.getAttribute("href") ?? "", "http://localhost");
+    expect(url.pathname).toBe("/messages/a%2Fb");
+    expect(url.searchParams.get("m")).toBe("m/9");
+    expect(url.searchParams.get("s")).toBe("42");
+  });
+
+  /**
+   * 2026-10-06: 一条搜索命中必须自己回答「谁说的、来自哪个会话、什么时候」——
+   * 之前三项都没有（实测既无 sender 也无会话名）。
+   */
+  it("shows who said it, which conversation, and when", async () => {
+    mocked.search.mockResolvedValue([hit()]);
+    renderSearch("/messages/search?q=a");
+
+    const list = await screen.findByLabelText("搜索结果");
+    expect(within(list).getByText("小李")).toBeInTheDocument();
+    expect(within(list).getByText("小明")).toBeInTheDocument();
+    expect(within(list).getByRole("time")).toHaveTextContent(/\d{2}:\d{2}/);
   });
 
   it("never offers 撤回 or a sender label, because ownership is unknowable here", async () => {
@@ -154,7 +180,7 @@ describe("SearchMessagesPage — results", () => {
     expect(list.querySelector("[data-recalled='true']")).not.toBeNull();
   });
 
-  it("renders one row per hit", async () => {
+  it("renders one row per hit, with the message body as the preview", async () => {
     mocked.search.mockResolvedValue([
       hit({ id: "a", conversationId: "c1" }),
       hit({ id: "b", conversationId: "c2" }),
@@ -162,7 +188,9 @@ describe("SearchMessagesPage — results", () => {
     renderSearch("/messages/search?q=a");
 
     const list = await screen.findByLabelText("搜索结果");
-    expect(within(list).getAllByRole("link", { name: "查看所在会话" })).toHaveLength(2);
+    expect(within(list).getAllByRole("link", { name: "在会话中查看这条消息" })).toHaveLength(2);
+    // 命中的正文就是预览本身。
+    expect(within(list).getAllByText("关于星语的消息")).toHaveLength(2);
   });
 });
 

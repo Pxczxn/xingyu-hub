@@ -43,13 +43,16 @@ export function TrendingTopicsPanel({
   return (
     <section
       aria-labelledby="home-trending-topics"
-      className="rounded-xl border border-border/70 bg-card/95 p-4 shadow-none"
+      className="rounded-xl border border-border/60 bg-surface-sunken/55 p-4"
     >
       <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h2 id="home-trending-topics" className="text-sm font-semibold text-primary">
+        <h2 id="home-trending-topics" className="text-sm font-medium text-foreground-soft">
           热门话题
         </h2>
-        <Link to="/topics" className="shrink-0 text-xs text-accent hover:underline">
+        <Link
+          to="/topics"
+          className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-accent-strong"
+        >
           全部 ›
         </Link>
       </div>
@@ -60,12 +63,12 @@ export function TrendingTopicsPanel({
             <li key={topic.id}>
               <Link
                 to={`/topics/${encodeURIComponent(topic.slug)}`}
-                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/70"
+                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-card/70"
               >
                 <span
                   aria-hidden
                   className={cn(
-                    "grid h-5 w-5 shrink-0 place-items-center rounded text-[11px] font-semibold tabular-nums",
+                    "grid h-5 w-5 shrink-0 place-items-center rounded text-xs font-semibold tabular-nums",
                     index < 3
                       ? "bg-accent/15 text-accent-foreground"
                       : "bg-muted text-muted-foreground",

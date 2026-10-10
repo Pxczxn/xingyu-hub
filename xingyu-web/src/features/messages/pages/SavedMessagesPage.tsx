@@ -13,6 +13,7 @@ import {
   type SavedMessageView,
 } from "@/api/saved-messages/saved-messages.types";
 import { PageState } from "@/components/shared/PageState";
+import { AuthenticatedAttachment } from "../AuthenticatedAttachment";
 
 /*
  * 收藏的私信 (Phase 3I).
@@ -184,29 +185,47 @@ export function SavedMessagesPage() {
                       </p>
                     ) : (
                       <>
-                        {attachment === "image" && item.attachmentUrl ? (
-                          <a
-                            href={item.attachmentUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 block"
+                        {/*
+                          2026-10-06: 附件不再用 `attachmentUrl`。那条地址指向
+                          `/api/v1/admin/files/community/messages/...`，该目录已被静态文件
+                          控制器拒绝（社区私信附件必须过 membership），于是这里曾整页 403
+                          （实测图片 naturalWidth=0、文件链接 403）。改走和会话内一样的
+                          受鉴权下载端点，凭 `messageId`（不是收藏行的 bookmark id）。
+                        */}
+                        {attachment === "image" && item.attachmentFileId ? (
+                          <AuthenticatedAttachment
+                            conversationId={item.conversationId}
+                            messageId={item.messageId}
+                            fileId={item.attachmentFileId}
                           >
-                            <img
-                              src={item.attachmentUrl}
-                              alt={item.attachmentName ?? "图片"}
-                              className="max-h-56 max-w-full rounded"
-                            />
-                          </a>
+                            {(url) => (
+                              <a href={url} target="_blank" rel="noreferrer" className="mt-2 block">
+                                <img
+                                  src={url}
+                                  alt={item.attachmentName ?? "图片"}
+                                  className="max-h-56 max-w-full rounded"
+                                />
+                              </a>
+                            )}
+                          </AuthenticatedAttachment>
                         ) : null}
-                        {attachment === "file" && item.attachmentUrl ? (
-                          <a
-                            href={item.attachmentUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 flex items-center gap-1.5 text-sm underline hover:no-underline"
+                        {attachment === "file" && item.attachmentFileId ? (
+                          <AuthenticatedAttachment
+                            conversationId={item.conversationId}
+                            messageId={item.messageId}
+                            fileId={item.attachmentFileId}
                           >
-                            {item.attachmentName ?? "附件"}
-                          </a>
+                            {(url) => (
+                              <a
+                                href={url}
+                                download={item.attachmentName ?? "附件"}
+                                rel="noreferrer"
+                                className="mt-2 flex items-center gap-1.5 text-sm underline hover:no-underline"
+                              >
+                                {item.attachmentName ?? "附件"}
+                              </a>
+                            )}
+                          </AuthenticatedAttachment>
                         ) : null}
                         {body ? (
                           <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">

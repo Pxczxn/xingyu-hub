@@ -183,6 +183,12 @@ describe("messagesApi surface", () => {
       "sendDirect",
       "sendGroup",
       "listMessages",
+      // 2026-10-06: reconnect reconciliation (after-sequence) and the
+      // member-checked attachment download.
+      "listMessagesAfter",
+      // 2026-10-06: 搜索结果定位到具体消息（一次取回目标附近的窗口）
+      "listMessagesAround",
+      "downloadAttachment",
       "markRead",
       "recallMessage",
       "sendAttachment",
@@ -244,6 +250,7 @@ describe("messagesApi.sendAttachment", () => {
       url: "/api/v1/admin/files/community/messages/a.png",
       name: "照片.png",
       messageType: "IMAGE",
+      fileId: 3,
     });
 
     expect(mocked).toHaveBeenCalledWith(
@@ -265,6 +272,7 @@ describe("messagesApi.sendAttachment", () => {
       url: "/x.pdf",
       name: "报告.pdf",
       messageType: "FILE",
+      fileId: 3,
     });
 
     expect(mocked).toHaveBeenCalledWith(
@@ -279,6 +287,7 @@ describe("messagesApi.sendAttachment", () => {
       url: "/x.png",
       name: "a.png",
       messageType: "IMAGE",
+      fileId: 3,
     });
 
     const body = mocked.mock.calls[0][1]?.body as Record<string, unknown>;
@@ -292,6 +301,7 @@ describe("messagesApi.sendAttachment", () => {
       url: "/x.png",
       name: "a.png",
       messageType: "IMAGE",
+      fileId: 3,
     });
 
     const body = mocked.mock.calls[0][1]?.body as Record<string, unknown>;

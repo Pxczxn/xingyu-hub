@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { SectionState, type SectionStatus } from "@/components/shared/SectionState";
-import { formatEventDay, type EventView } from "@/api/events/events.types";
+import { formatEventDay, isEventEnded, type EventView } from "@/api/events/events.types";
 
 /*
  * 社区活动 — sidebar module.
@@ -13,9 +13,10 @@ import { formatEventDay, type EventView } from "@/api/events/events.types";
  * registration table. So the card shows the title and the date range, and stops.
  * A fabricated "1.2k 人参与" would be worse than the empty space it fills.
  *
- * `submissionOpen` is NOT rendered either: it says whether submissions are
- * open, which is not "the event is over", and a sidebar is the wrong place to
- * explain that distinction. The detail page owns it.
+ * TIME SEMANTICS: the server list is ordered by starts_at DESC and knows nothing
+ * about ended-ness, so the rail must not simply take the newest N — that could
+ * drop a genuinely live event behind an ended one. Ended events are demoted to
+ * the end and labelled 「已结束」 so the rail never implies they are joinable.
  */
 
 /** How many events the rail shows, and how many the page asks the API for. */
@@ -34,24 +35,34 @@ function formatRange(startsAt?: string | null, endsAt?: string | null): string |
 export function CommunityEventsPanel({
   status,
   items,
+  now = Date.now(),
 }: {
   status: SectionStatus;
   items: EventView[];
+  now?: number;
 }) {
   if (status === "empty") return null;
 
-  const events = items.slice(0, EVENT_LIMIT);
+  // Stable partition: not-ended first (in server order), ended last. Filtering
+  // before slicing is the point — otherwise a genuinely live event could be
+  // truncated away by older-but-ended rows the server happened to return first.
+  const open = items.filter((event) => isEventEnded(event, now) !== true);
+  const closed = items.filter((event) => isEventEnded(event, now) === true);
+  const events = [...open, ...closed].slice(0, EVENT_LIMIT);
 
   return (
     <section
       aria-labelledby="home-events"
-      className="rounded-xl border border-border/70 bg-card/95 p-4 shadow-none"
+      className="rounded-xl border border-border/60 bg-surface-sunken/55 p-4"
     >
       <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h2 id="home-events" className="text-sm font-semibold text-primary">
+        <h2 id="home-events" className="text-sm font-medium text-foreground-soft">
           社区活动
         </h2>
-        <Link to="/events" className="shrink-0 text-xs text-accent hover:underline">
+        <Link
+          to="/events"
+          className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-accent-strong"
+        >
           全部 ›
         </Link>
       </div>
@@ -60,14 +71,22 @@ export function CommunityEventsPanel({
         <ul className="flex flex-col gap-1.5">
           {events.map((event) => {
             const range = formatRange(event.startsAt, event.endsAt);
+            const ended = isEventEnded(event, now) === true;
             return (
               <li key={event.id}>
                 <Link
                   to={`/events/${encodeURIComponent(event.id)}`}
-                  className="block rounded-md border border-border/70 p-2.5 transition-colors hover:bg-muted/70"
+                  className="block rounded-md border border-border/60 p-2.5 transition-colors hover:bg-card/70"
                 >
                   <p className="line-clamp-2 text-sm font-medium text-foreground">{event.title}</p>
-                  {range ? <p className="mt-1 text-xs text-muted-foreground">{range}</p> : null}
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {ended ? (
+                      <span className="shrink-0 rounded border border-border px-1 text-[10px]">
+                        已结束
+                      </span>
+                    ) : null}
+                    {range ? <span>{range}</span> : null}
+                  </p>
                 </Link>
               </li>
             );

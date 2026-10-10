@@ -5,7 +5,7 @@ import { AppRoutes } from "@/router/routes";
 import { AppProviders } from "@/app/providers/AppProviders";
 
 /*
- * Route resolution for 推荐作者 (Phase 2K-1).
+ * Route resolution for 发现创作者 (Phase 2K-1).
  *
  * /creators is a PUBLIC aggregation page — no auth gate — so the assertions
  * here are about (a) it being reachable at all, (b) it NOT being RequireAuth,
@@ -77,7 +77,13 @@ vi.mock("@/api/users/users.api", () => ({
     })),
     followUser: vi.fn(),
     unfollowUser: vi.fn(),
-    getMyProfile: vi.fn(),
+    getMyProfile: vi.fn(async () => ({
+      username: "tester",
+      displayName: "测试用户",
+      avatar: null,
+      bio: null,
+      following: false,
+    })),
     updateMyProfile: vi.fn(),
     updateMyPrivacy: vi.fn(),
     listBlockedUsers: vi.fn(),
@@ -105,10 +111,10 @@ beforeEach(() => {
 describe("phase 2K-1 route resolution", () => {
   it("routes /creators to the aggregated creators page", async () => {
     renderAt("/creators", true);
-    expect(await screen.findByRole("heading", { name: /推荐作者/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /发现创作者/ })).toBeInTheDocument();
     // P1-1: the list renders only after the topics API resolves, so it needs an
     // async query even though the heading above is already in the DOM.
-    expect(await screen.findByLabelText("推荐作者列表")).toBeInTheDocument();
+    expect(await screen.findByLabelText("创作者列表")).toBeInTheDocument();
   });
 
   it("renders the creator aggregated from the topic API", async () => {
@@ -124,7 +130,7 @@ describe("phase 2K-1 route resolution", () => {
   it("is reachable by a GUEST — /creators is not behind RequireAuth", async () => {
     // Every underlying call (topics / creators / profile / works) is public.
     renderAt("/creators", false);
-    expect(await screen.findByRole("heading", { name: /推荐作者/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /发现创作者/ })).toBeInTheDocument();
     // A guest still gets the aggregation, not the login screen.
     expect(screen.queryByRole("heading", { name: "登录星语" })).not.toBeInTheDocument();
   });
@@ -140,7 +146,7 @@ describe("phase 2K-1 route resolution", () => {
 describe("phase 2K-1 navigation", () => {
   it("exposes a footer entry point to /creators", async () => {
     renderAt("/creators", true);
-    const link = await screen.findByRole("link", { name: "推荐作者" });
+    const link = await screen.findByRole("link", { name: "发现创作者" });
     expect(link).toHaveAttribute("href", "/creators");
   });
 });

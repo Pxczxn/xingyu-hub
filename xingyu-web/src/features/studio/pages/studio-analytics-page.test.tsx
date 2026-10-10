@@ -64,7 +64,9 @@ describe("studio analytics page", () => {
     // Legacy showed only three of the six; dropping the rest would lose data
     // the API already hands us.
     expect(list).toHaveTextContent("已发布文章");
-    expect(list).toHaveTextContent("草稿");
+    // DI-2: label now discloses the counting scope (insights counts include
+    // trashed drafts; the 稿件状态 card below does not).
+    expect(list).toHaveTextContent("草稿（含回收站）");
     expect(list).toHaveTextContent("获得喜欢");
     expect(list).toHaveTextContent("收到评论");
     expect(list).toHaveTextContent("粉丝");

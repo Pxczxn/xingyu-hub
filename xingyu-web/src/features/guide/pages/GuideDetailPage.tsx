@@ -68,14 +68,6 @@ export function GuideDetailPage() {
   const { page } = state;
 
   return (
-    /*
-      A TUTORIAL, so it has a beginning and an end.
-      The back link moves ABOVE the header into a proper step-back affordance, and
-      the page closes with a way to continue — a guide that just stops leaves the
-      reader at a dead end. The footer points at the guide index rather than a
-      "next guide", because this contract has no sibling ordering: inventing a
-      next-slug would produce a link to a page that may not exist.
-    */
     <article className="section-gap">
       <BackToGuide />
 
@@ -96,7 +88,7 @@ export function GuideDetailPage() {
           to="/guide"
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-meta font-medium text-foreground transition-colors hover:bg-surface-sunken"
         >
-          返回指南列表，继续下一篇
+          返回指南列表
         </Link>
       </footer>
     </article>

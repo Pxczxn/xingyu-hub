@@ -11,22 +11,34 @@ import { UserMenu } from "./UserMenu";
  * — they are now behind a disclosure, which is what the prototype's 用户菜单 asks for.
  */
 
-/** Every route the menu is the sole entry point for. */
+/**
+ * Every route the menu is the sole entry point for.
+ *
+ * 2026-10-06: 「收藏的私信」 no longer belongs here. The `/messages/saved` ROUTE still
+ * exists, but the menu is the only entry to it — and nothing in the message UI can
+ * create a saved message, so the page could only ever be empty. The entry is hidden
+ * (not the feature) until a real save affordance ships.
+ */
 const SHORTCUTS = [
+  "我的内容",
   "收藏夹",
   "书架",
   "我的动态",
   "我的群聊",
-  "收藏的私信",
   "我的星系",
   "关注",
   "我的喜欢",
   "我的评论",
   "关系请求",
   "徽章",
-  "成长",
-  "我的探索",
-  "举报与申诉",
+  "我的成长",
+  /*
+   * 治理 (2026-10-07): the minimal, honest way into the governance loop. Not a
+   * "治理中心" landing — just the two things a user actually has: what they
+   * reported, and the outcome of any appeal.
+   */
+  "我的举报",
+  "我的申诉",
 ];
 
 function renderMenu(onLogout = vi.fn()) {
@@ -57,7 +69,7 @@ describe("UserMenu", () => {
 
     expect(trigger()).toHaveAttribute("aria-expanded", "true");
     // The trigger is a button, not a link, so this is the only route to your profile.
-    expect(screen.getByRole("link", { name: "我的主页" })).toHaveAttribute("href", "/me");
+    expect(screen.getByRole("link", { name: /查看主页/ })).toHaveAttribute("href", "/me");
     for (const label of SHORTCUTS) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
@@ -96,9 +108,27 @@ describe("UserMenu", () => {
     const onLogout = renderMenu();
 
     fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: "退出" }));
+    fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
 
     expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes the governance entries to the real report and appeal pages", () => {
+    renderMenu();
+    fireEvent.click(trigger());
+
+    expect(screen.getByRole("link", { name: "我的举报" })).toHaveAttribute("href", "/reports");
+    expect(screen.getByRole("link", { name: "我的申诉" })).toHaveAttribute("href", "/appeals");
+    // No fabricated governance landing page.
+    expect(screen.queryByRole("link", { name: /治理中心/ })).not.toBeInTheDocument();
+  });
+
+  it("gives 我的活动 a stable entry point to the existing page", () => {
+    // /me/events used to be reachable only from the event detail sidebar.
+    renderMenu();
+    fireEvent.click(trigger());
+
+    expect(screen.getByRole("link", { name: "我的活动" })).toHaveAttribute("href", "/me/events");
   });
 });
 
@@ -122,7 +152,7 @@ describe("UserMenu — accessible name does not depend on the visible label", ()
     renderMenu();
     // Not derived from the label text: this is what a screen reader reads on a
     // phone, where the label is display:none.
-    expect(trigger()).toHaveAttribute("aria-label", "alice");
+    expect(trigger()).toHaveAttribute("aria-label", "alice，打开账户菜单");
   });
 
   it("hides the label at the base breakpoint and restores it from `sm`", () => {

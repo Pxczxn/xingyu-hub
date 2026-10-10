@@ -24,13 +24,27 @@ import { cn } from "@/lib/cn";
  *   - 通知设置      backend has no notification-preferences endpoint.
  *   - 安全事件      backend WRITES `auth_security_event` rows but exposes no
  *                  endpoint to READ them back.
- *   - 头像          real capability via a side channel, deferred to its own stage.
  *
  * ⚠️ CORRECTED in Phase 3H: this comment previously claimed that 修改邮箱 is
  * gated behind "an email verification link (human gate)" and that 数据导出 has
  * "no backend capability". BOTH WERE WRONG — `POST /me/email/change` and
  * `GET /me/data-export` are real self-service endpoints, and the account
  * deactivation endpoint exists too. Those three pages are now built.
+ *
+ * ⚠️ CORRECTED again in the 2026-10-08 audit: this comment still listed 头像 as
+ * "real capability via a side channel, deferred to its own stage". It is NOT
+ * deferred — avatar upload and display already work and are covered by
+ * SettingsProfilePage's tests. The claim was simply stale.
+ *
+ * 2026-10-08 (Settings Contract Recovery): 停用账号 is now reachable from here.
+ * The audit found it had NO entry anywhere in the product — grep found zero links
+ * to `/settings/data/delete-account`, so the page could only be reached by typing
+ * the URL. An irreversible action being unreachable is not a safety property.
+ *
+ * It is placed LAST and, on the vertical rail, given a top border plus muted
+ * (not red) styling on purpose: discoverable, but visually not competing with the
+ * seven routine destinations above it. Making it red would shout at everyone on
+ * every visit to Settings; the page it leads to is where the danger lives.
  */
 const SETTINGS_NAV = [
   { label: "资料", to: "/settings/profile", icon: UserRound },
@@ -40,6 +54,7 @@ const SETTINGS_NAV = [
   { label: "屏蔽", to: "/settings/blocks", icon: ShieldOff },
   { label: "API Token", to: "/settings/api-tokens", icon: KeyRound },
   { label: "数据导出", to: "/settings/data/export", icon: Database },
+  { label: "停用账号", to: "/settings/data/delete-account", icon: ShieldOff, danger: true },
 ];
 
 export function SettingsNav() {
@@ -59,15 +74,21 @@ export function SettingsNav() {
         {SETTINGS_NAV.map((item) => {
           const Icon = item.icon;
           return (
-            <li key={item.to} className="shrink-0">
+            <li
+              key={item.to}
+              className={cn("shrink-0", item.danger && "md:mt-2 md:border-t md:border-border md:pt-2")}
+            >
               <NavLink
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors",
                     isActive
-                      ? "bg-muted font-medium text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ? cn("bg-muted font-medium text-primary", item.danger && "text-destructive")
+                      : cn(
+                          "text-muted-foreground hover:bg-muted hover:text-foreground",
+                          item.danger && "hover:text-destructive",
+                        ),
                   )
                 }
               >

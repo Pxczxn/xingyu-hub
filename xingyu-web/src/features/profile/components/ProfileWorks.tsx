@@ -13,7 +13,7 @@ export function ProfileWorks({ works }: { works: SpaceWorks }) {
         data-testid="works-empty"
         className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
       >
-        还没有公开作品。
+        还没有公开文章。
       </p>
     );
   }

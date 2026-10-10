@@ -73,8 +73,16 @@ export function AnnouncementDetailPage() {
       asking "does this apply to me, and from when?". A badge states the document
       type, and the date sits in its own meta strip rather than as a loose line of
       grey text under the title, because for a notice the date is load-bearing.
+
+      阅读宽度：整篇文章包在 max-w-[68ch] 里。
+      原先只有正文块限宽（598px），而 header 与 article 铺满 1152px —— 结果是
+      "大壳包窄正文"：标题下的分隔线、meta strip 都拉到 1152px，正文却在左边缩到 598px，
+      右侧约 550px 纯空白。改成让**同一个 measure** 承载 header + 正文 + 返回链接，
+      外壳宽度就等于真实阅读宽度。
+      刻意**不**把正文拉宽来填空：68ch 是全站既有的阅读行宽（见 ArticleDetailPage /
+      GuideBody），公告没有理由偏离。
     */
-    <article className="section-gap">
+    <article className="section-gap max-w-[68ch]">
       <BackToList />
 
       <header className="border-b border-border/70 pb-5">
@@ -94,7 +102,7 @@ export function AnnouncementDetailPage() {
         ) : null}
       </header>
 
-      <div className="max-w-[68ch] whitespace-pre-wrap text-[15px] leading-8 text-foreground">
+      <div className="whitespace-pre-wrap text-[15px] leading-8 text-foreground">
         {item.body || "该公告暂未提供正文。"}
       </div>
     </article>

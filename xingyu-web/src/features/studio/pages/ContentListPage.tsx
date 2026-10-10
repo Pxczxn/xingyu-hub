@@ -160,7 +160,9 @@ export function ContentListPage() {
         <Counter value={counters.published} label="已发布" />
         <Counter value={counters.draft} label="草稿" />
         <Counter value={counters.review} label="审核中" />
-        <Counter value={counters.returned} label="被退回" />
+        {/* 「被退回」计数与 Tab 一同下线（Studio Seal Final Closure）：后端无完整
+            的"每篇文章最新审核结果"查询，展示不完整窗口即虚假承诺。见
+            docs/studio-static-design-final-fix-2026-10-09.md Product Debt。 */}
       </div>
 
       <nav aria-label="内容状态筛选" className="flex flex-wrap gap-2">
@@ -248,7 +250,7 @@ export function ContentListPage() {
                       type="button"
                       disabled={busyId === article.id}
                       onClick={() => void moveToTrash(article)}
-                      className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      className="text-sm text-destructive hover:opacity-80 disabled:opacity-50"
                     >
                       {busyId === article.id ? "移入中…" : "移入回收站"}
                     </button>
@@ -373,8 +375,6 @@ function emptyTitle(tab: Tab): string {
       return "没有草稿";
     case "reviewing":
       return "没有审核中的文章";
-    case "returned":
-      return "没有被退回的文章";
     default:
       return "还没有文章";
   }
@@ -388,8 +388,6 @@ function emptyHint(tab: Tab): string {
       return "点「新建文章」开始写第一篇。";
     case "reviewing":
       return "提交审核的稿件会出现在这里。";
-    case "returned":
-      return "被审核退回的稿件会出现在这里，可以修改后重新提交。";
     default:
       return "点「新建文章」开始写第一篇。";
   }

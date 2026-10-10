@@ -36,7 +36,7 @@ export function AnnouncementPanel({
         <h2 id="home-announcements" className="text-sm font-semibold text-primary">
           社区公告
         </h2>
-        <Link to="/announcements" className="shrink-0 text-xs text-accent hover:underline">
+        <Link to="/announcements" className="shrink-0 text-xs text-accent-strong hover:underline">
           全部 ›
         </Link>
       </div>
@@ -53,7 +53,7 @@ export function AnnouncementPanel({
                 >
                   <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" />
                   <span className="min-w-0 flex-1">
-                    <span className="block font-medium text-foreground hover:text-accent">
+                    <span className="block font-medium text-foreground hover:text-accent-strong">
                       {item.title}
                     </span>
                     {item.body ? (

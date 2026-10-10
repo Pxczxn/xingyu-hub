@@ -108,6 +108,34 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return data as T;
 }
 
+/**
+ * Fetch an authenticated binary resource.
+ *
+ * WHY: `<img src>` / `<a href>` cannot carry the `satoken` header, so any
+ * member-checked attachment has to be fetched with the same headers as every other
+ * call and turned into an object URL by the caller. Returning a Blob keeps the
+ * token handling in one place instead of growing a second auth path.
+ *
+ * The 401 behaviour matches {@link apiRequest}: a dead session clears the token so
+ * the shell can bounce to login.
+ */
+export async function apiRequestBlob(path: string): Promise<Blob> {
+  const token = getStoredToken();
+  const response = await fetch(resolveApiUrl(path), {
+    method: "GET",
+    headers: token ? { satoken: token } : {},
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 && token) setStoredToken(null);
+    // Read as text so the ProblemDetails shape still produces a real ApiError.
+    const data = await response.json().catch(() => null);
+    throw new ApiError(toProblemDetails(data, response.status, response.statusText));
+  }
+  return response.blob();
+}
+
 export async function apiUpload<T>(path: string, file: File): Promise<T> {
   const token = getStoredToken();
   const headers: Record<string, string> = {};

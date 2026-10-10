@@ -1,3 +1,4 @@
+import type { UploadedFile } from "@/api/files/files.types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ApiError } from "@/api/client";
@@ -47,7 +48,7 @@ function created(overrides: Partial<ChatMessage> = {}): ChatMessage {
     sequenceNumber: 1,
     body: "",
     messageType: "IMAGE",
-    attachmentUrl: "/files/a.png",
+    attachmentUrl: "/files/a.png", attachmentFileId: 9,
     attachmentName: "a.png",
     createdAt: "2026-09-27T02:00:00Z",
     recalledAt: null,
@@ -118,6 +119,7 @@ describe("AttachmentPicker — the two-step send", () => {
       url: "/api/v1/admin/files/community/messages/a.png",
       name: "照片.png",
       mimeType: "image/png",
+      fileId: 9,
     });
     const message = created({ attachmentUrl: "/api/v1/admin/files/community/messages/a.png" });
     mockedMessages.sendAttachment.mockResolvedValue(message);
@@ -129,6 +131,7 @@ describe("AttachmentPicker — the two-step send", () => {
         url: "/api/v1/admin/files/community/messages/a.png",
         name: "照片.png",
         mimeType: "image/png",
+        fileId: 9,
       };
     });
     mockedMessages.sendAttachment.mockImplementation(async () => {
@@ -148,6 +151,8 @@ describe("AttachmentPicker — the two-step send", () => {
       url: "/api/v1/admin/files/community/messages/a.png",
       name: "照片.png",
       messageType: "IMAGE",
+      // 2026-10-06: forwarded so the message row can be authorized on download.
+      fileId: 9,
     });
   });
 
@@ -156,6 +161,7 @@ describe("AttachmentPicker — the two-step send", () => {
       url: "/files/a.pdf",
       name: "报告.pdf",
       mimeType: "application/pdf",
+      fileId: 9,
     });
     mockedMessages.sendAttachment.mockResolvedValue(created({ messageType: "FILE" }));
 
@@ -175,6 +181,7 @@ describe("AttachmentPicker — the two-step send", () => {
       url: "/files/a.png",
       name: "a.png",
       mimeType: "image/png",
+      fileId: 9,
     });
     mockedMessages.sendAttachment.mockResolvedValue(created({ conversationType: "GROUP" }));
 
@@ -207,6 +214,7 @@ describe("AttachmentPicker — failures name the step", () => {
       url: "/files/a.png",
       name: "a.png",
       mimeType: "image/png",
+      fileId: 9,
     });
     mockedMessages.sendAttachment.mockRejectedValue(new Error("boom"));
 
@@ -223,6 +231,7 @@ describe("AttachmentPicker — failures name the step", () => {
       url: "/files/a.png",
       name: "a.png",
       mimeType: "image/png",
+      fileId: 9,
     });
     mockedMessages.sendAttachment.mockRejectedValue(
       new ApiError({
@@ -257,6 +266,7 @@ describe("AttachmentPicker — repeat attempts", () => {
       url: "/files/a.png",
       name: "a.png",
       mimeType: "image/png",
+      fileId: 9,
     });
     mockedMessages.sendAttachment.mockResolvedValue(created());
     pick(file);
@@ -279,7 +289,7 @@ describe("AttachmentPicker — busy state", () => {
   });
 
   it("shows 上传中… and blocks a second pick while working", async () => {
-    let release: (value: { url: string; name: string; mimeType: string }) => void = () => {};
+    let release: (value: UploadedFile) => void = () => {};
     mockedFiles.uploadFile.mockReturnValue(
       new Promise((resolve) => {
         release = resolve;
@@ -293,7 +303,7 @@ describe("AttachmentPicker — busy state", () => {
     expect(await screen.findByRole("button", { name: "添加附件" })).toBeDisabled();
     expect(screen.getByText("上传中…")).toBeInTheDocument();
 
-    release({ url: "/files/a.png", name: "a.png", mimeType: "image/png" });
+    release({ url: "/files/a.png", name: "a.png", mimeType: "image/png", fileId: 9 } as never);
     await waitFor(() => expect(screen.getByText("附件")).toBeInTheDocument());
   });
 });

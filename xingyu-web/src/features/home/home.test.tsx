@@ -152,7 +152,9 @@ describe("home (guest)", () => {
     expect(screen.getByRole("tab", { name: "推荐" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "关注" })).toBeInTheDocument();
     expect(await screen.findByText("游客推荐条目")).toBeInTheDocument();
-    // The announcement is integrated into the hero when a real item exists.
+    // An announcement renders as an inline notice line between the masthead and the
+    // tabs — not a rail module (the rail stacks below the feed on narrow screens)
+    // and not a card.
     expect(await screen.findByRole("link", { name: "社区公告一" })).toBeInTheDocument();
     // 继续阅读 is signed-in only.
     expect(screen.queryByRole("heading", { name: "继续阅读" })).not.toBeInTheDocument();
@@ -176,7 +178,7 @@ describe("home (guest)", () => {
     expect(screen.getByRole("tab", { name: "关注" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("offers 加入星语 / 登录 to a guest and hides them for a member", async () => {
+  it("offers exactly one guest CTA — 加入星语 — and hides it for a member", async () => {
     homeMocked.getGuestHome.mockResolvedValue(
       guestHome({ discoveries: [{ id: "d1", title: "X" }] }),
     );
@@ -187,7 +189,12 @@ describe("home (guest)", () => {
       "href",
       "/register",
     );
-    expect(screen.getByRole("link", { name: "登录" })).toHaveAttribute("href", "/login");
+    /*
+     * 登录 is deliberately NOT in the masthead. The shell header already carries a
+     * 登录 entry on every route, so a second one here would offer the same action
+     * twice within one first screen. The masthead keeps only the gold primary CTA.
+     */
+    expect(screen.queryByRole("link", { name: "登录" })).not.toBeInTheDocument();
     unmount();
 
     // Same page, signed in: the CTA is gone because it has nothing to offer.
@@ -279,6 +286,60 @@ describe("home (authenticated)", () => {
     expect(document.body.textContent).not.toMatch(/\d+\s*%/);
   });
 
+  it("shows a real last-read time for a series, and never the index time", async () => {
+    homeMocked.getMyHome.mockResolvedValue({
+      continueReading: [
+        {
+          id: "s1",
+          objectType: "SERIES",
+          title: "无章节的系列",
+          updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: "a1",
+          objectType: "ARTICLE",
+          title: "系列已消失的兜底条目",
+          updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        },
+      ],
+      followUpdates: [],
+      recommendations: [],
+      draftArticles: [],
+      pendingActions: [],
+    });
+
+    renderHome();
+    expect(await screen.findByText("无章节的系列")).toBeInTheDocument();
+
+    const strip = screen.getByRole("heading", { name: "继续阅读" }).closest("section")!;
+    /*
+     * `ReadingService.toContinueReadingCard` fills `updatedAt` two ways: the SERIES
+     * branch uses `series_reader_state.last_read_at` (a real last-read time), while
+     * the ARTICLE fallback uses `search_document.indexed_at` (an index-write time).
+     * Only the first is allowed to render, so exactly ONE card shows a time here.
+     */
+    expect((strip.textContent!.match(/小时前|天前|分钟前/g) ?? []).length).toBe(1);
+    // And nothing else on the page invents a time either.
+    expect((document.body.textContent!.match(/小时前|天前|分钟前/g) ?? []).length).toBe(1);
+  });
+
+  it("renders no strip at all when there is nothing to continue", async () => {
+    homeMocked.getMyHome.mockResolvedValue({
+      continueReading: [],
+      followUpdates: [],
+      recommendations: [{ id: "r1", title: "为我推荐" }],
+      draftArticles: [],
+      pendingActions: [],
+    });
+
+    renderHome();
+    await screen.findByText("为我推荐");
+
+    // No heading, no progressbar, no empty box left behind in the feed column.
+    expect(screen.queryByRole("heading", { name: "继续阅读" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
   it("renders a follow button that flips only after the request succeeds", async () => {
     topicsMocked.getTopics.mockResolvedValue([{ id: "t1", slug: "ai", name: "AI" }]);
     topicsMocked.getTopicCreators.mockResolvedValue([
@@ -362,7 +423,14 @@ describe("home feed rows", () => {
 
     expect(await screen.findByText("带富化字段的条目")).toBeInTheDocument();
     expect(screen.getByText("林深")).toBeInTheDocument();
-    expect(screen.getByText("3 小时前")).toBeInTheDocument();
+    /*
+     * NO TIME, even though the row carries `updatedAt`. On the home endpoint that
+     * field is `search_document.indexed_at` — the moment the index row was last
+     * written, not a publication time — so rendering it as 「3 小时前」 would assert
+     * a fact the data does not hold. See the doc comment in HomeFeedItem.
+     */
+    expect(screen.queryByText("3 小时前")).not.toBeInTheDocument();
+    expect(screen.queryByText(/小时前|天前/)).not.toBeInTheDocument();
     expect(screen.getByText("#设计系统")).toBeInTheDocument();
     expect(screen.getByLabelText("128 次点赞")).toBeInTheDocument();
     expect(screen.getByLabelText("12 条评论")).toBeInTheDocument();
@@ -370,6 +438,76 @@ describe("home feed rows", () => {
     // The bare row must not borrow the rich row's data.
     expect(screen.queryByText("0 次点赞")).not.toBeInTheDocument();
     expect(screen.getAllByLabelText(/次点赞/)).toHaveLength(1);
+  });
+});
+
+describe("home feed byline", () => {
+  it("is 作者 · 类型 — type as plain metadata, tags still pills", async () => {
+    homeMocked.getGuestHome.mockResolvedValue(
+      guestHome({
+        discoveries: [
+          {
+            id: "d1",
+            objectType: "SERIES",
+            title: "一个系列",
+            authorName: "林深",
+            updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+            tags: ["设计系统"],
+          },
+        ],
+      }),
+    );
+
+    renderHome();
+    await screen.findByText("一个系列");
+
+    const byline = screen.getByTestId("feed-byline");
+    // Author, one separator, type. No time, because none of it is trustworthy.
+    expect(byline.textContent).toBe("林深·系列");
+
+    /*
+     * The type left the pill. `rounded-full bg-muted` is the shape the TOPIC tags
+     * use, so a type chip said "what kind of thing is this" and "what is this
+     * about" in the same visual language. Asserted on the class contract rather
+     * than on computed style, because tests run without the stylesheet.
+     */
+    const type = screen.getByText("系列");
+    expect(type.className).not.toContain("rounded-full");
+    expect(type.className).not.toContain("bg-muted");
+    // The topic tag keeps it.
+    expect(screen.getByText("#设计系统").className).toContain("rounded-full");
+  });
+
+  it("never leaves a dangling separator when the author is missing", async () => {
+    homeMocked.getGuestHome.mockResolvedValue(
+      guestHome({ discoveries: [{ id: "d1", objectType: "ARTICLE", title: "无作者条目" }] }),
+    );
+
+    renderHome();
+    await screen.findByText("无作者条目");
+
+    const byline = screen.getByTestId("feed-byline");
+    expect(byline.textContent).toBe("文章");
+    expect(byline.textContent).not.toContain("·");
+  });
+
+  it("drops the avatar in discovery and keeps it in the subscription feed", async () => {
+    homeMocked.getGuestHome.mockResolvedValue(
+      guestHome({
+        discoveries: [{ id: "d1", objectType: "ARTICLE", title: "推荐条目", authorName: "林深" }],
+        followingUpdates: [{ id: "f1", objectType: "ARTICLE", title: "关注条目", authorName: "林深" }],
+      }),
+    );
+
+    renderHome();
+    await screen.findByText("推荐条目");
+    // Discovery scans by content, so its rows carry no author avatar at all.
+    expect(screen.queryByTestId("feed-avatar")).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: "关注" }));
+    await screen.findByText("关注条目");
+    // Subscription scans by who published, so the avatar stays.
+    expect(screen.getByTestId("feed-avatar")).toBeInTheDocument();
   });
 });
 
@@ -574,11 +712,10 @@ describe("home feed 点赞", () => {
   });
 });
 
-describe("home hero", () => {
-  /** HomeHeroArt is the only SVG in the app with this viewBox. */
-  const ARTWORK = 'svg[viewBox="0 0 320 190"]';
+describe("home masthead", () => {
+  const ARTWORK = '[data-testid="home-hero-art"]';
 
-  it("gives a guest the full banner, artwork and all", async () => {
+  it("is the home's own masthead: no banner surface, and no decorative artwork", async () => {
     homeMocked.getGuestHome.mockResolvedValue(
       guestHome({ discoveries: [{ id: "d1", title: "游客条目" }] }),
     );
@@ -586,13 +723,26 @@ describe("home hero", () => {
     const { container } = renderHome();
     await screen.findByText("游客条目");
 
-    const hero = container.querySelector("section");
-    expect(hero).not.toBeNull();
-    expect(hero).not.toHaveAttribute("data-compact");
-    expect(hero!.querySelector(ARTWORK)).not.toBeNull();
+    /*
+     * A0 (2026-10-04): Home left PageHero.
+     *
+     * The ambient artwork carried no information — it did not illustrate the
+     * sentence next to it — and the banner card made the masthead a second white
+     * surface stacked above the feed panel. Both are gone, so the masthead is the
+     * top of the SAME column the tabs and the feed sit in.
+     */
+    expect(container.querySelector(ARTWORK)).toBeNull();
+
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveTextContent("把灵感，放进自己的星系");
+
+    // A plain header, not a surface: no card fill, no border of its own.
+    const masthead = heading.closest("header");
+    expect(masthead).not.toBeNull();
+    expect(masthead!.className).not.toContain("bg-card");
   });
 
-  it("gives a signed-in reader a compact greeting instead of the full banner", async () => {
+  it("gives a returning reader a one-line greeting instead of the pitch", async () => {
     setStoredToken("tok");
     authMocked.getMe.mockResolvedValue(ME);
     homeMocked.getMyHome.mockResolvedValue({
@@ -606,10 +756,53 @@ describe("home hero", () => {
     const { container } = renderHome();
     await screen.findByText("为我推荐");
 
-    // The prototype asks for 「登录：简洁欢迎语，不占太多空间」: no artwork, no corner
-    // glow, smaller title — the feed starts higher up the page.
-    const hero = container.querySelector("section");
-    expect(hero).toHaveAttribute("data-compact", "true");
-    expect(hero!.querySelector(ARTWORK)).toBeNull();
+    /*
+     * 「登录：简洁欢迎语，不占太多空间」 is now expressed by CONTENT, not by a
+     * `compact` flag: a returning reader gets a one-line greeting and no pitch, so
+     * the block is shorter because there is less in it.
+     */
+    expect(container.querySelector(ARTWORK)).toBeNull();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "欢迎回来，继续探索你的关注、阅读与创作。",
+    );
+    expect(screen.queryByRole("link", { name: /加入星语/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("home notice", () => {
+  it("costs zero footprint when there is no announcement", async () => {
+    homeMocked.getAnnouncements.mockResolvedValue([]);
+    homeMocked.getGuestHome.mockResolvedValue(
+      guestHome({ discoveries: [{ id: "d1", title: "游客条目" }] }),
+    );
+
+    renderHome();
+    await screen.findByText("游客条目");
+
+    // "no announcement" must cost zero height — not an empty box, not a label.
+    expect(screen.queryByTestId("home-notice")).not.toBeInTheDocument();
+  });
+
+  it("renders between the masthead and the tab list when one exists", async () => {
+    homeMocked.getAnnouncements.mockResolvedValue([
+      { id: "n1", title: "社区公告一", body: "内容" },
+    ]);
+    homeMocked.getGuestHome.mockResolvedValue(
+      guestHome({ discoveries: [{ id: "d1", title: "游客条目" }] }),
+    );
+
+    renderHome();
+    await screen.findByText("游客条目");
+
+    const notice = await screen.findByTestId("home-notice");
+    const masthead = screen.getByRole("heading", { level: 1 }).closest("header");
+    const tablist = screen.getByRole("tablist");
+
+    expect(masthead).not.toBeNull();
+    // Document order: masthead → notice → tabs. Not inside either of them.
+    expect(masthead!.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(notice.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // It is a notice LINE, not a surface.
+    expect(notice.className).not.toMatch(/bg-card|border(?!-)/);
   });
 });

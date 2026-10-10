@@ -28,7 +28,12 @@ vi.mock("@/api/home/home.api", () => ({
 }));
 
 vi.mock("@/api/notifications/notifications.api", () => ({
-  notificationsApi: { list: vi.fn(async () => []), markRead: vi.fn(), markAllRead: vi.fn() },
+  notificationsApi: {
+    list: vi.fn(async () => []),
+    getUnreadCount: vi.fn(async () => 0),
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+  },
 }));
 
 function LocationProbe() {

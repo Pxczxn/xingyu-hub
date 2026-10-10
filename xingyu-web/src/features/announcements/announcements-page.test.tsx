@@ -94,6 +94,36 @@ describe("AnnouncementsPage", () => {
     expect(screen.getByRole("heading", { name: "维护通知" })).toBeInTheDocument();
   });
 
+  /*
+   * 列表预览：标题之外给一行纯文本正文，帮读者判断要不要点开。
+   * 不代表它可以变成文章卡片 —— 所以只断言"正文出现了、且被压成单行"。
+   */
+  it("shows the body as a light single-line preview under the title", async () => {
+    mocked.list.mockResolvedValue([
+      { ...ITEM, body: "第一行\n\n第二行\t带制表符   多空格" },
+    ]);
+    renderList();
+
+    const preview = await screen.findByText("第一行 第二行 带制表符 多空格");
+    expect(preview).toBeInTheDocument();
+    expect(preview.className).toContain("line-clamp-2");
+    // 预览必须是纯文本，不能把换行原样交给 DOM（否则行数不可控）。
+    expect(preview.textContent).not.toContain("\n");
+  });
+
+  it("omits the preview line entirely when the body is missing or blank", async () => {
+    mocked.list.mockResolvedValue([
+      { id: "a", title: "无正文公告", publishedAt: ITEM.publishedAt },
+      { id: "b", title: "空白正文公告", body: "   \n  ", publishedAt: ITEM.publishedAt },
+    ]);
+    renderList();
+
+    await screen.findByRole("heading", { name: "无正文公告" });
+    // 只有 title + time 两个段落，不出现空的 <p> 预览
+    const card = screen.getByRole("heading", { name: "无正文公告" }).closest("a");
+    expect(card?.querySelectorAll("p").length).toBe(1);
+  });
+
   it("shows a list error state when the request fails", async () => {
     mocked.list.mockRejectedValue(genericError());
     renderList();

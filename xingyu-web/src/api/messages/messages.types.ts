@@ -99,12 +99,29 @@ export type GroupRole = "OWNER" | "ADMIN" | "MEMBER";
 
 export type JoinMode = "OPEN" | "APPROVAL";
 
+export type ChatMessageSender = {
+  /** 稳定 userId，等于 ChatMessage.senderId。 */
+  userId: string;
+  /** 当前 canonical username（读取时现查 profile）→ /u/{username}；profile 缺失时 null。 */
+  username: string | null;
+  /** 当前展示名；可能为 null，前端回落到 username。 */
+  displayName: string | null;
+  /** 当前头像（profile.settings_json.avatar）；可能为 null。 */
+  avatar?: string | null;
+};
+
 export type ChatMessage = {
   id: string;
   conversationId: string;
   /** Null on `/messages/search` hits (the service does not fill it there). */
   conversationType?: ConversationType | null;
   senderId: string;
+  /**
+   * 结构化发送者（2026-10-06）。由服务端按 senderId **现查** profile 得到，所以发送者
+   * 改名后历史消息仍显示并链接到当前身份。profile 缺失时为 null —— 此时退化为不显示名字，
+   * 不要用 `senderId` 拼 UI。
+   */
+  sender?: ChatMessageSender | null;
   /** Ordering key + read cursor. Never null (service defaults it to 0). */
   sequenceNumber: number;
   /** 「[消息已撤回]」 for a recalled message. */
@@ -112,9 +129,26 @@ export type ChatMessage = {
   messageType: MessageType;
   attachmentUrl?: string | null;
   attachmentName?: string | null;
+  /**
+   * `sys_file.id`。**下载附件用它而不是 attachmentUrl** —— url 是展示地址，其目录已被
+   * 静态文件控制器拒绝，必须走带 membership 校验的受鉴权端点。
+   */
+  attachmentFileId?: number | null;
   createdAt?: string | null;
   /** Non-null == recalled. Render as a tombstone, not as content. */
   recalledAt?: string | null;
+  /**
+   * 撤回截止时刻，由服务端按同一套窗口规则算出（2026-10-06）。
+   *
+   * 用它而不在前端写死 120 秒：那个常量属于服务端策略，复制一份必然漂移。超窗后按钮不再出现，
+   * 而真撞上边界时服务端仍会 409，调用方照常处理。已撤回的消息为 null。
+   */
+  recallUntil?: string | null;
+  /**
+   * DIRECT 会话里「对方」的展示名 —— **只在搜索命中行上有值**。
+   * 搜索跨会话，不带它的话结果行既不知道谁说的也不知道来自哪个会话（实测两项都缺）。
+   */
+  counterpartDisplayName?: string | null;
 };
 
 export type Conversation = {
@@ -160,6 +194,80 @@ export type MessagePage = {
   nextCursor?: string | null;
   total?: number | null;
 };
+
+/**
+ * `GET /messages/{id}/messages/after` 的形状（2026-10-06，重连对账用）。
+ *
+ * 刻意与 {@link MessagePage} 不同：那里 `nextCursor` 表示「更旧」，这里表示「之后」，
+ * 方向相反。同一个 `items/nextCursor` 形状用在两个方向上极易写反，所以换名字。
+ */
+export type MessageBackfill = {
+  /**
+   * 升序（sequence ASC）。
+   *
+   * 不传 `afterSequence` 时**从最早开始**返回 —— 「没有游标」被定义成「从头开始」，
+   * 不是「最新一页」。客户端实际总是传本地已知最大序号，所以这条分支只是为了把语义
+   * 钉死，避免有人以为它等价于首屏。
+   */
+  messages: ChatMessage[];
+  /** 还有更新的消息 —— 需要再对账一轮。 */
+  hasMore: boolean;
+};
+
+/**
+ * 搜索落点查询的结果（`GET /messages/{id}/messages/around`）。
+ *
+ * 一次请求返回「目标之前 + 目标 + 目标之后」的一小段升序消息，所以从搜索点进一条很旧的
+ * 消息**不需要**从最新一页一路往前翻。
+ */
+export type MessageContext = {
+  messages: ChatMessage[];
+  /** 目标序号是否命中；false 表示这条消息已不在库里。 */
+  found: boolean;
+  /** 目标序号，便于调用方对齐。 */
+  sequence: number;
+};
+
+/**
+ * 搜索结果跳进会话时带的定位参数（放在 URL 上，刷新/分享都成立）。
+ *
+ * 两个参数：id 是稳定标识，sequence 让会话页**一次**取回目标附近的窗口 —— 只带 id 就得
+ * 先反查序号，那正是要避免的额外往返。
+ */
+export const MESSAGE_LOCATOR_PARAM = "m";
+export const MESSAGE_SEQUENCE_PARAM = "s";
+
+/**
+ * 连续消息里是否该显示时间（2026-10-06）。
+ *
+ * 规则很简单且确定：**分钟值变化时才显示**，同一分钟的后续消息省略。
+ * 起因是实测证据：一屏 6 条同一分钟的消息，各带一个完全相同的完整时间戳，纯噪音。
+ *
+ * 不做「今天/昨天/N 分钟前」那类聚合 —— 那需要额外的日历边界推理，而收益与风险不成比例。
+ */
+export function shouldShowMessageTime(current: ChatMessage, previous?: ChatMessage): boolean {
+  if (!previous) return true;
+  const a = current.createdAt ? new Date(current.createdAt).getTime() : Number.NaN;
+  const b = previous.createdAt ? new Date(previous.createdAt).getTime() : Number.NaN;
+  if (Number.isNaN(a) || Number.isNaN(b)) return true;
+  return Math.floor(a / 60_000) !== Math.floor(b / 60_000);
+}
+
+/**
+ * 受鉴权的附件地址（2026-10-06）。
+ *
+ * 之前的附件直接指向 `/api/v1/admin/files/community/messages/<hash>`，那条路径**不做会话
+ * 校验**（实测不带 token 返回 200）。现在该目录被静态控制器拒绝，字节只能经这个端点取，
+ * 而它会先校验你是不是该会话成员。
+ *
+ * 注意：`<img src>` 带不上 satoken 头，所以调用方需要用带鉴权的请求取回字节再转 object
+ * URL（见 `useAuthenticatedAttachmentUrl`），不能直接把本函数的结果塞进 src。
+ */
+export function messageAttachmentPath(conversationId: string, messageId: string): string {
+  return `/api/v1/messages/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(
+    messageId,
+  )}/attachment`;
+}
 
 /**
  * `MyGroupJoinRequestView` (Phase 3C).
@@ -220,6 +328,11 @@ export type SendMessagePayload = {
   type?: MessageType;
   attachmentUrl?: string | null;
   attachmentName?: string | null;
+  /**
+   * `sys_file.id` from the upload step. Required for the message to be downloadable —
+   * without it the row has no way to be authorized on read.
+   */
+  attachmentFileId?: number | null;
   /**
    * Idempotency key. The backend returns the existing message when the same
    * (conversationId, senderId, clientMessageId) triple is replayed, so a retry

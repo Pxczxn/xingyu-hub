@@ -33,9 +33,7 @@ const SERIES = {
   title: "星语开发日志",
   slug: "xing-yu-kai-fa-ri-zhi",
   description: "系列简介",
-  status: "ACTIVE" as const,
-  lockVersion: 2,
-  updatedAt: "2026-09-27T10:00:00Z",
+  author: { username: "alice", displayName: "Alice", avatar: null },
   chapters: [
     { id: "ch-2", articleId: "art-2", title: "第二章", position: 2 },
     { id: "ch-1", articleId: "art-1", title: "第一章", position: 1 },
@@ -119,6 +117,12 @@ describe("PublicSeriesDetailPage", () => {
     const link = await screen.findByRole("link", { name: "登录后订阅" });
     expect(link).toHaveAttribute("href", "/login?returnTo=%2Fseries%2Fser-1");
     expect(screen.queryByRole("button", { name: "订阅系列" })).not.toBeInTheDocument();
+  });
+
+  it("shows the public author homepage link", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    renderDetail();
+    expect(await screen.findByRole("link", { name: "Alice" })).toHaveAttribute("href", "/u/alice");
   });
 
   it("shows a subscribe button to signed-in users", async () => {

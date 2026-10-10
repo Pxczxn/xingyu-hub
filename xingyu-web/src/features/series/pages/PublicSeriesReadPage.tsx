@@ -152,8 +152,8 @@ export function PublicSeriesReadPage() {
                 )}
               >
                 <span className="mr-2 tabular-nums">{String(index + 1).padStart(2, "0")}</span>
-                {/* chapter.title is always null on the backend; use the article
-                    title once loaded, else a positional label. */}
+                {/* Prefer the loaded article title, then the chapter title from
+                    the series contract, with a positional fallback. */}
                 {index === currentIndex && article?.title
                   ? article.title
                   : chapter.title?.trim() || `第 ${chapter.position} 章`}
@@ -210,10 +210,8 @@ export function PublicSeriesReadPage() {
 
             <div className="mx-auto mt-4" style={{ fontSize, maxWidth: width }}>
               <h1 className="text-2xl font-semibold text-primary">
-                {/* The series chapter carries its own `title`, but the backend
-                    returns null when the chapter was created without one. While
-                    the article is still loading we avoid the misleading
-                    "无标题文章" fallback and show a neutral placeholder instead. */}
+                {/* Prefer the chapter title when the article is unavailable; the
+                    API may omit it when the search document has no title. */}
                 {article?.title
                   ? article.title
                   : articleState === "loading"

@@ -7,6 +7,7 @@ import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth.store";
 import { PageHero } from "@/components/shared/PageHero";
+import { LostOrbit } from "@/components/shared/illustrations";
 
 type LoadState = "loading" | "error" | "ready";
 
@@ -72,6 +73,7 @@ export function MomentsPage() {
         eyebrow="MOMENTS"
         title="动态"
         description="分享此刻的想法，也看看社区正在发生什么。"
+        illustration={<LostOrbit className="h-28 w-auto" />}
         tone="violet"
       />
 
@@ -137,7 +139,11 @@ export function MomentsPage() {
       )}
 
       {items.length === 0 ? (
-        <PageState kind="empty" title="暂时还没有动态" />
+        <PageState
+          kind="empty"
+          title="暂时还没有动态"
+          className="p-4 [&>svg]:mb-2 [&>svg]:h-12"
+        />
       ) : (
         /*
           Feed, not a list of identical grey cards.

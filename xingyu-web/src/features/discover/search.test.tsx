@@ -60,6 +60,28 @@ describe("search page", () => {
       expect(mocked.search).toHaveBeenCalledWith(expect.objectContaining({ q: "spring" }));
     });
     expect(await screen.findByText("Spring 实战笔记")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "最新" })).not.toBeInTheDocument();
+    expect(mocked.search).toHaveBeenCalledWith(expect.objectContaining({ sort: "hot" }));
+  });
+
+  it("distinguishes result types and links a user by the canonical username", async () => {
+    mocked.search.mockResolvedValue({
+      items: [
+        { id: "a1", title: "文章结果", objectType: "ARTICLE" },
+        { id: "s1", title: "系列结果", objectType: "SERIES" },
+        { id: "m1", title: "动态结果", objectType: "MOMENT" },
+        { id: "xchen", title: "X Chen", summary: "公开简介", objectType: "USER" },
+      ],
+      total: 4,
+    });
+
+    renderAt("/search?q=xchen");
+
+    expect(await screen.findByRole("link", { name: "X Chen" })).toHaveAttribute("href", "/u/xchen");
+    expect(screen.getByText("@xchen")).toBeInTheDocument();
+    for (const label of ["文章", "系列", "动态", "用户"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
   });
 
   it("does not query the API when the query is empty", () => {

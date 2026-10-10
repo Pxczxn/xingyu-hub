@@ -23,15 +23,24 @@
  */
 import type { MyArticleSummary, TrashItem } from "@/api/articles/articles.types";
 
-/** Tabs on the content-management page. `trash` is fed by a different endpoint. */
-export type ContentTab = "all" | "published" | "drafts" | "reviewing" | "returned" | "trash";
+/**
+ * Tabs on the content-management page. `trash` is fed by a different endpoint.
+ *
+ * ⚠️ 「被退回」is deliberately ABSENT (Studio Seal Final Closure, 2026-10-09):
+ * the backend never puts a RETURNED status on the article row (a rejected
+ * submission leaves the article as DRAFT), and `GET /me/submissions` has no
+ * pagination — any client-side "latest rejection" set would be a bounded
+ * window masquerading as complete data. The tab returns when a backend query
+ * can reliably identify each article's latest review outcome.
+ * Product Debt — see docs/studio-static-design-final-fix-2026-10-09.md.
+ */
+export type ContentTab = "all" | "published" | "drafts" | "reviewing" | "trash";
 
 export const CONTENT_TABS: ReadonlyArray<{ id: ContentTab; label: string }> = [
   { id: "all", label: "全部内容" },
   { id: "published", label: "已发布" },
   { id: "drafts", label: "草稿" },
   { id: "reviewing", label: "审核中" },
-  { id: "returned", label: "被退回" },
   { id: "trash", label: "回收站" },
 ];
 
@@ -45,6 +54,7 @@ export const CONTENT_TABS: ReadonlyArray<{ id: ContentTab; label: string }> = [
 const STATUS_LABELS: Record<string, string> = {
   PUBLISHED: "已发布",
   DRAFT: "草稿",
+  IN_REVIEW: "审核中",
   REVIEW: "审核中",
   REVIEWING: "审核中",
   RETURNED: "被退回",
@@ -60,10 +70,18 @@ export function articleStatusLabel(status: string | null | undefined): string {
   return STATUS_LABELS[value.toUpperCase()] ?? value;
 }
 
-/** The two spellings the backend has used for "in the review queue". */
+/**
+ * "In the review queue" recognition.
+ *
+ * The backend's editorial status is `IN_REVIEW` (ArticleStateSupport.
+ * EDITORIAL_IN_REVIEW). `REVIEW`/`REVIEWING` are kept because Legacy tolerated
+ * both spellings, but `IN_REVIEW` is the only value the current server emits —
+ * missing it made the reviewing counter stick at 0 and the reviewing tab
+ * permanently empty (Static Design Audit CB-1, verified in-browser 2026-10-09).
+ */
 export function isReviewing(status: string | null | undefined): boolean {
   const value = (status ?? "").trim().toUpperCase();
-  return value === "REVIEW" || value === "REVIEWING";
+  return value === "IN_REVIEW" || value === "REVIEW" || value === "REVIEWING";
 }
 
 /**
@@ -73,6 +91,9 @@ export function isReviewing(status: string | null | undefined): boolean {
  * different shape from a different endpoint. Returning `[]` makes that explicit
  * rather than letting a caller accidentally render the full list under the
  * trash tab.
+ *
+ * There is NO 「被退回」 case: see the CONTENT_TABS note — identifying returned
+ * articles requires a complete backend query that does not exist yet.
  */
 export function filterByTab(items: MyArticleSummary[], tab: ContentTab): MyArticleSummary[] {
   switch (tab) {
@@ -84,8 +105,6 @@ export function filterByTab(items: MyArticleSummary[], tab: ContentTab): MyArtic
       return items.filter((item) => (item.status ?? "").toUpperCase() === "DRAFT");
     case "reviewing":
       return items.filter((item) => isReviewing(item.status));
-    case "returned":
-      return items.filter((item) => (item.status ?? "").toUpperCase() === "RETURNED");
     case "trash":
       return [];
   }
@@ -95,7 +114,6 @@ export type ContentCounters = {
   published: number;
   draft: number;
   review: number;
-  returned: number;
 };
 
 /** Per-status counts for the overview panel. Counts the WHOLE list, not the tab. */
@@ -104,7 +122,6 @@ export function countByStatus(items: MyArticleSummary[]): ContentCounters {
     published: items.filter((item) => (item.status ?? "").toUpperCase() === "PUBLISHED").length,
     draft: items.filter((item) => (item.status ?? "").toUpperCase() === "DRAFT").length,
     review: items.filter((item) => isReviewing(item.status)).length,
-    returned: items.filter((item) => (item.status ?? "").toUpperCase() === "RETURNED").length,
   };
 }
 

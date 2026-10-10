@@ -225,7 +225,8 @@ export function EventDetailPage() {
           ) : null}
 
           {/* Registration is a separate action, and only meaningful for a
-              signed-in user on a running event. */}
+              signed-in user on an event that has not ended. An ended event keeps
+              no write affordance at all — the server rejects it too. */}
           {isAuthenticated && !ended ? (
             registered ? (
               <Button
@@ -246,7 +247,9 @@ export function EventDetailPage() {
             )
           ) : null}
 
-          {!isAuthenticated ? (
+          {/* 「登录后参与」is an invitation to act; an ended event must not offer
+              it, or it would imply the event is still joinable. */}
+          {!isAuthenticated && !ended ? (
             <Link
               to={`/login?returnTo=${encodeURIComponent(`/events/${event.id}`)}`}
               className={cn(buttonVariants({ variant: "outline" }))}
@@ -330,13 +333,21 @@ export function EventDetailPage() {
           <section className="rounded-lg border border-border bg-card p-4">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
               <Sparkles className="h-4 w-4" aria-hidden />
-              参与方式
+              {ended ? "参与方式（活动规则）" : "参与方式"}
             </h2>
+            {/* Kept as the historical rule set for an ended event, but demoted
+                from an instruction to a record: no imperative verbs, and no
+                「去投稿」entry. */}
             <ol className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground">
               <li>1. 选择自己已发布的文章、系列或动态</li>
               <li>2. 填写投稿说明后提交</li>
               <li>3. 在「我的活动」查看投稿进度</li>
             </ol>
+            {ended ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                活动已结束，以上为本次活动当时的参与规则。
+              </p>
+            ) : null}
             <div className="mt-3 flex flex-col gap-2">
               {canSubmit ? (
                 <Link
@@ -352,15 +363,18 @@ export function EventDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-              <UsersRound className="h-4 w-4" aria-hidden />
-              投稿须知
-            </h2>
-            <p className="mt-2 text-xs text-muted-foreground">
-              只能提交自己已发布的内容。草稿和审核中的文章不在可投稿范围内，投稿后原内容不会被修改。
-            </p>
-          </section>
+          {/* An ended event has no submission rules that can still be acted on. */}
+          {ended ? null : (
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <UsersRound className="h-4 w-4" aria-hidden />
+                投稿须知
+              </h2>
+              <p className="mt-2 text-xs text-muted-foreground">
+                只能提交自己已发布的内容。草稿和审核中的文章不在可投稿范围内，投稿后原内容不会被修改。
+              </p>
+            </section>
+          )}
         </aside>
       </div>
     </div>

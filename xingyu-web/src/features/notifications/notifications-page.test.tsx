@@ -1,15 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { notificationsApi } from "@/api/notifications/notifications.api";
 import { ApiError } from "@/api/client";
 import type { Notification } from "@/api/notifications/notifications.types";
-import { formatNotificationAt, notificationIcon } from "./NotificationRow";
+import { onUnreadChanged } from "./unread-sync";
 import { NotificationsPage } from "./pages/NotificationsPage";
 
 vi.mock("@/api/notifications/notifications.api", () => ({
-  notificationsApi: { list: vi.fn(), markRead: vi.fn(), markAllRead: vi.fn() },
+  notificationsApi: {
+    list: vi.fn(),
+    getUnreadCount: vi.fn(),
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+  },
 }));
 
 const mocked = vi.mocked(notificationsApi);
@@ -18,27 +23,42 @@ const FOLLOW: Notification = {
   id: "n1",
   category: "FOLLOW",
   title: "爱丽丝 关注了你",
-  body: "@alice 开始关注你",
+  body: null,
   read: false,
   createdAt: "2026-09-27T02:00:00Z",
+  actor: { userId: "u1", username: "alice", displayName: "爱丽丝" },
 };
 
-const ANNOUNCE: Notification = {
+/** Unread, no actor — the shape of a FOLLOW row written before V044 added the identity. */
+const NO_ACTOR: Notification = {
   id: "n2",
-  category: "ANNOUNCE",
-  title: "系统维护",
-  body: "今晚维护",
+  category: "FOLLOW",
+  title: "有人关注了你",
+  body: null,
   read: false,
   createdAt: "2026-09-26T02:00:00Z",
+  actor: null,
 };
 
-const READ_LIKE: Notification = {
+const READ_FOLLOW: Notification = {
   id: "n3",
-  category: "LIKE",
-  title: "有人赞了你的文章",
+  category: "FOLLOW",
+  title: "鲍勃 关注了你",
   body: null,
   read: true,
   createdAt: null,
+  actor: { userId: "u2", username: "bob", displayName: "鲍勃" },
+};
+
+/** Actor present but with no resolvable username -> no destination. */
+const UNRESOLVABLE_ACTOR: Notification = {
+  id: "n4",
+  category: "FOLLOW",
+  title: "某位用户 关注了你",
+  body: null,
+  read: false,
+  createdAt: "2026-09-27T03:00:00Z",
+  actor: { userId: "u9", username: null, displayName: null },
 };
 
 function authError(): ApiError {
@@ -61,38 +81,34 @@ function notFound(): ApiError {
   });
 }
 
+function ProfileProbe() {
+  const { username } = useParams();
+  return <div data-testid="profile">{username}</div>;
+}
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/notifications"]}>
       <Routes>
         <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/me/followers" element={<div>粉丝页</div>} />
+        <Route path="/u/:username" element={<ProfileProbe />} />
         <Route path="/login" element={<div>登录页</div>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
+/** Server-confirmed counts published to the shell header during a test. */
+let published: number[] = [];
+let unsubscribe: (() => void) | null = null;
+
 beforeEach(() => {
   vi.clearAllMocks();
-});
-
-describe("formatNotificationAt / notificationIcon", () => {
-  it("formats a real timestamp", () => {
-    expect(formatNotificationAt("2026-09-27T02:00:00Z")).toMatch(/2026/);
-  });
-
-  it("returns null (not 'Invalid Date') for a missing or bad timestamp", () => {
-    expect(formatNotificationAt(null)).toBeNull();
-    expect(formatNotificationAt(undefined)).toBeNull();
-    expect(formatNotificationAt("not-a-date")).toBeNull();
-  });
-
-  it("falls back to the bell for an unknown category instead of throwing", () => {
-    expect(notificationIcon("FOLLOW")).toBe(notificationIcon("FOLLOW"));
-    expect(notificationIcon("SOMETHING_NEW")).toBe(notificationIcon("nope"));
-    expect(notificationIcon(null)).toBe(notificationIcon(undefined));
-  });
+  published = [];
+  unsubscribe?.();
+  unsubscribe = onUnreadChanged((count) => published.push(count));
+  mocked.getUnreadCount.mockResolvedValue(0);
+  mocked.markAllRead.mockResolvedValue(undefined);
 });
 
 describe("NotificationsPage", () => {
@@ -109,21 +125,41 @@ describe("NotificationsPage", () => {
     expect(mocked.list).toHaveBeenCalledWith(50);
   });
 
-  it("lists notifications and counts the unread ones", async () => {
-    mocked.list.mockResolvedValue([FOLLOW, ANNOUNCE, READ_LIKE]);
+  it("lists notifications", async () => {
+    mocked.list.mockResolvedValue([FOLLOW, READ_FOLLOW]);
     renderPage();
 
     expect(await screen.findByText("爱丽丝 关注了你")).toBeInTheDocument();
-    expect(screen.getByText("系统维护")).toBeInTheDocument();
-    expect(screen.getByText("有人赞了你的文章")).toBeInTheDocument();
-    expect(screen.getByText("2 条未读")).toBeInTheDocument();
+    expect(screen.getByText("鲍勃 关注了你")).toBeInTheDocument();
   });
 
-  it("shows the empty state with guidance", async () => {
-    mocked.list.mockResolvedValue([]);
+  /*
+   * The lede reports the SERVER's account-wide count, not the number of unread rows
+   * in this 50-row window. They are different numbers, and the header badge shows the
+   * server one — two different numbers on one screen would be the bug.
+   */
+  it("shows the server's account-wide unread count, not the window's", async () => {
+    mocked.list.mockResolvedValue([FOLLOW]);
+    mocked.getUnreadCount.mockResolvedValue(9);
     renderPage();
-    expect(await screen.findByText("暂无通知")).toBeInTheDocument();
-    expect(screen.getByText("有人关注你、点赞或评论时，会出现在这里。")).toBeInTheDocument();
+
+    expect(await screen.findByText("9 条未读")).toBeInTheDocument();
+  });
+
+  it("falls back to the window count when the server count cannot be read", async () => {
+    mocked.list.mockResolvedValue([FOLLOW]);
+    mocked.getUnreadCount.mockRejectedValue(new Error("offline"));
+    renderPage();
+
+    expect(await screen.findByText("1 条未读")).toBeInTheDocument();
+  });
+
+  it("narrows the reading column instead of stretching a row across the shell", async () => {
+    mocked.list.mockResolvedValue([FOLLOW]);
+    const { container } = renderPage();
+    await screen.findByText("爱丽丝 关注了你");
+    // 1440 下 shell 是 1200px，一行 FOLLOW 不该横跨整个内容区。
+    expect(container.querySelector(".max-w-2xl")).not.toBeNull();
   });
 
   it("explains an expired session on 401 rather than showing an empty list", async () => {
@@ -139,95 +175,49 @@ describe("NotificationsPage", () => {
     expect(await screen.findByText("无法读取通知列表，请稍后重试。")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "去登录" })).not.toBeInTheDocument();
   });
-
-  it("renders no timestamp when the backend sends no createdAt", async () => {
-    mocked.list.mockResolvedValue([READ_LIKE]);
-    renderPage();
-    await screen.findByText("有人赞了你的文章");
-    expect(screen.queryByRole("time")).not.toBeInTheDocument();
-  });
 });
 
-describe("NotificationsPage tabs", () => {
-  it("filters to the system bucket and back", async () => {
-    mocked.list.mockResolvedValue([FOLLOW, ANNOUNCE]);
-    renderPage();
-    await screen.findByText("爱丽丝 关注了你");
-
-    const nav = screen.getByRole("navigation", { name: "通知分类" });
-    await userEvent.setup().click(within(nav).getByRole("button", { name: /系统/ }));
-
-    expect(screen.queryByText("爱丽丝 关注了你")).not.toBeInTheDocument();
-    expect(screen.getByText("系统维护")).toBeInTheDocument();
-
-    await userEvent.setup().click(within(nav).getByRole("button", { name: /全部/ }));
-    expect(screen.getByText("爱丽丝 关注了你")).toBeInTheDocument();
-  });
-
-  it("carries the unread count on each tab", async () => {
-    mocked.list.mockResolvedValue([FOLLOW, ANNOUNCE]);
-    renderPage();
-    const nav = await screen.findByRole("navigation", { name: "通知分类" });
-    expect(within(nav).getByRole("button", { name: /全部/ })).toHaveTextContent("2");
-    expect(within(nav).getByRole("button", { name: /互动/ })).toHaveTextContent("1");
-    expect(within(nav).getByRole("button", { name: /系统/ })).toHaveTextContent("1");
-  });
-
-  it("explains an empty tab rather than looking broken", async () => {
+/*
+ * Contract honesty: the backend has one producer (FOLLOW). The UI must not offer a
+ * taxonomy over data that cannot exist, and the empty state must not name producers
+ * that do not exist.
+ */
+describe("NotificationsPage only surfaces real capabilities", () => {
+  it("offers no category filters", async () => {
     mocked.list.mockResolvedValue([FOLLOW]);
     renderPage();
     await screen.findByText("爱丽丝 关注了你");
 
-    const nav = screen.getByRole("navigation", { name: "通知分类" });
-    await userEvent.setup().click(within(nav).getByRole("button", { name: /系统/ }));
+    expect(screen.queryByRole("navigation", { name: "通知分类" })).not.toBeInTheDocument();
+    // 精确名匹配：批量动作「全部已读」必须留下，被删掉的是三个筛选 Tab。
+    expect(screen.queryByRole("button", { name: "全部" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "互动" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "系统" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /全部已读/ })).toBeInTheDocument();
+  });
 
-    expect(screen.getByText("这个分类下没有通知")).toBeInTheDocument();
+  it("does not promise 点赞 / 评论 / 系统 notifications in the empty state", async () => {
+    mocked.list.mockResolvedValue([]);
+    renderPage();
+    await screen.findByText("暂无通知");
+
+    expect(screen.getByText("有人关注你时，会出现在这里。")).toBeInTheDocument();
+    expect(screen.queryByText(/点赞|评论/)).not.toBeInTheDocument();
   });
 });
 
 describe("NotificationsPage mark-read", () => {
-  /*
-   * Opening a row both marks it read and navigates. To assert on the page's own
-   * state we therefore have to observe it *while the write is in flight* — once
-   * the promise settles the page has already unmounted.
-   *
-   * These tests attach their assertions inside the mock, which runs before the
-   * page's `await` continues, so the container is still mounted.
-   */
-
-  it("does NOT optimistically flip a row when the mark-read call fails", async () => {
-    // Deliberate difference from Legacy, which set `read: true` even on failure.
-    mocked.list.mockResolvedValue([READ_LIKE, FOLLOW]);
-    let observedAfterFailure: (() => void) | null = null;
-
-    mocked.markRead.mockImplementation(async () => {
-      const error = new ApiError({
-        type: "about:blank",
-        title: "t",
-        status: 500,
-        detail: "boom",
-        code: "UNKNOWN",
-      });
-      // Let the page's catch/finally run, then inspect before it navigates.
-      setTimeout(() => observedAfterFailure?.(), 0);
-      throw error;
-    });
-
+  it("opens the actor's canonical profile", async () => {
+    mocked.list.mockResolvedValue([FOLLOW]);
+    mocked.markRead.mockResolvedValue({ ...FOLLOW, read: true });
     renderPage();
     await screen.findByText("爱丽丝 关注了你");
 
-    const observed = new Promise<void>((resolve) => {
-      observedAfterFailure = () => {
-        // Still unread: the failed write must not have flipped the row.
-        expect(screen.getByText("1 条未读")).toBeInTheDocument();
-        expect(screen.getByRole("alert")).toHaveTextContent("标记已读失败，请稍后重试。");
-        resolve();
-      };
-    });
+    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你" }));
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你（关注）" }));
-    await observed;
-  }, 20000);
+    expect(mocked.markRead).toHaveBeenCalledWith("n1");
+    expect(await screen.findByTestId("profile")).toHaveTextContent("alice");
+  });
 
   it("reports a 404 as 'gone' rather than a generic failure", async () => {
     mocked.list.mockResolvedValue([FOLLOW]);
@@ -235,75 +225,107 @@ describe("NotificationsPage mark-read", () => {
     renderPage();
     await screen.findByText("爱丽丝 关注了你");
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你（关注）" }));
+    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你" }));
 
-    // The call is what matters; the page then follows the row's destination.
     expect(mocked.markRead).toHaveBeenCalledWith("n1");
-    expect(await screen.findByText("粉丝页")).toBeInTheDocument();
   }, 20000);
 
-  it("drops the unread count after a successful mark-read", async () => {
+  /*
+   * 反证：写入失败时 badge 不能被错误扣减。
+   * 页面只在服务端确认之后才广播，失败路径一次广播都不发。
+   */
+  it("does NOT publish an unread change when the mark-read call fails", async () => {
     mocked.list.mockResolvedValue([FOLLOW]);
-    let observedAfterSuccess: (() => void) | null = null;
+    mocked.getUnreadCount.mockResolvedValue(1);
+    mocked.markRead.mockRejectedValue(
+      new ApiError({ type: "about:blank", title: "t", status: 500, detail: "boom", code: "UNKNOWN" }),
+    );
+    renderPage();
+    await screen.findByText("爱丽丝 关注了你");
+
+    published = [];
+    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你" }));
+
+    expect(published).toEqual([]);
+  }, 20000);
+
+  it("does not optimistically flip the row to read when the write fails", async () => {
+    mocked.list.mockResolvedValue([FOLLOW]);
+    mocked.getUnreadCount.mockResolvedValue(1);
+    let observed: (() => void) | null = null;
 
     mocked.markRead.mockImplementation(async () => {
-      setTimeout(() => observedAfterSuccess?.(), 0);
-      return { ...FOLLOW, read: true };
+      setTimeout(() => observed?.(), 0);
+      throw new ApiError({
+        type: "about:blank",
+        title: "t",
+        status: 500,
+        detail: "boom",
+        code: "UNKNOWN",
+      });
     });
 
     renderPage();
     await screen.findByText("爱丽丝 关注了你");
-    expect(screen.getByText("1 条未读")).toBeInTheDocument();
 
-    const observed = new Promise<void>((resolve) => {
-      observedAfterSuccess = () => {
-        expect(screen.getByText("没有未读通知")).toBeInTheDocument();
+    const done = new Promise<void>((resolve) => {
+      observed = () => {
+        // Still unread on screen, and the failure is stated.
+        expect(screen.getByText("未读")).toBeInTheDocument();
+        expect(screen.getByRole("alert")).toHaveTextContent("标记已读失败，请稍后重试。");
         resolve();
       };
     });
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你（关注）" }));
-    await observed;
-
-    expect(mocked.markRead).toHaveBeenCalledWith("n1");
+    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你" }));
+    await done;
   }, 20000);
 
-  it("routes a follow notification to the followers list", async () => {
+  it("publishes the server's new count after a successful mark-read", async () => {
     mocked.list.mockResolvedValue([FOLLOW]);
+    mocked.getUnreadCount.mockResolvedValueOnce(1).mockResolvedValue(0);
     mocked.markRead.mockResolvedValue({ ...FOLLOW, read: true });
     renderPage();
     await screen.findByText("爱丽丝 关注了你");
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你（关注）" }));
+    published = [];
+    await userEvent.setup().click(screen.getByRole("button", { name: "爱丽丝 关注了你" }));
 
-    expect(await screen.findByText("粉丝页")).toBeInTheDocument();
+    expect(await screen.findByTestId("profile")).toHaveTextContent("alice");
+    await vi.waitFor(() => expect(published).toEqual([0]));
   }, 20000);
 
-  it("does not offer a click target for a category with no safe destination", async () => {
-    // LIKE has no targetRoute and no sensible fallback, so the row is text —
-    // better than a link that leads nowhere.
-    mocked.list.mockResolvedValue([READ_LIKE]);
+  it("does not offer a click target for a row with no destination", async () => {
+    // 没有 actor 的历史 FOLLOW 行、以及 actor 查不到用户名的行，都渲染成纯文本 ——
+    // 好过给一个点了没用的链接。
+    mocked.list.mockResolvedValue([NO_ACTOR, UNRESOLVABLE_ACTOR]);
     renderPage();
-    await screen.findByText("有人赞了你的文章");
-    expect(screen.queryByRole("button", { name: /有人赞了你的文章/ })).not.toBeInTheDocument();
+    await screen.findByText("有人关注了你");
+    expect(screen.getByText("某位用户 关注了你")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "有人关注了你" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "某位用户 关注了你" })).not.toBeInTheDocument();
   });
 });
 
 describe("NotificationsPage mark-all-read", () => {
-  it("marks everything read locally after the 204", async () => {
-    mocked.list.mockResolvedValue([FOLLOW, ANNOUNCE]);
-    mocked.markAllRead.mockResolvedValue(undefined);
+  it("publishes 0 to the header after the account-wide 204", async () => {
+    mocked.list.mockResolvedValue([FOLLOW, NO_ACTOR]);
+    mocked.getUnreadCount.mockResolvedValue(2);
     renderPage();
     await screen.findByText("2 条未读");
 
+    published = [];
     await userEvent.setup().click(screen.getByRole("button", { name: /全部已读/ }));
 
     expect(mocked.markAllRead).toHaveBeenCalled();
+    // read-all 的语义是账户全部通知，所以 0 是服务端语义的直接结果，不是猜测。
+    expect(published).toEqual([0]);
     expect(await screen.findByText("没有未读通知")).toBeInTheDocument();
   });
 
-  it("keeps the unread state when mark-all fails", async () => {
+  it("keeps the unread state and publishes nothing when mark-all fails", async () => {
     mocked.list.mockResolvedValue([FOLLOW]);
+    mocked.getUnreadCount.mockResolvedValue(1);
     mocked.markAllRead.mockRejectedValue(
       new ApiError({
         type: "about:blank",
@@ -316,16 +338,19 @@ describe("NotificationsPage mark-all-read", () => {
     renderPage();
     await screen.findByText("1 条未读");
 
+    published = [];
     await userEvent.setup().click(screen.getByRole("button", { name: /全部已读/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("全部标记失败");
     expect(screen.getByText("1 条未读")).toBeInTheDocument();
+    expect(published).toEqual([]);
   });
 
   it("disables the control when there is nothing unread", async () => {
-    mocked.list.mockResolvedValue([READ_LIKE]);
+    mocked.list.mockResolvedValue([READ_FOLLOW]);
+    mocked.getUnreadCount.mockResolvedValue(0);
     renderPage();
-    await screen.findByText("有人赞了你的文章");
+    await screen.findByText("鲍勃 关注了你");
     expect(screen.getByRole("button", { name: /全部已读/ })).toBeDisabled();
   });
 });

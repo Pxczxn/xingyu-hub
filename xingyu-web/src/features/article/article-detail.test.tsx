@@ -65,6 +65,7 @@ const ARTICLE = {
   ownerUsername: "pxczxn",
   ownerDisplayName: "pxczxn",
   publishedAt: "2026-09-09T16:29:00Z",
+  seriesContexts: [],
   owner: false,
 };
 
@@ -96,6 +97,36 @@ describe("article detail", () => {
     expect(body?.querySelector("strong")?.textContent).toBe("粗体");
     expect(body?.querySelector("a")?.getAttribute("href")).toBe("https://example.com");
     expect(body?.querySelector("pre code")?.textContent).toContain("const a = 1;");
+  });
+
+  it("does not render an empty series context", async () => {
+    mocked.getArticle.mockResolvedValue(ARTICLE);
+    renderAt("a1");
+
+    await screen.findByRole("heading", { name: "真实文章标题" });
+    expect(screen.queryByText("收录于")).not.toBeInTheDocument();
+  });
+
+  it("renders every active series context with its position", async () => {
+    mocked.getArticle.mockResolvedValue({
+      ...ARTICLE,
+      seriesContexts: [
+        { id: "series-b", slug: "backend", title: "后端工程入门", position: 1 },
+        { id: "series-c", slug: "craft", title: "工程实践手记", position: 3 },
+      ],
+    });
+    renderAt("a1");
+
+    expect(await screen.findByText("收录于")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "后端工程入门 · 第 1 章" })).toHaveAttribute(
+      "href",
+      "/series/series-b",
+    );
+    expect(screen.getByRole("link", { name: "工程实践手记 · 第 3 章" })).toHaveAttribute(
+      "href",
+      "/series/series-c",
+    );
+    expect(screen.getByRole("heading", { name: "真实文章标题" })).toBeInTheDocument();
   });
 
   it("shows a not-found state on 404", async () => {

@@ -376,7 +376,12 @@
 
 .toolbarCombined {
   display: flex;
-  flex-wrap: nowrap;
+  /* SB-1 fix (2026-10-09): `nowrap` forced the combined bar to its intrinsic
+   * min-content width (~702px: bodyMode 184 + divider + the format bar's
+   * shrink-proof 44px buttons), which overflowed a 390px viewport by 285px.
+   * Wrapping keeps every control reachable on phones; on desktop there is
+   * enough room that nothing actually wraps, so wide layouts are unchanged. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.625rem;
   width: 100%;
@@ -494,7 +499,10 @@
 .formatBar {
   display: flex;
   flex: 1 1 auto;
-  flex-wrap: nowrap;
+  /* SB-1 fix (2026-10-09): allow the format groups to wrap — every button keeps
+   * its 44px tap target (flex-shrink: 0 is retained), the bar just flows onto a
+   * second row when the viewport cannot fit one line. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.375rem;
   min-width: 0;

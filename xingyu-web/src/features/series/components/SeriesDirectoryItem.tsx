@@ -1,25 +1,14 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { PublicSeriesSummary } from "@/api/series/series.types";
-import { seriesStatusLabel } from "../series-labels";
 import { SeriesCover } from "@/components/visual/SeriesCover";
-
-function formatDirectoryDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
 
 export function SeriesDirectoryItem({ item, index }: { item: PublicSeriesSummary; index: number }) {
   return (
     <li className="border-b border-border/60 last:border-0">
       <Link
         to={`/series/${encodeURIComponent(item.id)}`}
-        className="group focus-ring grid grid-cols-[2.5rem_84px_minmax(0,1fr)_auto] items-center gap-4 py-4 transition-colors hover:bg-muted/35"
+        className="group focus-ring grid grid-cols-[2.5rem_72px_minmax(0,1fr)_auto] items-center gap-4 py-4 transition-colors hover:bg-muted/35"
       >
         <span className="self-start pt-0.5 font-mono text-sm tabular-nums text-muted-foreground/70">
           {String(index + 1).padStart(2, "0")}
@@ -37,9 +26,13 @@ export function SeriesDirectoryItem({ item, index }: { item: PublicSeriesSummary
             </span>
           ) : null}
           <span className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-            <span>{seriesStatusLabel(item.status)}</span>
+            <span>
+              作者：
+              <span className="font-medium text-foreground">
+                {item.author.displayName?.trim() || `@${item.author.username}`}
+              </span>
+            </span>
             <span>{item.chapterCount} 篇文章</span>
-            <span>{formatDirectoryDate(item.updatedAt)} 更新</span>
           </span>
         </span>
 

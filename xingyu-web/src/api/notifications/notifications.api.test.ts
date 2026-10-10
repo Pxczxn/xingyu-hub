@@ -73,9 +73,29 @@ describe("notificationsApi.markAllRead", () => {
   });
 });
 
+describe("notificationsApi.getUnreadCount", () => {
+  it("reads the account-wide count from the dedicated endpoint", async () => {
+    mocked.mockResolvedValue({ unread: 7 });
+    await expect(notificationsApi.getUnreadCount()).resolves.toBe(7);
+    expect(mocked).toHaveBeenCalledWith("/api/v1/notifications/unread-count");
+  });
+
+  it("degrades to 0 for a malformed payload rather than returning NaN", async () => {
+    mocked.mockResolvedValue({});
+    await expect(notificationsApi.getUnreadCount()).resolves.toBe(0);
+    mocked.mockResolvedValue(null);
+    await expect(notificationsApi.getUnreadCount()).resolves.toBe(0);
+  });
+});
+
 describe("notificationsApi surface", () => {
-  it("exposes exactly the three notification operations", () => {
+  it("exposes the notification operations and nothing else", () => {
     // Guards against a second, drifting wrapper of the same endpoints.
-    expect(Object.keys(notificationsApi)).toEqual(["list", "markRead", "markAllRead"]);
+    expect(Object.keys(notificationsApi)).toEqual([
+      "list",
+      "getUnreadCount",
+      "markRead",
+      "markAllRead",
+    ]);
   });
 });

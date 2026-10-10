@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/client";
 import { savedMessagesApi } from "@/api/saved-messages/saved-messages.api";
+import { messagesApi } from "@/api/messages/messages.api";
 import { SavedMessagesPage } from "./SavedMessagesPage";
 
 vi.mock("@/api/saved-messages/saved-messages.api", () => ({
@@ -13,8 +14,15 @@ vi.mock("@/api/saved-messages/saved-messages.api", () => ({
   },
 }));
 
+vi.mock("@/api/messages/messages.api", () => ({
+  messagesApi: {
+    downloadAttachment: vi.fn(),
+  },
+}));
+
 const mockedList = vi.mocked(savedMessagesApi.list);
 const mockedRemove = vi.mocked(savedMessagesApi.remove);
+const mockedDownload = vi.mocked(messagesApi.downloadAttachment);
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -40,6 +48,9 @@ function renderPage() {
 beforeEach(() => {
   mockedList.mockReset();
   mockedRemove.mockReset();
+  mockedDownload.mockReset();
+  const createObjectURL = vi.fn(() => "blob:saved");
+  vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL: vi.fn() });
 });
 
 afterEach(() => {
@@ -144,23 +155,61 @@ describe("SavedMessagesPage — tombstone", () => {
 });
 
 describe("SavedMessagesPage — attachments", () => {
-  it("renders an image attachment and suppresses a body that repeats its URL", async () => {
+  /**
+   * 2026-10-06: 收藏里的附件改走受鉴权下载端点。
+   *
+   * 之前直接用 `attachmentUrl`，而社区私信附件目录已被静态文件控制器拒绝（实测图片
+   * naturalWidth=0、文件链接 403）。所以这里断言的是：**用 messageId + conversationId
+   * 换 blob**，而不是那个 URL。
+   */
+  it("fetches an image attachment through the authorized endpoint, not the raw url", async () => {
     mockedList.mockResolvedValueOnce([
-      row({ messageType: "IMAGE", attachmentUrl: "/a.png", body: "/a.png" }),
+      row({
+        messageType: "IMAGE",
+        attachmentUrl: "/api/v1/admin/files/community/messages/a.png",
+        attachmentFileId: 7,
+        body: "/api/v1/admin/files/community/messages/a.png",
+      }),
     ]);
+    mockedDownload.mockResolvedValue(new Blob(["x"]) as never);
     renderPage();
+
     await screen.findByTestId("saved-message-row");
-    expect(screen.getByRole("img", { name: "图片" })).toBeTruthy();
+    const img = await screen.findByRole("img", { name: "图片" });
+    // 用 messageId（不是收藏行的 bookmark id）。
+    expect(mockedDownload).toHaveBeenCalledWith("conv-1", "msg-1");
+    expect(img.getAttribute("src")).toMatch(/^blob:/);
     // The URL must not also be printed as body text.
-    expect(screen.queryByText("/a.png")).toBeNull();
+    expect(screen.queryByText("/api/v1/admin/files")).toBeNull();
   });
 
-  it("renders a file attachment by name", async () => {
+  it("renders a file attachment by name, from the authorized download", async () => {
     mockedList.mockResolvedValueOnce([
-      row({ messageType: "FILE", attachmentUrl: "/a.pdf", attachmentName: "说明.pdf", body: null }),
+      row({
+        messageType: "FILE",
+        attachmentUrl: "/api/v1/admin/files/community/messages/a.pdf",
+        attachmentFileId: 8,
+        attachmentName: "说明.pdf",
+        body: null,
+      }),
+    ]);
+    mockedDownload.mockResolvedValue(new Blob(["x"]) as never);
+    renderPage();
+
+    const link = await screen.findByRole("link", { name: "说明.pdf" });
+    expect(mockedDownload).toHaveBeenCalledWith("conv-1", "msg-1");
+    expect(link.getAttribute("href")).toMatch(/^blob:/);
+  });
+
+  it("does not render an attachment for a row that has no file id", async () => {
+    // A row saved before the column existed must degrade, not link to a dead url.
+    mockedList.mockResolvedValueOnce([
+      row({ messageType: "FILE", attachmentUrl: "/a.pdf", attachmentName: "旧附件.pdf", body: null }),
     ]);
     renderPage();
-    expect(await screen.findByRole("link", { name: "说明.pdf" })).toBeTruthy();
+
+    await screen.findByTestId("saved-message-row");
+    expect(screen.queryByRole("link", { name: "旧附件.pdf" })).toBeNull();
   });
 });
 

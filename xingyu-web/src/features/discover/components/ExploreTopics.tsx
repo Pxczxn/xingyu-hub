@@ -32,7 +32,7 @@ export function ExploreTopics({
           <h2 id="discover-topics" className="text-lg font-semibold tracking-tight text-primary">探索话题</h2>
         </div>
         {topics.filter((topic) => (topic.contentCount ?? 0) > 0).length > TOPIC_LIMIT ? (
-          <Link to="/topics" className="shrink-0 text-sm text-accent hover:underline">查看全部话题 ›</Link>
+          <Link to="/topics" className="shrink-0 text-sm text-accent-strong hover:underline">查看全部话题 ›</Link>
         ) : null}
       </div>
       <ul className="flex flex-wrap gap-3" data-testid="discover-topics-list">
@@ -42,7 +42,7 @@ export function ExploreTopics({
               to={`/topics/${encodeURIComponent(topic.slug)}`}
               className="group flex min-w-[150px] items-center gap-3 rounded-lg border border-border/70 bg-card px-4 py-3 transition-colors hover:border-accent/60 hover:bg-accent/5"
             >
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-primary group-hover:text-accent">
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-primary group-hover:text-accent-strong">
                 {topic.name}
               </span>
               {topic.contentCount !== undefined ? (

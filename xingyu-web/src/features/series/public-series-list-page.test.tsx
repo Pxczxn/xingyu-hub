@@ -56,9 +56,8 @@ describe("PublicSeriesListPage", () => {
         title: "星语开发日志",
         slug: "xing-yu-kai-fa-ri-zhi",
         description: "系列简介",
-        status: "ACTIVE",
         chapterCount: 2,
-        updatedAt: "2026-09-27T10:00:00Z",
+        author: { username: "alice", displayName: "Alice", avatar: null },
       },
     ]);
     renderList();
@@ -92,25 +91,23 @@ describe("PublicSeriesListPage", () => {
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
   });
 
-  it("keeps the service order by default and sorts by updatedAt for recent", async () => {
+  it("keeps the service order and does not expose lifecycle status or update time", async () => {
     mocked.listPublic.mockResolvedValue([
       {
         id: "older",
         title: "较早系列",
         slug: "older",
         description: null,
-        status: "ARCHIVED",
         chapterCount: 1,
-        updatedAt: "2026-09-01T10:00:00Z",
+        author: { username: "alice", displayName: "Alice", avatar: null },
       },
       {
         id: "newer",
         title: "最近系列",
         slug: "newer",
         description: "持续更新",
-        status: "ACTIVE",
         chapterCount: 3,
-        updatedAt: "2026-09-30T10:00:00Z",
+        author: { username: "bob", displayName: "Bob", avatar: null },
       },
     ]);
     renderList();
@@ -119,9 +116,10 @@ describe("PublicSeriesListPage", () => {
     const newer = screen.getByRole("link", { name: /最近系列/ });
     expect(older.compareDocumentPosition(newer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "最近更新" }));
-    expect(newer.compareDocumentPosition(older) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("已归档")).toBeInTheDocument();
+    expect(older.compareDocumentPosition(newer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByText("作者：")).toHaveLength(2);
+    expect(screen.queryByText("已归档")).not.toBeInTheDocument();
+    expect(screen.queryByText("更新", { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText("3 篇文章")).toBeInTheDocument();
   });
 
@@ -132,9 +130,8 @@ describe("PublicSeriesListPage", () => {
         title: `系列 ${index + 1}`,
         slug: `series-${index}`,
         description: null,
-        status: "ACTIVE" as const,
         chapterCount: index + 1,
-        updatedAt: "2026-09-30T10:00:00Z",
+        author: { username: `author-${index}`, displayName: `作者 ${index}`, avatar: null },
       })),
     );
     renderList();

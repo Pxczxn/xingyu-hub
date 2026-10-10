@@ -6,6 +6,7 @@ import { appealsApi } from "@/api/moderation/moderation.api";
 import {
   APPEAL_LIST_LIMIT,
   appealStatusLabel,
+  targetDescription,
   type AppealDetailView,
 } from "@/api/moderation/moderation.types";
 import { PageState } from "@/components/shared/PageState";
@@ -13,19 +14,23 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 /*
- * My appeals (Phase 2J-2) — appeals the session user filed against a measure.
+ * My appeals (Phase 2J-2, reworked by the Governance Static Design收敛 pass).
+ *
+ * SHARES DESIGN LANGUAGE WITH /reports, BUT IS NOT THE SAME TEMPLATE.
+ * Reports say "what did I report and where is it"; appeals say "what measure did
+ * I contest and how was it decided". So each row leads with 针对什么处理 — the
+ * original object as the server describes it, NEVER a caseId UUID — then the
+ * appeal's own words, then the status/result (直接显示 已批准 / 已驳回) and time.
+ * The word 「已决定」 must never appear: it was the old model's inability to say
+ * approve-or-reject, which is exactly what this vocabulary replaced.
  *
  * `GET /me/appeals` returns a BARE array (no cursor), so this is one bounded
  * read with no pagination control.
  *
- * `AppealDetailView` carries the appeal's own `caseId` but NOT the case's status
- * — there is no appeal→case-status field on this DTO. So the page shows the
- * appeal's own status and links to the case by id, and does not claim to know
- * how the case is progressing. (`/me/reports/{id}` is where a case status is
- * actually exposed, via `caseStatus`.)
+ * The appeal DTO carries no case status, so nothing is claimed about the case's
+ * own progress — only the appeal's own status/outcome, which is authoritative.
  *
- * Only two appeal statuses can occur — SUBMITTED on create and DECIDED on
- * decision (ModerationService:176 / :347-349). Anything else is echoed as-is.
+ * Only PENDING / APPROVED / REJECTED can occur; anything else echoes verbatim.
  */
 
 type LoadState =
@@ -129,37 +134,29 @@ export function MyAppealsPage() {
             <PageState
               kind="empty"
               title="暂无申诉记录"
-              description="如果你对某项治理措施有异议，可以提交申诉。"
+              description="当你针对某项社区治理处置提交过申诉后，它会出现在这里。"
             />
           </div>
         ) : (
           <ul aria-label="我的申诉列表" className="divide-y divide-border">
             {appeals.map((appeal) => (
-              <li
-                key={appeal.id}
-                className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
-              >
-                <time
-                  dateTime={appeal.createdAt}
-                  className="text-xs tabular-nums text-muted-foreground"
-                >
-                  {formatTime(appeal.createdAt)}
-                </time>
-                <div className="min-w-0">
-                  <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+              <li key={appeal.id} className="px-5 py-4">
+                {/* 针对什么处理 —— 对象描述，绝不渲染 caseId/UUID */}
+                <p className="text-xs text-muted-foreground">针对：{targetDescription(appeal)}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
                     {appealStatusLabel(appeal.status)}
                   </span>
-                  <Link
-                    to={`/appeals/${encodeURIComponent(appeal.id)}`}
-                    className="mt-1 block whitespace-pre-wrap text-sm leading-6 text-foreground hover:text-accent"
-                  >
-                    {appeal.body?.trim() || "（无内容）"}
-                  </Link>
-                  {/* The appeal DTO has no case status — link by id, claim nothing. */}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    关联案件 <span className="font-mono">{appeal.caseId}</span>
-                  </p>
                 </div>
+                <Link
+                  to={`/appeals/${encodeURIComponent(appeal.id)}`}
+                  className="mt-1 block whitespace-pre-wrap text-sm leading-6 text-foreground hover:text-accent"
+                >
+                  {appeal.body?.trim() || "（无内容）"}
+                </Link>
+                <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                  {formatTime(appeal.createdAt)}
+                </p>
               </li>
             ))}
           </ul>

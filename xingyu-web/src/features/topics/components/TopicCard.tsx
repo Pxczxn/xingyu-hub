@@ -31,7 +31,9 @@ export function TopicCard({
                 featured ? "text-sm font-semibold" : "text-base font-semibold",
               )}
             >
-              <span className="mr-1 text-accent">#</span>
+              {/* TEXT. TopicHeader already renders this same `#` as accent-strong — the
+                  two nodes mean the same thing, so they must not disagree. */}
+              <span className="mr-1 text-accent-strong">#</span>
               {topic.name}
             </h3>
             {topic.description ? (

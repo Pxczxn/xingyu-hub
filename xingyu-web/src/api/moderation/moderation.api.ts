@@ -8,6 +8,7 @@ import { apiRequest } from "@/api/client";
 import type {
   AppealDetailView,
   ReportSupplementView,
+  ReportTargetView,
   UserReportDetailView,
   UserReportView,
 } from "./moderation.types";
@@ -21,6 +22,20 @@ export const reportsApi = {
    * so there is no `limit` to pass and no cursor to follow.
    */
   listMine: (): Promise<UserReportView[]> => apiRequest<UserReportView[]>("/api/v1/me/reports"),
+
+  /**
+   * `GET /api/v1/reports/target` — the server's authoritative view of a report
+   * target, used by the context-driven report form.
+   *
+   * The report must be started from the content itself, so the form carries only
+   * objectType/objectId and asks the server what that thing is. The server
+   * re-verifies eligibility here (supported type, exists, not your own) AND
+   * again on submit — the preview is not a trusted grant.
+   */
+  previewTarget: (objectType: string, objectId: string): Promise<ReportTargetView> =>
+    apiRequest<ReportTargetView>(
+      `/api/v1/reports/target?objectType=${encodeURIComponent(objectType)}&objectId=${encodeURIComponent(objectId)}`,
+    ),
 
   /** 404 when the report exists but belongs to someone else. */
   getById: (reportId: string): Promise<UserReportDetailView> =>

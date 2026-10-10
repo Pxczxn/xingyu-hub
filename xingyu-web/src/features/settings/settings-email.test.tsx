@@ -141,7 +141,8 @@ describe("SettingsEmailPage", () => {
     mockedAccount.changeEmail.mockResolvedValue({
       currentEmail: "old@pxczxn.top",
       pendingEmail: "new@pxczxn.top",
-      mailPending: true,
+      // mail sent successfully (false = delivered) → success notice.
+      mailPending: false,
     });
     const { container } = renderPage();
     await screen.findByTestId("email-form");
@@ -155,12 +156,13 @@ describe("SettingsEmailPage", () => {
     expect(container.textContent).not.toContain("修改成功");
   });
 
-  it("treats mailPending:false as a WARNING, not a success", async () => {
+  it("treats mailPending:true as a WARNING, not a success", async () => {
     grantValid();
     mockedAccount.changeEmail.mockResolvedValue({
       currentEmail: "old@pxczxn.top",
       pendingEmail: "new@pxczxn.top",
-      mailPending: false,
+      // Backend contract: mailPending=true ⇔ the mail did NOT go out.
+      mailPending: true,
     });
     renderPage();
     await screen.findByTestId("email-form");

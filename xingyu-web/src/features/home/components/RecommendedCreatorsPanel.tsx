@@ -36,13 +36,16 @@ export function RecommendedCreatorsPanel({
   return (
     <section
       aria-labelledby="home-recommended-creators"
-      className="rounded-xl border border-border/70 bg-card/95 p-4 shadow-none"
+      className="rounded-xl border border-border/60 bg-surface-sunken/55 p-4"
     >
       <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h2 id="home-recommended-creators" className="text-sm font-semibold text-primary">
+        <h2 id="home-recommended-creators" className="text-sm font-medium text-foreground-soft">
           推荐创作者
         </h2>
-        <Link to="/creators" className="shrink-0 text-xs text-accent hover:underline">
+        <Link
+          to="/creators"
+          className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-accent-strong"
+        >
           全部 ›
         </Link>
       </div>
@@ -80,7 +83,7 @@ export function RecommendedCreatorsPanel({
                 <div className="min-w-0 flex-1">
                   <Link
                     to={`/u/${encodeURIComponent(creator.username)}`}
-                    className="block truncate text-sm font-medium text-foreground hover:text-accent"
+                    className="block truncate text-sm font-medium text-foreground hover:text-accent-strong"
                   >
                     {creator.displayName}
                   </Link>

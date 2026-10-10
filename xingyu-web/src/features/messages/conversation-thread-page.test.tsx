@@ -1,31 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { messagesApi } from "@/api/messages/messages.api";
 import { ApiError } from "@/api/client";
 import type { ChatMessage, Conversation } from "@/api/messages/messages.types";
-import { ConversationThreadPage } from "./pages/ConversationThreadPage";
-import { senderLabel } from "./MessageBubble";
+import { chatSocket, emitChatEvent, resetChatSocketDouble } from "@/features/chat/chat-socket.test-double";
+import { ConversationThreadPage, scrollStrategyOf } from "./pages/ConversationThreadPage";
+import { formatMessageTimeShort, isRecallable, senderName } from "./MessageBubble";
+import { shouldShowMessageTime } from "@/api/messages/messages.types";
 
 /*
- * The socket is mocked as a controllable fake rather than a real WebSocket: all
- * these tests care about is what happens when a frame arrives, and the hook has
- * its own connect/reconnect/cleanup behaviour to test separately.
+ * The shared chat provider is mocked as a controllable double: these tests care about
+ * what happens when a frame arrives, not about the socket itself (the provider has its
+ * own test for that).
  */
-type Handlers = {
-  onConnected?: (userId: string) => void;
-  onMessage?: (conversationId: string, message: ChatMessage) => void;
-  onRecall?: (conversationId: string, message: ChatMessage) => void;
-  onRead?: (conversationId: string, userId: string, sequenceNumber: number) => void;
-};
-
-let socketHandlers: Handlers = {};
-
-vi.mock("@/lib/use-community-chat-socket", () => ({
-  useCommunityChatSocket: (_enabled: boolean, handlers: Handlers) => {
-    socketHandlers = handlers;
-  },
-}));
+vi.mock("@/features/chat/chat-socket.context", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/features/chat/chat-socket.context")
+  >("@/features/chat/chat-socket.context");
+  const double = await import("@/features/chat/chat-socket.test-double");
+  return { ...actual, useChatSocket: double.chatSocketValue };
+});
 
 vi.mock("@/api/messages/messages.api", () => ({
   messagesApi: {
@@ -36,6 +31,9 @@ vi.mock("@/api/messages/messages.api", () => ({
     sendDirect: vi.fn(),
     sendGroup: vi.fn(),
     listMessages: vi.fn(),
+    listMessagesAfter: vi.fn(),
+    listMessagesAround: vi.fn(),
+    downloadAttachment: vi.fn(),
     markRead: vi.fn(),
     recallMessage: vi.fn(),
   },
@@ -52,11 +50,14 @@ function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
     conversationId: "c1",
     conversationType: "GROUP",
     senderId: THEM,
+    // 2026-10-06: messages now carry a structured sender resolved from the profile.
+    sender: { userId: THEM, username: "them", displayName: "小明", avatar: null },
     sequenceNumber: 1,
     body: "你好",
     messageType: "TEXT",
     attachmentUrl: null,
     attachmentName: null,
+    attachmentFileId: null,
     createdAt: "2026-09-27T02:00:00Z",
     recalledAt: null,
     ...overrides,
@@ -89,9 +90,9 @@ function notFound(): ApiError {
   });
 }
 
-function renderThread() {
+function renderThread(path = "/messages/c1") {
   return render(
-    <MemoryRouter initialEntries={["/messages/c1"]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/messages" element={<div>会话列表</div>} />
         {/* The param is load-bearing: the page reads `conversationId` from the
@@ -103,39 +104,26 @@ function renderThread() {
   );
 }
 
-/** Renders the thread with the socket already connected as ME. */
+/** Renders the thread with the provider already knowing who we are. */
 async function renderConnected(messages: ChatMessage[]) {
+  chatSocket.myUserId = ME;
   mocked.getDirect.mockRejectedValue(notFound());
   mocked.getGroup.mockResolvedValue(conversation(messages));
   const view = renderThread();
-  // An empty thread renders the empty state instead of the list, so wait on
-  // whichever of the two this conversation produces — `findByLabelText("消息列表")`
-  // would hang forever on the empty case.
   if (messages.length > 0) {
     await screen.findByLabelText("消息列表");
   } else {
     await screen.findByTestId("page-state-empty");
   }
-  // A frame is an external event, so the state update it causes must be wrapped
-  // the same way a user interaction is — otherwise the update lands outside
-  // act() and the following query never settles.
-  act(() => {
-    socketHandlers.onConnected?.(ME);
-  });
   return view;
-}
-
-/** Delivers a socket frame inside act(). */
-function emit(frame: (handlers: Handlers) => void) {
-  act(() => {
-    frame(socketHandlers);
-  });
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  socketHandlers = {};
+  resetChatSocketDouble();
   mocked.markRead.mockResolvedValue(undefined);
+  mocked.listMessagesAfter.mockResolvedValue({ messages: [], hasMore: false });
+  mocked.listMessagesAround.mockResolvedValue({ messages: [], found: false, sequence: 0 });
 });
 
 describe("ConversationThreadPage — loading", () => {
@@ -149,18 +137,21 @@ describe("ConversationThreadPage — loading", () => {
     expect(mocked.getGroup).toHaveBeenCalledWith("c1");
   });
 
-  it("marks the conversation read on open, with no explicit sequence", async () => {
+  it("marks the conversation read on open and reconciles the shared list", async () => {
     mocked.getDirect.mockRejectedValue(notFound());
     mocked.getGroup.mockResolvedValue(conversation([]));
     renderThread();
 
     await screen.findByTestId("page-state-empty");
     expect(mocked.markRead).toHaveBeenCalledWith("c1");
+    // The row badge and the header badge read the shared list, so a read that the
+    // server accepted has to be followed by a re-read of it.
+    await waitFor(() => expect(chatSocket.refreshConversations).toHaveBeenCalled());
   });
 });
 
 describe("ConversationThreadPage — own-message detection", () => {
-  it("shows a neutral bubble before the socket names us, and never claims a message is ours", async () => {
+  it("shows a neutral bubble before the provider names us, and never claims a message is ours", async () => {
     mocked.getDirect.mockRejectedValue(notFound());
     mocked.getGroup.mockResolvedValue(conversation([message({ senderId: ME })]));
     renderThread();
@@ -172,7 +163,7 @@ describe("ConversationThreadPage — own-message detection", () => {
     expect(within(list).queryByRole("button", { name: "撤回" })).not.toBeInTheDocument();
   });
 
-  it("offers 撤回 only on our own message once the socket says who we are", async () => {
+  it("offers 撤回 only on our own message once the provider says who we are", async () => {
     await renderConnected([
       message({ id: "mine", senderId: ME, sequenceNumber: 1 }),
       message({ id: "theirs", senderId: THEM, sequenceNumber: 2 }),
@@ -182,14 +173,13 @@ describe("ConversationThreadPage — own-message detection", () => {
     const rows = within(list).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
 
-    // Our own row: recallable, and NOT labelled with our own id.
+    // Our own row: recallable, and NOT labelled with our own name.
     expect(within(rows[0]).getByRole("button", { name: "撤回" })).toBeInTheDocument();
-    expect(within(rows[0]).queryByText(senderLabel(ME))).not.toBeInTheDocument();
+    expect(within(rows[0]).queryByText("小明")).not.toBeInTheDocument();
 
-    // Their row: labelled with a shortened id (no profile data in this phase),
-    // and no recall affordance.
+    // Their row: named (2026-10-06 — no more truncated ids) and not recallable.
     expect(within(rows[1]).queryByRole("button", { name: "撤回" })).not.toBeInTheDocument();
-    expect(within(rows[1]).getByText(senderLabel(THEM))).toBeInTheDocument();
+    expect(within(rows[1]).getByText("小明")).toBeInTheDocument();
   });
 
   it("does not offer 撤回 on our own recalled message (it is already a tombstone)", async () => {
@@ -208,6 +198,7 @@ describe("ConversationThreadPage — own-message detection", () => {
   });
 
   it("names the sender in a group but not in a direct thread", async () => {
+    chatSocket.myUserId = ME;
     mocked.getDirect.mockResolvedValue({
       ...conversation([message({ senderId: THEM })]),
       type: "DIRECT",
@@ -216,10 +207,32 @@ describe("ConversationThreadPage — own-message detection", () => {
     renderThread();
 
     await screen.findByLabelText("消息列表");
-    socketHandlers.onConnected?.(ME);
 
     // DIRECT: the other party is implied by the thread itself.
-    expect(screen.queryByText(THEM)).not.toBeInTheDocument();
+    expect(screen.queryByText("小明")).not.toBeInTheDocument();
+  });
+});
+
+describe("ConversationThreadPage — sender identity", () => {
+  it("links a group sender to their canonical profile", async () => {
+    await renderConnected([message({ senderId: THEM })]);
+
+    // `sender.username` is the CURRENT one, resolved server-side at read time — so a
+    // rename is reflected here without touching the stored message.
+    expect(screen.getByRole("link", { name: "小明" })).toHaveAttribute("href", "/u/them");
+  });
+
+  it("renders a neutral label instead of a raw id when the profile is gone", async () => {
+    await renderConnected([message({ senderId: "deleted-user", sender: null })]);
+
+    expect(screen.getByText("已注销用户")).toBeInTheDocument();
+    expect(screen.queryByText(/deleted-user/)).not.toBeInTheDocument();
+  });
+
+  it("falls back from displayName to username", () => {
+    expect(senderName(message({ sender: { userId: "u", username: "them", displayName: null } }))).toBe(
+      "them",
+    );
   });
 });
 
@@ -227,7 +240,11 @@ describe("ConversationThreadPage — realtime", () => {
   it("ignores frames for another conversation", async () => {
     await renderConnected([message({ id: "m1", sequenceNumber: 1 })]);
 
-    emit((h) => h.onMessage?.("other-conversation", message({ id: "m2", sequenceNumber: 9 })));
+    emitChatEvent({
+      kind: "message",
+      conversationId: "other-conversation",
+      message: message({ id: "m2", sequenceNumber: 9 }),
+    });
 
     const list = screen.getByLabelText("消息列表");
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
@@ -237,8 +254,8 @@ describe("ConversationThreadPage — realtime", () => {
     await renderConnected([]);
 
     const incoming = message({ id: "m2", senderId: THEM, sequenceNumber: 2 });
-    emit((h) => h.onMessage?.("c1", incoming));
-    emit((h) => h.onMessage?.("c1", incoming));
+    emitChatEvent({ kind: "message", conversationId: "c1", message: incoming });
+    emitChatEvent({ kind: "message", conversationId: "c1", message: incoming });
 
     const list = screen.getByLabelText("消息列表");
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
@@ -247,24 +264,56 @@ describe("ConversationThreadPage — realtime", () => {
   it("turns a message into a tombstone when a recall frame arrives", async () => {
     await renderConnected([message({ id: "m1", senderId: ME, sequenceNumber: 1 })]);
 
-    emit((h) =>
-      h.onRecall?.(
-        "c1",
-        message({
-          id: "m1",
-          senderId: ME,
-          sequenceNumber: 1,
-          body: "[消息已撤回]",
-          recalledAt: "2026-09-27T04:00:00Z",
-        }),
-      ),
-    );
+    emitChatEvent({
+      kind: "recall",
+      conversationId: "c1",
+      message: message({
+        id: "m1",
+        senderId: ME,
+        sequenceNumber: 1,
+        body: "[消息已撤回]",
+        recalledAt: "2026-09-27T04:00:00Z",
+      }),
+    });
 
     await waitFor(() => {
       expect(
         screen.getByLabelText("消息列表").querySelector("[data-recalled='true']"),
       ).not.toBeNull();
     });
+  });
+
+  /*
+   * The provider backfills missed messages after a reconnect and dispatches them as
+   * ordinary `message` events, so the thread must render them through the same path —
+   * no refresh, no duplicate.
+   */
+  it("renders a backfilled message through the same path as a live one", async () => {
+    await renderConnected([message({ id: "m1", sequenceNumber: 1 })]);
+
+    const missed = message({ id: "m9", senderId: THEM, sequenceNumber: 9, body: "断线期间的消息" });
+    emitChatEvent({ kind: "message", conversationId: "c1", message: missed });
+    // A duplicate delivery (REST backfill racing the socket) must not double it.
+    emitChatEvent({ kind: "message", conversationId: "c1", message: missed });
+
+    const list = screen.getByLabelText("消息列表");
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(list).getByText("断线期间的消息")).toBeInTheDocument();
+  });
+
+  it("tells the provider how far this conversation has got, so a reconnect can backfill", async () => {
+    await renderConnected([message({ id: "m1", sequenceNumber: 7 })]);
+
+    await waitFor(() =>
+      expect(chatSocket.watched).toContainEqual({ conversationId: "c1", knownMaxSequence: 7 }),
+    );
+  });
+
+  it("shows a reconnect hint while the socket is down", async () => {
+    chatSocket.connection = "reconnecting";
+    await renderConnected([message()]);
+
+    expect(screen.getByText(/连接中断/)).toBeInTheDocument();
   });
 });
 
@@ -275,7 +324,7 @@ describe("ConversationThreadPage — send", () => {
     const created = message({ id: "m9", senderId: ME, sequenceNumber: 5, body: "在吗" });
     mocked.sendGroup.mockResolvedValue(created);
     // The socket delivers it first, as it does in production.
-    emit((h) => h.onMessage?.("c1", created));
+    emitChatEvent({ kind: "message", conversationId: "c1", message: created });
 
     // `fireEvent.change` rather than `user.type`: typing advances a timer per
     // keystroke and, with asyncUtilTimeout == the test timeout, a slow settle
@@ -340,5 +389,149 @@ describe("ConversationThreadPage — errors", () => {
     renderThread();
 
     expect(await screen.findByText("会话不存在")).toBeInTheDocument();
+  });
+});
+
+/*
+ * 2026-10-06 — the scroll strategy, the timestamp rule, the recall window and the
+ * search landing. All four were measured defects, and all four live in small helpers
+ * or a single request so they can be pinned here: jsdom has no layout, so a rule
+ * buried inside a component could only be "tested" by asserting nothing.
+ */
+describe("scrollStrategyOf — which element is actually scrolling", () => {
+  it("scrolls the message viewport when IT overflows (the >= lg case)", () => {
+    // 2026-10-06 regression: unconditionally scrolling the document here is what
+    // dragged the page header and the left column off screen (measured 345px).
+    expect(scrollStrategyOf({ scrollHeight: 3326, clientHeight: 409 })).toBe("viewport");
+  });
+
+  it("scrolls the document when the viewport does NOT overflow (the < lg case)", () => {
+    // Below lg the thread sits in normal document flow: the message area is not a
+    // scroller, so "scroll the viewport" is a no-op, and a 28-message thread opened on
+    // the OLDEST message with the composer 1392px below the fold.
+    expect(scrollStrategyOf({ scrollHeight: 409, clientHeight: 409 })).toBe("document");
+  });
+
+  it("is decided by layout, not by a user-agent string", () => {
+    // Same question, opposite answers depending only on the measurements.
+    expect(scrollStrategyOf({ scrollHeight: 900, clientHeight: 400 })).toBe("viewport");
+    expect(scrollStrategyOf({ scrollHeight: 400, clientHeight: 400 })).toBe("document");
+  });
+});
+
+describe("shouldShowMessageTime — no more repeated identical timestamps", () => {
+  const at = (iso: string, id: string) =>
+    ({ id, createdAt: iso } as unknown as Parameters<typeof shouldShowMessageTime>[0]);
+
+  it("shows the time on the first message of the list", () => {
+    expect(shouldShowMessageTime(at("2026-10-06T02:00:00Z", "a"), undefined)).toBe(true);
+  });
+
+  it("omits it for the rest of a run inside the same minute", () => {
+    // The measured evidence: a screen of six messages from the same minute rendered
+    // six identical timestamps.
+    expect(
+      shouldShowMessageTime(at("2026-10-06T02:00:30Z", "b"), at("2026-10-06T02:00:00Z", "a")),
+    ).toBe(false);
+  });
+
+  it("shows it again once the minute changes", () => {
+    expect(
+      shouldShowMessageTime(at("2026-10-06T02:01:00Z", "c"), at("2026-10-06T02:00:30Z", "b")),
+    ).toBe(true);
+  });
+
+  it("shows it when a timestamp is unusable, rather than silently dropping it", () => {
+    expect(shouldShowMessageTime(at("nonsense", "d"), at("2026-10-06T02:00:00Z", "a"))).toBe(true);
+  });
+});
+
+describe("formatMessageTimeShort", () => {
+  it("drops the date for a message from today", () => {
+    const sameDay = new Date(Date.now() - 60_000).toISOString();
+    expect(formatMessageTimeShort(sameDay)).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it("keeps a short date for anything older", () => {
+    expect(formatMessageTimeShort("2026-09-27T02:00:00Z")).toMatch(/\d{2}\/\d{2} \d{2}:\d{2}/);
+  });
+
+  it("returns null for a missing or unparseable value", () => {
+    expect(formatMessageTimeShort(null)).toBeNull();
+    expect(formatMessageTimeShort("nope")).toBeNull();
+  });
+});
+
+describe("isRecallable — the window belongs to the server", () => {
+  const base = { id: "m", body: "x", messageType: "TEXT" } as unknown as Parameters<
+    typeof isRecallable
+  >[0];
+
+  it("is true while the server-side deadline is still in the future", () => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    expect(isRecallable({ ...base, recallUntil: future })).toBe(true);
+  });
+
+  it("is false once the window has passed — no button that can only 409", () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    expect(isRecallable({ ...base, recallUntil: past })).toBe(false);
+  });
+
+  it("is false for a recalled message even if the field is somehow set", () => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    expect(isRecallable({ ...base, recallUntil: future, recalledAt: "2026-10-06T02:00:00Z" })).toBe(
+      false,
+    );
+  });
+
+  it("keeps the old behaviour for rows written before the field existed", () => {
+    expect(isRecallable(base)).toBe(true);
+  });
+});
+
+describe("ConversationThreadPage — search landing", () => {
+  it("fetches ONE window around the target sequence when the message is not loaded", async () => {
+    mocked.getDirect.mockRejectedValue(notFound());
+    mocked.getGroup.mockResolvedValue(conversation([message({ id: "m1", sequenceNumber: 1 })]));
+    mocked.listMessagesAround.mockResolvedValue({
+      messages: [
+        message({ id: "old-1", sequenceNumber: 7, body: "很旧的一条" }),
+        message({ id: "target", sequenceNumber: 8, body: "目标消息" }),
+      ],
+      found: true,
+      sequence: 8,
+    });
+
+    renderThread("/messages/c1?m=target&s=8");
+    await screen.findByLabelText("消息列表");
+
+    await waitFor(() => expect(mocked.listMessagesAround).toHaveBeenCalledWith("c1", 8, 30));
+    expect(mocked.listMessagesAfter).not.toHaveBeenCalled();
+    expect(await screen.findByText("目标消息")).toBeInTheDocument();
+    const row = document.querySelector('[data-message-id="target"]');
+    expect(row?.getAttribute("data-highlighted")).toBe("true");
+    expect(
+      document.querySelector('[data-message-id="m1"]')?.getAttribute("data-highlighted"),
+    ).not.toBe("true");
+  });
+
+  it("says so plainly when the target message is gone, instead of guessing", async () => {
+    mocked.getDirect.mockRejectedValue(notFound());
+    mocked.getGroup.mockResolvedValue(conversation([message({ id: "m1", sequenceNumber: 1 })]));
+    mocked.listMessagesAround.mockResolvedValue({ messages: [], found: false, sequence: 99 });
+
+    renderThread("/messages/c1?m=gone&s=99");
+    await screen.findByLabelText("消息列表");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("这条消息已不在该会话中");
+  });
+
+  it("does not fetch a window when the target is already on screen", async () => {
+    mocked.getDirect.mockRejectedValue(notFound());
+    mocked.getGroup.mockResolvedValue(conversation([message({ id: "m1", sequenceNumber: 5 })]));
+    renderThread("/messages/c1?m=m1&s=5");
+    await screen.findByLabelText("消息列表");
+
+    expect(mocked.listMessagesAround).not.toHaveBeenCalled();
   });
 });

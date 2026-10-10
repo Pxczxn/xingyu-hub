@@ -5,6 +5,7 @@ import type { ArticleDetail } from "@/api/articles/articles.types";
 import { ApiError } from "@/api/client";
 import { ArticleInteractions } from "@/features/article/components/ArticleInteractions";
 import { CommentSection } from "@/features/article/components/CommentSection";
+import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { ArticleMarkdownBody, extractArticleOutline } from "@/lib/article-markdown";
 import { prepareArticleBodyForRead } from "@/lib/article-body-read";
 import { PageState } from "@/components/shared/PageState";
@@ -123,6 +124,24 @@ export function ArticleDetailPage() {
             ))}
           </ul>
         ) : null}
+
+        {article.seriesContexts.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            <span className="text-muted-foreground">收录于</span>
+            <ul className="flex flex-wrap gap-x-3 gap-y-2">
+              {article.seriesContexts.map((series) => (
+                <li key={series.id}>
+                  <Link
+                    to={`/series/${encodeURIComponent(series.id)}`}
+                    className="font-medium text-foreground hover:text-accent"
+                  >
+                    {series.title} · 第 {series.position} 章
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </header>
 
       {article.coverUrl ? (
@@ -190,6 +209,10 @@ export function ArticleDetailPage() {
       </div>
 
       <ArticleInteractions objectType="ARTICLE" objectId={article.id} />
+
+      {/* Quiet, secondary entry. `owner` comes from the server, so the author
+          does not see a report link for their own article. */}
+      <ReportLink objectType="ARTICLE" objectId={article.id} hidden={article.owner} />
 
       <CommentSection objectType="ARTICLE" objectId={article.id} />
     </article>

@@ -6,7 +6,8 @@ import type { ChatMessage } from "@/api/messages/messages.types";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageBubble } from "../MessageBubble";
+import { MessageBubble, senderName, formatMessageTimeShort } from "../MessageBubble";
+import { MESSAGE_LOCATOR_PARAM, MESSAGE_SEQUENCE_PARAM } from "@/api/messages/messages.types";
 
 /*
  * Message search (Phase 2I-3b).
@@ -160,29 +161,58 @@ export function SearchMessagesPage() {
       ) : null}
 
       {state.kind === "ready" && state.items.length > 0 ? (
-        <ul aria-label="搜索结果" className="flex flex-col gap-3">
-          {state.items.map((message) => (
-            <li key={message.id} className="flex flex-col gap-1">
-              <Link
-                to={`/messages/${encodeURIComponent(message.conversationId)}`}
-                className="self-start text-xs text-accent hover:underline"
-              >
-                查看所在会话
-              </Link>
-              <ul>
-                {/* Neutral bubble: ownership is unknowable here (see the header
-                    comment), so nothing claims the message is ours. */}
-                <MessageBubble
-                  message={message}
-                  mine={false}
-                  showSender={false}
-                  canRecall={false}
-                  pending={false}
-                  onRecall={() => {}}
-                />
-              </ul>
-            </li>
-          ))}
+        <ul aria-label="搜索结果" className="flex flex-col gap-4">
+          {state.items.map((message) => {
+            const who = senderName(message);
+            // 2026-10-06: a search hit has to answer three questions on its own —
+            // who said it, where, and when. Before this it answered none of them.
+            // DIRECT 走对方展示名；群聊没有（这一版的群聊入口已收口，不为它加设计）。
+            // 一对一里「对方」往往就是说话的人，两个词重复没有信息量，所以同值时只留一个。
+            const counterpart = message.counterpartDisplayName?.trim() || "会话";
+            const showCounterpart = counterpart !== (who ?? "");
+            return (
+              <li key={message.id} className="flex flex-col gap-1">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                  {showCounterpart ? (
+                    <span className="font-medium text-foreground-soft">{counterpart}</span>
+                  ) : null}
+                  {showCounterpart ? <span aria-hidden>·</span> : null}
+                  <span>{who ?? "已注销用户"}</span>
+                  {formatMessageTimeShort(message.createdAt) ? (
+                    <>
+                      <span aria-hidden>·</span>
+                      <time>{formatMessageTimeShort(message.createdAt)}</time>
+                    </>
+                  ) : null}
+                </span>
+                <ul>
+                  {/* Neutral bubble: ownership needs our own user id, which only the
+                      socket handshake provides and this page deliberately does not
+                      open a socket for. */}
+                  <MessageBubble
+                    message={message}
+                    conversationId={message.conversationId}
+                    mine={false}
+                    showSender={false}
+                    // The hit already renders its own time/context line above, so the
+                    // bubble would repeat it.
+                    showTime={false}
+                    canRecall={false}
+                    pending={false}
+                    onRecall={() => {}}
+                  />
+                </ul>
+                <Link
+                  to={`/messages/${encodeURIComponent(message.conversationId)}?${MESSAGE_LOCATOR_PARAM}=${encodeURIComponent(
+                    message.id,
+                  )}&${MESSAGE_SEQUENCE_PARAM}=${message.sequenceNumber}`}
+                  className="self-start text-xs text-accent hover:underline"
+                >
+                  在会话中查看这条消息
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </div>

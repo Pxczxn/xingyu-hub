@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import { AuthCard } from "@/features/auth/components/AuthCard";
+import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import {
   AuthStatusPanel,
   authStatusPrimaryClass,
@@ -28,6 +29,8 @@ export function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // 两次输入不一致是 `确认新密码` 这一个字段的问题 —— 单独放，别混进表单级错误。
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [passwordRules, setPasswordRules] = useState<PasswordPolicy | undefined>();
 
@@ -40,9 +43,12 @@ export function ResetPasswordPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setConfirmError(null);
 
     if (password !== confirm) {
-      setError("两次输入的密码不一致");
+      // Field-level, not form-level: the sentence says which control is wrong,
+      // so raising a second copy in the form-wide alert would say it twice.
+      setConfirmError("两次输入的密码不一致");
       return;
     }
     const ruleError = validatePasswordClient(password, passwordRules);
@@ -117,15 +123,25 @@ export function ResetPasswordPage() {
             id="confirm"
             autoComplete="new-password"
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            onChange={(e) => {
+              setConfirm(e.target.value);
+              setConfirmError(null);
+            }}
+            aria-invalid={confirmError ? true : undefined}
+            aria-describedby={confirmError ? "confirm-error" : undefined}
             required
           />
+          {confirmError ? (
+            <p id="confirm-error" role="alert" className="text-meta text-destructive">
+              {confirmError}
+            </p>
+          ) : null}
         </div>
 
         {error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <AuthFormError testId="reset-password-error" focusOnMount>
             {error}
-          </p>
+          </AuthFormError>
         ) : null}
 
         <Button type="submit" disabled={submitting}>

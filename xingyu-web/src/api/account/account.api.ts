@@ -77,16 +77,30 @@ export const accountApi = {
     apiRequest<DataExportPayload>("/api/v1/me/data-export", { persistToken: false }),
 
   /**
-   * Request account deletion.
+   * Request account **deactivation** — this is NOT a deletion.
    *
    * ⚠️ Read `requestAccountDeletion` before describing this to a user: it does
    * NOT delete anything. It sets `user.status = "SUSPENDED"` and returns 204.
-   * There is no cancellation endpoint, no confirmation email, and no scheduled
-   * erasure job in the codebase. So the UI must say "deactivate" honestly
-   * instead of promising irreversible deletion — and must warn that the caller
-   * has no way back through the UI.
+   * Articles, comments, moments, messages, collections and follows are all left
+   * exactly as they are — there is no erasure job and no anonymisation anywhere
+   * in the codebase. So the UI must say "停用" honestly instead of promising
+   * irreversible deletion — and must warn that the caller has no way back
+   * through the UI.
+   *
+   * What DOES stop working immediately after deactivation (enforced at auth
+   * time by checking `user.status`, not by bulk-revoking anything):
+   *   - logging in
+   *   - every session on every device (`requireActiveSession`)
+   *   - every issued API Token (`requireActiveToken`, hardened this round —
+   *     it previously did NOT check account status)
+   *
+   * 2026-10-08: requires a **fresh, unused** re-auth grant in `X-Recent-Auth`.
+   * The server consumes the grant atomically, so one grant deactivates once —
+   * a leaked grant id cannot be replayed, and a long-lived session alone is
+   * not enough. Without a valid grant the endpoint answers 403 AUTH_FORBIDDEN.
    */
-  requestAccountDeletion: (): Promise<AccountDeletionResult> => apiRequestAccountDeletion(),
+  requestAccountDeletion: (recentAuthId?: string): Promise<AccountDeletionResult> =>
+    apiRequestAccountDeletion(recentAuthId),
 };
 
 /**
@@ -94,9 +108,10 @@ export const accountApi = {
  * home. `apiRequest<void>` resolves to `undefined` on 204, which is awkward to
  * assert on and easy to mistake for "nothing happened".
  */
-async function apiRequestAccountDeletion(): Promise<AccountDeletionResult> {
+async function apiRequestAccountDeletion(recentAuthId?: string): Promise<AccountDeletionResult> {
   await apiRequest<void>("/api/v1/me/account/deletion-request", {
     method: "POST",
+    headers: recentAuthId ? { "X-Recent-Auth": recentAuthId } : undefined,
     persistToken: false,
   });
   return { requested: true };

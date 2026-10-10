@@ -54,9 +54,16 @@ export function CreatorCardItem({
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          已发布内容 <span className="font-medium text-foreground">{creator.contentCount}</span> 篇
-        </p>
+        {creator.profile?.articleCount != null && creator.profile.seriesCount != null ? (
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{creator.profile.articleCount}</span> 篇文章 ·{" "}
+            <span className="font-medium text-foreground">{creator.profile.seriesCount}</span> 个系列
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            专题收录 <span className="font-medium text-foreground">{creator.contentCount}</span> 篇
+          </p>
+        )}
 
         {work ? (
           <Link

@@ -25,7 +25,7 @@ export function TopicCreatorsPanel({ creators }: { creators: TopicCreatorSummary
                   {name.trim().charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-primary group-hover:text-accent">
+                  <span className="block truncate text-sm font-medium text-primary group-hover:text-accent-strong">
                     {name}
                   </span>
                   <span className="block text-xs text-muted-foreground">

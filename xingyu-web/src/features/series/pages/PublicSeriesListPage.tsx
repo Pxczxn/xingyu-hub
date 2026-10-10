@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { seriesApi } from "@/api/series/series.api";
 import type { PublicSeriesSummary } from "@/api/series/series.types";
 import { PageState } from "@/components/shared/PageState";
@@ -6,8 +6,6 @@ import { PageHero } from "@/components/shared/PageHero";
 import { SeriesDirectoryItem } from "../components/SeriesDirectoryItem";
 
 type LoadState = "loading" | "error" | "ready";
-
-type SortMode = "default" | "recent";
 
 const PAGE_SIZE = 8;
 
@@ -21,7 +19,6 @@ const PAGE_SIZE = 8;
 export function PublicSeriesListPage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [items, setItems] = useState<PublicSeriesSummary[]>([]);
-  const [sort, setSort] = useState<SortMode>("default");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
@@ -41,13 +38,7 @@ export function PublicSeriesListPage() {
     };
   }, []);
 
-  const visible = useMemo(() => {
-    const list = [...items];
-    if (sort === "recent") {
-      list.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-    }
-    return list.slice(0, visibleCount);
-  }, [items, sort, visibleCount]);
+  const visible = items.slice(0, visibleCount);
 
   if (loadState === "loading") return <PageState kind="loading" />;
   if (loadState === "error") return <PageState kind="error" />;
@@ -69,31 +60,9 @@ export function PublicSeriesListPage() {
         />
       ) : (
         <>
-          <div
-            className="flex items-center gap-5 border-b border-border/70"
-            role="group"
-            aria-label="系列排序"
-          >
-            {(
-              [
-                ["default", "全部系列"],
-                ["recent", "最近更新"],
-              ] as const
-            ).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setSort(mode)}
-                className={
-                  sort === mode
-                    ? "border-b-2 border-accent pb-2 text-sm font-medium text-primary"
-                    : "border-b-2 border-transparent pb-2 text-sm text-muted-foreground transition-colors hover:text-primary"
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <h2 className="border-b border-border/70 pb-2 text-sm font-medium text-primary">
+            全部系列
+          </h2>
 
           <ul className="rounded-xl border border-border/60 bg-card/70 px-4 sm:px-5">
             {visible.map((item, index) => (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { LoaderCircle, Plus, UsersRound } from "lucide-react";
+import { LoaderCircle, UsersRound } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { messagesApi } from "@/api/messages/messages.api";
 import type { Conversation } from "@/api/messages/messages.types";
@@ -156,15 +156,20 @@ export function MyGroupsPage() {
               我的群聊
             </h1>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              你参与或创建的群聊会话。新建的群聊只有你一个成员，之后可以在群聊里添加成员。
+              你参与或创建的群聊会话。
             </p>
           </div>
-          {!creating ? (
-            <Button type="button" variant="outline" onClick={() => setCreating(true)}>
-              <Plus className="mr-2 h-4 w-4" aria-hidden />
-              创建群聊
-            </Button>
-          ) : null}
+          {/*
+            创建入口暂时下线（2026-10-06）。
+
+            原因不是「还没做」，而是**做出来也没用**：`POST /messages/group` 只吃 title、
+            硬编码 joinMode=OPEN、只建 1 个 OWNER 成员，而 V2 没有任何加成员 / 邀请的入口
+            （群管理写端点刻意没有暴露）。也就是说新建的群永远只有一个人，旁人无法发现
+            —— 一个用户可见的、必然产出死功能的按钮。
+
+            保留 GROUP 数据模型、后端管理能力与本路由（读仍是真的）；等
+            Group Messaging Product Phase 把「加成员 / 群发现 / 群主审批」补齐后再恢复。
+          */}
         </div>
 
         {creating ? (

@@ -8,7 +8,6 @@ import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
-import { formatUpdatedAt, seriesStatusLabel } from "../series-labels";
 
 type LoadState =
   | { kind: "loading" }
@@ -89,18 +88,19 @@ export function PublicSeriesDetailPage() {
       </nav>
 
       <header className="rounded-lg border border-border bg-card p-6">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          {seriesStatusLabel(series.status)}
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold text-primary">{series.title}</h1>
+        <h1 className="text-2xl font-semibold text-primary">{series.title}</h1>
+        <Link
+          to={`/u/${encodeURIComponent(series.author.username)}`}
+          className="mt-2 inline-flex text-sm font-medium text-accent hover:underline"
+        >
+          {series.author.displayName?.trim() || `@${series.author.username}`}
+        </Link>
         {series.description ? (
           <p className="mt-2 text-sm text-muted-foreground">{series.description}</p>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">该系列暂未提供简介。</p>
         )}
-        <p className="mt-3 text-xs text-muted-foreground">
-          {`${chapters.length} 章 · ${formatUpdatedAt(series.updatedAt)} 更新`}
-        </p>
+        <p className="mt-3 text-xs text-muted-foreground">{`${chapters.length} 章`}</p>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
           {chapters.length > 0 ? (
@@ -153,9 +153,8 @@ export function PublicSeriesDetailPage() {
                   to={`/articles/${encodeURIComponent(chapter.articleId)}`}
                   className={cn("text-sm font-medium hover:text-accent")}
                 >
-                  {/* The backend never populates chapter.title (it has no join to
-                      the article), so fall back to a positional label rather
-                      than printing "无标题文章" for every row. */}
+                  {/* Prefer the API title and retain a positional fallback for
+                      legacy or unavailable search documents. */}
                   {chapter.title?.trim() || `第 ${chapter.position} 章`}
                 </Link>
               </li>

@@ -11,21 +11,29 @@ import { setStoredRecentAuth } from "@/features/settings/recent-auth";
 /*
  * /settings/security/re-authenticate (Phase 3H).
  *
- * Why this page is a prerequisite, not a nicety: `POST /me/email/change` refuses
- * without an `X-Recent-Auth` grant (403 「请先完成身份再认证」). This page mints
- * one from the current password and stores it in sessionStorage for 15 minutes
- * (the backend's `VALID_MINUTES`).
+ * Why this page is a prerequisite, not a nicety: two endpoints refuse without an
+ * `X-Recent-Auth` grant (403 「请先完成身份再认证」) —
+ *   - `POST /me/email/change`     (2026-10-08: still checks only)
+ *   - `POST /me/account/deletion-request` (2026-10-08: additionally CONSUMES it)
+ * This page mints one from the current password and stores it in sessionStorage
+ * for 15 minutes (the backend's `VALID_MINUTES`).
  *
- * It accepts an optional `?returnTo=` so the email-change page can bounce the
- * user here and get them back — the Legacy page did the same. Only a
- * known-safe relative path is honoured; an absolute URL is ignored, so the
- * parameter cannot be used as an open redirect.
+ * 2026-10-08: the grant became single-use for deactivation. The copy below says
+ * 「15 分钟内有效」and must not imply "unlimited uses" — for deactivation it is
+ * strictly one shot. This page does not need to say so (the destructive page
+ * does), but it must not claim the opposite either.
+ *
+ * It accepts an optional `?returnTo=` so the email-change or deactivation page
+ * can bounce the user here and get them back — the Legacy page did the same.
+ * Only a known-safe relative path is honoured; an absolute URL is ignored, so
+ * the parameter cannot be used as an open redirect.
  *
  * --- 2026-10-03 structure pass ---------------------------------------------
  * This page was typeset as a settings SECTION — same heading, same full-width
  * form, same left alignment as 隐私 or 屏蔽管理. But it is not a setting: it is a
- * STEP in someone else's flow (changing the email). Rendering a flow step as a
- * settings section invites the reader to treat it as a place to browse.
+ * STEP in someone else's flow (changing the email, deactivating the account).
+ * Rendering a flow step as a settings section invites the reader to treat it as
+ * a place to browse.
  *
  * It is now a single CENTRED, NARROW card (max-w-md) — the shape a flow step has
  * when it interrupts you — with the shield mark, one field and one action. The
@@ -99,7 +107,7 @@ export function SettingsReauthenticatePage() {
           <PageState
             kind="empty"
             title="身份验证成功"
-            description="验证结果 15 分钟内有效，现在可以修改邮箱了。"
+            description="验证结果 15 分钟内有效，现在可以修改邮箱或停用账号了。"
           />
           <p className="mt-3 text-center">
             <Link
@@ -138,7 +146,7 @@ export function SettingsReauthenticatePage() {
             身份再验证
           </h1>
           <p className="mx-auto mt-1.5 max-w-sm text-center text-meta text-muted-foreground">
-            为保护账号，修改邮箱前需要先用当前密码验证身份，验证结果 15 分钟内有效。
+            为保护账号，修改邮箱或停用账号前需要先用当前密码验证身份，验证结果 15 分钟内有效。
           </p>
 
           {submitError ? (

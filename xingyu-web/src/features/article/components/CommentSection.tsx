@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import type { CommentItem } from "@/api/interactions/interactions.types";
 import { useAuth } from "@/features/auth/auth.store";
+import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { Button } from "@/components/ui/button";
 
 /*
@@ -139,6 +140,14 @@ export function CommentSection({
                       <span className="font-medium text-foreground">匿名</span>
                     )}
                     <span>{new Date(comment.createdAt).toLocaleString("zh-CN")}</span>
+                    {/* Quiet, secondary entry — not a CTA. Hidden for the
+                        comment's own author, who cannot report themselves. */}
+                    <ReportLink
+                      objectType="COMMENT"
+                      objectId={comment.id}
+                      hidden={comment.authorUsername === user?.username}
+                      className="ml-auto"
+                    />
                   </div>
                   <p className="whitespace-pre-wrap text-sm text-foreground">{comment.body}</p>
                 </li>

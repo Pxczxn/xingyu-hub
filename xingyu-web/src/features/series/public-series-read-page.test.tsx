@@ -40,9 +40,7 @@ const SERIES = {
   title: "星语开发日志",
   slug: "s",
   description: null,
-  status: "ACTIVE" as const,
-  lockVersion: 0,
-  updatedAt: "2026-09-27T10:00:00Z",
+  author: { username: "alice", displayName: "Alice", avatar: null },
   chapters: [
     { id: "ch-1", articleId: "art-1", title: "第一章", position: 1 },
     { id: "ch-2", articleId: "art-2", title: "第二章", position: 2 },
@@ -60,6 +58,7 @@ function article(id: string, title: string) {
     spaceSlug: "s",
     ownerUsername: "u",
     publishedAt: "2026-09-27T10:00:00Z",
+    seriesContexts: [],
     owner: false,
   };
 }

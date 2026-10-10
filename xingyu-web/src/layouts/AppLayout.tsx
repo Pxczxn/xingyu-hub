@@ -20,12 +20,13 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { homeApi } from "@/api/home/home.api";
-import { messagesApi } from "@/api/messages/messages.api";
-import { countUnreadConversations, toConversations } from "@/api/messages/messages.types";
+import { notificationsApi } from "@/api/notifications/notifications.api";
+import { usersApi } from "@/api/users/users.api";
+import type { ProfileDetail } from "@/api/users/users.types";
 import { useAuth } from "@/features/auth/auth.store";
+import { useChatSocket } from "@/features/chat/chat-socket.context";
+import { onUnreadChanged } from "@/features/notifications/unread-sync";
 import { cn } from "@/lib/cn";
-import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
 
 /*
  * App shell for Web V2.
@@ -47,6 +48,12 @@ import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
  * 创作 / 通知 / 私信 / 用户菜单, and a wall of links is not a user menu. That component is now
  * the ONLY entry point for those routes — read its header before changing it.
  *
+ * 2026-10-06: this file no longer opens a WebSocket. The whole tab shares ONE connection
+ * through `ChatSocketProvider` (see features/chat), and this component only SUBSCRIBES to it
+ * for the message badge and the floating toast. It used to hold its own socket plus its own
+ * `GET /messages` fetch while MailboxPage did the same again — two sockets per tab fighting
+ * over the server's single session per user.
+ *
  * 2026-10-03 (layout pass) — three shell defects, all measured:
  *
  *   1. The shell had NO mobile navigation. The nav was `hidden md:flex` and the
@@ -55,9 +62,8 @@ import { useCommunityChatSocket } from "@/lib/use-community-chat-socket";
  *      640px too) and 登录/注册. Five of the seven nav destinations were simply
  *      unreachable on a phone. `MobileNav` below fixes that.
  *   2. The search box was a native `<form action="/search" method="get">`. That
- *      is a real document navigation: it tore down the SPA, re-downloaded the
- *      entry bundle and dropped the chat socket opened at the bottom of this
- *      file. `/search` already reads `?q=` through `useSearchParams`, so the
+ *      is a real document navigation: it tore down the SPA and re-downloaded the
+ *      entry bundle. `/search` already reads `?q=` through `useSearchParams`, so the
  *      route contract is unchanged — only the submit handler needed to change.
  *   3. No skip link, so a keyboard user tabbed through the whole header on every
  *      route before reaching content.
@@ -131,7 +137,7 @@ function SearchForm({
       <input
         type="search"
         name="q"
-        placeholder="搜索文章、话题、用户"
+        placeholder="搜索文章、系列、动态、用户"
         aria-label="搜索"
         className={cn(
           "h-9 w-full rounded-lg border border-input/80 bg-surface-sunken/70 pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-accent-line focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring",
@@ -159,6 +165,23 @@ export function AppLayout() {
   const { isAuthenticated, user, logout } = useAuth();
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
+  const [myProfile, setMyProfile] = useState<ProfileDetail | null>(null);
+
+  // The authenticated account payload only carries login identity. The real
+  // community avatar is owned by GET /me/profile, so load that existing
+  // profile contract for the account menu instead of inventing a second field.
+  useEffect(() => {
+    let active = true;
+    if (!isAuthenticated) {
+      setMyProfile(null);
+      return;
+    }
+    usersApi
+      .getMyProfile()
+      .then((profile) => { if (active) setMyProfile(profile); })
+      .catch(() => { if (active) setMyProfile(null); });
+    return () => { active = false; };
+  }, [isAuthenticated]);
 
   // A panel that survives navigation is a trap on a phone: the user taps a
   // destination, the page changes underneath, and the sheet is still covering it.
@@ -169,11 +192,13 @@ export function AppLayout() {
   /*
    * Unread notification badge.
    *
-   * GET /api/v1/home already carries `unreadNotifications` (HomeService counts
-   * unread rows for the session user and returns 0 for guests). That is the
-   * cheap source: no extra endpoint, and it is the same number the home page
-   * would render. It is read here rather than in each page so the shell shows it
-   * on every route.
+   * Source: `GET /api/v1/notifications/unread-count` — a single COUNT of the
+   * session user's unread rows. It replaced `GET /api/v1/home`'s
+   * `unreadNotifications` field (2026-10-06): that endpoint assembles the whole
+   * home feed — recommendations, card enrichment and all — to answer a question
+   * about one badge, and the badge is the only thing the shell ever read from it.
+   *
+   * It is read here rather than in each page so the shell shows it on every route.
    *
    * A failure is swallowed on purpose — the badge is decoration, and a toast for
    * a background count would be noise. The count simply stays absent.
@@ -186,10 +211,10 @@ export function AppLayout() {
       setUnread(0);
       return;
     }
-    homeApi
-      .getGuestHome()
-      .then((home) => {
-        if (active) setUnread(home.unreadNotifications ?? 0);
+    notificationsApi
+      .getUnreadCount()
+      .then((count) => {
+        if (active) setUnread(count);
       })
       .catch(() => {
         if (active) setUnread(0);
@@ -200,104 +225,66 @@ export function AppLayout() {
   }, [isAuthenticated]);
 
   /*
-   * Unread message badge (Phase 2I-3).
+   * In-session sync with the notification page.
    *
-   * There is NO "mailbox total" endpoint — the backend only counts unread per
-   * conversation (`countUnread` in ConversationService, compared against
-   * `last_read_sequence`). So the header total is the sum of `unreadCount`
-   * across the session's conversations, via the same helper the mailbox uses.
+   * The page and the shell are separate components with no shared store, so
+   * reading a notification on /notifications used to leave this badge showing the
+   * old number until a reload. The page now publishes the SERVER-confirmed count
+   * after a successful mark-read / read-all (features/notifications/unread-sync),
+   * and the badge applies it verbatim. Nothing is published on a failed write, so
+   * a failed read can never silently decrement the badge.
    *
-   * `GET /api/v1/messages` is a bare array (not a PageResult like
-   * /messages/{id}/messages), which is why this goes through `toConversations`.
-   *
-   * Like the notification badge, a failure is swallowed: the badge is
-   * decoration, and the count simply stays 0.
+   * Reusing the `window` CustomEvent pattern already used for auth changes rather
+   * than introducing a store — see the note in unread-sync.ts.
    */
-  const [unreadMessages, setUnreadMessages] = useState(0);
-
   useEffect(() => {
-    let active = true;
-    if (!isAuthenticated) {
-      setUnreadMessages(0);
-      return;
-    }
-    messagesApi
-      .listConversations()
-      .then((items) => {
-        if (active) setUnreadMessages(countUnreadConversations(toConversations(items)));
-      })
-      .catch(() => {
-        if (active) setUnreadMessages(0);
-      });
-    return () => {
-      active = false;
-    };
+    if (!isAuthenticated) return;
+    return onUnreadChanged((count) => setUnread(count));
   }, [isAuthenticated]);
 
-  // Realtime: a message arriving while the user is anywhere in the app changes
-  // the header count, not just the mailbox. Refetch rather than patch — the
-  // frame carries a message, not a conversation.
-  const [messageRefreshToken, setMessageRefreshToken] = useState(0);
-
   /*
-   * Live message -> floating toast.
+   * Unread message badge + live message toast — both from the shared chat provider
+   * (2026-10-06).
    *
-   * Three guards, each of which is a real case rather than a hypothetical:
+   * This component used to fetch `GET /api/v1/messages` itself AND hold its own
+   * WebSocket, while MailboxPage did both again with a second socket. The server
+   * keeps one session per user, so those two closed each other every few seconds and
+   * the badge went stale whenever its socket was the one that got closed.
    *
-   *   - `senderId === self` : the socket broadcasts to every member of the
-   *     conversation, INCLUDING the sender's other devices. Without this, sending
-   *     a message on your phone pops a "new message" toast on your laptop. The
-   *     client only learns its own user id from the socket's `connected` frame
-   *     (MeView and ProfileView both omit it), so it is captured below.
-   *   - already on that conversation : a toast would cover the very message it is
-   *     announcing.
-   *   - guests : never subscribed, but the handler is not re-created per session,
-   *     so the check stays.
+   * Now there is exactly one connection and one conversation list for the whole tab:
+   * the header badge, the mailbox rows and the open thread read the same value, and
+   * a `message` / `read` frame refreshes it once for all of them. `unreadTotal === null`
+   * means "not read yet" and renders as no badge — a missing count must never be drawn
+   * as zero.
    *
-   * `pathnameRef` rather than `location.pathname` in the deps: the socket handler
-   * is read through a ref by the hook, and re-subscribing the socket on every
-   * navigation would drop the connection.
+   * The toast keeps its three guards: skip our own messages (the frame fans out to the
+   * sender's other devices too), skip the conversation we are reading, and skip
+   * guests. Our own user id comes from the provider (it is learned from the socket's
+   * `connected` frame — neither /me nor /me/profile returns an id).
    */
+  const { unreadTotal, subscribe, myUserId } = useChatSocket();
+  const unreadMessages = unreadTotal ?? 0;
   const { push } = useNotificationToasts();
   const selfUserIdRef = useRef<string | null>(null);
   const pathnameRef = useRef(location.pathname);
   pathnameRef.current = location.pathname;
+  selfUserIdRef.current = myUserId;
 
-  useCommunityChatSocket(isAuthenticated, {
-    onConnected: (userId) => {
-      selfUserIdRef.current = userId;
-    },
-    onMessage: (conversationId, message) => {
-      setMessageRefreshToken((token) => token + 1);
-
-      if (!isAuthenticated) return;
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    return subscribe((event) => {
+      if (event.kind !== "message") return;
+      const message = event.message;
       if (message?.senderId && message.senderId === selfUserIdRef.current) return;
-      if (pathnameRef.current === `/messages/${conversationId}`) return;
-
+      if (pathnameRef.current === `/messages/${event.conversationId}`) return;
       push({
         category: "MESSAGE",
         title: "收到一条新私信",
         body: message?.recalledAt ? "［消息已撤回］" : message?.body,
-        href: `/messages/${conversationId}`,
+        href: `/messages/${event.conversationId}`,
       });
-    },
-  });
-
-  useEffect(() => {
-    let active = true;
-    if (!isAuthenticated || messageRefreshToken === 0) return;
-    messagesApi
-      .listConversations()
-      .then((items) => {
-        if (active) setUnreadMessages(countUnreadConversations(toConversations(items)));
-      })
-      .catch(() => {
-        /* keep the previous count */
-      });
-    return () => {
-      active = false;
-    };
-  }, [isAuthenticated, messageRefreshToken]);
+    });
+  }, [isAuthenticated, subscribe, push]);
 
   return (
     <div className="flex min-h-full flex-col bg-background">
@@ -401,7 +388,12 @@ export function AppLayout() {
                 {/* The user entry is a MENU, not a row of links — the prototype's 用户菜单.
                     Every destination it holds lives in UserMenu, which is their ONLY entry
                     point; read the note there before removing anything. */}
-                <UserMenu username={user?.username ?? "我的主页"} onLogout={() => void logout()} />
+                <UserMenu
+                  username={myProfile?.username ?? user?.username ?? "我的主页"}
+                  displayName={myProfile?.displayName ?? undefined}
+                  avatarUrl={myProfile?.avatar}
+                  onLogout={() => void logout()}
+                />
               </div>
             ) : (
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -544,7 +536,7 @@ export function AppLayout() {
                 is public), so it shares the footer slot with /events rather than
                 taking a main-nav item. */}
             <Link to="/creators" className="transition-colors hover:text-accent-strong">
-              推荐作者
+              发现创作者
             </Link>
             <Link to="/guide" className="transition-colors hover:text-accent-strong">
               指南

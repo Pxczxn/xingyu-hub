@@ -22,7 +22,17 @@ import tseslint from "typescript-eslint";
  */
 export default [
   {
-    ignores: ["dist/**", "coverage/**", "node_modules/**"],
+    // `.tmp-*` 是本机绕开 vite「批量删除门禁」时用的预构建缓存目录
+    // （见 .tmp-vite.config.ts 的 cacheDir），里面全是第三方库打包产物。
+    // 2026-10-09：它没被忽略时贡献了 7684 个 lint error，全是
+    // `'self' is not defined` / `no-unused-vars` 这类第三方产物噪音，
+    // 会把真实源码错误彻底淹没。这里补上忽略，属于修配置而不是掩盖代码问题。
+    ignores: [
+      "dist/**",
+      "coverage/**",
+      "node_modules/**",
+      ".tmp-*/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

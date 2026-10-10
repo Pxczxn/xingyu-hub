@@ -6,6 +6,7 @@ import { eventsApi } from "@/api/events/events.api";
 import {
   SUBMISSION_OBJECT_LABELS,
   formatEventDay,
+  isEventEnded,
   isSubmissionSettled,
   submissionStatusLabel,
   type EventSubmissionView,
@@ -119,13 +120,19 @@ export function MyEventsPage() {
     return result;
   }, [rows]);
 
-  // Recommendations: active events the user has never submitted to. Joined on
-  // eventId, which is the only key a submission carries.
-  const recommendations = useMemo(() => {
-    if (state.kind !== "ready") return [];
-    const joined = new Set(state.rows.map((row) => row.submission.eventId));
-    return state.activeEvents.filter((event) => !joined.has(event.id)).slice(0, 5);
-  }, [state]);
+  // Recommendations: events the user has never submitted to that have NOT
+  // ended. An ended event is not a recommendation — offering it would send the
+  // reader to a page where every write is refused by the server.
+  const recommendations =
+    state.kind === "ready"
+      ? state.activeEvents
+          .filter(
+            (event) =>
+              !state.rows.some((row) => row.submission.eventId === event.id) &&
+              isEventEnded(event) !== true,
+          )
+          .slice(0, 5)
+      : [];
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -242,7 +249,16 @@ export function MyEventsPage() {
 
                   {/* The event title is the row's context; without the event in
                       the active list there is nothing honest to put here. */}
-                  {event ? <p className="text-xs text-muted-foreground">{event.title}</p> : null}
+                  {event ? (
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {isEventEnded(event) === true ? (
+                        <span className="shrink-0 rounded border border-border px-1 text-[10px]">
+                          已结束
+                        </span>
+                      ) : null}
+                      <span className="truncate">{event.title}</span>
+                    </p>
+                  ) : null}
 
                   {submission.note?.trim() ? (
                     <p className="text-xs text-muted-foreground">{submission.note}</p>
@@ -261,8 +277,7 @@ export function MyEventsPage() {
             </h2>
             {recommendations.length === 0 ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                {rows.length === 0 ? "暂无可推荐活动。" : "你已经参与了所有进行中的活动。"}
-              </p>
+                {rows.length === 0 ? "暂无可推荐活动。" : "你已经参与了所有进行中的活动。"}              </p>
             ) : (
               <ul className="mt-2 flex flex-col gap-2">
                 {recommendations.map((event) => (

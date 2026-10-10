@@ -23,7 +23,8 @@ export function TopicsHero({
   return (
     <header className="flex flex-col gap-4 border-b border-border/70 pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">TOPICS</p>
+        {/* TEXT — resolves through --accent-strong (raw brand gold is 2.01:1 on cream). */}
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-strong">TOPICS</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-primary">话题广场</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           从感兴趣的话题出发，找到正在发生的讨论。

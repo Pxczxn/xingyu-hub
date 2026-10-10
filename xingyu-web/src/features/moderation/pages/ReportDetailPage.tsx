@@ -6,7 +6,10 @@ import { reportsApi } from "@/api/moderation/moderation.api";
 import {
   hasCase,
   isReportOpen,
+  objectTypeLabel,
+  reportReasonLabel,
   reportStatusLabel,
+  targetDescription,
   type ReportSupplementView,
   type UserReportDetailView,
 } from "@/api/moderation/moderation.types";
@@ -14,22 +17,26 @@ import { PageState } from "@/components/shared/PageState";
 import { cn } from "@/lib/cn";
 
 /*
- * Report detail (Phase 2J-2).
+ * Report detail.
  *
- * The fields this page deliberately does NOT fake:
+ * LOCKED SECTION ORDER: 对象 → 当前状态 → 举报原因与举报说明 → 补充内容 →
+ * 处理结果 → 时间. Sections appear in exactly that order; empty sections are
+ * omitted rather than shown as empty boxes.
  *
- *  - `caseId` / `caseStatus` / `measureId` are nullable on the server. A report
- *    with no case yet has all three null, so 「关联案件」 is rendered ONLY when a
- *    case exists. An empty box or a "—" pretending to be a case id would be
- *    inventing structure the server did not send.
- *  - `measureId` is what makes an appeal possible. The 申诉 link is therefore
- *    shown only when `measureId` exists — and it carries both `caseId` and
- *    `measureId`, because `submitAppeal` resolves the measure from either.
- *    When there is no measure, no appeal link is rendered at all: an appeal
- *    without a measure cannot be submitted (the server throws
- *    「未找到可申诉的治理措施」), so offering the control would be a button that
- *    always fails.
- *  - 补充说明 is offered only while the report is open (`SUBMITTED`/`TRIAGED`) —
+ * WHAT THIS PAGE DELIBERATELY DOES NOT DO:
+ *
+ *  - It never renders `targetId` / `caseId`. A UUID is not a description; the
+ *    subject is shown as the server-resolved title/summary, the type as 文章/
+ *    dynamic/comment. If the object is gone, the description says so.
+ *  - `caseId` / `caseStatus` / `measureId` are nullable server-side. A report with
+ *    no case yet renders NO 处理结果 case block — an empty box would invent
+ *    structure the server did not send.
+ *  - This page NEVER offers an appeal control. The reader of /reports/:id is, by
+ *    definition, the reporter — never the affected party. Appeals are open only to
+ *    the owner of the measure, and the server answers 404 to anyone else
+ *    (verified: reporter POST /api/v1/appeals → 404 NOT_FOUND). So a measure here
+ *    only means "a result exists"; the 处理结果 block states that and stops.
+ *  - 补充说明 is offered only while the report is open (SUBMITTED / TRIAGED) —
  *    the same guard the server enforces.
  */
 
@@ -60,7 +67,13 @@ export function ReportDetailPage() {
     reportsApi
       .getById(reportId)
       .then((report) => {
-        if (active) setState({ kind: "ready", report });
+        if (!active) return;
+        setState({ kind: "ready", report });
+        // Seed the supplement list from the persisted record. Without this the
+        // list started empty and only ever grew from in-session POSTs, so every
+        // previously written supplement vanished on reload — the write path had
+        // no read path. The server returns them oldest-first.
+        setSupplements(report.supplements);
       })
       .catch((err: unknown) => {
         if (!active) return;
@@ -128,7 +141,15 @@ export function ReportDetailPage() {
 
   const { report } = state;
   const open = isReportOpen(report.status);
-  const canAppeal = report.measureId != null && report.measureId !== "";
+  /**
+   * Whether a measure was actually issued.
+   *
+   * NOTE: this is deliberately NOT called "canAppeal". This page is the
+   * *reporter's* view of their own report, so the reader is never the affected
+   * party and can never appeal — a measure here only means "a result exists".
+   */
+  const hasMeasure = report.measureId != null && report.measureId !== "";
+  const caseExists = hasCase(report);
 
   return (
     <div className="section-gap">
@@ -142,103 +163,66 @@ export function ReportDetailPage() {
         </Link>
       </p>
 
+      {/* ① 对象 */}
       <header className="rounded-lg border border-border bg-card p-5">
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
           <ShieldAlert className="h-5 w-5" aria-hidden />
           举报详情
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {report.targetType} · <span className="font-mono">{report.targetId}</span>
+        <p className="mt-3 text-xs font-medium text-muted-foreground">
+          {objectTypeLabel(report.targetType)}
         </p>
-        {/* Unknown statuses echo verbatim rather than being guessed at. */}
+        <p className="mt-1 text-sm font-medium text-foreground">{targetDescription(report)}</p>
+      </header>
+
+      {/* ② 当前状态 */}
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h2 className="section-heading">当前状态</h2>
         <p className="mt-3">
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
             {reportStatusLabel(report.status)}
           </span>
         </p>
-      </header>
+      </section>
 
+      {/* ③ 举报原因与举报说明 */}
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="section-heading">举报内容</h2>
+        <h2 className="section-heading">举报原因与说明</h2>
         <dl className="mt-3 flex flex-col gap-4 text-sm">
           <div>
             <dt className="text-muted-foreground">举报原因</dt>
-            <dd className="mt-1 whitespace-pre-wrap text-foreground">{report.reason}</dd>
+            <dd className="mt-1 whitespace-pre-wrap text-foreground">{reportReasonLabel(report.reason)}</dd>
           </div>
           {report.detail?.trim() ? (
             <div>
-              <dt className="text-muted-foreground">补充说明</dt>
+              <dt className="text-muted-foreground">举报说明</dt>
               <dd className="mt-1 whitespace-pre-wrap text-foreground">{report.detail}</dd>
             </div>
           ) : null}
-          <div>
-            <dt className="text-muted-foreground">提交时间</dt>
-            <dd className="mt-1 text-foreground">{formatTime(report.createdAt)}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">最近更新</dt>
-            <dd className="mt-1 text-foreground">{formatTime(report.updatedAt)}</dd>
-          </div>
         </dl>
       </section>
 
-      {/* Rendered only when a case exists — these fields are nullable server-side
-          and must not be presented as an empty case. */}
-      {hasCase(report) ? (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="section-heading">关联案件</h2>
-          <dl className="mt-3 flex flex-col gap-3 text-sm">
-            <div>
-              <dt className="text-muted-foreground">案件编号</dt>
-              <dd className="mt-1 font-mono text-foreground">{report.caseId}</dd>
-            </div>
-            {report.caseStatus ? (
-              <div>
-                <dt className="text-muted-foreground">案件状态</dt>
-                <dd className="mt-1 text-foreground">{report.caseStatus}</dd>
-              </div>
-            ) : null}
-          </dl>
-
-          {/* An appeal needs an appealable measure; without one the server
-              refuses, so the link is withheld rather than dead. */}
-          {canAppeal ? (
-            <p className="mt-4">
-              <Link
-                to={`/appeals/new?caseId=${encodeURIComponent(report.caseId ?? "")}&measureId=${encodeURIComponent(
-                  report.measureId ?? "",
-                )}`}
-                className="text-sm text-accent hover:underline"
-              >
-                对此处置提出申诉
-              </Link>
-            </p>
-          ) : (
-            <p className="mt-4 text-xs text-muted-foreground">
-              尚未对该案件作出处置，暂无可申诉的措施。
-            </p>
-          )}
-        </section>
-      ) : null}
-
+      {/* ④ 补充内容 —— 只是一份补充清单，不是时间线组件 */}
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="section-heading">补充说明</h2>
+        <h2 className="section-heading">补充内容</h2>
 
         {supplements.length > 0 ? (
           <ul aria-label="补充说明列表" className="mt-3 flex flex-col gap-3">
             {supplements.map((item) => (
               <li key={item.id} className="rounded-md border border-border p-3">
+                <p className="whitespace-pre-wrap text-sm text-foreground">{item.body}</p>
                 <time
                   dateTime={item.createdAt}
-                  className="text-xs tabular-nums text-muted-foreground"
+                  className="mt-1 block text-xs tabular-nums text-muted-foreground"
                 >
                   {formatTime(item.createdAt)}
                 </time>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{item.body}</p>
               </li>
             ))}
           </ul>
-        ) : null}
+        ) : (
+          <p className="mt-3 text-xs text-muted-foreground">暂无补充内容。</p>
+        )}
 
         {open ? (
           <div className="mt-4 flex flex-col gap-2">
@@ -272,6 +256,37 @@ export function ReportDetailPage() {
         ) : (
           <p className="mt-3 text-xs text-muted-foreground">举报已关闭，无法再补充说明。</p>
         )}
+      </section>
+
+      {/* ⑤ 处理结果 —— 只在实际存在案件/措施时出现；只表达系统真正做过的。
+          注意：本页是「我提交的举报」详情，读者按定义就是举报人，不是被处理方。
+          所以这里绝不能给读者一个「提出申诉」入口 —— 申诉只对被措施的 owner 开放，
+          服务端对其他人一律 404（已实测）。给举报人一个必然失败的按钮，就是把系统
+          不存在的能力画到界面上。 */}
+      {caseExists ? (
+        <section className="rounded-lg border border-border bg-card p-5">
+          <h2 className="section-heading">处理结果</h2>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {hasMeasure
+              ? "该举报对应的案件已作出处置。被处理方可以对该处置提出申诉。"
+              : "相关案件正在处理中，作出处置后这里会显示结果。"}
+          </p>
+        </section>
+      ) : null}
+
+      {/* ⑥ 时间 */}
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h2 className="section-heading">时间</h2>
+        <dl className="mt-3 flex flex-col gap-3 text-sm">
+          <div>
+            <dt className="text-muted-foreground">提交时间</dt>
+            <dd className="mt-1 text-foreground">{formatTime(report.createdAt)}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">最近更新</dt>
+            <dd className="mt-1 text-foreground">{formatTime(report.updatedAt)}</dd>
+          </div>
+        </dl>
       </section>
     </div>
   );

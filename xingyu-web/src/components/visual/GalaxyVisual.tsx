@@ -19,11 +19,13 @@ export function GalaxyVisual({
   official = false,
   variant = "compact",
   className,
+  testId,
 }: {
   stableKey: string;
   official?: boolean;
   variant?: GalaxyVisualVariant;
   className?: string;
+  testId?: string;
 }) {
   const iconIndex = stableVariant(`${stableKey}:icon`, GALAXY_ICONS.length);
   const surfaceIndex = stableVariant(`${stableKey}:surface`, SURFACES.length);
@@ -33,7 +35,7 @@ export function GalaxyVisual({
   return (
     <span
       aria-hidden
-      data-testid="galaxy-visual"
+      data-testid={testId ?? "galaxy-visual"}
       data-galaxy-visual-key={stableKey}
       data-galaxy-visual-variant={variant}
       data-galaxy-visual-composition={layoutIndex}

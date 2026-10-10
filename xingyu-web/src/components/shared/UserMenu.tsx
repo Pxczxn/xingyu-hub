@@ -1,186 +1,83 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronDown, LogOut, Settings } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-/*
- * The header's user entry — a disclosure menu, matching the prototype's 用户菜单.
- *
- * The shell used to render every /me/* shortcut INLINE in the top bar: fourteen links
- * (收藏夹 / 书架 / 关注 / 我的动态 / 我的喜欢 / 我的评论 / 徽章 / 成长 / 关系请求 / 我的探索 /
- * 我的群聊 / 收藏的私信 / 我的星系 / 举报与申诉) plus 退出. On a real screen that is a wall of
- * text across the header, and the prototype shows a single user entry instead. Collapsing them
- * here keeps every destination reachable while restoring the header the design asks for.
- *
- * WHY A DISCLOSURE AND NOT `role="menu"`: a menu role promises arrow-key roving focus and an
- * active-descendant model. This is a plain list of navigation links behind a toggle, so
- * `aria-expanded` / `aria-controls` describes it honestly. Escape and click-outside close it,
- * and focus returns to the trigger on Escape — the parts a keyboard user actually needs.
- *
- * ⚠️ THIS MENU IS THE ONLY ENTRY POINT for most of these routes. Adding a link here is adding
- * its entry point; removing one orphans a page. (A route with no entry point is exactly how
- * 动态 ended up needing its own nav slot in Phase 2H.)
- *
- * `我的主页` is first because the trigger is a button, not a link — without it there would be
- * no way to reach your own profile from the header.
- */
-
-type MenuGroup = {
-  heading: string;
-  items: { label: string; to: string }[];
-};
+type MenuGroup = { heading: string; items: { label: string; to: string }[] };
 
 const GROUPS: MenuGroup[] = [
-  {
-    heading: "我的内容",
-    items: [
-      { label: "收藏夹", to: "/me/collections" },
-      { label: "书架", to: "/me/bookshelf" },
-      { label: "我的动态", to: "/me/moments" },
-      { label: "我的群聊", to: "/me/groups" },
-      { label: "收藏的私信", to: "/messages/saved" },
-      { label: "我的星系", to: "/me/galaxies" },
-    ],
-  },
-  {
-    heading: "我的互动",
-    items: [
-      // 关注 is the follow GRAPH, not a feed — the public 动态 feed lives in the main nav.
-      { label: "关注", to: "/me/following" },
-      { label: "我的喜欢", to: "/me/likes" },
-      { label: "我的评论", to: "/me/comments" },
-      // Only group join requests can appear here: following is open, so no follow request exists.
-      { label: "关系请求", to: "/me/requests" },
-    ],
-  },
-  {
-    heading: "我的成长",
-    items: [
-      // Badges are never shown on someone else's profile, so this has no public counterpart.
-      { label: "徽章", to: "/me/badges" },
-      { label: "成长", to: "/me/growth" },
-      { label: "我的探索", to: "/me/interests" },
-    ],
-  },
-  {
-    heading: "账号",
-    items: [{ label: "举报与申诉", to: "/reports" }],
-  },
+  { heading: "内容", items: [
+    { label: "我的内容", to: "/studio/content" }, { label: "收藏夹", to: "/me/collections" },
+    { label: "书架", to: "/me/bookshelf" }, { label: "我的动态", to: "/me/moments" }, { label: "我的星系", to: "/me/galaxies" },
+  ] },
+  { heading: "社交", items: [
+    /*
+     * 2026-10-06: 「收藏的私信」入口暂时下线。
+     *
+     * `save` / `remove` API 与 `/messages/saved` 路由都还在，route 与后端也保留 ——
+     * 但消息 UI 里**没有任何收藏动作**（实测 `savedMessagesApi.save` 全站无调用者），
+     * 所以这一页的内容用户根本进不去，挂着入口只是让人点进一个永远空的页面。
+     * 本轮不为它新增 context menu / 收藏按钮 / swipe / 更多菜单；等
+     * Saved Messages Product Phase 有了真正的保存动作再恢复入口。
+     */
+    { label: "我的群聊", to: "/me/groups" },
+    { label: "我的互动", to: "/me/comments" },
+    { label: "关注", to: "/me/following" }, { label: "我的喜欢", to: "/me/likes" }, { label: "我的评论", to: "/me/comments" }, { label: "关系请求", to: "/me/requests" },
+  ] },
+  /*
+   * 成长：加入「我的活动」。
+   *
+   * `/me/events` 此前只能从活动详情页的侧栏进入，用户在别处找不到自己的活动记录。
+   * 它属于"我参与过什么"这一类，放进成长组最贴近现有信息架构；不进 PRIMARY_NAV
+   * （那是七个全局入口），也不新开活动工作区——只是给已有页面一个稳定入口。
+   */
+  { heading: "成长", items: [{ label: "我的成长", to: "/me/growth" }, { label: "我的活动", to: "/me/events" }, { label: "徽章", to: "/me/badges" }] },
+  /*
+   * 治理：最小、诚实的入口。
+   *
+   * 不叫"治理中心" —— 那会暗示存在一个聚合控制台，而实际上只有两件事：你举报过什么
+   * （处理到哪一步了），以及你对处置的申诉结果。所以这里是"我的举报 / 我的申诉"，
+   * 指向已有的 /reports 与 /appeals 路径，不做额外的 landing 页。
+   */
+  { heading: "治理", items: [{ label: "我的举报", to: "/reports" }, { label: "我的申诉", to: "/appeals" }] },
 ];
 
-export function UserMenu({ username, onLogout }: { username: string; onLogout: () => void }) {
+function initials(name: string) { return name.trim().slice(0, 1).toUpperCase() || "星"; }
+
+export function UserMenu({ username, displayName, avatarUrl, onLogout }: {
+  username: string; displayName?: string; avatarUrl?: string | null; onLogout: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-
+  const name = displayName?.trim() || username;
   useEffect(() => {
     if (!open) return;
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        // Send focus back where it came from, or the next Tab starts from the top of the page.
-        triggerRef.current?.focus();
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    const outside = (event: MouseEvent) => { if (!containerRef.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setOpen(false); triggerRef.current?.focus(); } };
+    document.addEventListener("mousedown", outside); document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("mousedown", outside); document.removeEventListener("keydown", escape); };
   }, [open]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        /*
-         * The accessible name is the username, stated explicitly rather than
-         * inherited from the label below — because that label is hidden on narrow
-         * screens (2026-10-03). Without this the trigger would have NO name on a
-         * phone, where it is the only way into /me/*.
-         */
-        aria-label={username}
-        aria-expanded={open}
-        aria-controls="app-user-menu"
-        onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
-      >
-        <UserIcon className="h-4 w-4" aria-hidden />
-        {/*
-         * Hidden below `sm`. At 320px the header's action cluster needs 334px and
-         * the viewport is 320, so the whole page scrolled sideways by 14px. The
-         * username is the widest and least essential thing there — the icon and
-         * chevron still read as "your account", and the menu it opens is unchanged.
-         */}
-        <span className="hidden max-w-32 truncate sm:inline">{username}</span>
-        <ChevronDown
-          className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
-          aria-hidden
-        />
-      </button>
-
-      {open ? (
-        <div
-          id="app-user-menu"
-          className="absolute right-0 z-40 mt-2 max-h-[70vh] w-52 overflow-y-auto rounded-lg border border-border bg-card p-2 shadow-lg"
-        >
-          <ul className="flex flex-col">
-            <li>
-              <Link
-                to="/me"
-                onClick={() => setOpen(false)}
-                className="block rounded-md px-2 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
-              >
-                我的主页
-              </Link>
-            </li>
-
-            {GROUPS.map((group) => (
-              <li key={group.heading}>
-                <p className="mt-2 px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.heading}
-                </p>
-                <ul className="flex flex-col">
-                  {group.items.map((item) => (
-                    <li key={item.to}>
-                      <Link
-                        to={item.to}
-                        onClick={() => setOpen(false)}
-                        className="block rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-muted"
-                      >
-                        {item.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-
-            <li className="mt-2 border-t border-border pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  onLogout();
-                }}
-                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <LogOut className="h-4 w-4" aria-hidden />
-                退出
-              </button>
-            </li>
-          </ul>
-        </div>
-      ) : null}
-    </div>
-  );
+  const avatar = avatarUrl ? <img src={avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" /> :
+    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">{initials(name)}</span>;
+  return <div ref={containerRef} className="relative">
+    <button ref={triggerRef} type="button" aria-label={`${name}，打开账户菜单`} aria-expanded={open} aria-controls="app-user-menu" onClick={() => setOpen((v) => !v)} className="focus-ring flex items-center gap-2 rounded-lg px-1.5 py-1.5 text-sm text-foreground transition-colors hover:bg-surface-sunken">
+      {avatar}<span className="hidden max-w-32 truncate font-medium sm:inline">{name}</span><ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")} aria-hidden />
+    </button>
+    {open ? <div id="app-user-menu" className="absolute right-0 z-40 mt-2 w-[min(19rem,calc(100vw-1rem))] overflow-hidden rounded-lg border border-border bg-card shadow-lg">
+      <Link to="/me" onClick={() => setOpen(false)} className="focus-ring flex items-center gap-3 border-b border-border px-4 py-3 hover:bg-surface-sunken">
+        {avatar}<span className="min-w-0"><span className="block truncate text-sm font-semibold text-foreground">{name}</span><span className="block truncate text-xs text-muted-foreground">@{username}</span></span><span className="ml-auto text-xs text-muted-foreground">查看主页</span>
+      </Link>
+      <nav aria-label="个人功能" className="max-h-[calc(100vh-13rem)] overscroll-contain overflow-y-auto px-2 py-1.5">
+        {GROUPS.map((group, index) => <section key={group.heading} className={cn(index > 0 && "mt-1.5 border-t border-border pt-1.5")}>
+          <h2 className="px-2 pb-1 pt-1 text-[11px] font-semibold tracking-wide text-muted-foreground">{group.heading}</h2>
+          {group.items.map((item) => <Link key={`${item.label}-${item.to}`} to={item.to} onClick={() => setOpen(false)} className="focus-ring block rounded-md px-2 py-1.5 text-sm leading-5 text-foreground hover:bg-surface-sunken">{item.label}</Link>)}
+        </section>)}
+      </nav>
+      <div className="border-t border-border px-2 py-1.5">
+        <Link to="/settings" onClick={() => setOpen(false)} className="focus-ring flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-surface-sunken"><Settings className="h-4 w-4 text-muted-foreground" aria-hidden />设置</Link>
+        <button type="button" onClick={() => { setOpen(false); onLogout(); }} className="focus-ring flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-surface-sunken hover:text-foreground"><LogOut className="h-4 w-4" aria-hidden />退出登录</button>
+      </div>
+    </div> : null}
+  </div>;
 }

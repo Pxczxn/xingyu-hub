@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Megaphone, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { homeApi } from "@/api/home/home.api";
 import type { GuestHomeView, MeHomeView } from "@/api/home/home.types";
 import { topicsApi } from "@/api/topics/topics.api";
@@ -11,14 +11,14 @@ import type { AnnouncementSummary, ContentSummary } from "@/api/common.types";
 import { useAuth } from "@/features/auth/auth.store";
 import { SectionState, type SectionStatus } from "@/components/shared/SectionState";
 import { PageState } from "@/components/shared/PageState";
-import { PageHero } from "@/components/shared/PageHero";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { HomeFeedTabs, type HomeFeedTab } from "@/features/home/components/HomeFeedTabs";
 import { HomeFeedItem } from "@/features/home/components/HomeFeedItem";
 import { ContinueReadingStrip } from "@/features/home/components/ContinueReadingStrip";
 import { HomeSidebar, hasSidebarContent } from "@/features/home/components/HomeSidebar";
-import { HomeHeroArt } from "@/features/home/components/HomeHeroArt";
+import { HomeMasthead } from "@/features/home/components/HomeMasthead";
+import { HomeNotice } from "@/features/home/components/HomeNotice";
 import { EVENT_LIMIT } from "@/features/home/components/CommunityEventsPanel";
 import { useRecommendedCreators } from "@/features/home/use-recommended-creators";
 
@@ -32,7 +32,7 @@ import { useRecommendedCreators } from "@/features/home/use-recommended-creators
  * dashboard. This file owns data state and composition only — every visual unit
  * lives in ./components.
  *
- *   PageHero          (guest: 加入星语 / 登录)
+ *   HomeMasthead      (guest: 加入星语 / 登录)
  *   ├── left  (2/3)   HomeFeedTabs (推荐 / 关注 + 查看更多)
  *   │                 → ContinueReadingStrip → feed rows
  *   └── right (1/3)   HomeSidebar (热门话题 · 推荐创作者 · 社区活动)
@@ -40,6 +40,10 @@ import { useRecommendedCreators } from "@/features/home/use-recommended-creators
  * Every non-critical section degrades independently: a failing endpoint shows an
  * error inside that section only (never a blank page), and the home-specific
  * rule for non-critical modules is "empty means invisible" (see HomeSidebar).
+ *
+ * 2026-10-04 (A0): the opening block is HomeMasthead, not PageHero. See that
+ * component for why — short version: a banner card with an illustration slot is
+ * wrong for a page whose first screen has to hand the reader to a feed.
  */
 
 type Section<T> = { status: SectionStatus; data: T | null };
@@ -113,7 +117,14 @@ export function HomePage() {
     [ready],
   );
   const topics = useSection<TopicSummary[]>(() => topicsApi.getTopics(), [ready]);
-  const events = useSection<EventView[]>(() => eventsApi.list(EVENT_LIMIT), [ready]);
+  /*
+   * Fetch a little more than the rail renders. The server list is ordered by
+   * `starts_at DESC` with no notion of ended-ness, and an ended event can sit at
+   * the top of that order. Asking for exactly EVENT_LIMIT would leave the rail
+   * nothing to filter with, so a live event could be pushed out by ended ones.
+   * The panel does the ended-demotion; this over-fetch is what makes it possible.
+   */
+  const events = useSection<EventView[]>(() => eventsApi.list(EVENT_LIMIT + 4), [ready]);
   const creators = useRecommendedCreators(ready, isAuthenticated);
 
   /*
@@ -158,29 +169,18 @@ export function HomePage() {
   };
   const creatorSection = { status: creators.status, items: creators.creators };
 
-  const heroAnnouncement =
+  /*
+   * The newest announcement, or null.
+   *
+   * Announcements are time-sensitive, so the rail is the wrong place for them —
+   * on a narrow screen the rail stacks BELOW the whole feed and a notice down
+   * there is a notice nobody reads. It is rendered as one plain line between the
+   * masthead and the tabs instead, and only when it exists: with no announcement
+   * the page gains no height and no empty box. See HomeNotice.
+   */
+  const notice =
     announcementSection.status === "ready" && announcementSection.items[0]
-      ? (() => {
-          const item = announcementSection.items[0];
-          const detailHref = `/announcements/${encodeURIComponent(item.id)}`;
-          return (
-            <div className="flex items-center gap-2.5 border-t border-border/60 pt-3 text-sm">
-              <Megaphone className="h-4 w-4 shrink-0 text-accent" aria-hidden />
-              <Link
-                to={detailHref}
-                className="min-w-0 flex-1 truncate font-medium text-primary hover:text-accent"
-              >
-                {item.title}
-              </Link>
-              <Link
-                to={detailHref}
-                className="shrink-0 text-xs text-accent hover:underline"
-              >
-                查看详情 ›
-              </Link>
-            </div>
-          );
-        })()
+      ? announcementSection.items[0]
       : null;
 
   const showSidebar = hasSidebarContent([
@@ -195,37 +195,54 @@ export function HomePage() {
 
   return (
     <div className="section-gap">
-      <PageHero
-        eyebrow="XINGYU COMMUNITY"
-        title="把灵感，放进自己的星系"
+      {/*
+       * A0: the home page left PageHero.
+       *
+       * PageHero is a BANNER — a bordered card with a left text column and a right
+       * illustration slot. Measured on this page that produced a 448px text column
+       * (the max-content width of one sentence, not a designed value), a 377px hole
+       * between that column and the artwork, and a card border that made the banner
+       * a second white surface stacked above the feed panel.
+       *
+       * `PageHero` itself is NOT touched: the other six top-level pages, /discover's
+       * DiscoverHero and /creators all still use it. Only Home opts out, because
+       * only Home's first screen has to hand the reader straight to a feed.
+       */}
+      <HomeMasthead
+        eyebrow={isAuthenticated ? undefined : "XINGYU COMMUNITY"}
+        title={
+          isAuthenticated ? "欢迎回来，继续探索你的关注、阅读与创作。" : "把灵感，放进自己的星系"
+        }
         /*
-         * The prototype asks for 「登录：简洁欢迎语，不占太多空间」 — a signed-in reader gets
-         * a greeting, not a second marketing pitch. `compact` drops the artwork and the height
-         * so the feed starts higher up the page.
+         * The prototype asks for 「登录：简洁欢迎语，不占太多空间」. That is now
+         * expressed by CONTENT rather than by a compact mode: a returning reader gets
+         * a one-line greeting and no pitch, so the block is shorter because there is
+         * less in it — not because a flag halves its padding.
          */
-        compact={isAuthenticated}
-        immersive={!isAuthenticated}
-        announcement={heroAnnouncement}
         description={
           isAuthenticated
-            ? "欢迎回来，继续探索你的关注、阅读与创作。"
+            ? undefined
             : "在这里发现优质的内容，认识同频的人，慢慢建立自己的轨道。"
         }
-        illustration={<HomeHeroArt />}
         actions={
-          isAuthenticated ? null : (
-            <>
-              <Link to="/register" className={cn(buttonVariants({ variant: "accent" }), "gap-1.5")}>
-                <Sparkles className="h-4 w-4" aria-hidden />
-                加入星语
-              </Link>
-              <Link to="/login" className={buttonVariants({ variant: "outline" })}>
-                登录
-              </Link>
-            </>
+          isAuthenticated ? undefined : (
+            /*
+             * ONE guest CTA, not two.
+             *
+             * 登录 used to sit here as well, but the shell header already carries a
+             * 登录 entry on every route — two 登录 affordances in the same first
+             * screen is one action offered twice. The masthead keeps only the gold
+             * primary CTA; signing in is the header's job.
+             */
+            <Link to="/register" className={cn(buttonVariants({ variant: "accent" }), "gap-1.5")}>
+              <Sparkles className="h-4 w-4" aria-hidden />
+              加入星语
+            </Link>
           )
         }
       />
+
+      {notice ? <HomeNotice item={notice} /> : null}
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
         {/* Left column — the feed itself. Full width when the rail has nothing. */}
@@ -242,10 +259,14 @@ export function HomePage() {
              * 查看更多 only on 推荐, and only to /discover. There is no "more
              * following" page — /me/following is the follow GRAPH, not a feed —
              * so the 关注 tab gets no link rather than a link to the wrong place.
+             *
+             * `text-accent-strong`, not `text-accent`: this is a TEXT link at 12px
+             * on the page background, and raw brand gold measures 2.01:1 there
+             * while accent-strong measures 4.72:1.
              */
             trailing={
               tab === "recommend" ? (
-                <Link to="/discover" className="text-accent hover:underline">
+                <Link to="/discover" className="text-accent-strong hover:underline">
                   查看更多推荐 ›
                 </Link>
               ) : null
@@ -261,6 +282,14 @@ export function HomePage() {
             role="tabpanel"
             aria-labelledby={`home-tab-${tab}`}
             className={cn(
+              /*
+               * Note the two border opacities: the panel outline stays at /70 and
+               * the row separators sit at /50. Before this they were the SAME
+               * value, which meant the container outline and the dividers inside it
+               * were literally the same line — the panel could not read as a
+               * container because it was drawn with the same stroke as its
+               * contents.
+               */
               feedStatus === "ready" &&
                 "rounded-xl border border-border/70 bg-card px-5 shadow-none sm:px-6",
             )}
@@ -268,8 +297,18 @@ export function HomePage() {
             <SectionState status={feedStatus} emptyText={emptyText}>
               <ul className="flex flex-col">
                 {(feedItems ?? []).map((item) => (
-                  <li key={item.id} className="border-b border-border/70 last:border-b-0">
-                    <HomeFeedItem item={item} />
+                  <li key={item.id} className="border-b border-border/50 last:border-b-0">
+                    {/*
+                     * The two tabs are NOT the same feed with different data.
+                     * 推荐 is a discovery feed and 关注 is a subscription feed, so
+                     * the row's information hierarchy differs — see the variant
+                     * doc comment in HomeFeedItem. They still share one row
+                     * component and one interaction model on purpose.
+                     */}
+                    <HomeFeedItem
+                      item={item}
+                      variant={tab === "recommend" ? "discover" : "subscription"}
+                    />
                   </li>
                 ))}
               </ul>

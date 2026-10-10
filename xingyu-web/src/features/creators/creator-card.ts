@@ -3,7 +3,7 @@
  *
  * A "creator" is NOT a backend entity. `/creators` is a pure front-end
  * aggregation page (Legacy did the same): it fans out to
- *   GET /topics                       → pick the first N topics
+ *   GET /topics                       → use the published topic list
  *   GET /topics/{slug}/creators       → creators per topic
  *   GET /users/{username}             → profile (avatar / displayName / following)
  *   GET /users/{username}/works       → latest public work
@@ -11,7 +11,7 @@
  *
  * Consequences the UI must be honest about:
  *   - There is no server-side search or topic filter for creators. The filter
- *     chips only narrow the N topics we actually fanned out to, so the page says
+ *     chips only narrow the topics we actually fanned out to, so the page says
  *     so instead of pretending to search the whole community.
  *   - `topics` accumulates the topic names this username appeared under; a
  *     creator found in two topics appears once.
@@ -30,9 +30,6 @@ export type CreatorCard = TopicCreatorSummary & {
   /** Topic names this creator was found under (deduplicated, in discovery order). */
   topics: string[];
 };
-
-/** How many topics we fan out to. Legacy used 8; the cost is 1 + N + up-to-2*M requests. */
-export const CREATOR_TOPIC_LIMIT = 8;
 
 /** Per-topic creator page size. */
 export const CREATOR_PER_TOPIC_LIMIT = 8;

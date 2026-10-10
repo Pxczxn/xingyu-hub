@@ -152,9 +152,9 @@ export function ConversationAssetsPage({ kind }: { kind: AttachmentKind }) {
           }
         />
       ) : kind === "media" ? (
-        <AttachmentMediaGrid items={items} />
+        <AttachmentMediaGrid items={items} conversationId={conversationId} />
       ) : (
-        <AttachmentFileList items={items} />
+        <AttachmentFileList items={items} conversationId={conversationId} />
       )}
     </div>
   );

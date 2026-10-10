@@ -23,6 +23,18 @@ export const notificationsApi = {
     ),
 
   /**
+   * The session user's unread count, ACCOUNT-WIDE (not limited to the fetched window).
+   *
+   * This is the header badge's source of truth. It is deliberately not derived from
+   * `list()`: the list is one 50-row window, so counting its unread rows under-reports
+   * as soon as an account has more than 50 unread.
+   */
+  getUnreadCount: async (): Promise<number> => {
+    const body = await apiRequest<{ unread?: number }>("/api/v1/notifications/unread-count");
+    return typeof body?.unread === "number" ? body.unread : 0;
+  },
+
+  /**
    * Marks one notification read. Idempotent.
    * 404 when it does not exist or belongs to somebody else — surface it, do not
    * assume success.

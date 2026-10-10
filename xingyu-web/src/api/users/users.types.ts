@@ -11,6 +11,7 @@ export type ProfileDetail = {
   websiteUrl?: string | null;
   visibility?: string;
   followersVisibility?: string;
+  /** Creator/settings response field; not returned by public GET /users/{username}. */
   lockVersion?: number;
   followerCount?: number;
   followingCount?: number;

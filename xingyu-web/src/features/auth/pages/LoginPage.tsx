@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import { AuthCard } from "@/features/auth/components/AuthCard";
+import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { useAuth } from "@/features/auth/auth.store";
 import type { LoginFormValues } from "@/features/auth/auth.types";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,8 @@ export function LoginPage() {
             placeholder="邮箱或用户名"
             value={values.login}
             onChange={(e) => setValues((v) => ({ ...v, login: e.target.value }))}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "login-error" : undefined}
             required
           />
         </div>
@@ -137,6 +140,8 @@ export function LoginPage() {
             placeholder="请输入密码"
             value={values.password}
             onChange={(e) => setValues((v) => ({ ...v, password: e.target.value }))}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "login-error" : undefined}
             required
           />
         </div>
@@ -171,9 +176,9 @@ export function LoginPage() {
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <AuthFormError id="login-error" testId="login-error" focusOnMount>
             {error}
-          </p>
+          </AuthFormError>
         ) : null}
 
         <Button type="submit" disabled={submitting}>

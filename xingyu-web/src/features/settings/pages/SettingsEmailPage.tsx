@@ -13,18 +13,30 @@ import { getStoredRecentAuth } from "@/features/settings/recent-auth";
 /*
  * /settings/security/email (Phase 3H).
  *
- * Contract (verified against CommunityMeController:113 + CommunityAccountService:431):
+ * Contract (re-verified 2026-10-08 against CommunityMeController +
+ * CommunityAccountService):
  *   POST /api/v1/me/email/change  { newEmail, password }  + X-Recent-Auth
  *     -> { currentEmail, pendingEmail, mailPending }
  *
  * TWO THINGS THIS PAGE MUST NOT GET WRONG:
  *
- *  1. **The email does not change here.** The backend mails a confirmation link
- *     to the NEW address; only following that link activates it. So the success
- *     copy says "已发送确认邮件", never "邮箱已修改".
+ *  1. **Submitting does not change the email here.** The backend mails a
+ *     confirmation link to the NEW address; only following that link activates
+ *     it. So the success copy says "已发送确认邮件", never "邮箱已修改".
  *  2. **`mailPending: false` is a failure.** It means the mail could not be
  *     delivered, so the change will never complete. The notice is rendered as a
  *     warning and the current email is named as still valid.
+ *
+ * --- 2026-10-08 (Settings Contract Recovery, B1) ---------------------------
+ * Item 1 used to be a LIE, not just a nuance: `verifyEmail` hardcoded
+ * `purpose = REGISTER`, and nothing in the codebase ever consumed an
+ * EMAIL_CHANGE token or rebound `user.email`. The promise "完成确认后新邮箱才会生效"
+ * could never come true.
+ *
+ * That is fixed server-side. The confirmation link now really does rebind, and
+ * the copy has to reflect two consequences that did not exist before:
+ *   - confirming revokes EVERY session (so the user ends up logged out),
+ *   - the old address stops working for login immediately.
  *
  * Requires a recent-auth grant. Without one the page sends the user to
  * /settings/security/re-authenticate with a returnTo back here — same flow as
@@ -130,7 +142,7 @@ export function SettingsEmailPage() {
           修改邮箱
         </h2>
         <p className="lede mt-1.5 max-w-2xl">
-          邮箱用于登录、找回密码与接收通知。更换后需要在新邮箱完成确认才会生效。
+          邮箱用于登录、找回密码与接收通知。更换后需要在新邮箱完成确认才会生效，确认时你会退出所有设备的登录状态。
         </p>
       </section>
 
@@ -270,7 +282,7 @@ export function SettingsEmailPage() {
             </p>
           ) : null}
           <p className="text-meta text-muted-foreground">
-            提交后会向新邮箱发送确认邮件，完成确认后新邮箱才会生效。
+            提交后会向新邮箱发送确认邮件，完成确认后新邮箱才会生效；确认后需要重新登录。
           </p>
           <div>
             <Button type="submit" disabled={busy} data-testid="email-submit">

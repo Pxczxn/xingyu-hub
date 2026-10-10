@@ -1,20 +1,29 @@
-import { Bell, Heart, Megaphone, MessageCircle, UserPlus, type LucideIcon } from "lucide-react";
+import { Bell, Heart, MessageCircle, Megaphone, UserPlus, type LucideIcon } from "lucide-react";
 import type { Notification } from "@/api/notifications/notifications.types";
 import { cn } from "@/lib/cn";
 
 /*
- * One notification row (Phase 2I-2).
+ * One notification row.
  *
- * The row is presentational: read-state changes are owned by the page, which is
- * also where the API call lives. Two things this deliberately does NOT do:
+ * 2026-10-06 (contract recovery): the row is now a SINGLE line — 谁 · 做了什么 · 时间.
  *
- *  1. It does not invent a destination. The payload has no `targetRoute` (see
- *     notifications.types.ts), so the page decides via `notificationFallbackHref`
- *     and passes `href` in. When there is no safe destination the row renders as
- *     plain text rather than a link that leads nowhere.
+ *   - The backend's `title` is the whole sentence ("小明 关注了你"). FOLLOW no longer
+ *     writes a `body` that restated it, so there is no second line to render.
+ *   - The category tag was dropped from the row. It repeated the action the title
+ *     already states ("关注了你" + "关注"), and with a single real producer the icon
+ *     (UserPlus) already carries the type. It also cost a whole line of vertical space
+ *     per row for one two-character word.
+ *   - `body` is still rendered when present, because the column exists and a future
+ *     producer may legitimately need a second line; it just is not assumed.
+ *
+ * Two things this deliberately does NOT do:
+ *
+ *  1. It does not invent a destination. The page resolves it from the structured
+ *     `actor` (see notificationHref) and passes `href` in. When there is no safe
+ *     destination the row renders as plain text rather than a link that leads nowhere.
  *  2. It does not render a per-row 「标为已读」 button. Clicking the row is the
- *     action — matching the Legacy panel, and keeping the list free of a control
- *     that repeats on every line.
+ *     action — matching Legacy, and keeping the list free of a control that repeats
+ *     on every line.
  */
 
 const ICONS: Record<string, LucideIcon> = {
@@ -51,14 +60,11 @@ export function formatNotificationAt(value: string | null | undefined): string |
 
 export function NotificationRow({
   notification,
-  label,
   href,
   pending,
   onOpen,
 }: {
   notification: Notification;
-  /** Localised category name (from notificationCategoryLabel). */
-  label: string;
   /** Resolved destination, or null when the row has nowhere safe to go. */
   href: string | null;
   /** A read-state write for this row is in flight. */
@@ -82,10 +88,11 @@ export function NotificationRow({
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
+        {/* The whole line: sentence on the left, time pinned right. */}
+        <span className="flex items-center gap-3">
           <span
             className={cn(
-              "text-sm",
+              "min-w-0 flex-1 truncate text-sm",
               unread ? "font-medium text-foreground" : "text-muted-foreground",
             )}
           >
@@ -93,6 +100,7 @@ export function NotificationRow({
           </span>
           {/* The dot is decorative; `read` is what assistive tech is told. */}
           {unread ? <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
+          {at ? <time className="shrink-0 text-xs tabular-nums text-muted-foreground">{at}</time> : null}
         </span>
 
         {notification.body ? (
@@ -101,11 +109,7 @@ export function NotificationRow({
           </span>
         ) : null}
 
-        <span className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-          <span>{label}</span>
-          {at ? <time>{at}</time> : null}
-          {unread ? <span className="sr-only">未读</span> : null}
-        </span>
+        {unread ? <span className="sr-only">未读</span> : null}
       </span>
     </>
   );
@@ -138,7 +142,7 @@ export function NotificationRow({
     <li>
       <button
         type="button"
-        aria-label={`${notification.title}（${label}）`}
+        aria-label={notification.title}
         disabled={pending}
         className={className}
         onClick={() => onOpen(notification)}

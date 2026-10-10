@@ -76,6 +76,20 @@ describe("accountApi.requestAccountDeletion", () => {
     await accountApi.requestAccountDeletion();
     expect(mocked).toHaveBeenCalledWith("/api/v1/me/account/deletion-request", {
       method: "POST",
+      // 2026-10-08: the endpoint now requires a single-use re-auth grant.
+      // Without one the server answers 403, so the header must always be sent.
+      headers: undefined,
+      persistToken: false,
+    });
+  });
+
+  it("carries the re-auth grant in X-Recent-Auth", async () => {
+    // The server CONSUMES this grant atomically, so this header is not a formality:
+    // omitting it means the deactivation never happens.
+    await accountApi.requestAccountDeletion("grant-123");
+    expect(mocked).toHaveBeenCalledWith("/api/v1/me/account/deletion-request", {
+      method: "POST",
+      headers: { "X-Recent-Auth": "grant-123" },
       persistToken: false,
     });
   });

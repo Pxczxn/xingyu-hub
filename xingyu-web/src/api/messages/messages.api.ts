@@ -1,6 +1,7 @@
-import { apiRequest } from "@/api/client";
+import { apiRequest, apiRequestBlob } from "@/api/client";
 import {
   GROUP_JOIN_REQUEST_LIMIT,
+  messageAttachmentPath,
   newClientMessageId,
   toConversations,
   toMessages,
@@ -8,6 +9,8 @@ import {
   type Conversation,
   type ConversationList,
   type ConversationType,
+  type MessageBackfill,
+  type MessageContext,
   type MessagePage,
   type MessageType,
   type MyGroupJoinRequest,
@@ -104,11 +107,9 @@ export const messagesApi = {
     ),
 
   /**
-   * One page of older messages, ascending.
+   * 一页更早的消息（`cursor` = 已持有的最旧序号），升序。
    *
-   * `cursor` is the oldest sequence already held; omit it for the newest page.
-   * The returned `nextCursor` is that page's oldest sequence, so it is the
-   * cursor for the next call. `limit` is clamped to 1..200 server-side.
+   * `limit` 服务端钳 1..200。返回的 `nextCursor` 是这一页里最旧的序号。
    */
   listMessages: async (
     conversationId: string,
@@ -125,6 +126,65 @@ export const messagesApi = {
       nextCursor: page?.nextCursor ?? null,
     };
   },
+
+  /**
+   * 补齐 `afterSequence` 之后的消息，**升序**（2026-10-06）。
+   *
+   * 为什么需要：WebSocket 只做实时推送，不重放离线期间的消息。只重新握手而不调这里，
+   * 断线期间的消息会一直看不到，直到用户手动刷新（实测过）。
+   *
+   * 传本地已知的最大 `sequenceNumber` 即可；不传则**从最早开始**（升序）。`hasMore` 为 true
+   * 表示还有更新的，需要再调一轮。形状刻意不同于 `listMessages`（那边 nextCursor 表示「更旧」）。
+   */
+  listMessagesAfter: async (
+    conversationId: string,
+    afterSequence?: number | null,
+    limit = 100,
+  ): Promise<{ messages: ChatMessage[]; hasMore: boolean }> => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (afterSequence !== undefined && afterSequence !== null) {
+      params.set("afterSequence", String(afterSequence));
+    }
+    const backfill = await apiRequest<MessageBackfill>(
+      `/api/v1/messages/${encodeURIComponent(conversationId)}/messages/after?${params.toString()}`,
+    );
+    return {
+      messages: Array.isArray(backfill?.messages) ? backfill.messages : [],
+      hasMore: Boolean(backfill?.hasMore),
+    };
+  },
+
+  /**
+   * 以某条消息为中心的一小段历史（2026-10-06，搜索落点）。
+   *
+   * `sequence` 取自消息载荷里的会话内序号；一次请求就返回「目标之前 + 目标 + 目标之后」，
+   * 所以从搜索点进一条远早于首屏的消息也不需要从最新一页一路往前翻。
+   */
+  listMessagesAround: async (
+    conversationId: string,
+    sequence: number,
+    limit = 30,
+  ): Promise<MessageContext> => {
+    const params = new URLSearchParams({ sequence: String(sequence), limit: String(limit) });
+    const context = await apiRequest<MessageContext>(
+      `/api/v1/messages/${encodeURIComponent(conversationId)}/messages/around?${params.toString()}`,
+    );
+    return {
+      messages: Array.isArray(context?.messages) ? context.messages : [],
+      found: Boolean(context?.found),
+      sequence: Number(context?.sequence ?? sequence),
+    };
+  },
+
+  /**
+   * 受鉴权地取一条消息的附件字节。
+   *
+   * 必须走这里而不是 `attachmentUrl`：那个地址指向 `/api/v1/admin/files/...`，该路径
+   * **不做会话校验**，其目录已被静态控制器拒绝。返回 Blob，由调用方转 object URL
+   * （`<img src>` 带不上 satoken 头）。
+   */
+  downloadAttachment: (conversationId: string, messageId: string): Promise<Blob> =>
+    apiRequestBlob(messageAttachmentPath(conversationId, messageId)),
 
   /**
    * Marks a conversation read.
@@ -171,12 +231,14 @@ export const messagesApi = {
   sendAttachment: async (
     conversationId: string,
     type: ConversationType,
-    file: { url: string; name: string; messageType: MessageType },
+    file: { url: string; name: string; messageType: MessageType; fileId: number | null },
   ): Promise<ChatMessage> => {
     const payload: SendMessagePayload = {
       type: file.messageType,
       attachmentUrl: file.url,
       attachmentName: file.name,
+      // 附件必须带上 sys_file.id，否则消息行没有任何可用于鉴权下载的凭据（2026-10-06）。
+      attachmentFileId: file.fileId,
       // A caption would go in `body`, but the composer sends the attachment on
       // its own. The backend keeps `body` empty for an attachment-only message.
       clientMessageId: newClientMessageId(),

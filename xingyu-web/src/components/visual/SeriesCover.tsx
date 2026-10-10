@@ -34,7 +34,7 @@ export function SeriesCover({
       className={cn(
         sizeVariant === "thumbnail"
           ? "relative block h-20 w-[120px] shrink-0 overflow-hidden rounded-md border"
-          : "relative block h-28 w-[84px] shrink-0 overflow-hidden rounded-md border",
+          : "relative block h-24 w-[72px] shrink-0 overflow-hidden rounded-md border",
         COVER_TONES[toneVariant],
         className,
       )}

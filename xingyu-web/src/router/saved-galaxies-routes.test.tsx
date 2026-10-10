@@ -65,9 +65,14 @@ vi.mock("@/api/messages/messages.api", () => ({
   messagesApi: { listConversations: vi.fn(async () => []) },
 }));
 
-vi.mock("@/lib/use-community-chat-socket", () => ({
-  useCommunityChatSocket: vi.fn(),
-}));
+// 2026-10-06: the chat socket moved into a provider above the router; the stub
+// WebSocket in vitest.setup.ts keeps it from opening a real one.
+vi.mock("@/features/chat/chat-socket.context", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/features/chat/chat-socket.context")
+  >("@/features/chat/chat-socket.context");
+  return { ...actual, useChatSocket: () => actual.chatSocketNoopValue };
+});
 
 vi.mock("@/api/saved-messages/saved-messages.api", () => ({
   savedMessagesApi: {

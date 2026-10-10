@@ -76,7 +76,19 @@ function dayKey(date: Date): string {
 
 function statusLabel(event: EventView, now: number): string {
   if (isEventEnded(event, now) === true) return "已结束";
+  if (isFutureStart(event, now)) return "即将开始";
   return event.submissionOpen ? "开放投稿" : "暂未开放投稿";
+}
+
+/**
+ * True only when the event has not started yet. A missing/invalid `startsAt`
+ * yields false — "unknown" must not be promoted into an upcoming promise.
+ */
+function isFutureStart(event: EventView, now: number): boolean {
+  if (!event.startsAt) return false;
+  const start = new Date(event.startsAt).getTime();
+  if (Number.isNaN(start)) return false;
+  return start > now;
 }
 
 /**
@@ -123,7 +135,33 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
 
   const monthDays = useMemo(() => monthGrid(calendarDate), [calendarDate]);
   const monthTitle = `${calendarDate.getFullYear()}年${calendarDate.getMonth() + 1}月`;
-  const upcoming = events.filter((event) => event.startsAt).slice(0, 3);
+
+  /*
+    Time semantics (locked): `status=ACTIVE` is a publish state, not a running
+    state. The three buckets are mutually exclusive and derived from the window
+    only:
+      - ended   : endsAt non-null and now >= endsAt
+      - upcoming: not ended and startsAt is strictly in the future
+      - running : not ended and startsAt is NOT in the future (i.e. startsAt <= now)
+    `endsAt=null` means "no auto-end configured" and is never treated as ended.
+    A server row whose start is already in the past is NOT upcoming — listing it
+    under 「即将开始」 would be a lie.
+    Conversely a not-yet-started event must NOT be counted as 「进行中」: the two
+    labels describe disjoint states, so `future` is subtracted from `live`.
+    Advance registration before `startsAt` is an accepted product rule, so this
+    is purely a display partition — it adds no start-time write gate.
+
+    Plain derivations rather than `useMemo`: they are one pass over a list the
+    page already holds, and the memo variants would only add stale-closure
+    warnings on a `const` that is reassigned per render.
+  */
+  const ended = events.filter((event) => isEventEnded(event, now) === true);
+  const upcoming = events.filter(
+    (event) => isEventEnded(event, now) !== true && isFutureStart(event, now),
+  );
+  const live = events.filter(
+    (event) => isEventEnded(event, now) !== true && !isFutureStart(event, now),
+  );
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -149,22 +187,45 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <section className="flex flex-col gap-6" aria-label="活动内容">
-            {/* The server's own first row is the feature — not a client re-rank. */}
-            <FeatureCard event={events[0]} now={now} />
+            {/* The server's own first still-open row is the feature — not a client re-rank.
+                An ended event must never be the hero, so the live set drives this. */}
+            {live.length > 0 ? <FeatureCard event={live[0]} now={now} /> : null}
 
             <section className="flex flex-col gap-3">
               <div className="flex items-baseline justify-between">
                 <h2 className="section-heading">进行中的活动</h2>
-                <span className="text-xs text-muted-foreground">共 {events.length} 场</span>
+                <span className="text-xs text-muted-foreground">共 {live.length} 场</span>
               </div>
-              <ul aria-label="活动列表" className="grid gap-3 sm:grid-cols-2">
-                {events.map((event) => (
-                  <li key={event.id}>
-                    <EventCard event={event} now={now} />
-                  </li>
-                ))}
-              </ul>
+              {live.length === 0 ? (
+                <p className="text-xs text-muted-foreground">当前没有进行中的活动。</p>
+              ) : (
+                <ul aria-label="活动列表" className="grid gap-3 sm:grid-cols-2">
+                  {live.map((event) => (
+                    <li key={event.id}>
+                      <EventCard event={event} now={now} />
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
+
+            {/* Ended events stay browsable as history, but are visibly separated
+                from what a reader can still join. */}
+            {ended.length > 0 ? (
+              <section className="flex flex-col gap-3">
+                <div className="flex items-baseline justify-between">
+                  <h2 className="section-heading">已结束</h2>
+                  <span className="text-xs text-muted-foreground">共 {ended.length} 场</span>
+                </div>
+                <ul aria-label="已结束的活动列表" className="grid gap-3 sm:grid-cols-2">
+                  {ended.map((event) => (
+                    <li key={event.id}>
+                      <EventCard event={event} now={now} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
           </section>
 
           <aside className="flex flex-col gap-4" aria-label="活动日历">
@@ -244,10 +305,10 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
             <section className="rounded-lg border border-border bg-card p-4">
               <h2 className="section-heading">即将开始</h2>
               {upcoming.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">暂无带开始时间的活动安排。</p>
+                <p className="mt-2 text-xs text-muted-foreground">暂无即将开始的活动。</p>
               ) : (
                 <ul className="mt-2 flex flex-col gap-2">
-                  {upcoming.map((event) => (
+                  {upcoming.slice(0, 3).map((event) => (
                     <li key={event.id}>
                       <Link
                         to={`/events/${encodeURIComponent(event.id)}`}
