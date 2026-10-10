@@ -47,6 +47,7 @@ class ConversationCounterpartTest {
     private CommunityProfileMapper profileMapper;
     private GroupJoinRequestMapper joinRequestMapper;
     private UserBlockService userBlockService;
+    private CommunityAccountService accountService;
     private CommunityProperties communityProperties;
     private ApplicationEventPublisher eventPublisher;
 
@@ -61,6 +62,9 @@ class ConversationCounterpartTest {
         profileMapper = mock(CommunityProfileMapper.class);
         joinRequestMapper = mock(GroupJoinRequestMapper.class);
         userBlockService = mock(UserBlockService.class);
+        // 2026-10-06: the service now asks CommunityAccountService whether a
+        // counterpart may still take part (suspended accounts), so it is a dependency.
+        accountService = mock(CommunityAccountService.class);
         communityProperties = mock(CommunityProperties.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
 
@@ -72,6 +76,7 @@ class ConversationCounterpartTest {
                 profileMapper,
                 joinRequestMapper,
                 userBlockService,
+                accountService,
                 communityProperties,
                 eventPublisher);
     }

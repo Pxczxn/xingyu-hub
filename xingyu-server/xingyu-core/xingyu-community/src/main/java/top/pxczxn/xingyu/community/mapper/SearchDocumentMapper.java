@@ -57,11 +57,14 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
     @Select("""
             SELECT sd.* FROM search_document sd
             WHERE sd.removed_at IS NULL
-              AND (sd.title LIKE CONCAT('%', #{query}, '%') OR sd.summary LIKE CONCAT('%', #{query}, '%'))
+              AND (#{type} IS NULL OR sd.object_type = #{type})
+              AND (sd.title LIKE CONCAT('%', #{query}, '%') ESCAPE '!'
+                OR sd.summary LIKE CONCAT('%', #{query}, '%') ESCAPE '!')
             ORDER BY sd.indexed_at DESC, sd.object_id DESC
             LIMIT #{limit}
             """)
-    List<SearchDocument> searchActiveByLatest(String query, int limit);
+    List<SearchDocument> searchActiveByLatest(
+            @Param("query") String query, @Param("type") String type, @Param("limit") int limit);
 
     @Select("""
             SELECT sd.* FROM search_document sd
@@ -71,19 +74,23 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
               GROUP BY object_type, object_id
             ) lc ON lc.object_type = sd.object_type AND lc.object_id = sd.object_id
             WHERE sd.removed_at IS NULL
-              AND (sd.title LIKE CONCAT('%', #{query}, '%') OR sd.summary LIKE CONCAT('%', #{query}, '%'))
+              AND (#{type} IS NULL OR sd.object_type = #{type})
+              AND (sd.title LIKE CONCAT('%', #{query}, '%') ESCAPE '!'
+                OR sd.summary LIKE CONCAT('%', #{query}, '%') ESCAPE '!')
             ORDER BY COALESCE(lc.like_count, 0) DESC, sd.indexed_at DESC, sd.object_id DESC
             LIMIT #{limit}
             """)
-    List<SearchDocument> searchActiveByHot(String query, int limit);
+    List<SearchDocument> searchActiveByHot(
+            @Param("query") String query, @Param("type") String type, @Param("limit") int limit);
 
     @Select("""
             SELECT * FROM search_document
             WHERE removed_at IS NULL
+              AND (#{type} IS NULL OR object_type = #{type})
             ORDER BY indexed_at DESC, object_id DESC
             LIMIT #{limit}
             """)
-    List<SearchDocument> listActiveByLatest(int limit);
+    List<SearchDocument> listActiveByLatest(@Param("type") String type, @Param("limit") int limit);
 
     @Select("""
             SELECT sd.* FROM search_document sd
@@ -93,10 +100,11 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
               GROUP BY object_type, object_id
             ) lc ON lc.object_type = sd.object_type AND lc.object_id = sd.object_id
             WHERE sd.removed_at IS NULL
+              AND (#{type} IS NULL OR sd.object_type = #{type})
             ORDER BY COALESCE(lc.like_count, 0) DESC, sd.indexed_at DESC, sd.object_id DESC
             LIMIT #{limit}
             """)
-    List<SearchDocument> listActiveByHot(int limit);
+    List<SearchDocument> listActiveByHot(@Param("type") String type, @Param("limit") int limit);
 
     @Select("""
             SELECT * FROM search_document

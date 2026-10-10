@@ -88,6 +88,7 @@ public class SavedMessageService {
                 message.getBody(),
                 message.getAttachmentUrl(),
                 message.getAttachmentName(),
+                message.getAttachmentFileId(),
                 message.getSenderId(),
                 message.getCreatedAt(),
                 saved.getCreatedAt());

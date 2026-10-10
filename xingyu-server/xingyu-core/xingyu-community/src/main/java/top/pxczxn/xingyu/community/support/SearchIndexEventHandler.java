@@ -53,6 +53,7 @@ public class SearchIndexEventHandler implements ReliableEventHandler {
             SearchIndexService.ARTICLE, Set.of(
                     CommunityEventSupport.PUBLICATION_SUCCEEDED,
                     CommunityEventSupport.REVIEW_DECISION_RECORDED,
+                    CommunityEventSupport.ARTICLE_LIFECYCLE_CHANGED,
                     CommunityEventSupport.REBUILD_REQUESTED),
             SearchIndexService.SERIES, Set.of(
                     CommunityEventSupport.SERIES_CHANGED,

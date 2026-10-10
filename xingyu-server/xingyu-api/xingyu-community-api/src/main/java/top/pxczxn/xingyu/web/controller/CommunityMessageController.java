@@ -7,10 +7,14 @@ import top.pxczxn.xingyu.community.dto.ConversationMemberView;
 import top.pxczxn.xingyu.community.dto.ConversationView;
 import top.pxczxn.xingyu.community.dto.GroupJoinRequestView;
 import top.pxczxn.xingyu.community.service.ConversationService;
+import top.pxczxn.xingyu.community.service.ConversationService.MessageBackfillView;
+import top.pxczxn.xingyu.community.service.ConversationService.MessageContextView;
 import top.pxczxn.xingyu.file.entity.SysFile;
 import top.pxczxn.xingyu.file.service.SysFileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -133,15 +137,23 @@ public class CommunityMessageController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * 上传私信附件（不创建消息）。
+     *
+     * <p>返回里新增 {@code fileId}（2026-10-06）：发消息时带上它，消息行就会记住
+     * {@code sys_file.id}，之后下载走带 membership 校验的受鉴权端点。{@code url} 仍返回，
+     * 但它只是展示用地址，对应目录已被 {@code FileAccessController} 拒绝静态访问。
+     */
     @PostMapping("/upload")
-    public Map<String, String> uploadMessageAttachment(@RequestParam("file") MultipartFile file) {
+    public Map<String, Object> uploadMessageAttachment(@RequestParam("file") MultipartFile file) {
         validateCommunityAttachment(file);
         String uploaderId = CommunityAuthContext.requireUser().getId();
         SysFile uploaded = fileService.upload(file, "community/messages", null, uploaderId);
         return Map.of(
                 "url", uploaded.getUrl(),
                 "name", uploaded.getOriginalName() == null ? "file" : uploaded.getOriginalName(),
-                "mimeType", uploaded.getFileType() == null ? "" : uploaded.getFileType());
+                "mimeType", uploaded.getFileType() == null ? "" : uploaded.getFileType(),
+                "fileId", uploaded.getId());
     }
 
     private void validateCommunityAttachment(MultipartFile file) {
@@ -155,6 +167,13 @@ public class CommunityMessageController {
         }
     }
 
+    /**
+     * 一页历史消息，<b>往回</b>翻（{@code cursor} = 已持有的最旧序号）。
+     *
+     * <p>方向说明：重连对账要的是<b>往后</b>（{@code afterSequence}），见下一个端点。
+     * 两个方向都用 {@code sequence_number} 而不是时间戳 —— 它是会话内单调计数，
+     * 「之后」是精确语义。
+     */
     @GetMapping("/{conversationId}/messages")
     public PageResultView<ChatMessageView> listMessages(
             @PathVariable String conversationId,
@@ -162,6 +181,84 @@ public class CommunityMessageController {
             @RequestParam(value = "limit", defaultValue = "50") int limit) {
         return conversationService.listMessages(
                 CommunityAuthContext.requireUser(), conversationId, cursor, limit);
+    }
+
+    /**
+     * 补齐 {@code afterSequence} 之后的消息，升序（2026-10-06 新增）。
+     *
+     * <p>为什么需要：WebSocket 只做实时推送，<b>不重放离线期间的消息</b>。重连后如果只
+     * 重新握手，断线期间的消息会静默丢失（实测：不调本端点时，刷新前一直看不到）。
+     * 前端用本地已知最大序号调用本端点即可对账。
+     *
+     * <p>响应形状刻意与上面那个不同（{@code messages + hasMessageMore}，而不是
+     * {@code items + nextCursor}）：{@code nextCursor} 在前者表示「更旧」，方向相反，
+     * 混用极易写反。
+     */
+    @GetMapping("/{conversationId}/messages/after")
+    public MessageBackfillView listMessagesAfter(
+            @PathVariable String conversationId,
+            @RequestParam(value = "afterSequence", required = false) String afterSequence,
+            @RequestParam(value = "limit", defaultValue = "50") int limit) {
+        return conversationService.listMessagesAfter(
+                CommunityAuthContext.requireUser(),
+                conversationId,
+                afterSequence == null || afterSequence.isBlank() ? null : Long.valueOf(afterSequence.trim()),
+                limit);
+    }
+
+    /**
+     * 私信附件下载 —— <b>受鉴权</b>（2026-10-06 安全 blocker）。
+     *
+     * <p>此前附件地址是 {@code /api/v1/admin/files/community/messages/<hash>}，
+     * {@code FileAccessController} 对它<b>不做任何会话校验</b>（实测不带 token 返回 200），
+     * 于是「路径难猜」成了唯一屏障。现在该前缀已被那条控制器显式拒绝，字节只能经由这里
+     * 取得，而这里先过 {@code requireMember}：非成员一律 404，不泄漏附件是否存在。
+     *
+     * <p>用项目既有的 {@code SysFileService.getFileBytes}（local / MinIO 都支持）读字节，
+     * 没有另造一套文件读取。
+     */
+    /**
+     * 以某条消息为中心的一小段历史（2026-10-06，搜索结果精确落点用）。
+     *
+     * <p>{@code sequence} 是会话内的单调序号，来自消息载荷；一次请求返回「目标之前 + 目标 +
+     * 目标之后」的一小段（升序）。这样从搜索点进一条很旧的消息时，不需要从最新一页一路往前翻。
+     */
+    @GetMapping("/{conversationId}/messages/around")
+    public MessageContextView listMessagesAround(
+            @PathVariable String conversationId,
+            @RequestParam("sequence") long sequence,
+            @RequestParam(value = "limit", defaultValue = "30") int limit) {
+        return conversationService.listMessagesAround(
+                CommunityAuthContext.requireUser(), conversationId, sequence, limit);
+    }
+
+    @GetMapping("/{conversationId}/messages/{messageId}/attachment")
+    public ResponseEntity<byte[]> downloadAttachment(
+            @PathVariable String conversationId,
+            @PathVariable String messageId) {
+        ConversationService.MessageAttachmentAccess access = conversationService.requireAttachment(
+                CommunityAuthContext.requireUser(), conversationId, messageId);
+        SysFile file = fileService.getById(access.fileId());
+        if (file == null) {
+            return ResponseEntity.notFound().build();
+        }
+        byte[] bytes = fileService.getFileBytes(access.fileId());
+        String contentType = file.getFileType() == null || file.getFileType().isBlank()
+                ? MediaType.APPLICATION_OCTET_STREAM_VALUE
+                : file.getFileType();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + sanitizeFileName(access.fileName()) + "\"")
+                .body(bytes);
+    }
+
+    /** 文件名会进响应头，去掉引号与换行，避免头注入 / 头部截断。 */
+    private static String sanitizeFileName(String raw) {
+        String name = raw == null ? "attachment" : raw.trim();
+        name = name.replaceAll("[\"\\r\\n]", "_");
+        return name.isEmpty() ? "attachment" : name;
     }
 
     @PatchMapping("/{conversationId}/read")

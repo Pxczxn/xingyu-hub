@@ -17,6 +17,22 @@ public interface CommunityUserMapper extends BaseMapper<CommunityUser> {
     CommunityUser findByPhone(String phone);
 
     /**
+     * 取用户行并加写锁（2026-10-08 新增，供邮箱换绑申请串行化使用）。
+     *
+     * <p><b>为什么需要</b>：换绑申请是「先查未消费 token → 全部作废 → 插入新 token」三步。
+     * 两个并发申请若都查到「没有未消费 token」，就会各插一条，之后两个 token 都能被确认，
+     * 换绑结果取决于用户先点哪个确认链接——这不是确定行为。
+     *
+     * <p>{@code FOR UPDATE} 把同一用户的并发申请串行化：第二个请求必须等第一个提交，
+     * 于是它查到的就是第一个刚插入的那条 token，会被作废，只剩最后一个申请有效。
+     *
+     * <p><b>锁的范围</b>：单行锁（id 为主键），不同用户互不阻塞。
+     * 调用方必须已在事务内（{@code changeEmail} 是 {@code @Transactional}），否则锁立即释放、失去意义。
+     */
+    @Select("SELECT * FROM community_user WHERE id = #{id} FOR UPDATE")
+    CommunityUser findByIdForUpdate(@Param("id") String id);
+
+    /**
      * 管理端社区用户列表：服务端分页（第一个参数为 MyBatis-Plus 分页对象，由分页插件自动追加 COUNT 与 LIMIT）。
      * 排序以 created_at DESC 为主、cu.id DESC 为次级，保证翻页稳定不漂移。
      * 角色筛选与前端 matchesCommunityUserRole 等价：user 含 user/member 且 null/空视为 user。

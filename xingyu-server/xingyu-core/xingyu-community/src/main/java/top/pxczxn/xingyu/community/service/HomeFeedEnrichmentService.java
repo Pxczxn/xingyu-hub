@@ -192,7 +192,19 @@ public class HomeFeedEnrichmentService {
         for (Map.Entry<String, FeedObject> entry : unique.entrySet()) {
             FeedObject object = entry.getValue();
             String type = normalizeType(object.objectType());
-            CommunityProfile profile = profileByOwner.get(ownerByKey.get(entry.getKey()));
+            /*
+             * The owner is looked up with a NULL-TOLERANT get.
+             *
+             * `ownerByKey` and `profileByOwner` are NOT both HashMaps — `resolveProfiles`
+             * returns the immutable `Map.of()` when no owner id could be resolved, and
+             * `Map.of().get(null)` throws NPE (Objects.requireNonNull) rather than returning
+             * null. A stale `search_document` row whose backing content has been deleted
+             * (e.g. content removed outside the index lifecycle) resolves to a null owner,
+             * and one such row used to take down the WHOLE guest home page with a 500.
+             * Presentation degradation must be per-row, never page-wide.
+             */
+            String ownerId = ownerByKey.get(entry.getKey());
+            CommunityProfile profile = ownerId == null ? null : profileByOwner.get(ownerId);
             boolean bookmarked = viewerKnown
                     && bookmarkedByType.getOrDefault(type, Set.of()).contains(object.objectId());
             boolean liked = viewerKnown

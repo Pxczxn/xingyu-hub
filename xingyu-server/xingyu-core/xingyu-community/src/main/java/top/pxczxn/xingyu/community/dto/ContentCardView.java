@@ -33,6 +33,28 @@ public class ContentCardView {
     String authorName;
     Instant updatedAt;
 
+    /**
+     * Whether this card is an EDITORIAL PICK, or null when the producing surface does not
+     * classify at all.
+     *
+     * <p>Deliberately a tri-state rather than a primitive {@code boolean}: a primitive would
+     * force every producer to answer, and the ones that do not know would have to answer
+     * {@code false} — which is a claim, not an absence. Null means "this producer does not
+     * sort content into picks and non-picks", which is true of continue-reading,
+     * reading-history and the follow rails.
+     *
+     * <p>Set only by {@link top.pxczxn.xingyu.community.service.RecommendationService}, from a
+     * real {@code featured_content} match — never from return position, an index bound, a
+     * non-null sortOrder, or the current count of ACTIVE rows. A card that is BOTH an
+     * editorial pick and a popular candidate keeps {@code featured = true}: the dedupe pass
+     * keeps the first occurrence, and picks are appended before the popular fill.
+     *
+     * <p>Nothing about the ordering internals is exposed here on purpose. The client is told
+     * one bit — "editorial pick or not" — and not rank, slot, source or strategy; those are
+     * server-side ranking concerns and would freeze an implementation detail into the API.
+     */
+    Boolean featured;
+
     // ---- presentation fields, filled by HomeFeedEnrichmentService ----
     String avatar;
     Long likeCount;

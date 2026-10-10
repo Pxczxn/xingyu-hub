@@ -151,6 +151,32 @@ class HomeFeedEnrichmentIntegrationTest {
                 "没有登录用户时 bookmarked 必须是 null（未知），不能塌缩成 false");
     }
 
+    /**
+     * 无主内容（索引里残留、被治理对象已不存在）不得把整页首页打成 500。
+     *
+     * <p>这是 2026-10-07 跨模块可见性测试暴露出来的真实缺陷：{@code enrich} 用
+     * {@code profileByOwner.get(ownerByKey.get(...))} 取值，而 {@code resolveProfiles}
+     * 在没有任何 owner 时会返回不可变的 {@code Map.of()} —— {@code Map.of().get(null)}
+     * 会抛 NPE 而不是返回 null。于是**只要有一条 owner 解析不到的索引行，游客首页就整体 500**。
+     *
+     * <p>富化是「锦上添花」，它的降级必须逐行发生，而不是整页发生。这里用一个指向不存在动态的
+     * objectId 直接证明：调用返回（不抛），且该行拿到的是空 Presentation。
+     */
+    @Test
+    @DisplayName("owner 解析失败的行降级为空 Presentation，绝不把首页打成 500")
+    void unresolvableOwnerDegradesToBlankPresentationInsteadOfFailing() {
+        String ghostMomentId = "00000000-0000-7000-8000-0000000000ff";
+
+        Map<String, HomeFeedEnrichmentService.Presentation> enriched = enrichmentService.enrich(
+                List.of(new HomeFeedEnrichmentService.FeedObject("MOMENT", ghostMomentId)),
+                null);
+
+        HomeFeedEnrichmentService.Presentation presentation =
+                enriched.get(HomeFeedEnrichmentService.key("MOMENT", ghostMomentId));
+        assertNotNull(presentation, "无主行也必须有一条 Presentation（用于把该行渲染成空白）");
+        assertNull(presentation.authorName(), "解析不到 owner 时作者名必须是 null，而不是抛异常");
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private String registerAndLogin(String prefix) throws Exception {

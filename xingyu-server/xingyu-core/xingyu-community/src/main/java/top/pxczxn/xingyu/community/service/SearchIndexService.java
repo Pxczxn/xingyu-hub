@@ -14,6 +14,11 @@ import top.pxczxn.xingyu.community.mapper.MomentRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.PublishedRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
+import top.pxczxn.xingyu.common.contract.ObjectId;
+import top.pxczxn.xingyu.common.contract.access.AccessorContext;
+import top.pxczxn.xingyu.common.contract.access.DiscoverableResource;
+import top.pxczxn.xingyu.common.contract.access.PublicDiscoveryEligibility;
+import top.pxczxn.xingyu.common.contract.access.Visibility;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,7 +96,7 @@ public class SearchIndexService {
         FormalRevision revision = published == null
                 ? null
                 : formalRevisionMapper.selectById(published.getFormalRevisionId());
-        if (revision == null) {
+        if (revision == null || !isDiscoverable(article, revision)) {
             indexProvider.remove(ARTICLE, articleId);
             return;
         }
@@ -157,6 +162,31 @@ public class SearchIndexService {
         return ArticleStateSupport.isActiveLifecycle(article)
                 && ArticleStateSupport.MODERATION_NORMAL.equals(
                         ArticleStateSupport.normalizeModeration(article.getModerationStatus()));
+    }
+
+    private static boolean isDiscoverable(Article article, FormalRevision revision) {
+        if (!isPublic(article) || revision.getVisibility() == null) {
+            return false;
+        }
+        Visibility visibility;
+        try {
+            visibility = Visibility.valueOf(revision.getVisibility());
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+        return PublicDiscoveryEligibility.isEligible(
+                DiscoverableResource.builder()
+                        .exists(true)
+                        .ownerId(ObjectId.of(article.getOwnerId()))
+                        .visibility(visibility)
+                        .ownerActive(true)
+                        .resourceActive(true)
+                        .underReview(false)
+                        .governanceSuppressed(false)
+                        .hasPublishedRevision(true)
+                        .discoveryEligible(true)
+                        .build(),
+                AccessorContext.anonymous());
     }
 
     private static String momentTitle(String body) {

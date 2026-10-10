@@ -58,7 +58,7 @@ public class HomeService {
 
     public HomeCompositionView compose(CommunityUser user) {
         long unread = user == null ? 0L : notificationMapper.countUnread(user.getId());
-        List<SearchResultView> discoveries = toSearchViews(searchDocumentMapper.listActiveByHot(10));
+        List<SearchResultView> discoveries = toSearchViews(searchDocumentMapper.listActiveByHot(null, 10));
         List<SearchResultView> followingUpdates = user == null ? List.of() : followingUpdatesFor(user);
 
         // One enrichment pass across both rails — see HomeFeedEnrichmentService.

@@ -37,6 +37,10 @@ public class CommunityApiExceptionHandler {
             if (message.contains("uk_community_user_email")) {
                 return problem(ErrorCode.VALIDATION_FAILED, "email: 邮箱不可用", request);
             }
+            if (message.contains("uk_event_registration")) {
+                // 并发报名撞唯一约束：业务上等价于"已报名"，返回 409 冲突语义而非 500。
+                return problem(ErrorCode.CONFLICT, "已经报名该活动", request);
+            }
         }
         log.error("community api duplicate key", ex);
         return problem(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.getTitle(), request);

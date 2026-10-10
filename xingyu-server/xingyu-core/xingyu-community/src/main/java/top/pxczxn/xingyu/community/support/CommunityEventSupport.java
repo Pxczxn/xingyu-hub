@@ -31,6 +31,7 @@ public class CommunityEventSupport {
     public static final String REVISION_SUBMITTED = "RevisionSubmitted";
     public static final String REVIEW_DECISION_RECORDED = "ReviewDecisionRecorded";
     public static final String PUBLICATION_SUCCEEDED = "PublicationSucceeded";
+    public static final String ARTICLE_LIFECYCLE_CHANGED = "ArticleLifecycleChanged";
     public static final String SERIES_CHANGED = "SeriesChanged";
     public static final String MOMENT_CHANGED = "MomentChanged";
     /**

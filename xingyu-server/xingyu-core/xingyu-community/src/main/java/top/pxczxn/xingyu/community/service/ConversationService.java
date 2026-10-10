@@ -4,6 +4,7 @@ import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.config.CommunityProperties;
+import top.pxczxn.xingyu.community.dto.ChatMessageSenderView;
 import top.pxczxn.xingyu.community.dto.ChatMessageView;
 import top.pxczxn.xingyu.community.dto.ConversationMemberView;
 import top.pxczxn.xingyu.community.dto.ConversationView;
@@ -24,6 +25,7 @@ import top.pxczxn.xingyu.community.mapper.ConversationMemberMapper;
 import top.pxczxn.xingyu.community.mapper.GroupJoinRequestMapper;
 import top.pxczxn.xingyu.community.event.ChatMessageSentEvent;
 import top.pxczxn.xingyu.community.event.CommunityChatRealtimeEvent;
+import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -33,8 +35,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -54,8 +60,22 @@ public class ConversationService {
     private final CommunityProfileMapper profileMapper;
     private final GroupJoinRequestMapper joinRequestMapper;
     private final UserBlockService userBlockService;
+    private final CommunityAccountService accountService;
     private final CommunityProperties communityProperties;
     private final ApplicationEventPublisher eventPublisher;
+
+    /** 重连对账结果：升序消息 + 是否可能还有更多。 */
+    public record MessageBackfillView(List<ChatMessageView> messages, boolean hasMore) {
+    }
+
+    /** 搜索落点用的一小段历史：升序消息 + 目标是否命中 + 目标序号。 */
+    public record MessageContextView(
+            List<ChatMessageView> messages, boolean found, long sequence) {
+    }
+
+    /** 通过 membership 校验后才存在的附件访问凭证。 */
+    public record MessageAttachmentAccess(Long fileId, String fileName, String messageType) {
+    }
 
     public List<ConversationView> listConversations(CommunityUser user) {
         return conversationMapper.listByUserId(user.getId()).stream()
@@ -91,13 +111,97 @@ public class ConversationService {
         List<ChatMessage> raw = messageMapper.listPageBeforeSequence(conversationId, beforeSequence, capped);
         List<ChatMessage> ordered = new ArrayList<>(raw);
         Collections.reverse(ordered);
-        List<ChatMessageView> items = ordered.stream().map(this::toMessageView).toList();
+        List<ChatMessageView> items = toViews(ordered, null);
         String nextCursor = items.isEmpty() ? null : String.valueOf(items.get(0).getSequenceNumber());
         return PageResultView.<ChatMessageView>builder()
                 .items(items)
                 .nextCursor(nextCursor)
                 .total((long) items.size())
                 .build();
+    }
+
+    /**
+     * 会话内序号<b>大于</b> {@code afterSequence} 的消息，升序（2026-10-06 新增）。
+     *
+     * <p>存在的理由：{@link #listMessages} 只能往回翻，而断线期间漏掉的消息在「本地已知
+     * 最大序号之后」。WebSocket 本身不重放离线消息，所以重连后必须用这个方向做一次 REST
+     * 对账，否则「实时」会静默丢消息（实测：不补拉时，离线期间的消息刷新前一直不出现）。
+     *
+     * <p>用 {@code sequence_number} 而不是时间戳：它是会话内单调计数，「之后」是精确语义；
+     * 通知那边只能给稳定顺序，给不了这个。
+     *
+     * <p>{@code afterSequence} 为 null 时从<b>最早</b>开始返回（升序），并用 hasMore 告知
+     * 是否还有更多 —— 「没有游标」被明确定义成「从头开始」，而不是悄悄变成「最新一页」。
+     * 客户端实际总是传本地已知最大序号，所以这个分支只是把语义钉死。
+     *
+     * @return 升序消息；外加是否可能还有更多（{@code hasMore}）
+     */
+    public MessageBackfillView listMessagesAfter(
+            CommunityUser user,
+            String conversationId,
+            Long afterSequence,
+            int limit) {
+        requireMember(user, conversationId);
+        int capped = Math.min(Math.max(limit, 1), 200);
+        // 多取一条用来判断是否还有后续，避免前端以为已经追平。
+        List<ChatMessage> rows = messageMapper.listAfterSequence(conversationId, afterSequence, capped + 1);
+        boolean hasMore = rows.size() > capped;
+        List<ChatMessage> page = hasMore ? rows.subList(0, capped) : rows;
+        return new MessageBackfillView(toViews(page, null), hasMore);
+    }
+
+    /**
+     * 以某条消息为中心的一小段历史，升序（2026-10-06，供搜索结果精确落点用）。
+     *
+     * <p>为什么需要：搜索可以命中任意历史消息，而首屏只给最近 100 条。用「往回翻页直到碰到
+     * 目标」在长会话里要翻几十次请求 —— 明确禁止。改成直接以目标的 {@code sequence_number}
+     * 为中心取「前 N 条 + 目标 + 后 N 条」，一次请求就能定位。
+     *
+     * <p>{@code found=false} 表示这条序号在库里不存在（消息被删/ 从未存在），此时返回空列表，
+     * 客户端应提示而不是死等。
+     */
+    public MessageContextView listMessagesAround(
+            CommunityUser user, String conversationId, long sequence, int limit) {
+        requireMember(user, conversationId);
+        int window = Math.min(Math.max(limit, 3), 100);
+        // limit 是**总共**返回多少条：目标自己占一条，其余分给前后（前面略多一条，
+        // 因为「这条消息之前发生了什么」比之后更有助于理解上下文）。
+        int before = (window - 1) / 2 + 1;
+        int after = window - 1 - before;
+        List<ChatMessage> older = messageMapper.listUpToSequence(conversationId, sequence - 1, before);
+        List<ChatMessage> newer = messageMapper.listAfterSequence(conversationId, sequence, after);
+        ChatMessage target = messageMapper.findBySequence(conversationId, sequence);
+        if (target == null) {
+            return new MessageContextView(List.of(), false, 0L);
+        }
+        List<ChatMessage> window0 = new ArrayList<>(older.size() + 1 + newer.size());
+        window0.addAll(older);
+        window0.add(target);
+        window0.addAll(newer);
+        return new MessageContextView(toViews(window0, null), true, sequence);
+    }
+
+    /**
+     * 附件访问凭证：只在校验通过后返回，绝不把 {@code sys_file.id} 暴露给非成员。
+     *
+     * <p>为什么不直接用 {@code chat_message.attachment_url}：那是 {@code /admin/files/...}
+     * 这种<b>无鉴权</b>的静态地址（实测不带 token 返回 200）。URL 只作展示，字节必须经
+     * 这里 → {@code SysFileService.getFileBytes} 读，并先过 membership。
+     */
+    public MessageAttachmentAccess requireAttachment(
+            CommunityUser user, String conversationId, String messageId) {
+        requireMember(user, conversationId);
+        ChatMessage message = messageMapper.findById(messageId);
+        if (message == null
+                || !conversationId.equals(message.getConversationId())
+                || message.getAttachmentFileId() == null
+                || message.getRecalledAt() != null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        return new MessageAttachmentAccess(
+                message.getAttachmentFileId(),
+                message.getAttachmentName() == null ? "attachment" : message.getAttachmentName(),
+                message.getMessageType() == null ? MSG_FILE : message.getMessageType());
     }
 
     @Transactional
@@ -134,7 +238,7 @@ public class ConversationService {
             throw new ContractException(ErrorCode.AUTH_FORBIDDEN);
         }
         if (message.getRecalledAt() != null) {
-            return toMessageView(message);
+            return toViews(List.of(message), null).get(0);
         }
         long elapsed = Instant.now().getEpochSecond() - message.getCreatedAt().getEpochSecond();
         if (elapsed > communityProperties.getMessageRecallWindowSeconds()) {
@@ -142,7 +246,7 @@ public class ConversationService {
         }
         message.setRecalledAt(Instant.now());
         messageMapper.updateById(message);
-        ChatMessageView view = toMessageView(message);
+        ChatMessageView view = toViews(List.of(message), null).get(0);
         eventPublisher.publishEvent(new CommunityChatRealtimeEvent(
                 conversationId,
                 "recall",
@@ -153,17 +257,13 @@ public class ConversationService {
     public List<ChatMessageView> listMediaMessages(CommunityUser user, String conversationId, int limit) {
         requireMember(user, conversationId);
         int capped = Math.min(Math.max(limit, 1), 200);
-        return messageMapper.listByConversationIdAndType(conversationId, MSG_IMAGE, capped).stream()
-                .map(this::toMessageView)
-                .toList();
+        return toViews(messageMapper.listByConversationIdAndType(conversationId, MSG_IMAGE, capped), null);
     }
 
     public List<ChatMessageView> listFileMessages(CommunityUser user, String conversationId, int limit) {
         requireMember(user, conversationId);
         int capped = Math.min(Math.max(limit, 1), 200);
-        return messageMapper.listByConversationIdAndType(conversationId, MSG_FILE, capped).stream()
-                .map(this::toMessageView)
-                .toList();
+        return toViews(messageMapper.listByConversationIdAndType(conversationId, MSG_FILE, capped), null);
     }
 
     public List<MyGroupJoinRequestView> listMyGroupJoinRequests(CommunityUser user, int limit) {
@@ -190,13 +290,25 @@ public class ConversationService {
             return List.of();
         }
         int capped = Math.min(Math.max(limit, 1), 100);
-        return messageMapper.searchForUser(user.getId(), trimmed, capped).stream()
-                .map(message -> {
-                    Conversation conversation = conversationMapper.selectById(message.getConversationId());
-                    String type = conversation == null ? null : conversation.getType();
-                    return toMessageView(message, type);
-                })
-                .toList();
+        List<ChatMessage> hits = messageMapper.searchForUser(user.getId(), trimmed, capped);
+        // 命中行要能回答「谁说的、来自哪个会话」，所以这里顺带把会话类型与对方展示名解析出来。
+        // 之前两样都没有，实测结果行既无 sender 也无会话名（sender 由 toViews 统一填）。
+        Map<String, Conversation> conversations = new HashMap<>();
+        for (ChatMessage message : hits) {
+            conversations.computeIfAbsent(
+                    message.getConversationId(), conversationMapper::selectById);
+        }
+        Map<String, ChatMessageSenderView> senders = resolveSenders(hits);
+        List<ChatMessageView> views = new ArrayList<>(hits.size());
+        for (ChatMessage message : hits) {
+            Conversation conversation = conversations.get(message.getConversationId());
+            views.add(toMessageView(
+                    message,
+                    conversation == null ? null : conversation.getType(),
+                    senders,
+                    conversation == null ? null : resolveCounterpartDisplayName(conversation, user.getId())));
+        }
+        return views;
     }
 
     @Transactional
@@ -412,6 +524,10 @@ public class ConversationService {
         if (userMapper.selectById(resolvedUserId) == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        // 停用 / 审核中 / 被拒的账号不能成为私信对象（2026-10-06）。此前只在这里校验
+        // 「用户存在」，于是给他发消息能写库成功，而他自己登不进来 —— 消息进了一个没人
+        // 读得走的会话。判定复用 CommunityAccountService 的统一口径，不在这里另写一套。
+        accountService.requireCanParticipate(userMapper.selectById(resolvedUserId));
         String existingId = memberMapper.findDirectConversationId(user.getId(), resolvedUserId);
         if (existingId != null) {
             return getDirectConversation(user, existingId);
@@ -430,21 +546,41 @@ public class ConversationService {
 
     @Transactional
     public ChatMessageView sendMessage(CommunityUser user, String conversationId, Map<String, String> body) {
+        // 锁会话行，而且必须是本事务的**第一条语句**。
+        //
+        // 序号是「读 max(sequence_number) + 1」算出来的，没有这把锁，两个并发发送会插同一个
+        // sequence_number，撞 uk_chat_message_sequence → 500 且那条消息丢失（2026-10-06 实测：
+        // 12 条并发里有 11 条 500，日志全是 duplicate entry ...-1）。
+        //
+        // 为什么必须放在最前面：MySQL 默认 REPEATABLE READ，事务的**一致性快照在第一条普通
+        // SELECT 时建立**。若先做 requireMember（普通 SELECT）再取锁，快照早于前一个持锁者
+        // 提交，于是后面的 MAX(sequence_number) 仍读到旧值 —— 实测正是这样：锁排了 466ms，
+        // 拿到锁后读到的 max 还是 0。先取锁（锁定读不建立快照），随后的第一条普通 SELECT 才
+        // 建立快照，此时前一个持锁者已提交，读到的就是最新值。
+        Conversation conversation = conversationMapper.lockForUpdate(conversationId);
+        if (conversation == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
         requireMember(user, conversationId);
-        Conversation conversation = conversationMapper.selectById(conversationId);
         if (conversation != null && "DIRECT".equals(conversation.getType())) {
             String otherUserId = memberMapper.listByConversationId(conversationId).stream()
                     .map(ConversationMember::getUserId)
                     .filter(memberId -> !user.getId().equals(memberId))
                     .findFirst()
                     .orElse(null);
-            if (otherUserId != null && userBlockService.isBlockedEitherWay(user.getId(), otherUserId)) {
-                throw new ContractException(ErrorCode.CONFLICT, "无法向该用户发送私信");
+            if (otherUserId != null) {
+                if (userBlockService.isBlockedEitherWay(user.getId(), otherUserId)) {
+                    throw new ContractException(ErrorCode.CONFLICT, "无法向该用户发送私信");
+                }
+                // 已有会话也不能继续往停用账号里写（2026-10-06）。与 openDirect 同一个
+                // 统一口径：停用代表「不可参与社区交互」，而不仅是本人登不进来。
+                accountService.requireCanParticipate(userMapper.selectById(otherUserId));
             }
         }
         String messageType = parseMessageType(body.get("type"));
         String attachmentUrl = trimToNull(body.get("attachmentUrl"));
         String attachmentName = trimToNull(body.get("attachmentName"));
+        Long attachmentFileId = parseAttachmentFileId(body.get("attachmentFileId"));
         String messageBody = body.get("body");
         if (MSG_IMAGE.equals(messageType) || MSG_FILE.equals(messageType)) {
             if (attachmentUrl == null) {
@@ -457,7 +593,7 @@ public class ConversationService {
         if (clientMessageId != null) {
             ChatMessage existing = messageMapper.findByClientMessageId(conversationId, user.getId(), clientMessageId);
             if (existing != null) {
-                return toMessageView(existing);
+                return toViews(List.of(existing), null).get(0);
             }
         }
         long nextSequence = messageMapper.maxSequenceNumber(conversationId) + 1;
@@ -470,6 +606,7 @@ public class ConversationService {
         message.setMessageType(messageType);
         message.setAttachmentUrl(attachmentUrl);
         message.setAttachmentName(attachmentName);
+        message.setAttachmentFileId(attachmentFileId);
         message.setBody(messageBody == null || messageBody.isBlank() ? attachmentUrl : messageBody.trim());
         message.setClientMessageId(clientMessageId);
         message.setCreatedAt(now);
@@ -478,9 +615,21 @@ public class ConversationService {
             conversation.setUpdatedAt(now);
             conversationMapper.updateById(conversation);
         }
-        ChatMessageView view = toMessageView(message);
+        ChatMessageView view = toViews(List.of(message), null).get(0);
         eventPublisher.publishEvent(new ChatMessageSentEvent(conversationId, view));
         return view;
+    }
+
+    private static Long parseAttachmentFileId(String raw) {
+        String value = trimToNull(raw);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            throw new FieldContractException("attachmentFileId", "附件标识格式无效");
+        }
     }
 
     private static Long parseCursor(String cursor) {
@@ -621,39 +770,105 @@ public class ConversationService {
         return member;
     }
 
-    private ChatMessageView toMessageView(ChatMessage message) {
-        return toMessageView(message, null);
+    /**
+     * 一批消息 → 视图，<b>sender 按 sender_id 去重后一次性批量解析</b>（2026-10-06）。
+     *
+     * <p>为什么必须批量：逐条 {@code findByUserId} 会让「一页 50 条消息」变成 50 次 profile
+     * 查询。这里复用 {@code CommunityProfileMapper.findByUserIds}（项目已有的 IN 批量能力），
+     * 一个会话页恒定 1 次查询。
+     *
+     * <p>解析的是<b>当前</b> profile，不是写入时的快照 —— 与通知的 actor 同一原则，所以
+     * 发送者改名后历史消息仍显示并链接到当前 canonical identity。
+     */
+    private List<ChatMessageView> toViews(List<ChatMessage> messages, Function<String, String> typeOf) {
+        Map<String, ChatMessageSenderView> senders = resolveSenders(messages);
+        List<ChatMessageView> views = new ArrayList<>(messages.size());
+        for (ChatMessage message : messages) {
+            views.add(toMessageView(message, typeOf == null ? null : typeOf.apply(message.getConversationId()), senders));
+        }
+        return views;
     }
 
-    private ChatMessageView toMessageView(ChatMessage message, String conversationType) {
-        if (message.getRecalledAt() != null) {
-            return ChatMessageView.builder()
-                    .id(message.getId())
-                    .conversationId(message.getConversationId())
-                    .conversationType(conversationType)
-                    .senderId(message.getSenderId())
-                    .sequenceNumber(message.getSequenceNumber() == null ? 0L : message.getSequenceNumber())
-                    .body("[消息已撤回]")
-                    .messageType(message.getMessageType() == null ? MSG_TEXT : message.getMessageType())
-                    .attachmentUrl(null)
-                    .attachmentName(null)
-                    .createdAt(message.getCreatedAt())
-                    .recalledAt(message.getRecalledAt())
-                    .build();
+    private Map<String, ChatMessageSenderView> resolveSenders(List<ChatMessage> messages) {
+        Set<String> senderIds = new LinkedHashSet<>();
+        for (ChatMessage message : messages) {
+            if (message.getSenderId() != null && !message.getSenderId().isBlank()) {
+                senderIds.add(message.getSenderId());
+            }
         }
-        return ChatMessageView.builder()
+        if (senderIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, ChatMessageSenderView> byUserId = new HashMap<>();
+        for (CommunityProfile profile : profileMapper.findByUserIds(senderIds)) {
+            byUserId.put(profile.getUserId(), ChatMessageSenderView.builder()
+                    .userId(profile.getUserId())
+                    .username(profile.getUsername())
+                    .displayName(profile.getDisplayName())
+                    // 头像不在 profile 列上，存在 settings_json 里 —— 复用既有解析口径。
+                    .avatar(ProfileSettingsSupport.resolveAvatar(profile))
+                    .build());
+        }
+        return byUserId;
+    }
+
+    private ChatMessageView toMessageView(
+            ChatMessage message,
+            String conversationType,
+            Map<String, ChatMessageSenderView> senders) {
+        return toMessageView(message, conversationType, senders, null);
+    }
+
+    private ChatMessageView toMessageView(
+            ChatMessage message,
+            String conversationType,
+            Map<String, ChatMessageSenderView> senders,
+            String counterpartDisplayName) {
+        ChatMessageSenderView sender = message.getSenderId() == null
+                ? null
+                : senders.get(message.getSenderId());
+        ChatMessageView.ChatMessageViewBuilder builder = ChatMessageView.builder()
                 .id(message.getId())
                 .conversationId(message.getConversationId())
                 .conversationType(conversationType)
                 .senderId(message.getSenderId())
+                .sender(sender)
+                .counterpartDisplayName(counterpartDisplayName)
                 .sequenceNumber(message.getSequenceNumber() == null ? 0L : message.getSequenceNumber())
+                .createdAt(message.getCreatedAt())
+                .recalledAt(message.getRecalledAt());
+        if (message.getRecalledAt() != null) {
+            // 墓碑：保留位置与身份，但内容与附件都不再返回。
+            return builder
+                    .body("[消息已撤回]")
+                    .messageType(message.getMessageType() == null ? MSG_TEXT : message.getMessageType())
+                    .attachmentUrl(null)
+                    .attachmentName(null)
+                    .attachmentFileId(null)
+                    .recallUntil(null)
+                    .build();
+        }
+        return builder
                 .body(message.getBody())
                 .messageType(message.getMessageType() == null ? MSG_TEXT : message.getMessageType())
                 .attachmentUrl(message.getAttachmentUrl())
                 .attachmentName(message.getAttachmentName())
-                .createdAt(message.getCreatedAt())
-                .recalledAt(message.getRecalledAt())
+                .attachmentFileId(message.getAttachmentFileId())
+                // 撤回截止时刻由服务端按同一套窗口规则算，客户端不必复制那个常量。
+                .recallUntil(recallUntilOf(message))
                 .build();
+    }
+
+    /**
+     * 撤回截止时刻 = 创建时间 + 服务端配置的窗口。
+     *
+     * <p>唯一的规则来源在这里；客户端只拿它和「现在」比。已撤回的消息返回 null。
+     */
+    private Instant recallUntilOf(ChatMessage message) {
+        if (message.getRecalledAt() != null || message.getCreatedAt() == null) {
+            return null;
+        }
+        return message.getCreatedAt().plusSeconds(communityProperties.getMessageRecallWindowSeconds());
     }
 
     private static String formatLastMessagePreview(ChatMessage message) {

@@ -11,6 +11,7 @@ import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.ContentTrashMapper;
 import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
+import top.pxczxn.xingyu.community.support.CommunityEventSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class TrashService {
     private final ArticleMapper articleMapper;
     private final ContentTrashMapper trashMapper;
     private final WorkingDraftMapper draftMapper;
+    private final CommunityEventSupport eventSupport;
 
     public List<TrashItemView> listForOwner(CommunityUser user) {
         return trashMapper.listByOwnerId(user.getId()).stream()
@@ -59,6 +61,7 @@ public class TrashService {
         article.setLifecycleStatus(ArticleStateSupport.LIFECYCLE_TRASHED);
         article.setUpdatedAt(now);
         articleMapper.updateById(article);
+        publishLifecycleChanged(article);
         return toView(trash);
     }
 
@@ -81,7 +84,16 @@ public class TrashService {
             }
             article.setUpdatedAt(Instant.now());
             articleMapper.updateById(article);
+            publishLifecycleChanged(article);
         }
+    }
+
+    private void publishLifecycleChanged(Article article) {
+        long stamp = article.getUpdatedAt() == null ? 0L : article.getUpdatedAt().toEpochMilli();
+        eventSupport.publishArticleEvent(
+                "article-life:" + article.getId() + ":" + stamp,
+                CommunityEventSupport.ARTICLE_LIFECYCLE_CHANGED,
+                article.getId());
     }
 
     public boolean isTrashed(String objectType, String objectId) {

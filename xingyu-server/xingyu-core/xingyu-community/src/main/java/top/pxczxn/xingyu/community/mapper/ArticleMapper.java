@@ -29,8 +29,10 @@ public interface ArticleMapper extends BaseMapper<Article> {
     @Select("""
             SELECT a.id FROM article a
             INNER JOIN published_revision pr ON pr.article_id = a.id
+            INNER JOIN formal_revision fr ON fr.id = pr.formal_revision_id
             WHERE a.lifecycle_status = 'ACTIVE'
               AND (a.moderation_status IS NULL OR a.moderation_status = 'NORMAL')
+              AND fr.visibility = 'PUBLIC'
             """)
     List<String> listIndexableIds();
 

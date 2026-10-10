@@ -113,8 +113,11 @@ class Batch8SocialGapIntegrationTest {
         mockMvc.perform(post("/api/v1/messages/direct/" + userBId).header("satoken", tokenA))
                 .andExpect(status().isConflict());
 
+        // 举报契约（GovernanceContractRecovery，2026-10）：不能举报自己的内容。
+        // 旧断言用 tokenA 举报自己发的 moment（真实行为 409）。改为 tokenB 举报，
+        // 补充材料同理必须由举报者本人提交。
         MvcResult reportResult = mockMvc.perform(post("/api/v1/reports")
-                        .header("satoken", tokenA)
+                        .header("satoken", tokenB)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"targetType":"MOMENT","targetId":"%s","reason":"SPAM"}
@@ -124,7 +127,7 @@ class Batch8SocialGapIntegrationTest {
         String reportId = objectMapper.readTree(reportResult.getResponse().getContentAsString()).path("id").asText();
 
         mockMvc.perform(post("/api/v1/me/reports/" + reportId + "/supplements")
-                        .header("satoken", tokenA)
+                        .header("satoken", tokenB)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"body\":\"补充举报材料\"}"))
                 .andExpect(status().isOk())

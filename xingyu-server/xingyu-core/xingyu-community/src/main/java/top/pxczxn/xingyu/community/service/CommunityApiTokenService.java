@@ -8,6 +8,7 @@ import top.pxczxn.xingyu.community.dto.ApiTokenView;
 import top.pxczxn.xingyu.community.entity.CommunityApiToken;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.mapper.CommunityApiTokenMapper;
+import top.pxczxn.xingyu.community.mapper.CommunityUserMapper;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,10 @@ import java.util.stream.Collectors;
 public class CommunityApiTokenService {
 
     private static final Set<String> ALLOWED_SCOPES = Set.of("read:profile", "read:articles");
+    private static final String USER_STATUS_ACTIVE = "ACTIVE";
 
     private final CommunityApiTokenMapper tokenMapper;
+    private final CommunityUserMapper userMapper;
 
     public List<ApiTokenView> listMine(CommunityUser user, int limit) {
         if (limit <= 0) {
@@ -78,10 +81,33 @@ public class CommunityApiTokenService {
         tokenMapper.updateById(token);
     }
 
+    /**
+     * 校验 Bearer Token 并返回其记录。
+     *
+     * <p><b>2026-10-08 加固</b>：原实现只查 {@code status='ACTIVE'}，<b>不检查账号状态</b>，
+     * 于是「停用账号」这一操作只挡住了浏览器会话，挡不住 API Token ——
+     * 已发行的 token 能继续访问 {@code /open/profile} 与 {@code /open/articles}。
+     *
+     * <p><b>为什么在这里查状态，而不是停用时批量撤销 token</b>：账号状态是<b>唯一事实源</b>。
+     * 批量撤销会引入第二处需要同步的状态（token.status 与 user.status），
+     * 只要有一条路径漏掉就又不一致了。查一次库换来的是「不可能漏」——
+     * 所有走 {@code requireActiveToken} 的入口自动受管，将来新增端点也不会绕过。
+     *
+     * <p>这与 {@code CommunityAccountService.requireActiveSession} 的做法一致
+     * （它同样在鉴权时检查 {@code USER_STATUS_ACTIVE}），所以停用对两类凭证是同一种语义：
+     * <b>不需要主动撤销就已经失效</b>。
+     *
+     * <p>停用后 token 行仍是 {@code ACTIVE}，所以用户在 UI 上仍能看到自己的 token 列表；
+     * 这是<b>如实</b>的 —— token 本身没被撤销，只是账号已停用故一律拒绝。
+     */
     public CommunityApiToken requireActiveToken(String authorizationHeader) {
         String raw = extractBearer(authorizationHeader);
         CommunityApiToken token = tokenMapper.findActiveByHash(TokenSupport.sha256(raw));
         if (token == null) {
+            throw new ContractException(ErrorCode.AUTH_REQUIRED, "API Token 无效或已撤销");
+        }
+        CommunityUser owner = userMapper.selectById(token.getUserId());
+        if (owner == null || !USER_STATUS_ACTIVE.equals(owner.getStatus())) {
             throw new ContractException(ErrorCode.AUTH_REQUIRED, "API Token 无效或已撤销");
         }
         tokenMapper.touchLastUsed(token.getId(), Instant.now());

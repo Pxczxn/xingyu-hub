@@ -40,6 +40,8 @@ public class ReviewService {
     private final FormalRevisionMapper formalRevisionMapper;
     private final CommunityEventSupport eventSupport;
     private final CommunityProfileMapper profileMapper;
+    private final top.pxczxn.xingyu.community.mapper.WorkingDraftMapper draftMapper;
+    private final top.pxczxn.xingyu.community.mapper.CommunityUserMapper userMapper;
 
     @Transactional
     public ReviewSubmission submitForReview(CommunityUser user, String articleId) {
@@ -89,6 +91,44 @@ public class ReviewService {
                 articleId);
 
         return submission;
+    }
+
+    /**
+     * 消费一条到期的定时送审计划（Studio Scheduling & Concurrency Recovery，2026-10-09）。
+     *
+     * <p>「原子认领 → 同事务送审」两步：
+     * <ol>
+     *   <li>{@code claimDueSchedule} 是条件 UPDATE（当前读 + 行锁），把到期的
+     *       scheduled_publish_at 置 NULL。返回 0 = 计划已被并发 worker 消费/已取消 → 直接放弃。
+     *       这是「同一次计划绝不被重复消费」的数据库级保证。</li>
+     *   <li>送审在<b>同一事务</b>内执行：失败 → 整体回滚 → 计划自动恢复 → 下一轮重试
+     *       （保留既有重试语义）；成功 → 计划与审核记录同生共死，不存在「送审成功但计划残留」。</li>
+     * </ol>
+     *
+     * <p>修复的缺陷（D2，已实测）：旧实现送审成功后 {@code setScheduledPublishAt(null) +
+     * updateById} 在事务外、且被 MyBatis-Plus 默认 NOT_NULL 策略吞掉——计划永久残留，
+     * 管理员批准发布后每 60s 重复送审、公开文章反复 404 下线。
+     *
+     * @return true = 本 worker 消费了计划并完成（或尝试）送审；false = 计划已被他人消费/不存在
+     */
+    @Transactional
+    public boolean submitScheduledDraft(String articleId) {
+        Instant now = Instant.now();
+        int claimed = draftMapper.claimDueSchedule(articleId, now);
+        if (claimed == 0) {
+            return false;
+        }
+        Article article = articleMapper.selectById(articleId);
+        if (article == null) {
+            // 计划已消费但文章不存在（数据损坏场景）：放弃计划，不回滚以免僵尸计划无限重试
+            return true;
+        }
+        CommunityUser owner = userMapper.selectById(article.getOwnerId());
+        if (owner == null) {
+            return true;
+        }
+        submitForReview(owner, articleId);
+        return true;
     }
 
     public List<ReviewQueueItemView> listPendingQueue() {

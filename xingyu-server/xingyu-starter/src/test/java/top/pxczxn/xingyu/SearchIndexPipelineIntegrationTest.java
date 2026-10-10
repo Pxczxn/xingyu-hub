@@ -164,6 +164,45 @@ class SearchIndexPipelineIntegrationTest {
                 "被治理隐藏的文章不应再留在公开索引里");
     }
 
+    @Test
+    @DisplayName("Article visibility 决定搜索发现资格，而不是直链读取资格")
+    void onlyPublicArticlesAreIndexedForDiscovery() throws Exception {
+        String token = registerAndLogin("indexvisibility" + uniqueSuffix());
+
+        String unlistedId = publishArticle(token, "仅链接文章", "UNLISTED");
+        String privateId = publishArticle(token, "私密文章", "PRIVATE");
+        drainReliableEvents();
+
+        assertFalse(isIndexed("ARTICLE", unlistedId), "UNLISTED 只允许直链读取，不应进入搜索索引");
+        assertFalse(isIndexed("ARTICLE", privateId), "PRIVATE 不应进入搜索索引");
+
+        mockMvc.perform(get("/api/v1/articles/" + unlistedId))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/articles/" + privateId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("公开文章进入回收站后移出索引，恢复后按当前资格重新投影")
+    void trashAndRestoreReconcileTheSearchIndex() throws Exception {
+        String token = registerAndLogin("indextrash" + uniqueSuffix());
+        String articleId = publishArticle(token, "回收站索引一致性文章");
+        drainReliableEvents();
+        assertTrue(isIndexed("ARTICLE", articleId), "前置条件：公开文章已入索引");
+
+        mockMvc.perform(post("/api/v1/me/articles/" + articleId + "/trash")
+                        .header("satoken", token))
+                .andExpect(status().isOk());
+        drainReliableEvents();
+        assertFalse(isIndexed("ARTICLE", articleId), "trash 后应移出公开搜索索引");
+
+        mockMvc.perform(post("/api/v1/me/articles/" + articleId + "/restore")
+                        .header("satoken", token))
+                .andExpect(status().isNoContent());
+        drainReliableEvents();
+        assertTrue(isIndexed("ARTICLE", articleId), "PUBLIC 文章 restore 后应重新进入索引");
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private void indexServiceRefresh(String objectType, String objectId) {
@@ -242,6 +281,10 @@ class SearchIndexPipelineIntegrationTest {
 
     /** Draft → submit → admin approve. The publish path is what must produce the index event. */
     private String publishArticle(String token, String title) throws Exception {
+        return publishArticle(token, title, "PUBLIC");
+    }
+
+    private String publishArticle(String token, String title, String visibility) throws Exception {
         MvcResult created = mockMvc.perform(post("/api/v1/me/articles")
                         .header("satoken", token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -257,8 +300,8 @@ class SearchIndexPipelineIntegrationTest {
                         .header("satoken", token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"title":"%s","summary":"摘要","bodyMode":"MARKDOWN","body":"正文内容","lockVersion":0,"visibility":"PUBLIC"}
-                                """.formatted(title)))
+                                {"title":"%s","summary":"摘要","bodyMode":"MARKDOWN","body":"正文内容","lockVersion":0,"visibility":"%s"}
+                                """.formatted(title, visibility)))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/me/articles/" + articleId + "/submit")

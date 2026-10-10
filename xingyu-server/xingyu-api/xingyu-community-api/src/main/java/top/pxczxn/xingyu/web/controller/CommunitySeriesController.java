@@ -1,6 +1,8 @@
 package top.pxczxn.xingyu.web.controller;
 
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
+import top.pxczxn.xingyu.community.dto.PublicSeriesSummaryView;
+import top.pxczxn.xingyu.community.dto.PublicSeriesView;
 import top.pxczxn.xingyu.community.dto.SeriesSummaryView;
 import top.pxczxn.xingyu.community.dto.SeriesView;
 import top.pxczxn.xingyu.community.service.ReadingService;
@@ -27,17 +29,17 @@ public class CommunitySeriesController {
     private final ReadingService readingService;
 
     @GetMapping("/series")
-    public List<SeriesSummaryView> listPublic(@RequestParam(value = "limit", defaultValue = "20") int limit) {
+    public List<PublicSeriesSummaryView> listPublic(@RequestParam(value = "limit", defaultValue = "20") int limit) {
         return seriesService.listPublic(limit);
     }
 
     @GetMapping("/series/{seriesId}")
-    public SeriesView getPublicById(@PathVariable String seriesId) {
+    public PublicSeriesView getPublicById(@PathVariable String seriesId) {
         return seriesService.getPublicById(seriesId);
     }
 
     @GetMapping("/series/{username}/{slug}")
-    public SeriesView getPublic(@PathVariable String username, @PathVariable String slug) {
+    public PublicSeriesView getPublic(@PathVariable String username, @PathVariable String slug) {
         return seriesService.getPublic(username, slug);
     }
 

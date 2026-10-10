@@ -63,7 +63,13 @@ public class RecommendationService {
             for (FeaturedContent featured : featuredContentMapper.listActive(limit)) {
                 ContentCardView card = toFeaturedCard(featured);
                 if (card != null) {
-                    items.add(card);
+                    /*
+                     * `featured = true` comes from a REAL `featured_content` match — the row we
+                     * are iterating — and from nothing else. Not from the position it lands in,
+                     * not from an index bound, not from `sortOrder` being non-null, and not
+                     * from how many ACTIVE rows happen to exist today.
+                     */
+                    items.add(card.toBuilder().featured(true).build());
                 }
                 if (items.size() >= limit) {
                     break;
@@ -77,8 +83,17 @@ public class RecommendationService {
         }
 
         if (items.size() < limit) {
-            for (SearchDocument document : searchDocumentMapper.listActiveByHot(limit * 2)) {
-                items.add(toContentCard(document));
+            for (SearchDocument document : searchDocumentMapper.listActiveByHot(null, limit * 2)) {
+                /*
+                 * Explicitly `false`, not left null: on THIS surface every card has been
+                 * classified, so the client never has to treat "not an editorial pick" and
+                 * "this producer does not classify" as the same thing.
+                 *
+                 * A document that is ALSO an editorial pick would be added above first, and
+                 * `dedupe` keeps the first occurrence — so the surviving copy is the
+                 * `featured = true` one. Ordering is unchanged by any of this.
+                 */
+                items.add(toContentCard(document).toBuilder().featured(false).build());
                 if (items.size() >= limit) {
                     break;
                 }

@@ -56,17 +56,22 @@ class CommunityMessageControllerTest {
         CommunityAuthContext.set(user, new CommunitySession());
 
         SysFile uploaded = new SysFile();
+        uploaded.setId(77L);
         uploaded.setUrl("/api/v1/admin/files/community/messages/cover.png");
         uploaded.setOriginalName("cover.png");
         uploaded.setFileType("image/png");
         when(fileService.upload(eq(file), eq("community/messages"), isNull(), eq("user-1")))
                 .thenReturn(uploaded);
 
-        Map<String, String> result = controller.uploadMessageAttachment(file);
+        // 2026-10-06: the upload also returns `fileId`. It is what makes the attachment
+        // downloadable at all — the static path is refused and the member-checked
+        // endpoint resolves bytes through sys_file.id.
+        Map<String, Object> result = controller.uploadMessageAttachment(file);
 
         assertEquals("/api/v1/admin/files/community/messages/cover.png", result.get("url"));
         assertEquals("cover.png", result.get("name"));
         assertEquals("image/png", result.get("mimeType"));
+        assertEquals(77L, result.get("fileId"));
         verify(fileService).upload(eq(file), eq("community/messages"), isNull(), eq("user-1"));
     }
 }

@@ -1,5 +1,6 @@
 package top.pxczxn.xingyu.community.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
@@ -29,6 +30,7 @@ import top.pxczxn.xingyu.community.mapper.CreationSpaceCategoryMapper;
 import top.pxczxn.xingyu.community.mapper.FormalRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.PublishedRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.TopicMapper;
+import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
@@ -57,6 +59,7 @@ public class ArticleService {
     private final FormalRevisionMapper formalRevisionMapper;
     private final CommunityProfileMapper profileMapper;
     private final TopicMapper topicMapper;
+    private final SeriesMapper seriesMapper;
     private final CommunityEventSupport eventSupport;
 
     public List<ArticleSummaryView> listForOwner(CommunityUser user) {
@@ -113,6 +116,23 @@ public class ArticleService {
                 .toList();
     }
 
+    /**
+     * 保存草稿（Studio Contract Recovery — Draft Integrity，2026-10-09 重写持久化方式）。
+     *
+     * <p>两个正确性修复，均以条件 UPDATE 实现：
+     * <ol>
+     *   <li><b>D0 乐观锁原子化</b>：WHERE 同时携带 {@code lock_version = expected}，
+     *       检查-写入在同一条件 UPDATE 内原子完成。旧实现是「先读后写」两步——
+     *       {@code updateById} 的 WHERE 只有 id，REPEATABLE READ 下两个客户端基于同一
+     *       版本并发保存会双双通过校验、后写静默覆盖前者，且两次都写 expected+1，
+     *       版本号不变，事后无法察觉。现在 affected=0 即并发冲突 → 409，本次写库整体未发生。</li>
+     *   <li><b>D3 字段清空语义</b>：SET 子句只包含本次提交的键（显式 null = 用户主动清空），
+     *       未提交的键不出现、绝不被触碰——不做全字段 ALWAYS 更新。
+     *       旧实现 {@code updateById} 被 MyBatis-Plus 默认 NOT_NULL 策略吞掉 null，
+     *       用户清空 summary/coverUrl/slug/body/title 静默失效，且响应（内存实体）
+     *       与 DB 不一致。现在响应从 DB 重读构造，与持久化结果严格一致。</li>
+     * </ol>
+     */
     @Transactional
     public WorkingDraftView saveDraft(CommunityUser user, String articleId, Map<String, Object> body) {
         Article article = requireOwnedArticle(user, articleId);
@@ -125,59 +145,73 @@ public class ArticleService {
                 ? number.longValue()
                 : draft.getLockVersion() == null ? 0L : draft.getLockVersion();
         if (draft.getLockVersion() == null ? expected != 0L : draft.getLockVersion() != expected) {
+            // 快速失败路径：真正的并发裁决在下面的条件 UPDATE
             throw new ContractException(ErrorCode.CONFLICT, "草稿已被他人更新，请刷新后重试");
         }
 
+        Instant now = Instant.now();
+        UpdateWrapper<WorkingDraft> draftUpdate = new UpdateWrapper<WorkingDraft>()
+                .eq("article_id", articleId)
+                .eq("lock_version", expected)
+                .set("lock_version", expected + 1)
+                .set("updated_at", now);
         if (body.containsKey("title")) {
-            draft.setTitle(trimToNull(body.get("title")));
+            draftUpdate.set("title", trimToNull(body.get("title")));
         }
         if (body.containsKey("summary")) {
-            draft.setSummary(trimToNull(body.get("summary")));
+            draftUpdate.set("summary", trimToNull(body.get("summary")));
         }
         if (body.containsKey("coverUrl")) {
-            draft.setCoverUrl(trimToNull(body.get("coverUrl")));
+            draftUpdate.set("cover_url", trimToNull(body.get("coverUrl")));
         }
         if (body.containsKey("bodyMode")) {
-            draft.setBodyMode(parseBodyMode(body.get("bodyMode")));
+            draftUpdate.set("body_mode", parseBodyMode(body.get("bodyMode")));
         }
         if (body.containsKey("body")) {
-            draft.setBody(trimToNull(body.get("body")));
+            draftUpdate.set("body", trimToNull(body.get("body")));
         }
         if (body.containsKey("slug")) {
-            draft.setSlug(trimToNull(body.get("slug")));
+            draftUpdate.set("slug", trimToNull(body.get("slug")));
         }
         if (body.containsKey("visibility")) {
-            draft.setVisibility(parseVisibility(body.get("visibility")));
+            draftUpdate.set("visibility", parseVisibility(body.get("visibility")));
+        }
+        if (body.containsKey("scheduledPublishAt")) {
+            draftUpdate.set("scheduled_publish_at", parseInstant(body.get("scheduledPublishAt")));
         }
 
+        int updated = draftMapper.update(null, draftUpdate);
+        if (updated == 0) {
+            // 并发期间版本已被其他请求推进：本次保存整体未生效
+            throw new ContractException(ErrorCode.CONFLICT, "草稿已被他人更新，请刷新后重试");
+        }
+
+        UpdateWrapper<Article> articleUpdate = new UpdateWrapper<Article>()
+                .eq("id", articleId)
+                .set("updated_at", now);
         if (body.containsKey("categoryId")) {
             String categoryId = trimToNull(body.get("categoryId"));
             if (categoryId != null) {
                 requireOwnedCategory(article.getSpaceId(), categoryId);
             }
-            article.setCategoryId(categoryId);
+            // 显式 SET：清空分类（null）也必须真正落库
+            articleUpdate.set("category_id", categoryId);
         }
-
-        if (body.containsKey("scheduledPublishAt")) {
-            draft.setScheduledPublishAt(parseInstant(body.get("scheduledPublishAt")));
-        }
-
-        draft.setLockVersion(expected + 1);
-        draft.setUpdatedAt(Instant.now());
-        article.setUpdatedAt(draft.getUpdatedAt());
-        draftMapper.updateById(draft);
-        articleMapper.updateById(article);
+        articleMapper.update(null, articleUpdate);
 
         if (body.containsKey("topicIds")) {
             syncTopics(articleId, body.get("topicIds"));
         }
 
         eventSupport.publishArticleEvent(
-                "draft-changed:" + articleId + ":" + draft.getLockVersion(),
+                "draft-changed:" + articleId + ":" + (expected + 1),
                 CommunityEventSupport.DRAFT_CHANGED,
                 articleId);
 
-        return toDraftView(article, draft, listTopicIds(articleId));
+        // 响应必须反映真实持久化结果：从 DB 重读，而不是用内存实体
+        Article freshArticle = articleMapper.selectById(articleId);
+        WorkingDraft freshDraft = requireDraft(articleId);
+        return toDraftView(freshArticle, freshDraft, listTopicIds(articleId));
     }
 
     @Transactional
@@ -194,18 +228,40 @@ public class ArticleService {
         return saveDraft(user, articleId, patch);
     }
 
+    /**
+     * 取消定时（D1 修复，2026-10-09）：显式 {@code SET scheduled_publish_at = NULL}。
+     * 旧实现 {@code setScheduledPublishAt(null) + updateById} 被 MyBatis-Plus 默认
+     * NOT_NULL 字段策略吞掉，列根本没清——实测取消后计划残留、到点文章仍被送审。
+     * 只 touch 本列与 updated_at，不携带 lock_version 条件（与既有行为一致，
+     * 且不会与并发正文保存互相覆盖字段）。
+     */
     @Transactional
     public WorkingDraftView cancelSchedule(CommunityUser user, String articleId) {
         Article article = requireOwnedArticle(user, articleId);
-        WorkingDraft draft = requireDraft(articleId);
-        draft.setScheduledPublishAt(null);
-        draft.setUpdatedAt(Instant.now());
-        article.setUpdatedAt(draft.getUpdatedAt());
-        draftMapper.updateById(draft);
-        articleMapper.updateById(article);
-        return toDraftView(article, draft, listTopicIds(articleId));
+        requireDraft(articleId);
+        Instant now = Instant.now();
+        int updated = draftMapper.update(null, new UpdateWrapper<WorkingDraft>()
+                .eq("article_id", articleId)
+                .set("scheduled_publish_at", null)
+                .set("updated_at", now));
+        if (updated == 0) {
+            throw new ContractException(ErrorCode.NOT_FOUND, "工作草稿不存在");
+        }
+        articleMapper.update(null, new UpdateWrapper<Article>()
+                .eq("id", articleId)
+                .set("updated_at", now));
+        // 视图直接反映持久化结果（该列已确认写 NULL）
+        article.setUpdatedAt(now);
+        WorkingDraft fresh = requireDraft(articleId);
+        return toDraftView(article, fresh, listTopicIds(articleId));
     }
 
+    /**
+     * 恢复历史版本（D0 关联修复，2026-10-09）：与 saveDraft 同一写入纪律——
+     * 条件 UPDATE 携带 {@code lock_version = expected}，并发保存期间恢复请求 affected=0 → 409，
+     * 不再无条件覆盖；且 SET 子句显式列出全部恢复字段（含可空的 cover_url），
+     * 旧实现 updateById 会把 revision 中为 null 的字段吞掉，导致恢复后残留新草稿的旧值。
+     */
     @Transactional
     public WorkingDraftView restoreRevision(CommunityUser user, String articleId, String revisionId) {
         Article article = requireOwnedArticle(user, articleId);
@@ -217,19 +273,30 @@ public class ArticleService {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
         WorkingDraft draft = requireDraft(articleId);
-        draft.setTitle(revision.getTitle());
-        draft.setSummary(revision.getSummary());
-        draft.setCoverUrl(revision.getCoverUrl());
-        draft.setBodyMode(revision.getBodyMode());
-        draft.setBody(revision.getBody());
-        draft.setSlug(revision.getSlug());
-        draft.setVisibility(revision.getVisibility());
-        draft.setLockVersion((draft.getLockVersion() == null ? 0L : draft.getLockVersion()) + 1);
-        draft.setUpdatedAt(Instant.now());
-        draftMapper.updateById(draft);
-        article.setUpdatedAt(draft.getUpdatedAt());
-        articleMapper.updateById(article);
-        return toDraftView(article, draft, listTopicIds(articleId));
+        long expected = draft.getLockVersion() == null ? 0L : draft.getLockVersion();
+        Instant now = Instant.now();
+        UpdateWrapper<WorkingDraft> draftUpdate = new UpdateWrapper<WorkingDraft>()
+                .eq("article_id", articleId)
+                .eq("lock_version", expected)
+                .set("title", revision.getTitle())
+                .set("summary", revision.getSummary())
+                .set("cover_url", revision.getCoverUrl())
+                .set("body_mode", revision.getBodyMode())
+                .set("body", revision.getBody())
+                .set("slug", revision.getSlug())
+                .set("visibility", revision.getVisibility())
+                .set("lock_version", expected + 1)
+                .set("updated_at", now);
+        int updated = draftMapper.update(null, draftUpdate);
+        if (updated == 0) {
+            throw new ContractException(ErrorCode.CONFLICT, "草稿已被他人更新，请刷新后重试");
+        }
+        articleMapper.update(null, new UpdateWrapper<Article>()
+                .eq("id", articleId)
+                .set("updated_at", now));
+        Article freshArticle = articleMapper.selectById(articleId);
+        WorkingDraft fresh = requireDraft(articleId);
+        return toDraftView(freshArticle, fresh, listTopicIds(articleId));
     }
 
     public ArticlePublicView getPublicArticle(String articleId, CommunityUser viewer) {
@@ -305,6 +372,7 @@ public class ArticleService {
                 .categorySlug(categorySlug)
                 .topicSlugs(topicSlugs)
                 .publishedAt(published.getPublishedAt())
+                .seriesContexts(seriesMapper.listActiveContextsByArticleId(articleId))
                 .owner(isOwner)
                 .build();
     }

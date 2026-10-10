@@ -134,6 +134,87 @@ class ChatWebSocketIntegrationTest {
         wsSession.close();
     }
 
+    /**
+     * 回归：一次<b>并发</b>发送不能把已写库成功的请求变成 500。
+     *
+     * <p>实测过（2026-10-06）：对方连发 20 条时，服务端抛
+     * {@code IllegalStateException: The remote endpoint was in state [TEXT_PARTIAL_WRITING]}，
+     * 异常从事件监听器一路冒泡回 {@code sendMessage}，发送方直接收到 500 —— 而那一行其实
+     * 已经写进库了。根因是 Tomcat 的发送端点不是并发安全的：两条广播同时写同一条连接就会
+     * 撞状态机。修复是每条连接套 {@code ConcurrentWebSocketSessionDecorator}（写串行化 + 缓冲），
+     * 并且让推送失败绝不影响发送请求本身。
+     */
+    @Test
+    void concurrentSendsNeverFailTheRequestThatAlreadyCommitted() throws Exception {
+        long nonce = System.nanoTime();
+        String password = "Test1234!@#ab";
+
+        String userAId = registerUser("wsa" + nonce + "@example.com", "wsa" + (nonce % 1_000_000_000L), password);
+        String userBId = registerUser("wsb" + nonce + "@example.com", "wsb" + (nonce % 1_000_000_000L), password);
+        String tokenA = login("wsa" + nonce + "@example.com", password);
+        String tokenB = login("wsb" + nonce + "@example.com", password);
+
+        MvcResult openDirect = mockMvc.perform(post("/api/v1/messages/direct/" + userBId)
+                        .header("satoken", tokenA))
+                .andExpect(status().isOk())
+                .andReturn();
+        String conversationId = objectMapper.readTree(openDirect.getResponse().getContentAsString()).path("id").asText();
+
+        // 接收方在线 —— 竞态只有在有连接可写的时候才会发生。
+        StandardWebSocketClient client = new StandardWebSocketClient();
+        String wsUrl = "ws://localhost:" + port + "/ws/community/chat?token=" + tokenB;
+        WebSocketSession wsSession = client.execute(new TextWebSocketHandler() {
+            @Override
+            protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+                // frames are not what this test is about
+            }
+        }, wsUrl).get(10, TimeUnit.SECONDS);
+        Thread.sleep(300);
+
+        // 真实 HTTP 而不是 MockMvc：MockMvc 本身不是线程安全的，并发 perform 会自己炸，
+        // 那样测的就不是被测代码了。
+        int burst = 12;
+        java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+        List<java.util.concurrent.CompletableFuture<Integer>> futures = new ArrayList<>();
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(6);
+        try {
+            for (int index = 0; index < burst; index++) {
+                int current = index;
+                futures.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                    java.net.http.HttpRequest request = java.net.http.HttpRequest
+                            .newBuilder(java.net.URI.create("http://localhost:" + port
+                                    + "/api/v1/messages/direct/" + conversationId + "/messages"))
+                            .header("Content-Type", "application/json")
+                            .header("satoken", tokenA)
+                            .POST(java.net.http.HttpRequest.BodyPublishers.ofString(
+                                    "{\"body\":\"并发消息 " + current + "\"}"))
+                            .build();
+                    try {
+                        return http.send(request, java.net.http.HttpResponse.BodyHandlers.ofString()).statusCode();
+                    } catch (Exception ex) {
+                        return 500;
+                    }
+                }, pool));
+            }
+            for (java.util.concurrent.CompletableFuture<Integer> future : futures) {
+                assertEquals(200, future.get(30, TimeUnit.SECONDS));
+            }
+        } finally {
+            pool.shutdownNow();
+            wsSession.close();
+        }
+
+        // 并且每一条都真的落库了（没有静默丢失）
+        MvcResult page = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/v1/messages/" + conversationId + "/messages?limit=50")
+                        .header("satoken", tokenA))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertEquals(
+                burst,
+                objectMapper.readTree(page.getResponse().getContentAsString()).path("items").size());
+    }
+
     private String registerUser(String email, String username, String password) throws Exception {
         MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)

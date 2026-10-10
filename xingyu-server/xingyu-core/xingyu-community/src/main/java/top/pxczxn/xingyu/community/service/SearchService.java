@@ -36,19 +36,17 @@ public class SearchService {
         List<SearchDocument> docs;
         if (query == null || query.isBlank()) {
             docs = latest
-                    ? searchDocumentMapper.listActiveByLatest(limit)
-                    : searchDocumentMapper.listActiveByHot(limit);
+                    ? searchDocumentMapper.listActiveByLatest(normalizedType, limit)
+                    : searchDocumentMapper.listActiveByHot(normalizedType, limit);
         } else {
+            String escapedQuery = escapeLikeLiteral(query.trim());
             docs = latest
-                    ? searchDocumentMapper.searchActiveByLatest(query.trim(), limit)
-                    : searchDocumentMapper.searchActiveByHot(query.trim(), limit);
+                    ? searchDocumentMapper.searchActiveByLatest(escapedQuery, normalizedType, limit)
+                    : searchDocumentMapper.searchActiveByHot(escapedQuery, normalizedType, limit);
         }
 
         List<SearchResultView> results = new ArrayList<>();
         for (SearchDocument doc : docs) {
-            if (normalizedType != null && !normalizedType.equals(doc.getObjectType())) {
-                continue;
-            }
             results.add(toView(doc));
         }
 
@@ -132,5 +130,9 @@ public class SearchService {
         }
         String normalized = sort.trim().toLowerCase(Locale.ROOT);
         return "latest".equals(normalized) ? "latest" : "hot";
+    }
+
+    private String escapeLikeLiteral(String query) {
+        return query.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 }

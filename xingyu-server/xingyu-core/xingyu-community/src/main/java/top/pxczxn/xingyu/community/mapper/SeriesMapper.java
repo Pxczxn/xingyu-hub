@@ -2,6 +2,7 @@ package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.Series;
+import top.pxczxn.xingyu.community.dto.ArticleSeriesContextView;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
@@ -41,4 +42,14 @@ public interface SeriesMapper extends BaseMapper<Series> {
             WHERE p.username = #{username} AND s.slug = #{slug} AND s.status = 'ACTIVE'
             """)
     Series findPublicByUsernameAndSlug(String username, String slug);
+
+    @Select("""
+            SELECT s.id, s.slug, s.title, sc.position
+            FROM series_chapter sc
+            INNER JOIN series s ON s.id = sc.series_id
+            WHERE sc.article_id = #{articleId}
+              AND s.status = 'ACTIVE'
+            ORDER BY s.id ASC, sc.position ASC
+            """)
+    List<ArticleSeriesContextView> listActiveContextsByArticleId(String articleId);
 }

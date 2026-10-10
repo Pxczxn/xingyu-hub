@@ -409,9 +409,19 @@ public class CommunityMeController {
         return dataExportService.export(CommunityAuthContext.requireUser());
     }
 
+    /**
+     * 停用账号（不是删除）。2026-10-08 起要求 `X-Recent-Auth` 头携带**未使用过**的
+     * 再认证凭证 —— 服务端会原子消费它，所以同一个 grant 只能停用一次。
+     *
+     * <p>只有登录态、没有（或用过）新鲜再认证凭证时必须被拒绝。
+     */
     @PostMapping("/account/deletion-request")
-    public ResponseEntity<Void> requestAccountDeletion() {
-        accountService.requestAccountDeletion(CommunityAuthContext.requireUser());
+    public ResponseEntity<Void> requestAccountDeletion(
+            @RequestHeader(value = "X-Recent-Auth", required = false) String recentAuthId) {
+        accountService.requestAccountDeletion(
+                CommunityAuthContext.requireUser(),
+                CommunityAuthContext.requireSession(),
+                recentAuthId);
         return ResponseEntity.noContent().build();
     }
 

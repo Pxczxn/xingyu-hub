@@ -24,5 +24,6 @@ public class ArticlePublicView {
     String categorySlug;
     List<String> topicSlugs;
     Instant publishedAt;
+    List<ArticleSeriesContextView> seriesContexts;
     boolean owner;
 }

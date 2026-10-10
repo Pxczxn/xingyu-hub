@@ -117,7 +117,14 @@ public class ModerationMeasureExecutor {
             case "COMMENT" -> {
                 Comment comment = commentMapper.selectById(targetId);
                 if (comment != null && "HIDDEN".equals(comment.getStatus())) {
-                    comment.setStatus("ACTIVE");
+                    // 必须写回 'VISIBLE'：comment 的真实生命周期是
+                    // VISIBLE / HIDDEN / DELETED（见 V013 建表注释 + SocialService 创建时
+                    // setStatus("VISIBLE")，且 CommentMapper 的四个公开查询全部只认
+                    // status = 'VISIBLE'）。此前这里写的是 'ACTIVE' —— 一个全库没有任何
+                    // 查询会读的值，导致「隐藏 → 申诉批准 → 恢复」之后评论被写进一个死状态，
+                    // 从此在任何地方都不可见（作者列表、对象评论列表、评论计数全部落空）。
+                    // 恢复的语义是「回到隐藏之前的样子」，那就是 'VISIBLE'。
+                    comment.setStatus("VISIBLE");
                     comment.setUpdatedAt(now);
                     commentMapper.updateById(comment);
                 }
