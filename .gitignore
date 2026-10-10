@@ -80,8 +80,14 @@ id_ed25519.*
 
 
 # ---------- 运行时与临时文件 ----------
-/uploads/
+# 注意：必须写 **/uploads/（任意层级），不能写 /uploads/（只锚定仓库根）。
+# 实际运行时上传落在 xingyu-server/xingyu-starter/uploads/，深两层，
+# 写成 /uploads/ 会让上传文件完全不被忽略、被 git add 吃进版本库。
+**/uploads/
 **/runtime/
+# 反编译残留（com/alibaba/...，仅本机分析用）与维护期数据库备份快照
+/com/
+/maintenance/backups/
 tmp/
 temp/
 *.tmp
