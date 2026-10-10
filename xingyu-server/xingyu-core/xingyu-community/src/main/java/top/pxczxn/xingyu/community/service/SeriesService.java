@@ -1,21 +1,29 @@
 package top.pxczxn.xingyu.community.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.dto.SeriesChapterView;
+import top.pxczxn.xingyu.community.dto.PublicIdentityView;
+import top.pxczxn.xingyu.community.dto.PublicSeriesSummaryView;
+import top.pxczxn.xingyu.community.dto.PublicSeriesView;
 import top.pxczxn.xingyu.community.dto.SeriesSummaryView;
 import top.pxczxn.xingyu.community.dto.SeriesView;
 import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityCreationSpace;
+import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.Series;
 import top.pxczxn.xingyu.community.entity.SeriesChapter;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
+import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesChapterMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
+import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
 import top.pxczxn.xingyu.community.support.CommunityEventSupport;
+import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +33,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 @Service
@@ -37,8 +47,10 @@ public class SeriesService {
     private final SeriesMapper seriesMapper;
     private final SeriesChapterMapper chapterMapper;
     private final ArticleMapper articleMapper;
+    private final CommunityProfileMapper profileMapper;
     private final SearchDocumentMapper searchDocumentMapper;
     private final CommunityEventSupport eventSupport;
+    private final WorkingDraftMapper workingDraftMapper;
 
     public List<SeriesSummaryView> listForOwner(CommunityUser user) {
         return seriesMapper.listByOwnerId(user.getId()).stream()
@@ -46,12 +58,21 @@ public class SeriesService {
                 .toList();
     }
 
-    public List<SeriesSummaryView> listPublic(int limit) {
+    public List<PublicSeriesSummaryView> listPublic(int limit) {
         if (limit <= 0) {
             limit = 20;
         }
-        return seriesMapper.listActive(limit).stream()
-                .map(this::toSummary)
+        List<Series> series = seriesMapper.listActive(limit);
+        if (series.isEmpty()) {
+            return List.of();
+        }
+        Map<String, CommunityProfile> profiles = profileMapper.findByUserIds(
+                        series.stream().map(Series::getOwnerId).collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(CommunityProfile::getUserId, Function.identity()));
+        return series.stream()
+                .filter(item -> profiles.containsKey(item.getOwnerId()))
+                .map(item -> toPublicSummary(item, profiles.get(item.getOwnerId())))
                 .toList();
     }
 
@@ -86,22 +107,39 @@ public class SeriesService {
         return toView(series, chapterMapper.listBySeriesId(seriesId));
     }
 
-    public SeriesView getPublic(String username, String slug) {
+    public PublicSeriesView getPublic(String username, String slug) {
         Series series = seriesMapper.findPublicByUsernameAndSlug(username, slug);
         if (series == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        return toView(series, chapterMapper.listBySeriesId(series.getId()));
+        return toPublicView(series, requirePublicProfile(series), chapterMapper.listBySeriesId(series.getId()));
     }
 
-    public SeriesView getPublicById(String seriesId) {
+    public PublicSeriesView getPublicById(String seriesId) {
         Series series = seriesMapper.selectById(seriesId);
         if (series == null || !"ACTIVE".equals(series.getStatus())) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        return toView(series, chapterMapper.listBySeriesId(series.getId()));
+        return toPublicView(series, requirePublicProfile(series), chapterMapper.listBySeriesId(series.getId()));
     }
 
+    /**
+     * 更新系列（Series Optimistic Lock Recovery，2026-10-10 P0-B）。
+     *
+     * <p>旧实现是「先读后写」两步——内存比较 lockVersion 后 {@code updateById} 全字段
+     * 更新（WHERE 只有 id）。这与 ArticleService.saveDraft 在 2026-10-09 修复的 D0 缺陷
+     * 同型：REPEATABLE READ 下两个客户端基于同一版本并发保存会双双通过校验、后写静默
+     * 覆盖前者，且两次都写 expected+1，版本号不变，事后无法察觉。现在检查-写入在同一
+     * 条件 UPDATE 内原子完成（WHERE id + lock_version = expected，SET lock_version =
+     * expected + 1），affected=0 即并发冲突 → 409，本次写库整体未发生。
+     *
+     * <p>影响行数为 0 的归因：不存在/非本人系列已在 {@link #requireOwnedSeries} 以 404
+     * 拒绝；系列无删除端点，行不可能在此间消失——因此到达条件 UPDATE 后 affected=0
+     * 只能是版本冲突。
+     *
+     * <p>与 D0/D3 同纪律：SET 子句只包含本次提交的键（显式 null = 清空 description），
+     * 响应从 DB 重读构造，与持久化结果严格一致。
+     */
     @Transactional
     public SeriesView update(CommunityUser user, String seriesId, Map<String, Object> body) {
         Series series = requireOwnedSeries(user, seriesId);
@@ -109,29 +147,47 @@ public class SeriesService {
                 ? n.longValue()
                 : series.getLockVersion() == null ? 0L : series.getLockVersion();
         if (series.getLockVersion() == null ? expected != 0L : series.getLockVersion() != expected) {
+            // 快速失败路径：真正的并发裁决在下面的条件 UPDATE
             throw new ContractException(ErrorCode.CONFLICT, "系列已被他人更新");
         }
-        if (body.containsKey("title")) {
-            series.setTitle(requireTitle(body.get("title")));
-        }
-        if (body.containsKey("description")) {
-            series.setDescription(trimToNull(body.get("description")));
-        }
+        // 字段校验先行：任何契约错误都必须发生在写库之前
+        String title = body.containsKey("title") ? requireTitle(body.get("title")) : null;
+        String status = null;
         if (body.containsKey("status")) {
-            String status = String.valueOf(body.get("status")).trim().toUpperCase(Locale.ROOT);
+            status = String.valueOf(body.get("status")).trim().toUpperCase(Locale.ROOT);
             if (!"ACTIVE".equals(status) && !"ARCHIVED".equals(status)) {
                 throw new FieldContractException("status", "状态值无效");
             }
-            series.setStatus(status);
         }
-        series.setLockVersion(expected + 1);
-        series.setUpdatedAt(Instant.now());
-        seriesMapper.updateById(series);
+
+        Instant now = Instant.now();
+        UpdateWrapper<Series> update = new UpdateWrapper<Series>()
+                .eq("id", seriesId)
+                .eq("lock_version", expected)
+                .set("lock_version", expected + 1)
+                .set("updated_at", now);
+        if (body.containsKey("title")) {
+            update.set("title", title);
+        }
+        if (body.containsKey("description")) {
+            update.set("description", trimToNull(body.get("description")));
+        }
+        if (status != null) {
+            update.set("status", status);
+        }
+        int updated = seriesMapper.update(null, update);
+        if (updated == 0) {
+            // 并发期间版本已被其他请求推进：本次保存整体未生效
+            throw new ContractException(ErrorCode.CONFLICT, "系列已被他人更新");
+        }
+
         if (body.containsKey("chapterArticleIds")) {
             syncChapters(series, body.get("chapterArticleIds"));
         }
-        publishSeriesChanged(series);
-        return toView(series, chapterMapper.listBySeriesId(seriesId));
+
+        Series fresh = seriesMapper.selectById(seriesId);
+        publishSeriesChanged(fresh);
+        return toView(fresh, chapterMapper.listBySeriesId(seriesId));
     }
 
     /**
@@ -199,11 +255,40 @@ public class SeriesService {
                 .build();
     }
 
-    private SeriesChapterView toChapterView(SeriesChapter chapter) {
+    private PublicSeriesSummaryView toPublicSummary(Series series, CommunityProfile profile) {
+        return PublicSeriesSummaryView.builder()
+                .id(series.getId())
+                .title(series.getTitle())
+                .slug(series.getSlug())
+                .description(series.getDescription())
+                .chapterCount((int) chapterMapper.countBySeriesId(series.getId()))
+                .author(toPublicIdentity(profile))
+                .build();
+    }
+
+    /**
+     * 章节标题解析（Static Design Final Fix CB-2，2026-10-09）。
+     *
+     * <p>标题首选搜索索引文档（仅已发布/被索引文章存在），回退 working_draft.title。
+     * {@code includeDraftTitle} 由调用方按视图域决定：
+     * <ul>
+     *   <li>owner 视图（{@code toView}）传 {@code true}——创作者在编排页必须能辨认
+     *       自己的草稿章节（此前 document=null → title=null → 前端显示"无标题文章"+裸
+     *       articleId，已实测）；</li>
+     *   <li>公开视图（{@code toPublicView}）传 {@code false}——保持现状：草稿章节
+     *       title 仍为 null，绝不向公开系列接口泄露私人草稿的标题信息。</li>
+     * </ul>
+     */
+    private SeriesChapterView toChapterView(SeriesChapter chapter, boolean includeDraftTitle) {
         String title = null;
         var document = searchDocumentMapper.findByObject("ARTICLE", chapter.getArticleId());
         if (document != null) {
             title = document.getTitle();
+        } else if (includeDraftTitle) {
+            var draft = workingDraftMapper.findByArticleId(chapter.getArticleId());
+            if (draft != null) {
+                title = draft.getTitle();
+            }
         }
         return SeriesChapterView.builder()
                 .id(chapter.getId())
@@ -221,8 +306,36 @@ public class SeriesService {
                 .description(series.getDescription())
                 .status(series.getStatus())
                 .lockVersion(series.getLockVersion() == null ? 0L : series.getLockVersion())
-                .chapters(chapters.stream().map(this::toChapterView).toList())
+                .chapters(chapters.stream().map(chapter -> toChapterView(chapter, true)).toList())
                 .updatedAt(series.getUpdatedAt())
+                .build();
+    }
+
+    private PublicSeriesView toPublicView(
+            Series series, CommunityProfile profile, List<SeriesChapter> chapters) {
+        return PublicSeriesView.builder()
+                .id(series.getId())
+                .title(series.getTitle())
+                .slug(series.getSlug())
+                .description(series.getDescription())
+                .chapters(chapters.stream().map(chapter -> toChapterView(chapter, false)).toList())
+                .author(toPublicIdentity(profile))
+                .build();
+    }
+
+    private CommunityProfile requirePublicProfile(Series series) {
+        CommunityProfile profile = profileMapper.findByUserId(series.getOwnerId());
+        if (profile == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        return profile;
+    }
+
+    private PublicIdentityView toPublicIdentity(CommunityProfile profile) {
+        return PublicIdentityView.builder()
+                .username(profile.getUsername())
+                .displayName(profile.getDisplayName())
+                .avatar(ProfileSettingsSupport.resolveAvatar(profile))
                 .build();
     }
 
