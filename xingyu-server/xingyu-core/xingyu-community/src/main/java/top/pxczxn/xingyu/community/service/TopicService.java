@@ -210,6 +210,14 @@ public class TopicService {
                 .toList();
     }
 
+    public Topic requireEnabledById(String topicId) {
+        Topic topic = topicMapper.selectById(topicId);
+        if (topic == null || !isTopicActive(topic)) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        return topic;
+    }
+
     public Topic requireEnabledBySlug(String rawSlug) {
         Topic topic = resolveBySlug(rawSlug);
         if (topic == null || !isTopicActive(topic)) {

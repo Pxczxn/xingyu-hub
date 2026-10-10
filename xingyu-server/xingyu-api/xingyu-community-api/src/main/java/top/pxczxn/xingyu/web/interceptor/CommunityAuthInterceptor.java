@@ -89,7 +89,10 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
                 // interceptor never ran for the route, the context stayed empty, and the
                 // endpoint answered `bookmarked: false` for EVERYONE — including the user who
                 // had just bookmarked the object.
-                || "/api/v1/bookmarks/status".equals(uri);
+                || "/api/v1/bookmarks/status".equals(uri)
+                // 话题公开读取（列表/详情/内容聚合/创作者）。following 字段 viewer-dependent，
+                // 必须在有 token 时带上身份；游客照常放行（following=null）。
+                || uri.startsWith("/api/v1/topics");
     }
 
     private boolean isPasswordChangeAllowed(HttpServletRequest request) {

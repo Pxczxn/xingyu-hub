@@ -23,7 +23,6 @@ import top.pxczxn.xingyu.community.mapper.CommunityUserMapper;
 import top.pxczxn.xingyu.community.mapper.ContentLikeMapper;
 import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.TopicFollowMapper;
-import top.pxczxn.xingyu.community.mapper.TopicMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.config.CommunityProperties;
 import top.pxczxn.xingyu.community.support.TokenSupport;
@@ -46,7 +45,7 @@ public class SocialService {
     private final CommentMapper commentMapper;
     private final CommunityUserMapper userMapper;
     private final CommunityProfileMapper profileMapper;
-    private final TopicMapper topicMapper;
+    private final TopicService topicService;
     private final SearchDocumentMapper searchDocumentMapper;
     private final CommunityProperties communityProperties;
     private final NotificationService notificationService;
@@ -119,10 +118,10 @@ public class SocialService {
 
     @Transactional
     public void followTopic(CommunityUser user, String topicId) {
-        Topic topic = topicMapper.selectById(topicId);
-        if (topic == null || !"ENABLED".equals(topic.getStatus())) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
-        }
+        // 状态判定必须与 TopicService 唯一可信的 isTopicActive 语义一致（ACTIVE，
+        // 兼容历史 ENABLED 行）：此前这里硬编码 == "ENABLED"，而 topic 表实际只写
+        // ACTIVE，导致所有正常话题的关注请求 404（2026-10-10 P0-A 修复）。
+        Topic topic = topicService.requireEnabledById(topicId);
         if (topicFollowMapper.findByUserAndTopic(user.getId(), topicId) != null) {
             return;
         }

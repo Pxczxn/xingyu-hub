@@ -40,6 +40,13 @@ public class CommunityWebConfig implements WebMvcConfigurer {
                         "/api/v1/moments/**",
                         "/api/v1/likes/**",
                         "/api/v1/follows/**",
+                        // 话题详情的 following 字段是「因人而异」的读取（关注过的人看到
+                        // true）。此前该路由不在拦截器范围，CommunityAuthContext 恒空，
+                        // 即使关注成功，GET /topics/{slug} 也永远回报 following=null
+                        // （2026-10-10 P0-A 修复的另一半）。该路由只有 GET、面向游客，
+                        // 拦截器把它当「公开读取 + 有 token 就带上身份」处理。
+                        "/api/v1/topics",
+                        "/api/v1/topics/**",
                         "/api/v1/comments",
                         "/api/v1/comments/**",
                         // 书签状态是「因人而异」的读取（同一对象，收藏过的人看到 true），
