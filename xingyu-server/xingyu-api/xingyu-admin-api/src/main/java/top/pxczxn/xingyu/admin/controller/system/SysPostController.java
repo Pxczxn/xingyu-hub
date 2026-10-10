@@ -41,6 +41,7 @@ public class SysPostController {
      * 获取所有岗位
      */
     @GetMapping("/list")
+    @SaCheckPermission("sys:post:list")
     public Result<List<SysPost>> list() {
         return Result.ok(postService.listAll());
     }

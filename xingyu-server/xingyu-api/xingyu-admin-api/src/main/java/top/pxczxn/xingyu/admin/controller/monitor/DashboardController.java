@@ -6,6 +6,7 @@ import top.pxczxn.xingyu.system.mapper.SysRoleMapper;
 import top.pxczxn.xingyu.system.mapper.SysUserMapper;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,6 +27,7 @@ public class DashboardController {
      * 获取首页统计数据
      */
     @GetMapping("/stats")
+    @SaCheckRole("admin")
     public Result<DashboardStats> stats() {
         DashboardStats stats = new DashboardStats();
 

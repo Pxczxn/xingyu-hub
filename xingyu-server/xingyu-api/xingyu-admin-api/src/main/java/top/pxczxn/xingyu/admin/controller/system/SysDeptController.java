@@ -37,6 +37,7 @@ public class SysDeptController {
      * 获取部门列表
      */
     @GetMapping("/list")
+    @SaCheckPermission("sys:dept:list")
     public Result<List<SysDept>> list() {
         return Result.ok(deptService.listAll());
     }

@@ -2,6 +2,8 @@ package top.pxczxn.xingyu.admin.controller.system;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import top.pxczxn.xingyu.common.result.Result;
 import top.pxczxn.xingyu.system.config.SaTokenConfigLoader;
 import top.pxczxn.xingyu.system.entity.SysConfigGroup;
@@ -51,6 +53,7 @@ public class SysConfigGroupController {
      * 获取所有配置分组
      */
     @GetMapping("/list")
+    @SaCheckPermission("sys:config:list")
     public Result<List<SysConfigGroup>> list() {
         List<SysConfigGroup> groups = configGroupService.listAll();
         for (SysConfigGroup group : groups) {
@@ -65,6 +68,7 @@ public class SysConfigGroupController {
      * 获取指定分组配置
      */
     @GetMapping("/{groupCode}")
+    @SaCheckPermission("sys:config:list")
     public Result<SysConfigGroup> getByCode(@PathVariable String groupCode) {
         SysConfigGroup group = configGroupService.getByGroupCode(groupCode);
         if (GROUP_SECURITY.equals(groupCode) && group != null) {
@@ -77,6 +81,7 @@ public class SysConfigGroupController {
      * 保存配置
      */
     @PostMapping("/{groupCode}")
+    @SaCheckPermission("sys:config:edit")
     public Result<Void> save(@PathVariable String groupCode, @RequestBody Map<String, Object> config) {
         try {
             if (GROUP_SECURITY.equals(groupCode)) {
@@ -106,6 +111,7 @@ public class SysConfigGroupController {
      * 刷新缓存
      */
     @PostMapping("/refresh")
+    @SaCheckPermission("sys:config:edit")
     public Result<Void> refresh() {
         configGroupService.refreshCache();
         return Result.ok();
@@ -174,6 +180,7 @@ public class SysConfigGroupController {
      * 测试支付
      */
     @PostMapping("/test-payment")
+    @SaCheckPermission("sys:config:edit")
     public Result<Map<String, String>> testPayment(@RequestBody TestPaymentRequest request) {
         try {
             if (!payServiceFactory.isSupported(request.getType())) {
@@ -195,6 +202,7 @@ public class SysConfigGroupController {
      * 测试发送邮件
      */
     @PostMapping("/test-email")
+    @SaCheckPermission("sys:config:edit")
     public Result<Void> testEmail(@RequestBody TestEmailRequest request) {
         try {
             emailService.sendTestMail(request.getTo());
@@ -213,6 +221,7 @@ public class SysConfigGroupController {
      * 生成 RSA 密钥对（私钥仅存服务端，不返回浏览器）
      */
     @PostMapping("/generate-keys")
+    @SaCheckPermission("sys:config:edit")
     public Result<Map<String, String>> generateKeys() {
         try {
             String publicKey = cryptoService.generateAndPersistRsaKeyPair();
@@ -228,6 +237,7 @@ public class SysConfigGroupController {
      * 测试发送短信
      */
     @PostMapping("/test-sms")
+    @SaCheckPermission("sys:config:edit")
     public Result<Void> testSms(@RequestBody TestSmsRequest request) {
         try {
             // 生成随机验证码
@@ -252,6 +262,7 @@ public class SysConfigGroupController {
      * 获取最近短信发送记录
      */
     @GetMapping("/sms-logs/recent")
+    @SaCheckPermission("sys:config:edit")
     public Result<List<SmsLog>> getRecentSmsLogs(@RequestParam(defaultValue = "5") Integer limit) {
         LambdaQueryWrapper<SmsLog> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByDesc(SmsLog::getCreateTime)
