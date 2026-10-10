@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart } from "lucide-react";
+import { Bookmark, Heart } from "lucide-react";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import { useAuth } from "@/features/auth/auth.store";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,15 @@ import { cn } from "@/lib/cn";
  * count {count}) — implemented with an optimistic update, a duplicate-click
  * guard, and a rollback on failure.
  *
- * Bookmark: deliberately NOT rendered. The backend bookmark endpoint is
- * non-functional (POST is a no-op, DELETE returns 500) — see
- * api/interactions/interactions.api.ts. Phase 1B must not surface a control
- * that is known not to work.
+ * Bookmark: RESTORED (2026-10-10 P0-C). The 2026-09-29 note that hid the
+ * control claimed the backend never writes `search_document`, making every
+ * bookmark 404 — that is no longer true: publishing now emits
+ * PUBLICATION_SUCCEEDED, SearchIndexEventHandler indexes the article, and the
+ * full lifecycle (add / remove / repeat / status re-read / guest behavior) is
+ * pinned by BookmarkLifecycleIntegrationTest +
+ * SearchIndexPipelineIntegrationTest. Same optimistic/guard/rollback
+ * discipline as Like; status is viewer-scoped so guests get `bookmarked:
+ * false` from the public status endpoint without firing a doomed request.
  */
 export function ArticleInteractions({
   objectType = "ARTICLE",
@@ -28,6 +33,7 @@ export function ArticleInteractions({
   const { isAuthenticated } = useAuth();
   const [liked, setLiked] = useState(false);
   const [count, setCount] = useState<number | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +44,7 @@ export function ArticleInteractions({
     if (!isAuthenticated) {
       setCount(null);
       setLiked(false);
+      setBookmarked(false);
       return;
     }
     let active = true;
@@ -48,6 +55,10 @@ export function ArticleInteractions({
     interactionsApi
       .getLikeStatus(objectType, objectId)
       .then((r) => active && setLiked(r.liked))
+      .catch(() => undefined);
+    interactionsApi
+      .getBookmarkStatus(objectType, objectId)
+      .then((r) => active && setBookmarked(r.bookmarked))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -74,21 +85,52 @@ export function ArticleInteractions({
     }
   }
 
+  async function toggleBookmark() {
+    if (pending) return; // duplicate-click guard
+    setError(null);
+    const next = !bookmarked;
+    // Optimistic update, rolled back if the request fails.
+    setBookmarked(next);
+    setPending(true);
+    try {
+      if (next) await interactionsApi.addBookmark(objectType, objectId);
+      else await interactionsApi.removeBookmark(objectType, objectId);
+    } catch {
+      setBookmarked(!next);
+      setError("操作失败，请稍后重试");
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       {isAuthenticated ? (
-        <Button
-          type="button"
-          variant={liked ? "default" : "outline"}
-          size="sm"
-          disabled={pending}
-          aria-pressed={liked}
-          onClick={() => void toggleLike()}
-        >
-          <Heart className={cn("mr-1.5 h-4 w-4", liked && "fill-current")} aria-hidden />
-          {liked ? "已赞" : "点赞"}
-          {count !== null ? <span className="ml-1.5 tabular-nums">{count}</span> : null}
-        </Button>
+        <>
+          <Button
+            type="button"
+            variant={liked ? "default" : "outline"}
+            size="sm"
+            disabled={pending}
+            aria-pressed={liked}
+            onClick={() => void toggleLike()}
+          >
+            <Heart className={cn("mr-1.5 h-4 w-4", liked && "fill-current")} aria-hidden />
+            {liked ? "已赞" : "点赞"}
+            {count !== null ? <span className="ml-1.5 tabular-nums">{count}</span> : null}
+          </Button>
+          <Button
+            type="button"
+            variant={bookmarked ? "default" : "outline"}
+            size="sm"
+            disabled={pending}
+            aria-pressed={bookmarked}
+            onClick={() => void toggleBookmark()}
+          >
+            <Bookmark className={cn("mr-1.5 h-4 w-4", bookmarked && "fill-current")} aria-hidden />
+            {bookmarked ? "已收藏" : "收藏"}
+          </Button>
+        </>
       ) : (
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Heart className="h-4 w-4" aria-hidden />

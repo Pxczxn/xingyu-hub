@@ -1,9 +1,24 @@
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { TopicVisual } from "@/components/visual/TopicVisual";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
-export function TopicHeader({ topic }: { topic: TopicSummary }) {
+export function TopicHeader({
+  topic,
+  isAuthenticated = false,
+  following = null,
+  followPending = false,
+  onToggleFollow,
+}: {
+  topic: TopicSummary;
+  isAuthenticated?: boolean;
+  /** null = signed out or state unknown（游客不渲染切换按钮，只给登录引导） */
+  following?: boolean | null;
+  followPending?: boolean;
+  onToggleFollow?: () => void;
+}) {
   const meta = [
-    topic.contentCount !== undefined ? `${topic.contentCount} 内容` : null,
+    topic.contentCount !== undefined ? `${topic.contentCount} 篇内容` : null,
     topic.followerCount && topic.followerCount > 0 ? `${topic.followerCount} 关注` : null,
   ]
     .filter(Boolean)
@@ -44,6 +59,27 @@ export function TopicHeader({ topic }: { topic: TopicSummary }) {
             grey, which is where a decorative footnote belongs.
           */}
           {meta ? <p className="mt-2 text-meta text-foreground-soft">{meta}</p> : null}
+        </div>
+        <div className="ml-auto shrink-0">
+          {isAuthenticated && following !== null && onToggleFollow ? (
+            <Button
+              type="button"
+              variant={following ? "secondary" : "default"}
+              size="sm"
+              disabled={followPending}
+              onClick={onToggleFollow}
+              aria-pressed={following}
+            >
+              {following ? "已关注" : "关注"}
+            </Button>
+          ) : !isAuthenticated ? (
+            <Link
+              to="/login"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              登录后关注
+            </Link>
+          ) : null}
         </div>
       </div>
     </header>

@@ -1,29 +1,25 @@
 /*
  * Interaction domain API (extracted from the Legacy community API module — NOT the whole file).
  *
- * VERIFIED against the live backend 2026-09-21:
+ * VERIFIED against the live backend:
  *   Like      POST/DELETE /api/v1/likes/{objectType}/{objectId}   -> 204 (WORKS)
  *   LikeState GET /api/v1/likes/{ot}/{id}/status                  -> {liked}   (WORKS)
  *   LikeCount GET /api/v1/likes/{ot}/{id}/count                   -> {count}   (WORKS)
  *   Comments  GET  /api/v1/comments/{ot}/{id}                     -> CommentItem[] (auth required)
  *   Comments  POST /api/v1/comments                               -> CommentItem   (WORKS)
  *
- * ⚠️ WHY NO BOOKMARK UI IS EXPOSED (re-verified against the backend on 2026-09-29).
+ * BOOKMARKS ARE LIVE (re-verified 2026-10-10, P0-C).
  *
- * An earlier revision of this note blamed the bookmark endpoints themselves — that was
- * wrong. The endpoints are fine: `POST/DELETE /me/bookmarks` and `GET /bookmarks/status`
- * all behave, and `CollectionService`'s read/write logic is sound.
- *
- * The blocker is upstream. `CollectionService.validateObject` requires the object to already
- * exist in `search_document`, and NOTHING in the backend ever writes that table — the only
- * INSERT in the whole repo is in `scripts/seed_sample_content.py`. Publishing an article
- * leaves `article.status = PUBLISHED` but creates no index row (verified on a real DB), so
- * every bookmark attempt answers 404 「内容不存在或不可收藏」.
- *
- * The contract is therefore kept here and no bookmark UI is exposed — not because the
- * endpoint is broken, but because there is nothing bookmarkable to point it at. The product
- * doc §20.3 specifies the fix: publish / hide / delete / restore must drive index updates.
- * That consumer is not written yet.
+ * History note: a 2026-09-29 revision of this header (and an older note below
+ * it) hid the bookmark UI because `CollectionService.validateObject` requires a
+ * `search_document` row and nothing wrote that table — every bookmark answered
+ * 404 「内容不存在或不可收藏」. That gap has since been closed: publishing emits
+ * PUBLICATION_SUCCEEDED, SearchIndexEventHandler consumes it, and the index row
+ * exists. The full lifecycle (add / remove / idempotent repeats / status
+ * re-read / guest behavior / unindexable object 404) is pinned by
+ * BookmarkLifecycleIntegrationTest, and the publish→index→bookmark happy path
+ * by SearchIndexPipelineIntegrationTest. The bookmark UI is therefore exposed
+ * again in ArticleInteractions.
  */
 import { apiRequest } from "@/api/client";
 import type {
@@ -71,7 +67,7 @@ export const interactionsApi = {
   createComment: (payload: CreateCommentPayload): Promise<CommentItem> =>
     apiRequest<CommentItem>("/api/v1/comments", { method: "POST", body: payload }),
 
-  // ---- Bookmarks (kept for a future UI: every object currently 404s — see header note) ----
+  // ---- Bookmarks (live — see header note) ----
   addBookmark: (objectType: string, objectId: string): Promise<void> =>
     apiRequest<void>("/api/v1/me/bookmarks", { method: "POST", body: { objectType, objectId } }),
 

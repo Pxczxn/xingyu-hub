@@ -61,6 +61,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocked.getLikeCount.mockResolvedValue({ count: 3 });
   mocked.getLikeStatus.mockResolvedValue({ liked: false });
+  // 生产 apiRequest 恒返回 Promise；mock 缺省返回 undefined 会让 .then 同步抛错，
+  // 属于测试 Mock 不完整（2026-10-10 Phase 2.5 裁断），生产代码不做防御。
+  mocked.getBookmarkStatus.mockResolvedValue({ bookmarked: false });
 });
 
 describe("article like", () => {
@@ -115,14 +118,66 @@ describe("article like", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("操作失败");
   });
 
-  it("does NOT expose a bookmark control (backend endpoint non-functional)", async () => {
+  it("restores the bookmark control and loads its viewer-scoped status", async () => {
+    // 2026-10-10 P0-C: bookmark UI restored — the backend index gap that made
+    // every bookmark 404 is closed (see interactions.api.ts header note).
     setStoredToken("tok");
-    renderBar();
-    await screen.findByRole("button", { name: /点赞/ });
+    mocked.getBookmarkStatus.mockResolvedValue({ bookmarked: true });
 
-    expect(screen.queryByRole("button", { name: /收藏/ })).not.toBeInTheDocument();
-    expect(mocked.addBookmark).not.toHaveBeenCalled();
-    expect(mocked.getBookmarkStatus).not.toHaveBeenCalled();
+    renderBar();
+    const button = await screen.findByRole("button", { name: /已收藏/ });
+    expect(button).toHaveAttribute("aria-pressed", "true");
+    expect(mocked.getBookmarkStatus).toHaveBeenCalledWith("ARTICLE", "a1");
+  });
+
+  it("bookmarks an article and reflects the optimistic state", async () => {
+    setStoredToken("tok");
+    mocked.getBookmarkStatus.mockResolvedValue({ bookmarked: false });
+    mocked.addBookmark.mockResolvedValue(undefined);
+
+    renderBar();
+    const button = await screen.findByRole("button", { name: /收藏/ });
+    await userEvent.click(button);
+
+    await waitFor(() => expect(mocked.addBookmark).toHaveBeenCalledWith("ARTICLE", "a1"));
+    expect(await screen.findByRole("button", { name: /已收藏/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("unbookmarks an article", async () => {
+    setStoredToken("tok");
+    mocked.getBookmarkStatus.mockResolvedValue({ bookmarked: true });
+    mocked.removeBookmark.mockResolvedValue(undefined);
+
+    renderBar();
+    const button = await screen.findByRole("button", { name: /已收藏/ });
+    await userEvent.click(button);
+
+    await waitFor(() => expect(mocked.removeBookmark).toHaveBeenCalledWith("ARTICLE", "a1"));
+    expect(await screen.findByRole("button", { name: /^收藏$/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("rolls back the optimistic bookmark when the request fails", async () => {
+    setStoredToken("tok");
+    mocked.getBookmarkStatus.mockResolvedValue({ bookmarked: false });
+    mocked.addBookmark.mockRejectedValue(new Error("500"));
+
+    renderBar();
+    const button = await screen.findByRole("button", { name: /^收藏$/ });
+    await userEvent.click(button);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^收藏$/ })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("操作失败");
   });
 
   it("prompts guests to sign in instead of liking", async () => {

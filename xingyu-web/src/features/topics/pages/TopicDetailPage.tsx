@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { topicsApi } from "@/api/topics/topics.api";
+import { useAuth } from "@/features/auth/auth.store";
 import type {
   TopicContentSort,
   TopicCreatorSummary,
@@ -18,16 +19,23 @@ import { TopicCreatorsPanel } from "@/features/topics/components/TopicCreatorsPa
  * Topic detail (Phase 1A).
  * Real endpoints: GET /api/v1/topics/{slug}, /content, /creators.
  *
- * BACKEND GAP: the follow endpoint POST/DELETE /api/v1/follows/topics/{id}
- * returns 404 (verified during Phase 1A acceptance), so no follow control is
- * rendered. The contract remains in topicsApi for when the backend supports it.
+ * Follow (2026-10-10 P0-A): POST/DELETE /api/v1/follows/topics/{id} were fixed
+ * backend-side (SocialService previously required status=ENABLED while topics
+ * are created ACTIVE, so every follow 404'd), and GET /topics/{slug} now runs
+ * through the auth interceptor so `following` is populated for signed-in
+ * viewers (null for guests). The follow control is rendered again, with the
+ * same optimistic-update / duplicate-guard / rollback discipline as the
+ * article interaction bar.
  */
 export function TopicDetailPage() {
   const { slug = "" } = useParams<{ slug: string }>();
+  const { isAuthenticated } = useAuth();
 
   const [topic, setTopic] = useState<TopicSummary | null>(null);
   const [content, setContent] = useState<ContentSummary[]>([]);
   const [sort, setSort] = useState<TopicContentSort>("latest");
+  const [following, setFollowing] = useState<boolean | null>(null);
+  const [followPending, setFollowPending] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -44,6 +52,7 @@ export function TopicDetailPage() {
       .then((data) => {
         if (!active) return;
         setTopic(data);
+        setFollowing(typeof data.following === "boolean" ? data.following : null);
         setLoading(false);
       })
       .catch(() => {
@@ -96,13 +105,41 @@ export function TopicDetailPage() {
     };
   }, [slug]);
 
+  async function toggleFollow() {
+    if (!topic || followPending || following === null) return; // duplicate-click guard
+    const next = !following;
+    // Optimistic update, rolled back if the request fails.
+    setFollowing(next);
+    setTopic((t) =>
+      t ? { ...t, followerCount: Math.max(0, (t.followerCount ?? 0) + (next ? 1 : -1)) } : t,
+    );
+    setFollowPending(true);
+    try {
+      if (next) await topicsApi.followTopic(topic.id);
+      else await topicsApi.unfollowTopic(topic.id);
+    } catch {
+      setFollowing(!next);
+      setTopic((t) =>
+        t ? { ...t, followerCount: Math.max(0, (t.followerCount ?? 0) + (next ? -1 : 1)) } : t,
+      );
+    } finally {
+      setFollowPending(false);
+    }
+  }
+
   if (loading) return <PageState kind="loading" />;
   if (error) return <PageState kind="error" />;
   if (!topic) return <PageState kind="empty" />;
 
   return (
     <div className="section-gap gap-5">
-      <TopicHeader topic={topic} />
+      <TopicHeader
+        topic={topic}
+        isAuthenticated={isAuthenticated}
+        following={following}
+        followPending={followPending}
+        onToggleFollow={toggleFollow}
+      />
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <main className="min-w-0">
