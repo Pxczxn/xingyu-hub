@@ -49,6 +49,7 @@ import { useAuthorDetailDrawer, useContentDetailDrawer } from '@/composables/use
 import { buildDetailFields, formatAuthorLabel, formatObjectType, resolveStatusLabel } from '@/utils/community-display'
 import { renderDateTime, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
 import { colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
+import { canDecide, decideEndpoint, queueEndpoint, queueKind } from './governance-status.logic.mjs'
 
 interface QueueItem {
   id: string
@@ -196,6 +197,12 @@ const columns = computed<DataTableColumns<QueueItem>>(() => {
             })
           ])
         }
+        // Admin Security Gate Recovery Phase C：groups 只读 —— 后端没有群聊 decide
+        // 端点，此前在这里渲染的"认定违规/驳回"会把 conversation ID 打到
+        // /moderation/reports/{id}/decide（必然 NOT_FOUND）。不提供无法兑现的入口。
+        if (!canDecide(route.path)) {
+          return renderTableActionCell([])
+        }
         return renderTableActionCell([
           renderTableActionButton('认定违规', () => openDecision(row, 'UPHELD'), {
             type: 'error',
@@ -218,11 +225,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const endpoint = route.path.endsWith('/appeals')
-      ? '/moderation/appeals'
-      : route.path.endsWith('/groups')
-        ? '/operations/groups'
-        : '/moderation/reports'
+    const endpoint = queueEndpoint(route.path)
     items.value = await request({ url: endpoint, method: 'get', params: { limit: 100 } })
   } catch {
     error.value = `${props.title}加载失败`
@@ -242,9 +245,10 @@ async function submit() {
   if (!selected.value || saving.value) return
   saving.value = true
   try {
-    const kind = route.path.endsWith('/appeals') ? 'appeals' : 'reports'
+    const kind = queueKind(route.path)
+    if (!canDecide(route.path)) return
     await request({
-      url: `/moderation/${kind}/${selected.value.id}/decide`,
+      url: decideEndpoint(route.path, selected.value.id),
       method: 'post',
       data: { decision: decision.value, comment: comment.value || undefined }
     })

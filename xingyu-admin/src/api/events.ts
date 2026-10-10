@@ -30,10 +30,15 @@ export const eventApi = {
   list(limit = 100): Promise<CommunityEvent[]> {
     return request({ url: '/community/events', method: 'get', params: { limit } }).then(asApiList<CommunityEvent>)
   },
+  /**
+   * `status` is restricted server-side to the domain's real vocabulary
+   * (ACTIVE / ARCHIVED); anything else is rejected rather than persisted.
+   * `endsAt: null` explicitly clears the auto-end time.
+   */
   create(data: Partial<CommunityEvent>): Promise<CommunityEvent> {
     return request({ url: '/community/events', method: 'post', data })
   },
-  update(eventId: string, data: Partial<CommunityEvent>): Promise<CommunityEvent> {
+  update(eventId: string, data: Partial<CommunityEvent> & { endsAt?: string | null }): Promise<CommunityEvent> {
     return request({ url: `/community/events/${eventId}`, method: 'patch', data })
   },
   listSubmissions(eventId: string, limit = 100): Promise<EventSubmission[]> {

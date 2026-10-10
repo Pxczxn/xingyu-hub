@@ -29,7 +29,7 @@
     </div>
 
     <n-modal v-model:show="showManage" preset="card" title="活动列表管理" style="width:780px"><n-data-table v-bind="eventTableProps" :columns="columns" :data="events" :loading="loading" :row-key="(row: CommunityEvent) => row.id" /></n-modal>
-    <n-modal v-model:show="showModal" preset="card" :title="editing?'编辑活动':'新建活动'" style="width:640px"><n-form ref="eventFormRef" :model="form" :rules="eventRules" label-placement="left" label-width="90"><n-form-item label="标题" path="title"><n-input v-model:value="form.title" /></n-form-item><n-form-item label="别名" path="slug"><n-input v-model:value="form.slug" :disabled="!!editing" /></n-form-item><n-form-item label="正文"><n-input v-model:value="form.body" type="textarea" :rows="6" /></n-form-item><n-form-item label="开放投稿"><n-switch v-model:value="form.submissionOpen" /></n-form-item></n-form><template #footer><n-space justify="end"><n-button @click="showModal=false">取消</n-button><n-button type="primary" :loading="saving" @click="save">保存</n-button></n-space></template></n-modal>
+    <n-modal v-model:show="showModal" preset="card" :title="editing?'编辑活动':'新建活动'" style="width:640px"><n-form ref="eventFormRef" :model="form" :rules="eventRules" label-placement="left" label-width="90"><n-form-item label="标题" path="title"><n-input v-model:value="form.title" /></n-form-item><n-form-item label="别名" path="slug"><n-input v-model:value="form.slug" :disabled="!!editing" /></n-form-item><n-form-item label="正文"><n-input v-model:value="form.body" type="textarea" :rows="6" /></n-form-item><n-form-item label="开放投稿"><n-switch v-model:value="form.submissionOpen" /></n-form-item><n-form-item label="开始时间" path="startsAt"><n-date-picker :value="tsOf(form.startsAt)" type="datetime" :actions="['clear','now','confirm']" clearable placeholder="默认创建即开始" style="width:100%" @update:value="(v:number|null)=>{form.startsAt=isoOf(v)}" /></n-form-item><n-form-item label="结束时间" path="endsAt"><n-date-picker :value="tsOf(form.endsAt)" type="datetime" :actions="['clear','now','confirm']" clearable placeholder="留空表示不自动结束" style="width:100%" @update:value="(v:number|null)=>{form.endsAt=isoOf(v)}" /></n-form-item></n-form><template #footer><n-space justify="end"><n-button @click="showModal=false">取消</n-button><n-button type="primary" :loading="saving" @click="save">保存</n-button></n-space></template></n-modal>
     <n-drawer v-model:show="showSubmissions" :width="720" placement="right"><n-drawer-content :title="`投稿审核 · ${reviewingEvent?.title??''}`" closable><n-data-table v-if="submissions.length || submissionsLoading" v-bind="submissionTableProps" :columns="submissionColumns" :data="submissions" :loading="submissionsLoading" :row-key="(row: EventSubmission) => row.id" /><div v-else class="submission-empty">当前活动暂无投稿</div></n-drawer-content></n-drawer>
   </div>
 </template>
@@ -41,7 +41,7 @@ import { eventApi, type CommunityEvent, type EventSubmission } from '@/api/event
 import { colLayout, tableModalProps, tableScrollSum } from '@/utils/table-layout'
 import { renderEllipsisText, renderTableActionCell } from '@/utils/table-cells'
 
-const message=useMessage();const loading=ref(false);const saving=ref(false);const reviewing=ref(false);const events=ref<CommunityEvent[]>([]);const selectedEvent=ref<CommunityEvent|null>(null);const showManage=ref(false);const showModal=ref(false);const editing=ref<CommunityEvent|null>(null);const showSubmissions=ref(false);const reviewingEvent=ref<CommunityEvent|null>(null);const submissions=ref<EventSubmission[]>([]);const submissionsLoading=ref(false);const form=ref({title:'',slug:'',body:'',status:'ACTIVE',submissionOpen:true});const eventFormRef=ref<FormInst|null>(null);
+const message=useMessage();const loading=ref(false);const saving=ref(false);const reviewing=ref(false);const events=ref<CommunityEvent[]>([]);const selectedEvent=ref<CommunityEvent|null>(null);const showManage=ref(false);const showModal=ref(false);const editing=ref<CommunityEvent|null>(null);const showSubmissions=ref(false);const reviewingEvent=ref<CommunityEvent|null>(null);const submissions=ref<EventSubmission[]>([]);const submissionsLoading=ref(false);const form=ref({title:'',slug:'',body:'',status:'ACTIVE',submissionOpen:true,startsAt:null as string|null,endsAt:null as string|null});const eventFormRef=ref<FormInst|null>(null);
 const eventRules:FormRules={title:[{required:true,message:'请输入活动标题',trigger:['input','blur']}],slug:[{required:true,message:'请输入活动别名',trigger:['input','blur']},{pattern:/^[a-z0-9]+(?:-[a-z0-9]+)*$/,message:'仅支持小写字母、数字和连字符',trigger:['input','blur']}]}
 const statusFilter=ref<'ALL'|'PENDING'|'ACTIVE'|'ARCHIVED'>('PENDING')
 const pendingCount=computed(()=>events.value.filter(x=>x.status!=='ACTIVE'&&x.status!=='ARCHIVED').length)
@@ -86,9 +86,28 @@ const submissionColumns: DataTableColumns<EventSubmission> = [
 function formatRange(event:CommunityEvent){return [event.startsAt,event.endsAt].filter(Boolean).join(' – ') || '暂未设置'}
 async function load(){loading.value=true;try{events.value=await eventApi.list();selectedEvent.value=events.value[0]||null}catch{events.value=[];selectedEvent.value=null;message.error('活动列表暂时无法加载，请检查服务连接后重试')}finally{loading.value=false}}
 function selectEvent(event:CommunityEvent){selectedEvent.value=event}
-function openCreate(){editing.value=null;form.value={title:'',slug:'',body:'',status:'ACTIVE',submissionOpen:true};showModal.value=true}
-function openEdit(event:CommunityEvent){editing.value=event;form.value={title:event.title,slug:event.slug,body:event.body||'',status:event.status,submissionOpen:event.submissionOpen};showManage.value=false;showModal.value=true}
-async function save(){try{await eventFormRef.value?.validate()}catch{return}saving.value=true;try{if(editing.value)await eventApi.update(editing.value.id,form.value);else await eventApi.create(form.value);message.success('保存成功');showModal.value=false;await load()}catch{message.error('保存失败')}finally{saving.value=false}}
+function openCreate(){editing.value=null;form.value={title:'',slug:'',body:'',status:'ACTIVE',submissionOpen:true,startsAt:null,endsAt:null};showModal.value=true}
+function openEdit(event:CommunityEvent){editing.value=event;form.value={title:event.title,slug:event.slug,body:event.body||'',status:event.status,submissionOpen:event.submissionOpen,startsAt:toPickerValue(event.startsAt),endsAt:toPickerValue(event.endsAt)};showManage.value=false;showModal.value=true}
+/** Trims an ISO instant to the `yyyy-MM-ddTHH:mm:ssZ` shape the picker round-trips. */
+// 必须返回 null 而不是 ''：n-date-picker 对 formatted-value 的 '' 会走
+// format('') 并抛 RangeError: Invalid time value，导致整个 Modal setup 失败、弹窗打不开。
+function tsOf(value?:string|null):number|null{if(!value)return null;const t=new Date(value).getTime();return Number.isNaN(t)?null:t}
+// DatePicker 的 @update:value 给的是时间戳；回写 ISO 秒精度 UTC 串给后端。
+function isoOf(ts:number|null):string|null{if(ts===null||ts===undefined)return null;return new Date(ts).toISOString().slice(0,19)+'Z'}
+function toPickerValue(value?:string|null){return tsOf(value)}
+async function save(){try{await eventFormRef.value?.validate()}catch{return}
+  if(form.value.startsAt&&form.value.endsAt&&form.value.endsAt<=form.value.startsAt){message.error('结束时间必须晚于开始时间');return}
+  saving.value=true;try{
+    const {startsAt,endsAt,...rest}=form.value
+    // Only send the fields that are actually set: omitting startsAt keeps the
+    // server's "starts now" default, and omitting endsAt keeps it unset. Sending
+    // an empty string would be rejected as an invalid instant.
+    const payload:Record<string,unknown>={...rest}
+    if(startsAt)payload.startsAt=startsAt
+    if(endsAt)payload.endsAt=endsAt
+    else if(editing.value&&editing.value.endsAt)payload.endsAt=null
+    if(editing.value)await eventApi.update(editing.value.id,payload);else await eventApi.create(payload)
+    message.success('保存成功');showModal.value=false;await load()}catch{message.error('保存失败')}finally{saving.value=false}}
 async function reviewEvent(status:'ACTIVE'|'ARCHIVED'){if(!selectedEvent.value)return;reviewing.value=true;try{await eventApi.update(selectedEvent.value.id,{status});message.success(status==='ACTIVE'?'审核通过':'已拒绝');await load()}catch{message.error('审核操作失败')}finally{reviewing.value=false}}
 async function openSubmissions(row:CommunityEvent){reviewingEvent.value=row;showSubmissions.value=true;submissionsLoading.value=true;try{submissions.value=await eventApi.listSubmissions(row.id)}catch{message.error('加载投稿失败')}finally{submissionsLoading.value=false}}
 async function reviewSubmission(id:string,status:'ACCEPTED'|'REJECTED'){try{await eventApi.reviewSubmission(id,status);message.success(status==='ACCEPTED'?'已通过':'已拒绝');if(reviewingEvent.value)submissions.value=await eventApi.listSubmissions(reviewingEvent.value.id)}catch{message.error('审核失败')}}
