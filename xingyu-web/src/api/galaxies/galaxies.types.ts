@@ -12,18 +12,22 @@
  *   POST /api/v1/galaxies/{slug}/join        -> GalaxySummary
  *   POST /api/v1/galaxies/{slug}/apply       -> GalaxyJoinRequest
  *
- * Notes verified against the running backend:
+ * Notes (Galaxy Identity & Content Contract, verified 2026-10-10 Phase 4.2):
  *  - Every galaxy route is keyed by `slug`, never by id. There is no /galaxies/{id}.
- *  - `GET /galaxies` ignores `limit` and returns every galaxy.
- *  - A missing slug 404s (ProblemDetails NOT_FOUND) on both detail and
- *    members/content.
- *  - `GalaxySummary` does NOT expose `joinMode`. `join` therefore cannot be
- *    pre-flighted on the client: an APPROVAL galaxy answers POST /join with
- *    409 CONFLICT ("该星系需要申请加入"), and the UI must fall back to /apply.
- *  - `apply` on a non-APPROVAL galaxy joins directly and returns
- *    `status: "APPROVED"` with a null id — that is success, not a pending request.
- *  - `GalaxyContent.title` comes from `search_document`; when no document exists
- *    the service falls back to the raw `objectId`.
+ *  - `GET /galaxies` ignores `limit` and returns every galaxy. List items carry
+ *    `joinMode` but NEVER `joined` (no per-row viewer queries); the detail
+ *    endpoint is the only source of the viewer-scoped `joined` tri-state.
+ *  - `joined`: true/false for signed-in viewers, null/absent for guests —
+ *    "unknown" must never render as "not joined".
+ *  - `joinMode` (OPEN/APPROVAL) drives the join control directly: OPEN joins in
+ *    one call; APPROVAL goes straight to /apply. The old join→409→apply probe
+ *    and the listMine full-scan are gone.
+ *  - `description`/`coverUrl` come from V051 columns (null until content is
+ *    written by admin); render a designed empty state, never fake copy.
+ *  - `GalaxyContent` is the shared ContentSummary shape: title/summary/updatedAt
+ *    come from live `search_document` rows (removed_at IS NULL — moderated
+ *    content disappears from the listing automatically); `cover` is null for
+ *    SERIES/MOMENT (no cover source — visual fallback required).
  */
 
 export type GalaxySummary = {
@@ -32,6 +36,16 @@ export type GalaxySummary = {
   name: string;
   official: boolean;
   memberCount: number;
+  /** OPEN 直入 / APPROVAL 需申请（列表与详情均有）。 */
+  joinMode: string;
+  /** viewer-scoped；仅详情端点填充，列表恒缺省。 */
+  joined?: boolean | null;
+  /** V051；admin 未填写时为 null —— 空值降级，不伪造文案。 */
+  description?: string | null;
+  /** V051；null 时用确定性装饰图降级。 */
+  coverUrl?: string | null;
+  /** 已挂载可见内容数（过滤治理隐藏）；仅详情端点填充。 */
+  contentCount?: number | null;
 };
 
 export type GalaxyMember = {
@@ -47,6 +61,12 @@ export type GalaxyContent = {
   objectType: string;
   objectId: string;
   title: string;
+  /** search_document.summary；admin admin 挂载响应为 null，列表必有。 */
+  summary?: string | null;
+  /** ARTICLE 才可能有；SERIES/MOMENT 恒 null（无封面源）。 */
+  cover?: string | null;
+  authorName?: string | null;
+  updatedAt?: string | null;
   pinned: boolean;
 };
 

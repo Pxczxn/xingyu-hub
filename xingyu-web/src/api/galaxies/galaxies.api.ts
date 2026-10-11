@@ -37,6 +37,16 @@ export const galaxiesApi = {
       method: "POST",
     }),
 
+  /**
+   * 自主退出星系（Galaxy Membership Closure，2026-10-10）。
+   * DELETE /galaxies/{slug}/members：成员 204；非成员/重复退出 404；
+   * 非 MEMBER 角色 409；未登录 401。
+   */
+  leave: (slug: string): Promise<void> =>
+    apiRequest<void>(`/api/v1/galaxies/${encodeURIComponent(slug)}/members`, {
+      method: "DELETE",
+    }),
+
   apply: (slug: string, message?: string): Promise<GalaxyJoinRequest> =>
     apiRequest<GalaxyJoinRequest>(`/api/v1/galaxies/${encodeURIComponent(slug)}/apply`, {
       method: "POST",

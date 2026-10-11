@@ -11,17 +11,19 @@ import { cn } from "@/lib/cn";
 import { galaxyKindLabel } from "./galaxy-labels";
 
 /*
- * Shared shell for the three galaxy sub-pages (Phase 2H).
+ * Shared shell for the three galaxy sub-pages (Phase 2H → Phase 4.3).
  *
  * The galaxy is keyed by `slug` in the URL — the backend has no /galaxies/{id}
  * route, so the slug IS the identifier here. The shell owns the single galaxy
  * fetch so 详情 / 成员 / 内容 all render the same header and load/404 states
  * instead of three drifting copies.
  *
- * Why the load state is a discriminated union rather than three booleans:
- * "ready but the galaxy is null" must be impossible, and the 404 case must be
- * distinguishable from a transport failure (the former is a real answer, the
- * latter deserves a retry).
+ * Phase 4.3 (Galaxy Identity Contract): the header is the Hero — cover
+ * (designed fallback to the deterministic visual), official badge, joinMode
+ * hint, description (rendered ONLY when admin wrote one — faking copy would
+ * be lying for operations), member count and the viewer-scoped content count.
+ * The membership control reads `joined`/`joinMode` straight from the payload;
+ * the old listMine full-scan and the join→409→apply probe are gone.
  */
 
 export type GalaxyLoadState =
@@ -88,91 +90,97 @@ function galaxyMemberLabel(memberCount: number): string {
 type JoinStatus = "idle" | "joining" | "applying" | "joined" | "pending" | "error";
 
 /**
- * Membership state + the join/apply action.
+ * Membership state + the join/leave/apply action（Galaxy Identity Contract，
+ * 2026-10-10 Phase 4.3）。
  *
- * `joinMode` is not exposed by the API, so the flow is discovery-based: try
- * POST /join, and on 409 CONFLICT fall back to POST /apply (which either files
- * a pending request or, on a galaxy that actually allowed joining, silently
- * succeeds).
- *
- * `listMine` is best-effort: a guest or a failed call just leaves the button
- * visible. Joining an already-joined galaxy is idempotent server-side, so a
- * stale "加入星系" label costs nothing.
- *
- * Phase 3I note: `listMine` now has a SECOND consumer — `MyGalaxiesPage`
- * (`/me/galaxies`). That page is the authority on "which ones did I join"; this
- * hook still only uses the call to decide one button's label, so it must stay
- * tolerant of a failure rather than propagating one.
+ * `joined` 与 `joinMode` 来自详情 payload（GET /galaxies/{slug}），不再做
+ * listMine 全量探测与 join→409→apply 猜测：OPEN 一键加入；APPROVAL 直接展示
+ * 申请流（附留言输入）。退出沿用 Phase 3 的 DELETE 语义；加入/退出成功后通过
+ * `onMembershipChanged`（→ useGalaxy.retry）刷新成员与内容计数。
  */
-export function useGalaxyMembership(slug: string) {
+export function useGalaxyMembership(
+  slug: string,
+  initialJoined: boolean,
+  joinMode: string,
+  onMembershipChanged?: () => void,
+) {
   const { isAuthenticated } = useAuth();
-  const [joined, setJoined] = useState(false);
+  const [joined, setJoined] = useState(initialJoined);
   const [status, setStatus] = useState<JoinStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    setJoined(false);
-    setStatus("idle");
-    setErrorMessage(null);
-    if (!isAuthenticated || !slug) return;
-    galaxiesApi
-      .listMine()
-      .then((mine) => {
-        if (active && mine.some((item) => item.slug === slug)) setJoined(true);
-      })
-      .catch(() => {
-        /* Best-effort: an unknown membership state just shows the join button. */
-      });
-    return () => {
-      active = false;
-    };
-  }, [isAuthenticated, slug]);
-
   const act = useCallback(async () => {
     setErrorMessage(null);
+    if (joinMode === "APPROVAL") {
+      setStatus("applying");
+      try {
+        const request = await galaxiesApi.apply(slug, message.trim() || undefined);
+        if (request.status === "APPROVED") {
+          setJoined(true);
+          setStatus("joined");
+          onMembershipChanged?.();
+        } else {
+          setStatus("pending");
+        }
+      } catch (err: unknown) {
+        setStatus("error");
+        setErrorMessage(err instanceof ApiError ? err.problem.detail : "申请失败，请稍后重试。");
+      }
+      return;
+    }
     setStatus("joining");
     try {
       await galaxiesApi.join(slug);
       setJoined(true);
       setStatus("joined");
-      return;
-    } catch (err: unknown) {
-      const needsApproval =
-        err instanceof ApiError && (err.problem.status === 409 || err.problem.code === "CONFLICT");
-      if (!needsApproval) {
-        setStatus("error");
-        setErrorMessage(err instanceof ApiError ? err.problem.detail : "加入失败，请稍后重试。");
-        return;
-      }
-    }
-    setStatus("applying");
-    try {
-      const request = await galaxiesApi.apply(slug, message.trim() || undefined);
-      if (request.status === "APPROVED") {
-        setJoined(true);
-        setStatus("joined");
-      } else {
-        setStatus("pending");
-      }
+      onMembershipChanged?.();
     } catch (err: unknown) {
       setStatus("error");
-      setErrorMessage(err instanceof ApiError ? err.problem.detail : "申请失败，请稍后重试。");
+      setErrorMessage(err instanceof ApiError ? err.problem.detail : "加入失败，请稍后重试。");
     }
-  }, [slug, message]);
+  }, [slug, joinMode, message, onMembershipChanged]);
 
-  return { isAuthenticated, joined, status, errorMessage, message, setMessage, act };
+  const onLeave = useCallback(async () => {
+    setErrorMessage(null);
+    setStatus("joining");
+    try {
+      await galaxiesApi.leave(slug);
+      setJoined(false);
+      setStatus("idle");
+      onMembershipChanged?.();
+    } catch (err: unknown) {
+      setStatus("error");
+      setErrorMessage(err instanceof ApiError ? err.problem.detail : "退出失败，请稍后重试。");
+    }
+  }, [slug, onMembershipChanged]);
+
+  return {
+    isAuthenticated,
+    joined,
+    status,
+    errorMessage,
+    message,
+    setMessage,
+    act,
+    onLeave,
+  };
 }
 
-function GalaxyJoinControl({ slug }: { slug: string }) {
-  const { isAuthenticated, joined, status, errorMessage, message, setMessage, act } =
-    useGalaxyMembership(slug);
+function GalaxyJoinControl({
+  galaxy,
+  onMembershipChanged,
+}: {
+  galaxy: GalaxySummary;
+  onMembershipChanged?: () => void;
+}) {
+  const { isAuthenticated, joined, status, errorMessage, message, setMessage, act, onLeave } =
+    useGalaxyMembership(galaxy.slug, galaxy.joined === true, galaxy.joinMode, onMembershipChanged);
 
   if (!isAuthenticated) {
     return (
       <Link
-        to={`/login?returnTo=${encodeURIComponent(`/galaxies/${slug}`)}`}
+        to={`/login?returnTo=${encodeURIComponent(`/galaxies/${galaxy.slug}`)}`}
         className="text-sm text-accent hover:underline"
       >
         登录后加入星系
@@ -181,12 +189,29 @@ function GalaxyJoinControl({ slug }: { slug: string }) {
   }
 
   if (joined || status === "joined") {
-    return <span className="text-sm text-muted-foreground">已加入星系</span>;
+    return (
+      <div className="flex w-full flex-wrap items-center gap-3">
+        <span className="text-sm text-muted-foreground">已加入星系</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={status === "joining"}
+          onClick={() => {
+            void onLeave();
+          }}
+        >
+          {status === "joining" ? "正在退出…" : "退出星系"}
+        </Button>
+      </div>
+    );
   }
 
   if (status === "pending") {
     return <span className="text-sm text-muted-foreground">申请已提交，等待审核</span>;
   }
+
+  const isApproval = galaxy.joinMode === "APPROVAL";
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -201,11 +226,15 @@ function GalaxyJoinControl({ slug }: { slug: string }) {
             ? "正在加入…"
             : status === "applying"
               ? "正在提交申请…"
-              : "加入星系"}
+              : isApproval
+                ? "申请加入"
+                : "加入星系"}
         </Button>
-        <span className="text-xs text-muted-foreground">若该星系需要审核，将转为提交申请。</span>
+        {isApproval ? (
+          <span className="text-xs text-muted-foreground">该星系需审核，提交后等待确认。</span>
+        ) : null}
       </div>
-      {status === "applying" ? (
+      {isApproval ? (
         <input
           type="text"
           value={message}
@@ -276,19 +305,42 @@ export function GalaxyShell({
     <article className="section-gap">
       <header className="surface-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-4 sm:gap-5">
-          <GalaxyVisual stableKey={galaxy.slug} official={galaxy.official} variant="masthead" />
+          {galaxy.coverUrl ? (
+            /*
+              真实封面（V051）：admin 写了 coverUrl 才渲染 img。
+              没有就回退确定性装饰图——两者都有设计感，但不互相冒充。
+            */
+            <img
+              src={galaxy.coverUrl}
+              alt={`${galaxy.name} 封面`}
+              className="h-20 w-32 shrink-0 rounded-lg border border-border/60 object-cover sm:h-24 sm:w-40"
+            />
+          ) : (
+            <GalaxyVisual stableKey={galaxy.slug} official={galaxy.official} variant="masthead" />
+          )}
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
               {galaxyKindLabel(galaxy.official)}
+              {galaxy.joinMode === "APPROVAL" ? " · 需申请加入" : ""}
             </p>
             <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight text-primary sm:text-[28px]">
               {galaxy.name}
             </h1>
+            {/*
+              简介是 admin 维护的身份字段：没有就什么都不渲染——
+              编一段占位文案等于替运营撒谎。
+            */}
+            {galaxy.description ? (
+              <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
+                {galaxy.description}
+              </p>
+            ) : null}
             <p className="mt-1 text-sm text-muted-foreground">
               {galaxyMemberLabel(galaxy.memberCount)}
+              {typeof galaxy.contentCount === "number" ? ` · ${galaxy.contentCount} 篇内容` : ""}
             </p>
             <div className="mt-3">
-              <GalaxyJoinControl slug={galaxy.slug} />
+              <GalaxyJoinControl galaxy={galaxy} onMembershipChanged={retry} />
             </div>
           </div>
         </div>

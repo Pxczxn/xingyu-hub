@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import { ApiError } from "@/api/client";
 import { GalaxyDetailPage } from "./pages/GalaxyDetailPage";
@@ -33,6 +34,7 @@ const GALAXY = {
   name: "星语",
   official: true,
   memberCount: 12,
+      joinMode: "OPEN",
 };
 
 const MEMBERS = [
@@ -123,9 +125,33 @@ describe("GalaxyShell", () => {
     expect(screen.queryByRole("button", { name: "加入星系" })).not.toBeInTheDocument();
   });
 
+  it("offers the apply flow up-front for APPROVAL galaxies", async () => {
+    // Galaxy Identity Contract：joinMode 已暴露，APPROVAL 直接展示申请流（无需 409 探测）
+    authState.isAuthenticated = true;
+    mocked.getBySlug.mockResolvedValue({ ...GALAXY, joinMode: "APPROVAL", joined: false });
+    mocked.apply.mockResolvedValue({
+      id: null,
+      galaxyId: "g-1",
+      galaxySlug: "xingyu-official",
+      galaxyName: "星语",
+      message: null,
+      status: "PENDING",
+      createdAt: "2026-10-10T00:00:00Z",
+    });
+
+    renderPage("/galaxies/xingyu-official", <GalaxyDetailPage />, "/galaxies/:slug");
+
+    expect(await screen.findByRole("button", { name: "申请加入" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "申请加入" }));
+    await waitFor(() => expect(mocked.apply).toHaveBeenCalledWith("xingyu-official", undefined));
+    expect(await screen.findByText("申请已提交，等待审核")).toBeInTheDocument();
+    expect(mocked.join).not.toHaveBeenCalled();
+  });
+
   it("shows 已加入星系 when the signed-in user is already a member", async () => {
     authState.isAuthenticated = true;
-    mocked.listMine.mockResolvedValue([GALAXY]);
+    // Galaxy Identity Contract：joined 来自详情 payload，不再走 listMine 探测
+    mocked.getBySlug.mockResolvedValue({ ...GALAXY, joined: true });
     renderPage("/galaxies/xingyu-official", <GalaxyDetailPage />, "/galaxies/:slug");
     expect(await screen.findByText("已加入星系")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "加入星系" })).not.toBeInTheDocument();
