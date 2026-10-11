@@ -88,6 +88,7 @@ id_ed25519.*
 # 反编译残留（com/alibaba/...，仅本机分析用）与维护期数据库备份快照
 /com/
 /maintenance/backups/
+/maintenance/*.sql
 tmp/
 temp/
 *.tmp
