@@ -130,7 +130,7 @@ describe("GalaxyShell", () => {
     authState.isAuthenticated = true;
     mocked.getBySlug.mockResolvedValue({ ...GALAXY, joinMode: "APPROVAL", joined: false });
     mocked.apply.mockResolvedValue({
-      id: null,
+      id: "req-pending",
       galaxyId: "g-1",
       galaxySlug: "xingyu-official",
       galaxyName: "星语",

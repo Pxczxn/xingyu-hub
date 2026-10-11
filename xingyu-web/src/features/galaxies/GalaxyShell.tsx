@@ -267,6 +267,9 @@ export function GalaxyShell({
 }) {
   const slug = useGalaxySlug();
   const { state, retry } = useGalaxy(slug);
+  // coverUrl 资源加载失败时回退装饰图；换星系时重置
+  const [coverBroken, setCoverBroken] = useState(false);
+  useEffect(() => setCoverBroken(false), [state.kind === "ready" ? state.galaxy.slug : ""]);
 
   if (!slug) return <PageState kind="empty" title="星系不存在或尚未公开" />;
   if (state.kind === "loading") return <PageState kind="loading" />;
@@ -305,14 +308,16 @@ export function GalaxyShell({
     <article className="section-gap">
       <header className="surface-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-4 sm:gap-5">
-          {galaxy.coverUrl ? (
+          {galaxy.coverUrl && !coverBroken ? (
             /*
               真实封面（V051）：admin 写了 coverUrl 才渲染 img。
-              没有就回退确定性装饰图——两者都有设计感，但不互相冒充。
+              资源 404 时 onError 回退确定性装饰图——URL 可达性是运营侧
+              的事实，前端只负责不把破图摆给用户。
             */
             <img
               src={galaxy.coverUrl}
               alt={`${galaxy.name} 封面`}
+              onError={() => setCoverBroken(true)}
               className="h-20 w-32 shrink-0 rounded-lg border border-border/60 object-cover sm:h-24 sm:w-40"
             />
           ) : (
