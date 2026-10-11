@@ -199,9 +199,9 @@ public class TopicService {
                 ? articleTopicMapper.listHotContent(topic.getId(), limit)
                 : articleTopicMapper.listLatestContent(topic.getId(), limit);
         List<ContentCardView> cards = documents.stream().map(this::toContentCard).toList();
-        // Phase 6（2026-10-11）：批量富化补齐 SERIES/MOMENT 卡的 authorName——
-        // 此前只有 ARTICLE 卡带作者，同页三种类型描述不一致。复用首页/发现页
-        // 同一批量富化通道（每类型一批 owner + 一批 profile，零新增逐行查询）；
+        // Phase 6（2026-10-11）：ARTICLE 卡作者改走批量富化通道（与首页/发现
+        // 同源，每类型一批 owner + 一批 profile）。话题内容契约只含 ARTICLE
+        // （article_topic 表设计即文章挂载，下游 SQL 硬编码 object_type='ARTICLE'）；
         // /topics/{slug} 为公开端点，富化不带 viewer 态。
         return enrichmentService.applyCards(
                 cards, enrichmentService.enrich(HomeFeedEnrichmentService.refsOfCards(cards), null));

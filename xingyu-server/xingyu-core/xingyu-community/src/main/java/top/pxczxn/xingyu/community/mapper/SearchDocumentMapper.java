@@ -161,9 +161,9 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
     @Select("""
             SELECT * FROM search_document
             WHERE removed_at IS NULL
-              AND (indexed_at < #{cursorIndexedAt}
+              AND (indexed_at &lt; #{cursorIndexedAt}
                    OR (indexed_at = #{cursorIndexedAt}
-                       AND (object_type > #{cursorObjectType}
+                       AND (object_type &gt; #{cursorObjectType}
                             OR (object_type = #{cursorObjectType}
                                 AND object_id < #{cursorId}))))
             ORDER BY indexed_at DESC, object_type ASC, object_id DESC
@@ -174,4 +174,57 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
             @Param("cursorObjectType") String cursorObjectType,
             @Param("cursorId") String cursorId,
             @Param("limit") int limit);
+
+    /**
+     * 关注流批量取数（Phase 6.1，2026-10-11）：关注作者集合的 ARTICLE 活文档。
+     * 发布/生命周期规则在 SQL 内保持与逐条路径一致
+     * （status='PUBLISHED' AND lifecycle_status='ACTIVE'，见 ArticleStateSupport）。
+     */
+    @Select("""
+            <script>
+            SELECT sd.* FROM search_document sd
+            INNER JOIN article a ON a.id = sd.object_id
+            WHERE sd.object_type = 'ARTICLE' AND sd.removed_at IS NULL
+              AND a.status = 'PUBLISHED' AND a.lifecycle_status = 'ACTIVE'
+              AND a.owner_id IN
+              <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            </script>
+            """)
+    List<SearchDocument> findLiveArticlesByOwnerIds(@Param("ownerIds") List<String> ownerIds);
+
+    /** 关注流批量取数：ACTIVE 系列的活文档（公开规则与逐条路径一致）。 */
+    @Select("""
+            <script>
+            SELECT sd.* FROM search_document sd
+            INNER JOIN series s ON s.id = sd.object_id
+            WHERE sd.object_type = 'SERIES' AND sd.removed_at IS NULL
+              AND s.status = 'ACTIVE'
+              AND s.owner_id IN
+              <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            </script>
+            """)
+    List<SearchDocument> findLiveSeriesByOwnerIds(@Param("ownerIds") List<String> ownerIds);
+
+    /**
+     * 关注流批量取数：每个作者的最近 N 条 PUBLISHED 动态的活文档
+     * （窗口函数保持"每人 5 条"的原有数量策略，且不整表加载历史）。
+     */
+    @Select("""
+            <script>
+            SELECT * FROM (
+                SELECT sd.*, m.author_id,
+                       ROW_NUMBER() OVER (PARTITION BY m.author_id ORDER BY m.created_at DESC) rn
+                FROM moment m
+                INNER JOIN search_document sd ON sd.object_type = 'MOMENT' AND sd.object_id = m.id
+                    AND sd.removed_at IS NULL
+                WHERE m.status = 'PUBLISHED'
+                  AND m.author_id IN
+                  <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            ) ranked WHERE rn &lt;= #{perAuthorLimit}
+            </script>
+            """)
+    List<SearchDocument> findRecentMomentsByAuthorIds(
+            @Param("ownerIds") List<String> ownerIds,
+            @Param("perAuthorLimit") int perAuthorLimit);
+
 }

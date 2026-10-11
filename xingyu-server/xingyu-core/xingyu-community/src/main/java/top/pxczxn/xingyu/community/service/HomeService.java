@@ -128,38 +128,27 @@ public class HomeService {
                 .build();
     }
 
+    /**
+     * 关注流（Phase 6.1 批量化，2026-10-11）。
+     *
+     * <p>旧实现逐 followee 逐内容回表（1 + F×(2 + A + S + 5) 查询，F=50 时
+     * 实测 354 次）——现在按作者集合三次批量取数（每类型一次，业务规则
+     * 在 SQL 内保持与逐条路径一致：ARTICLE=PUBLISHED+ACTIVE、SERIES=ACTIVE、
+     * MOMENT=PUBLISHED 且每人最近 5 条窗口函数）。合并后仍按 indexed_at 取
+     * 最新 10 条——排序与数量约束不变。
+     *
+     * <p>一致性边界：可见性规则由事件管线保证（发布/生命周期/治理变化实时
+     * 同步 search_document），与逐条路径共享同一真相源。
+     */
     private List<SearchResultView> followingUpdatesFor(CommunityUser user) {
         List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(user.getId());
         if (followeeIds.isEmpty()) {
             return List.of();
         }
         List<SearchDocument> documents = new ArrayList<>();
-        for (String followeeId : followeeIds) {
-            for (Article article : articleMapper.listByOwnerId(followeeId)) {
-                if (!ArticleStateSupport.isActiveLifecycle(article) || !ArticleStateSupport.isPublished(article)) {
-                    continue;
-                }
-                SearchDocument document = searchDocumentMapper.findByObject("ARTICLE", article.getId());
-                if (document != null && document.getRemovedAt() == null) {
-                    documents.add(document);
-                }
-            }
-            for (Series series : seriesMapper.listByOwnerId(followeeId)) {
-                if (!"ACTIVE".equals(series.getStatus())) {
-                    continue;
-                }
-                SearchDocument document = searchDocumentMapper.findByObject("SERIES", series.getId());
-                if (document != null && document.getRemovedAt() == null) {
-                    documents.add(document);
-                }
-            }
-            for (Moment moment : momentMapper.listByAuthorId(followeeId, 5)) {
-                SearchDocument document = searchDocumentMapper.findByObject("MOMENT", moment.getId());
-                if (document != null && document.getRemovedAt() == null) {
-                    documents.add(document);
-                }
-            }
-        }
+        documents.addAll(searchDocumentMapper.findLiveArticlesByOwnerIds(followeeIds));
+        documents.addAll(searchDocumentMapper.findLiveSeriesByOwnerIds(followeeIds));
+        documents.addAll(searchDocumentMapper.findRecentMomentsByAuthorIds(followeeIds, 5));
         return documents.stream()
                 .sorted((left, right) -> right.getIndexedAt().compareTo(left.getIndexedAt()))
                 .limit(10)
@@ -175,10 +164,10 @@ public class HomeService {
         List<ContentCardView> items = page.getItems();
         List<ContentCardView> enriched = enrichmentService.applyCards(
                 items, enrichmentService.enrich(HomeFeedEnrichmentService.refsOfCards(items), null));
+        // total 缺省（不冒充当前页大小）：keyset 分页无廉价总数，前端契约 optional。
         return PageResultView.<ContentCardView>builder()
                 .items(enriched)
                 .nextCursor(page.getNextCursor())
-                .total((long) enriched.size())
                 .build();
     }
 
