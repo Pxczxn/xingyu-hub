@@ -153,7 +153,7 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
     @Select("""
             SELECT * FROM search_document
             WHERE removed_at IS NULL
-            ORDER BY indexed_at DESC, object_id DESC
+            ORDER BY indexed_at DESC, object_type ASC, object_id DESC
             LIMIT #{limit}
             """)
     List<SearchDocument> listActiveByRecency(@Param("limit") int limit);
@@ -162,12 +162,16 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
             SELECT * FROM search_document
             WHERE removed_at IS NULL
               AND (indexed_at < #{cursorIndexedAt}
-                   OR (indexed_at = #{cursorIndexedAt} AND object_id < #{cursorId}))
-            ORDER BY indexed_at DESC, object_id DESC
+                   OR (indexed_at = #{cursorIndexedAt}
+                       AND (object_type > #{cursorObjectType}
+                            OR (object_type = #{cursorObjectType}
+                                AND object_id < #{cursorId}))))
+            ORDER BY indexed_at DESC, object_type ASC, object_id DESC
             LIMIT #{limit}
             """)
     List<SearchDocument> listActiveByRecencyAfter(
             @Param("cursorIndexedAt") java.time.Instant cursorIndexedAt,
+            @Param("cursorObjectType") String cursorObjectType,
             @Param("cursorId") String cursorId,
             @Param("limit") int limit);
 }

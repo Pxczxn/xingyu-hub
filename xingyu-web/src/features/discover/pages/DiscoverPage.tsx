@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ApiError } from "@/api/client";
 import { discoverApi } from "@/api/discover/discover.api";
 import type { ContentSummary } from "@/api/common.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
@@ -26,6 +27,7 @@ export function DiscoverPage() {
   const [items, setItems] = useState<ContentSummary[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -49,15 +51,24 @@ export function DiscoverPage() {
   const loadMore = useCallback(async () => {
     if (loadingMore || !nextCursor) return;
     setLoadingMore(true);
+    setLoadMoreError(null);
     try {
       const page = await discoverApi.getDiscover({ cursor: nextCursor, limit: 20 });
-      // keyset 天然无重复，但内容在两次翻页之间被重新索引时仍可能重叠——按 id 去重防御
-      const seen = new Set(items.map((item) => item.id));
-      const fresh = (page.items ?? []).filter((item) => !seen.has(item.id));
+      // 去重键 = objectType + id（同一 objectId 可同时存在 ARTICLE 与 SERIES 文档）
+      const seen = new Set(items.map((item) => `${item.objectType ?? ""}:${item.id}`));
+      const fresh = (page.items ?? []).filter(
+        (item) => !seen.has(`${item.objectType ?? ""}:${item.id}`),
+      );
       setItems((prev) => [...prev, ...fresh]);
       setNextCursor(page.nextCursor ?? null);
-    } catch {
-      // 加载更多失败保留当前页（不整页报错），按钮恢复可重试
+    } catch (err) {
+      // 保留已有内容；游标失效（400）时关闭翻页入口，其余失败保留按钮可重试
+      if (err instanceof ApiError && err.problem.status === 400) {
+        setNextCursor(null);
+        setLoadMoreError("分页链接已失效，已显示全部可加载内容；刷新页面可从头浏览。");
+      } else {
+        setLoadMoreError("加载更多失败，请重试。");
+      }
     } finally {
       setLoadingMore(false);
     }
@@ -95,6 +106,12 @@ export function DiscoverPage() {
       {!loading && !error && items.length === 0 ? <PageState kind="empty" /> : null}
 
       {!loading && !error && items.length > 0 ? <DiscoverFocusGrid items={items} /> : null}
+
+      {!loading && !error && loadMoreError ? (
+        <p role="alert" className="pt-2 text-center text-sm text-destructive">
+          {loadMoreError}
+        </p>
+      ) : null}
 
       {!loading && !error && nextCursor ? (
         <div className="pt-2 text-center">

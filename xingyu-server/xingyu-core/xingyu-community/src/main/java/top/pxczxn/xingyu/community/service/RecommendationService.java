@@ -127,24 +127,27 @@ public class RecommendationService {
         if (cursor != null && !cursor.isBlank()) {
             String[] parts = CursorCodec.decode(cursor);
             if (parts == null) {
-                documents = searchDocumentMapper.listActiveByRecency(limit);
-            } else {
-                documents = searchDocumentMapper.listActiveByRecencyAfter(
-                        Instant.ofEpochMilli(Long.parseLong(parts[0])), parts[1], limit);
+                // Phase 5.1：非法 cursor 是明确的客户端错误（400），不再静默回首页——
+                // 静默重置会让用户在不知情中重复看到第一页。
+                throw new FieldContractException("cursor", "分页游标无效或已过期，请从第一页重新浏览");
             }
+            documents = searchDocumentMapper.listActiveByRecencyAfter(
+                    Instant.ofEpochMilli(Long.parseLong(parts[1])), parts[0], parts[2], limit);
         } else {
             documents = searchDocumentMapper.listActiveByRecency(limit);
         }
         List<ContentCardView> items = documents.stream().map(this::toContentCard).toList();
         String nextCursor = items.size() == limit && !documents.isEmpty()
                 ? CursorCodec.encode(
+                        documents.get(documents.size() - 1).getObjectType(),
                         documents.get(documents.size() - 1).getIndexedAt(),
                         documents.get(documents.size() - 1).getObjectId())
                 : null;
+        // Phase 5.1：total 不再冒充当前页大小——keyset 分页拿不到廉价总数，
+        // 前端契约 total 为 optional，discover 不返回。
         return PageResultView.<ContentCardView>builder()
                 .items(items)
                 .nextCursor(nextCursor)
-                .total((long) items.size())
                 .build();
     }
 

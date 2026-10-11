@@ -23,6 +23,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -144,14 +145,49 @@ class DiscoverCursorIntegrationTest {
     }
 
     @Test
-    void invalidCursorFallsBackToFirstPageInsteadOfError() throws Exception {
-        // %25 = 字面 % 的 URL 编码——Base64URL 之外的字符必然解码失败 → 回退首页
-        MvcResult result = mockMvc.perform(get("/api/v1/discover?limit=3&cursor=%25%25%25bad"))
-                .andExpect(status().isOk())
-                .andReturn();
-        var body = objectMapper.readTree(result.getResponse()
-                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
-        assertTrue(body.path("items").isArray(), "非法 cursor 回退首页而非 500");
-        assertTrue(body.path("nextCursor").isNull() || body.path("nextCursor").isTextual());
+    void invalidCursorIsAnExplicitClientError() throws Exception {
+        // Phase 5.1：非法 cursor = 明确 400 客户端错误（不再静默回首页）
+        mockMvc.perform(get("/api/v1/discover?limit=3&cursor=%25%25%25bad"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").isNotEmpty());
+    }
+
+    @Test
+    void sameObjectIdAcrossObjectTypesIsNotSkipped() throws Exception {
+        // Phase 5.1 边界：object_id 相同但 objectType 不同 = 两条独立文档，
+        // keyset 三元组必须让两者都可达（二元组会跳过同 id 的其它类型）。
+        String sharedId = "dcur-art-0";
+        jdbcTemplate.update("""
+                INSERT INTO search_document
+                    (id, object_type, object_id, title, summary, discovery_version, indexed_at, removed_at)
+                VALUES ('dcur-doc-series-0', 'SERIES', ?, '同名系列探针', '同 id 不同类型', 1,
+                        (SELECT indexed_at FROM (SELECT indexed_at FROM search_document
+                          WHERE object_type='ARTICLE' AND object_id=?) x), NULL)
+                """, sharedId, sharedId);
+        try {
+            Set<String> seen = new HashSet<>();
+            String cursor = null;
+            boolean sawArticle = false;
+            boolean sawSeries = false;
+            int rounds = 0;
+            while (rounds < 10) {
+                String uri = cursor == null ? "/api/v1/discover?limit=3"
+                        : "/api/v1/discover?limit=3&cursor=" + cursor;
+                MvcResult result = mockMvc.perform(get(uri)).andExpect(status().isOk()).andReturn();
+                var body = objectMapper.readTree(result.getResponse()
+                        .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+                for (var item : body.path("items")) {
+                    String key = item.path("objectType").asText() + ":" + item.path("id").asText();
+                    assertTrue(seen.add(key), "跨页不得重复：" + key);
+                    if (key.equals("ARTICLE:" + sharedId)) sawArticle = true;
+                    if (key.equals("SERIES:" + sharedId)) sawSeries = true;
+                }
+                cursor = body.path("nextCursor").isNull() ? null : body.path("nextCursor").asText();
+                if (cursor == null || ++rounds >= 10) break;
+            }
+            assertTrue(sawArticle && sawSeries, "同 object_id 的 ARTICLE 与 SERIES 都必须可达");
+        } finally {
+            jdbcTemplate.update("DELETE FROM search_document WHERE id = 'dcur-doc-series-0'");
+        }
     }
 }
