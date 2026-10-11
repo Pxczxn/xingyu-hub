@@ -1,6 +1,7 @@
 package top.pxczxn.xingyu.infra.schema;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -8,15 +9,18 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import javax.sql.DataSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Comparator;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -36,21 +40,42 @@ public class SchemaMigrator implements ApplicationRunner {
     private static final Pattern VERSION_PATTERN = Pattern.compile("V(\\d+)__.*\\.sql");
     private static final String LOCK_NAME = "xingyu_hub_schema_migration";
 
-    private final JdbcTemplate jdbcTemplate;
+    private final DataSource migrationDataSource;
     private final String migrationDir;
 
+    /**
+     * 迁移数据源独立于应用主池（绕过运行时 Druid wall 防火墙——wall 无条件拒绝
+     * PREPARE 语句，而幂等迁移依赖 SET @var + PREPARE/EXECUTE），且连接参数
+     * 开启 allowMultiQueries（幂等迁移是多语句文件）。
+     *
+     * <p><b>GET_LOCK 连接生命周期（2026-10-11 加固）</b>：GET_LOCK/RELEASE_LOCK
+     * 是<b>连接级</b>锁——早前实现把三个操作分别交给池化 JdbcTemplate，每次
+     * execute 都可能落在不同物理连接上，锁形同虚设。现改为在 {@link #run}
+     * 中显式打开<b>单个</b> Connection：同一连接上加锁、逐个执行迁移、登记台账、
+     * 释放锁，finally 关闭连接（连接关闭时 MySQL 也会自动释放其持有的全部命名锁，
+     * 双保险）。不使用事务包裹：MySQL DDL 隐式提交，事务回滚不能撤销已执行的
+     * 迁移，失败语义由台账 FAILED + 人工处置承担。
+     */
     public SchemaMigrator(
-            @Qualifier("schemaMigrationJdbcTemplate") JdbcTemplate jdbcTemplate,
+            @Qualifier("schemaMigrationDataSource") DataSource migrationDataSource,
             @Value("${xingyu.schema.migration.dir:../sql}") String migrationDir) {
-        this.jdbcTemplate = jdbcTemplate;
+        this.migrationDataSource = migrationDataSource;
         this.migrationDir = migrationDir;
     }
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
         List<Resource> scripts = loadVersionScripts();
-        for (Resource script : scripts) {
-            apply(script);
+        if (scripts.isEmpty()) {
+            log.info("no migration scripts found in {}", migrationDir);
+            return;
+        }
+        // 单个物理连接贯穿整个迁移批次：锁、执行、台账、释放全部同通道。
+        try (Connection conn = migrationDataSource.getConnection()) {
+            boolean ledgerExists = ledgerTableExists(conn);
+            for (Resource script : scripts) {
+                apply(conn, script, ledgerExists);
+            }
         }
     }
 
@@ -63,7 +88,7 @@ public class SchemaMigrator implements ApplicationRunner {
             return paths
                     .filter(Files::isRegularFile)
                     .filter(path -> VERSION_PATTERN.matcher(path.getFileName().toString()).matches())
-                    .sorted(Comparator.comparingInt(path -> versionOf(path.getFileName().toString())))
+                    .sorted(java.util.Comparator.comparingInt(path -> versionOf(path.getFileName().toString())))
                     .map(path -> (Resource) new FileSystemResource(path))
                     .toList();
         }
@@ -97,22 +122,18 @@ public class SchemaMigrator implements ApplicationRunner {
         return Integer.parseInt(matcher.group(1));
     }
 
-    private void apply(Resource script) throws Exception {
+    private void apply(Connection conn, Resource script, boolean ledgerExists) throws Exception {
         String filename = script.getFilename();
         String version = filename.substring(1, filename.indexOf("__"));
         String sql = new String(script.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         String checksum = sha256(sql);
 
-        if (migrationTableExists()) {
-            List<String> statuses = jdbcTemplate.queryForList(
-                    "SELECT status FROM schema_migration WHERE version = ?",
-                    String.class,
-                    version);
+        if (ledgerExists) {
+            List<String> statuses = queryList(conn,
+                    "SELECT status FROM schema_migration WHERE version = ?", version);
             if (!statuses.isEmpty()) {
-                String existingChecksum = jdbcTemplate.queryForObject(
-                        "SELECT checksum FROM schema_migration WHERE version = ?",
-                        String.class,
-                        version);
+                String existingChecksum = queryOne(conn,
+                        "SELECT checksum FROM schema_migration WHERE version = ?", version);
                 if (!checksum.equals(existingChecksum)) {
                     // 唯一豁免：version=001 的原始文件已丢失，当前文件是按执行记录恢复的等价迁移。
                     // 兼容条件必须是"台账值 == 已登记历史 checksum"且"文件值 == 已固定新 checksum"，
@@ -154,27 +175,27 @@ public class SchemaMigrator implements ApplicationRunner {
             }
         }
 
-        boolean locked = tryLock();
+        boolean locked = tryLock(conn);
         if (!locked) {
             throw new IllegalStateException("Could not acquire schema migration lock");
         }
         try {
-            jdbcTemplate.execute(sql);
-            jdbcTemplate.update(
+            exec(conn, sql);
+            update(conn,
                     "INSERT INTO schema_migration (version, checksum, status) VALUES (?, ?, 'SUCCESS') "
                             + "ON DUPLICATE KEY UPDATE checksum = VALUES(checksum), status = 'SUCCESS', applied_at = CURRENT_TIMESTAMP",
                     version,
                     checksum);
             log.info("applied schema version {}", version);
         } catch (Exception ex) {
-            jdbcTemplate.update(
+            update(conn,
                     "INSERT INTO schema_migration (version, checksum, status) VALUES (?, ?, 'FAILED') "
                             + "ON DUPLICATE KEY UPDATE checksum = VALUES(checksum), status = 'FAILED'",
                     version,
                     checksum);
             throw ex;
         } finally {
-            releaseLock();
+            releaseLock(conn);
         }
     }
 
@@ -186,21 +207,92 @@ public class SchemaMigrator implements ApplicationRunner {
      * 让应用 fail-fast —— 否则会被误判成"这是个新库"，从而在新库路径上重复执行
      * 已应用的迁移，或在真正的故障下静默继续启动。
      */
-    private boolean migrationTableExists() {
-        Integer count = jdbcTemplate.queryForObject(
+    private boolean ledgerTableExists(Connection conn) throws SQLException {
+        Long count = queryOne(conn,
                 "SELECT COUNT(*) FROM information_schema.TABLES "
-                        + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schema_migration'",
-                Integer.class);
+                        + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schema_migration'");
         return count != null && count > 0;
     }
 
-    private boolean tryLock() {
-        Integer result = jdbcTemplate.queryForObject("SELECT GET_LOCK(?, 30)", Integer.class, LOCK_NAME);
-        return result != null && result == 1;
+    private boolean tryLock(Connection conn) throws SQLException {
+        // 返回第二列 CONNECTION_ID() 作为物理连接归属证据（并发测试与运维排查用）。
+        // 注意：参数必须先于 executeQuery 绑定（try-with-resources 的资源初始化顺序
+        // 曾导致 "No value specified for parameter 1"，2026-10-11 并发测试暴露）。
+        try (PreparedStatement ps = conn.prepareStatement("SELECT GET_LOCK(?, 30), CONNECTION_ID()")) {
+            ps.setString(1, LOCK_NAME);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    long connectionId = rs.getLong(2);
+                    log.info("schema migration lock acquired on physical connection id {}", connectionId);
+                    int result = rs.getInt(1);
+                    return !rs.wasNull() && result == 1;
+                }
+                return false;
+            }
+        }
     }
 
-    private void releaseLock() {
-        jdbcTemplate.queryForObject("SELECT RELEASE_LOCK(?)", Integer.class, LOCK_NAME);
+    private void releaseLock(Connection conn) {
+        // 参数绑定顺序同 tryLock（先 setObject 后 executeQuery）。
+        try (PreparedStatement ps = conn.prepareStatement("SELECT RELEASE_LOCK(?)")) {
+            ps.setString(1, LOCK_NAME);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    // 返回 0=锁被其它连接持有、NULL=本连接根本没持有——两种都说明
+                    // 锁归属与预期不符，必须告警（连接一致性的最后防线）。
+                    int released = rs.getInt(1);
+                    boolean wasNull = rs.wasNull();
+                    if (wasNull || released != 1) {
+                        log.warn("RELEASE_LOCK returned {} — lock ownership did not match the migration connection",
+                                wasNull ? "NULL" : released);
+                    }
+                }
+            }
+        } catch (SQLException ex) {
+            log.warn("release schema migration lock failed: {}", ex.getMessage());
+        }
+    }
+
+    private List<String> queryList(Connection conn, String sql, Object... params) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                List<String> out = new java.util.ArrayList<>();
+                while (rs.next()) {
+                    out.add(rs.getString(1));
+                }
+                return out;
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T queryOne(Connection conn, String sql, Object... params) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? (T) rs.getObject(1) : null;
+            }
+        }
+    }
+
+    private void update(Connection conn, String sql, Object... params) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+            ps.executeUpdate();
+        }
+    }
+
+    private void exec(Connection conn, String sql) throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
     }
 
     private String sha256(String content) throws Exception {

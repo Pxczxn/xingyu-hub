@@ -4,7 +4,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 
 import javax.sql.DataSource;
@@ -65,8 +64,4 @@ public class MigrationDataSourceConfig {
         return dataSource;
     }
 
-    @Bean
-    public JdbcTemplate schemaMigrationJdbcTemplate(DataSource schemaMigrationDataSource) {
-        return new JdbcTemplate(schemaMigrationDataSource);
-    }
 }
