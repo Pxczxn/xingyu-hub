@@ -20,7 +20,9 @@ import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesChapterMapper;
+import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
+import top.pxczxn.xingyu.community.mapper.SeriesSubscriptionMapper;
 import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
 import top.pxczxn.xingyu.community.support.CommunityEventSupport;
 import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
@@ -45,6 +47,7 @@ public class SeriesService {
 
     private final CreationSpaceService spaceService;
     private final SeriesMapper seriesMapper;
+    private final SeriesSubscriptionMapper seriesSubscriptionMapper;
     private final SeriesChapterMapper chapterMapper;
     private final ArticleMapper articleMapper;
     private final CommunityProfileMapper profileMapper;
@@ -313,6 +316,12 @@ public class SeriesService {
 
     private PublicSeriesView toPublicView(
             Series series, CommunityProfile profile, List<SeriesChapter> chapters) {
+        // hasSubscribed 是 viewer-scoped 的：有登录用户时按订阅表回填 true/false，
+        // 游客保持 null（「未知」≠「未订阅」）。/api/v1/series 的 GET 已注册为
+        // 公开读拦截（CommunityAuthInterceptor），有 token 时上下文带身份。
+        CommunityUser viewer = CommunityAuthContext.currentUser().orElse(null);
+        Boolean hasSubscribed = viewer == null ? null
+                : seriesSubscriptionMapper.findByUserAndSeries(viewer.getId(), series.getId()) != null;
         return PublicSeriesView.builder()
                 .id(series.getId())
                 .title(series.getTitle())
@@ -320,6 +329,7 @@ public class SeriesService {
                 .description(series.getDescription())
                 .chapters(chapters.stream().map(chapter -> toChapterView(chapter, false)).toList())
                 .author(toPublicIdentity(profile))
+                .hasSubscribed(hasSubscribed)
                 .build();
     }
 

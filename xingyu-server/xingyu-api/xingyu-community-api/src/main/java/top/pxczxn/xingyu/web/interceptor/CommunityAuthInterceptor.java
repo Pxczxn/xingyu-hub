@@ -92,7 +92,9 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
                 || "/api/v1/bookmarks/status".equals(uri)
                 // 话题公开读取（列表/详情/内容聚合/创作者）。following 字段 viewer-dependent，
                 // 必须在有 token 时带上身份；游客照常放行（following=null）。
-                || uri.startsWith("/api/v1/topics");
+                || uri.startsWith("/api/v1/topics")
+                || uri.startsWith("/api/v1/series")
+                || uri.startsWith("/api/v1/galaxies");
     }
 
     private boolean isPasswordChangeAllowed(HttpServletRequest request) {

@@ -86,4 +86,9 @@ export type PublicSeriesDetail = {
   description: string | null;
   chapters: SeriesChapterRelation[];
   author: PublicIdentity;
+  /**
+   * viewer-scoped 订阅状态：登录用户 true/false，游客 null（未知≠未订阅）。
+   * Series Subscription Closure，2026-10-10。
+   */
+  hasSubscribed?: boolean | null;
 };

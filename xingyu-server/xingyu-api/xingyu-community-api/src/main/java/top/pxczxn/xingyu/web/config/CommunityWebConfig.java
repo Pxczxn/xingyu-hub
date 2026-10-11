@@ -47,6 +47,18 @@ public class CommunityWebConfig implements WebMvcConfigurer {
                         // 拦截器把它当「公开读取 + 有 token 就带上身份」处理。
                         "/api/v1/topics",
                         "/api/v1/topics/**",
+                        // 系列公开详情的 hasSubscribed 字段同样是 viewer-scoped 读取
+                        // （订阅者看到 true，游客 null）。该路由只有 GET、面向游客，
+                        // 拦截器当「公开读取 + 有 token 就带上身份」（Series
+                        // Subscription Closure，2026-10-10）。
+                        "/api/v1/series",
+                        "/api/v1/series/**",
+                        // 星系列表/详情/成员/内容是公开读；join/apply/leave 非 GET
+                        // 走强制登录。此前该路由完全不在拦截器范围，未登录 join 的
+                        // requireUser() 抛 IllegalStateException → 500（隐性缺陷，
+                        // Galaxy Membership Closure 修复时一并收口）。
+                        "/api/v1/galaxies",
+                        "/api/v1/galaxies/**",
                         "/api/v1/comments",
                         "/api/v1/comments/**",
                         // 书签状态是「因人而异」的读取（同一对象，收藏过的人看到 true），

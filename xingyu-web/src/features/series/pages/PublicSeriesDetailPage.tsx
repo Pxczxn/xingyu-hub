@@ -15,26 +15,33 @@ type LoadState =
   | { kind: "error" }
   | { kind: "ready"; series: PublicSeriesDetail };
 
-type SubscribeState = "idle" | "pending" | "done" | "error";
-
 function isNotFound(err: unknown): boolean {
   return (
     err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
   );
 }
 
-/**
- * Public series detail (Phase 2G).
+/*
+ * Public series detail (Phase 2G + Series Subscription Closure, 2026-10-10).
  *
  * Backend: GET /api/v1/series/{id} -> SeriesDetail, 404 for a missing or
  * non-ACTIVE series. Chapters come back ordered by `position`; each links to
  * the underlying article.
+ *
+ * Subscription: the payload now carries viewer-scoped `hasSubscribed`
+ * (true/false for signed-in viewers, null for guests), so the control starts
+ * in the right state after a refresh — no parallel bookshelf probing. Toggle
+ * uses the same optimistic/guard/rollback discipline as the interaction bar;
+ * the backend unsubscribe is idempotent and (unlike subscribe) has no ACTIVE
+ * status gate, so existing subscribers can always cancel.
  */
 export function PublicSeriesDetailPage() {
   const { seriesId = "" } = useParams<{ seriesId: string }>();
   const { isAuthenticated } = useAuth();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const [subscribeState, setSubscribeState] = useState<SubscribeState>("idle");
+  const [subscribed, setSubscribed] = useState<boolean | null>(null);
+  const [subscribePending, setSubscribePending] = useState(false);
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!seriesId) {
@@ -43,11 +50,14 @@ export function PublicSeriesDetailPage() {
     }
     let active = true;
     setState({ kind: "loading" });
-    setSubscribeState("idle");
+    setSubscribed(null);
+    setSubscribeError(null);
     seriesApi
       .getPublicById(seriesId)
       .then((series) => {
-        if (active) setState({ kind: "ready", series });
+        if (!active) return;
+        setState({ kind: "ready", series });
+        setSubscribed(typeof series.hasSubscribed === "boolean" ? series.hasSubscribed : null);
       })
       .catch((err: unknown) => {
         if (!active) return;
@@ -58,13 +68,21 @@ export function PublicSeriesDetailPage() {
     };
   }, [seriesId]);
 
-  async function onSubscribe() {
-    setSubscribeState("pending");
+  async function onToggleSubscribe() {
+    if (subscribePending || subscribed === null) return; // duplicate-click guard
+    setSubscribeError(null);
+    const next = !subscribed;
+    // Optimistic update, rolled back if the request fails.
+    setSubscribed(next);
+    setSubscribePending(true);
     try {
-      await seriesApi.subscribe(seriesId);
-      setSubscribeState("done");
+      if (next) await seriesApi.subscribe(seriesId);
+      else await seriesApi.unsubscribe(seriesId);
     } catch {
-      setSubscribeState("error");
+      setSubscribed(!next);
+      setSubscribeError(next ? "订阅失败，请重试。" : "取消订阅失败，请重试。");
+    } finally {
+      setSubscribePending(false);
     }
   }
 
@@ -119,21 +137,23 @@ export function PublicSeriesDetailPage() {
             >
               登录后订阅
             </Link>
-          ) : subscribeState === "done" ? (
-            <span className="text-sm text-muted-foreground">已订阅</span>
-          ) : (
+          ) : subscribed !== null ? (
             <Button
-              variant="outline"
+              type="button"
+              variant={subscribed ? "secondary" : "outline"}
               size="sm"
-              disabled={subscribeState === "pending"}
-              onClick={() => void onSubscribe()}
+              disabled={subscribePending}
+              aria-pressed={subscribed}
+              onClick={() => void onToggleSubscribe()}
             >
-              订阅系列
+              {subscribed ? "已订阅" : "订阅系列"}
             </Button>
+          ) : (
+            <span className="text-sm text-muted-foreground">订阅状态不可用</span>
           )}
-          {subscribeState === "error" ? (
+          {subscribeError ? (
             <span role="alert" className="text-sm text-destructive">
-              订阅失败，请重试。
+              {subscribeError}
             </span>
           ) : null}
         </div>
