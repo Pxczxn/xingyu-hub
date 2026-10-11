@@ -43,6 +43,21 @@ spring:
           enabled: true
         wall:
           enabled: true
+          config:
+            # 允许 SQL 中的 -- 注释与多语句：SchemaMigrator 受控执行的迁移文件
+            # （sql/V*.sql）携带中文注释头，且幂等迁移（V041/V051 先例）依赖
+            # SET @var + PREPARE/EXECUTE 的多语句形态。wall 默认两者都拦，
+            # 导致 V050（注释）/V051（多语句）登记 FAILED（2026-10-11）。
+            # 安全影响可控：应用流量全部 PreparedStatement 参数化，注释/堆叠
+            # 注入无落点；迁移文件是仓库内受控内容，非外部输入。
+            # 生产启用迁移前需单独评估。
+            # 注意：两属性必须挂在 wall.config 下（WallConfig 属性），直接挂在
+            # wall 层不生效（首次执行已踩坑）。
+            comment-allow: true
+            multi-statement-allow: true
+            # V041/V051 的幂等守卫形态依赖 PREPARE/EXECUTE，wall 默认禁
+            # MySqlPrepareStatement 语句类型（第三次执行踩坑）。
+            prepare-statement-allow: true
   data:
     redis:
       host: localhost
