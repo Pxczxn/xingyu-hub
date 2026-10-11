@@ -305,6 +305,31 @@ class GalaxyIdentityContractIntegrationTest {
                 .andExpect(jsonPath("$.code").value(404));
     }
 
+    @Test
+    @Order(10)
+    void moderatedContentCannotBeReMountedViaCuration() throws Exception {
+        // Phase C 收口：被治理下架的内容不得通过策展入口重新公开（入口拒绝）
+        String adminToken = adminLogin();
+        jdbcTemplate.update(
+                "UPDATE search_document SET removed_at = NOW() WHERE object_type = 'ARTICLE' AND object_id = ?",
+                objectRowIds.get(0));
+        try {
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                            .post("/api/v1/admin/community/galaxies/" + galaxyId + "/content")
+                            .header("satoken", adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"objectType\":\"ARTICLE\",\"objectId\":\"" + objectRowIds.get(0)
+                                    + "\",\"pinned\":false}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(404));
+        } finally {
+            // 恢复 ARTICLE 供其它用例/断言稳定
+            jdbcTemplate.update(
+                    "UPDATE search_document SET removed_at = NULL WHERE object_type = 'ARTICLE' AND object_id = ?",
+                    objectRowIds.get(0));
+        }
+    }
+
     private String adminLogin() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/admin/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

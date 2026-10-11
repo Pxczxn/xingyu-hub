@@ -289,8 +289,11 @@ public class GalaxyService {
         if (galaxy == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        if (searchDocumentMapper.findByObject(objectType, objectId) == null) {
-            throw new ContractException(ErrorCode.NOT_FOUND, "内容不存在");
+        // 必须是活文档（removed_at IS NULL）：被治理下架的内容不得通过策展
+        // 入口重新挂回星系（旧 findByObject 不看 removed_at，等于给下架内容
+        // 留了重公开后门——尽管列表读取会过滤，语义上必须在入口拒绝）。
+        if (searchDocumentMapper.findLiveByTypeAndIds(objectType, List.of(objectId)).isEmpty()) {
+            throw new ContractException(ErrorCode.NOT_FOUND, "内容不存在或已下架");
         }
         GalaxyContent content = new GalaxyContent();
         content.setId(TokenSupport.newId());

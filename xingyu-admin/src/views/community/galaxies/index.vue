@@ -28,6 +28,9 @@
             @update:value="loadContent"
           />
           <n-tag v-if="selectedGalaxy?.official" type="info" :bordered="false">官方星系</n-tag>
+          <n-tag v-if="selectedGalaxy?.joinMode === 'APPROVAL'" type="warning" :bordered="false">
+            需申请加入
+          </n-tag>
           <n-text v-if="selectedGalaxy?.memberCount != null" depth="3">
             {{ selectedGalaxy.memberCount }} 名成员
           </n-text>
@@ -79,6 +82,22 @@
           <n-input v-model:value="galaxyForm.seedKey" placeholder="默认同别名" />
         </n-form-item>
         <n-form-item label="官方星系"><n-switch v-model:value="galaxyForm.official" /></n-form-item>
+        <n-form-item label="加入方式">
+          <n-select v-model:value="galaxyForm.joinMode" :options="joinModeOptions" />
+        </n-form-item>
+        <n-form-item label="简介" path="description">
+          <n-input
+            v-model:value="galaxyForm.description"
+            type="textarea"
+            :rows="3"
+            maxlength="512"
+            show-count
+            placeholder="展示在社区端星系 Hero；留空则不显示简介"
+          />
+        </n-form-item>
+        <n-form-item label="封面 URL" path="coverUrl">
+          <n-input v-model:value="galaxyForm.coverUrl" placeholder="留空使用系统装饰图" />
+        </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
@@ -116,17 +135,32 @@ const showAdd = ref(false)
 const showGalaxyModal = ref(false)
 const editingGalaxy = ref<Galaxy | null>(null)
 const galaxySaving = ref(false)
-const galaxyForm = ref({ name: '', slug: '', seedKey: '', official: false })
+const galaxyForm = ref({
+  name: '',
+  slug: '',
+  seedKey: '',
+  official: false,
+  joinMode: 'OPEN',
+  description: '',
+  coverUrl: ''
+})
 const form = ref({ objectType: 'ARTICLE', objectId: '', pinned: false })
 const contentRules: FormRules = { objectId: [{ required: true, message: '请输入对象 ID', trigger: ['input', 'blur'] }] }
 const galaxyRules: FormRules = {
   name: [{ required: true, message: '请输入星系名称', trigger: ['input', 'blur'] }],
-  slug: [{ required: true, message: '请输入星系别名', trigger: ['input', 'blur'] }]
+  slug: [{ required: true, message: '请输入星系别名', trigger: ['input', 'blur'] }],
+  description: [{ max: 512, message: '简介不能超过 512 字', trigger: ['input', 'blur'] }],
+  coverUrl: [{ max: 512, message: '封面地址不能超过 512 字', trigger: ['input', 'blur'] }]
 }
 
 const objectTypeOptions = [
   { label: '文章', value: 'ARTICLE' },
-  { label: '系列', value: 'SERIES' }
+  { label: '系列', value: 'SERIES' },
+  { label: '动态', value: 'MOMENT' }
+]
+const joinModeOptions = [
+  { label: '直接加入（OPEN）', value: 'OPEN' },
+  { label: '申请审核（APPROVAL）', value: 'APPROVAL' }
 ]
 
 const { showDetail, detailTitle, detailFields, openRemoteContent } = useContentDetailDrawer()
@@ -225,7 +259,15 @@ async function remove(contentId: string) {
 
 function openCreate() {
   editingGalaxy.value = null
-  galaxyForm.value = { name: '', slug: '', seedKey: '', official: false }
+  galaxyForm.value = {
+    name: '',
+    slug: '',
+    seedKey: '',
+    official: false,
+    joinMode: 'OPEN',
+    description: '',
+    coverUrl: ''
+  }
   showGalaxyModal.value = true
 }
 
@@ -236,7 +278,11 @@ function openEdit() {
     name: selectedGalaxy.value.name,
     slug: selectedGalaxy.value.slug,
     seedKey: '',
-    official: selectedGalaxy.value.official
+    official: selectedGalaxy.value.official,
+    joinMode: selectedGalaxy.value.joinMode ?? 'OPEN',
+    // 后端 null = 未填写；空串提交会被服务端 trim 归 null（清空语义）
+    description: selectedGalaxy.value.description ?? '',
+    coverUrl: selectedGalaxy.value.coverUrl ?? ''
   }
   showGalaxyModal.value = true
 }
@@ -248,7 +294,10 @@ async function saveGalaxy() {
     if (editingGalaxy.value) {
       await galaxyApi.update(editingGalaxy.value.id, {
         name: galaxyForm.value.name,
-        official: galaxyForm.value.official
+        official: galaxyForm.value.official,
+        joinMode: galaxyForm.value.joinMode,
+        description: galaxyForm.value.description.trim() || null,
+        coverUrl: galaxyForm.value.coverUrl.trim() || null
       })
       message.success('星系已更新')
     } else {
@@ -256,7 +305,10 @@ async function saveGalaxy() {
         name: galaxyForm.value.name,
         slug: galaxyForm.value.slug,
         seedKey: galaxyForm.value.seedKey || undefined,
-        official: galaxyForm.value.official
+        official: galaxyForm.value.official,
+        joinMode: galaxyForm.value.joinMode,
+        description: galaxyForm.value.description.trim() || null,
+        coverUrl: galaxyForm.value.coverUrl.trim() || null
       })
       message.success('星系已创建')
     }
