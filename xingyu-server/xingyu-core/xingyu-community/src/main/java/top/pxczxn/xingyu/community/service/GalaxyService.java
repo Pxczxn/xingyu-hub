@@ -1,8 +1,10 @@
 package top.pxczxn.xingyu.community.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
+import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.dto.GalaxyContentView;
 import top.pxczxn.xingyu.community.dto.GalaxyJoinRequestView;
 import top.pxczxn.xingyu.community.dto.GalaxyView;
@@ -39,14 +41,36 @@ public class GalaxyService {
     private final GalaxyContentMapper contentMapper;
     private final CommunityProfileMapper profileMapper;
     private final SearchDocumentMapper searchDocumentMapper;
+    private final ContentCoverService contentCoverService;
+    private final HomeFeedEnrichmentService enrichmentService;
 
     public List<GalaxyView> list() {
         return galaxyMapper.listAll().stream().map(this::toView).toList();
     }
 
+    /**
+     * 星系详情：在公共视图之上填充 viewer 私有状态与详情专属聚合。
+     * joined 每请求现查 {@code galaxy_member}（三态：游客 null）——
+     * 严禁放入任何跨请求缓存；contentCount 为挂载内容计数。
+     */
     public GalaxyView getBySlug(String slug) {
         Galaxy galaxy = requireGalaxy(slug);
-        return toView(galaxy);
+        CommunityUser viewer = CommunityAuthContext.currentUser().orElse(null);
+        Boolean joined = viewer == null
+                ? null
+                : memberMapper.findByGalaxyAndUser(galaxy.getId(), viewer.getId()) != null;
+        return GalaxyView.builder()
+                .id(galaxy.getId())
+                .slug(galaxy.getSlug())
+                .name(galaxy.getName())
+                .official(Boolean.TRUE.equals(galaxy.getOfficial()))
+                .joinMode(galaxy.getJoinMode())
+                .description(galaxy.getDescription())
+                .coverUrl(galaxy.getCoverUrl())
+                .memberCount(memberMapper.countByGalaxyId(galaxy.getId()))
+                .contentCount(contentMapper.countByGalaxyId(galaxy.getId()))
+                .joined(joined)
+                .build();
     }
 
     public List<GalaxyView> listMine(CommunityUser user) {
@@ -141,6 +165,33 @@ public class GalaxyService {
                 .toList();
     }
 
+    /**
+     * 自主退出星系（Galaxy Membership Closure，2026-10-10）。
+     *
+     * <p>语义（以真实模型为准，不虚构契约）：
+     * <ul>
+     *   <li>非成员（含从未加入与已退出后重复退出）→ 404，与 requireMember 风格一致；</li>
+     *   <li>非 MEMBER 角色（当前代码不存在赋值路径，但 role 列预留 MEMBER/ADMIN）
+     *       → 409：管理/所有类角色不得自主退出，须先转让或由平台处置——
+     *       未来引入 ADMIN/OWNER 角色时该守卫自动生效；</li>
+     *   <li>成员行物理删除（uk galaxy_id+user_id 保证单行），memberCount 为实时
+     *       COUNT(*)，无需补偿；galaxy_join_request 历史不清理，重新加入走既有
+     *       OPEN 直入 / APPROVAL 申请链路，joined_at 为重新加入时间。</li>
+     * </ul>
+     */
+    @Transactional
+    public void leave(CommunityUser user, String slug) {
+        Galaxy galaxy = requireGalaxy(slug);
+        GalaxyMember member = memberMapper.findByGalaxyAndUser(galaxy.getId(), user.getId());
+        if (member == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND, "你不是该星系成员");
+        }
+        if (!"MEMBER".equals(member.getRole())) {
+            throw new ContractException(ErrorCode.CONFLICT, "管理角色不能直接退出星系");
+        }
+        memberMapper.deleteById(member.getId());
+    }
+
     private GalaxyView joinDirect(CommunityUser user, Galaxy galaxy) {
         if (memberMapper.findByGalaxyAndUser(galaxy.getId(), user.getId()) != null) {
             return toView(galaxy);
@@ -165,14 +216,71 @@ public class GalaxyService {
                 .toList();
     }
 
+    /**
+     * 星系内容列表（Galaxy Content Contract，2026-10-10 Phase 4.2）。
+     *
+     * <p>ContentSummary 形状的填充全部走批量：一类一批查活文档
+     * （{@code findLiveByTypeAndIds}，removed_at IS NULL——被治理隐藏的内容
+     * 自动从星系消失，不再返回）；cover 复用 {@link ContentCoverService}；
+     * authorName 复用 {@link HomeFeedEnrichmentService#enrich} 的批量
+     * Presentation（viewer 传 null：内容行是静态展示，无 viewer 态）。
+     * 文档缺失（未入索引/已下架）的挂载行不产生视图。
+     */
     public List<GalaxyContentView> listContent(String slug, int limit) {
         Galaxy galaxy = requireGalaxy(slug);
         if (limit <= 0) {
             limit = 20;
         }
-        return contentMapper.listByGalaxyId(galaxy.getId(), limit).stream()
-                .map(this::toContentView)
+        List<GalaxyContent> rows = contentMapper.listByGalaxyId(galaxy.getId(), limit);
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+
+        // 一类一批取活文档（removed_at IS NULL）
+        Map<String, List<String>> idsByType = new java.util.LinkedHashMap<>();
+        for (GalaxyContent row : rows) {
+            idsByType.computeIfAbsent(row.getObjectType(), k -> new java.util.ArrayList<>())
+                    .add(row.getObjectId());
+        }
+        Map<String, SearchDocument> liveDocs = new java.util.HashMap<>();
+        for (Map.Entry<String, List<String>> entry : idsByType.entrySet()) {
+            for (SearchDocument doc : searchDocumentMapper.findLiveByTypeAndIds(
+                    entry.getKey(), entry.getValue())) {
+                liveDocs.put(HomeFeedEnrichmentService.key(doc.getObjectType(), doc.getObjectId()), doc);
+            }
+        }
+
+        // 批量补 authorName（viewer=null：静态展示，无 viewer 态）
+        List<HomeFeedEnrichmentService.FeedObject> refs = rows.stream()
+                .map(row -> new HomeFeedEnrichmentService.FeedObject(
+                        row.getObjectType(), row.getObjectId()))
                 .toList();
+        Map<String, HomeFeedEnrichmentService.Presentation> presentations =
+                enrichmentService.enrich(refs, null);
+
+        List<GalaxyContentView> views = new java.util.ArrayList<>();
+        for (GalaxyContent row : rows) {
+            SearchDocument doc = liveDocs.get(
+                    HomeFeedEnrichmentService.key(row.getObjectType(), row.getObjectId()));
+            if (doc == null) {
+                // 未入索引或已下架：挂载前提失效，不产生视图（下架联动）
+                continue;
+            }
+            HomeFeedEnrichmentService.Presentation presentation = presentations.get(
+                    HomeFeedEnrichmentService.key(row.getObjectType(), row.getObjectId()));
+            views.add(GalaxyContentView.builder()
+                    .id(row.getId())
+                    .objectType(row.getObjectType())
+                    .objectId(row.getObjectId())
+                    .title(doc.getTitle())
+                    .summary(doc.getSummary())
+                    .cover(contentCoverService.resolveCoverUrl(doc))
+                    .authorName(presentation == null ? null : presentation.authorName())
+                    .updatedAt(doc.getIndexedAt())
+                    .pinned(Boolean.TRUE.equals(row.getPinned()))
+                    .build());
+        }
+        return views;
     }
 
     @Transactional
@@ -220,6 +328,29 @@ public class GalaxyService {
         galaxy.setSlug(slug);
         galaxy.setName(trimRequired(String.valueOf(body.getOrDefault("name", "")), "name"));
         galaxy.setOfficial(parseBoolean(body.get("official"), false));
+        // create：INSERT 缺列即默认 NULL，直接内联解析（可空列语义与 update 一致）
+        if (body.containsKey("description")) {
+            Object raw = body.get("description");
+            String description = raw == null ? null : trimToNull(String.valueOf(raw));
+            if ("null".equals(description)) {
+                description = null;
+            }
+            if (description != null && description.length() > 512) {
+                throw new FieldContractException("description", "简介不能超过 512 字");
+            }
+            galaxy.setDescription(description);
+        }
+        if (body.containsKey("coverUrl")) {
+            Object raw = body.get("coverUrl");
+            String coverUrl = raw == null ? null : trimToNull(String.valueOf(raw));
+            if ("null".equals(coverUrl)) {
+                coverUrl = null;
+            }
+            if (coverUrl != null && coverUrl.length() > 512) {
+                throw new FieldContractException("coverUrl", "封面地址不能超过 512 字");
+            }
+            galaxy.setCoverUrl(coverUrl);
+        }
         galaxyMapper.insert(galaxy);
         return toView(galaxy);
     }
@@ -230,20 +361,54 @@ public class GalaxyService {
         if (galaxy == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        // 全字段走显式 SET（D3 纪律）：updateById 的 MyBatis-Plus NOT_NULL 策略会
+        // 省略 null 字段，"显式 null = 清空"的语义永远落不了库。字段校验先行。
+        UpdateWrapper<Galaxy> update = new UpdateWrapper<Galaxy>().eq("id", galaxyId);
+        boolean hasUpdate = false;
         if (body.containsKey("name")) {
-            galaxy.setName(trimRequired(String.valueOf(body.get("name")), "name"));
+            update.set("name", trimRequired(String.valueOf(body.get("name")), "name"));
+            hasUpdate = true;
         }
         if (body.containsKey("official")) {
-            galaxy.setOfficial(parseBoolean(body.get("official"), galaxy.getOfficial()));
+            update.set("official", parseBoolean(body.get("official"), galaxy.getOfficial()));
+            hasUpdate = true;
         }
         if (body.containsKey("joinMode")) {
             String joinMode = String.valueOf(body.get("joinMode")).trim().toUpperCase();
             if (!"OPEN".equals(joinMode) && !"APPROVAL".equals(joinMode)) {
                 throw new FieldContractException("joinMode", "入群模式无效");
             }
-            galaxy.setJoinMode(joinMode);
+            update.set("join_mode", joinMode);
+            hasUpdate = true;
         }
-        galaxyMapper.updateById(galaxy);
+        if (body.containsKey("description")) {
+            Object raw = body.get("description");
+            String description = raw == null ? null : trimToNull(String.valueOf(raw));
+            if ("null".equals(description)) {
+                description = null;
+            }
+            if (description != null && description.length() > 512) {
+                throw new FieldContractException("description", "简介不能超过 512 字");
+            }
+            update.set("description", description);
+            hasUpdate = true;
+        }
+        if (body.containsKey("coverUrl")) {
+            Object raw = body.get("coverUrl");
+            String coverUrl = raw == null ? null : trimToNull(String.valueOf(raw));
+            if ("null".equals(coverUrl)) {
+                coverUrl = null;
+            }
+            if (coverUrl != null && coverUrl.length() > 512) {
+                throw new FieldContractException("coverUrl", "封面地址不能超过 512 字");
+            }
+            update.set("cover_url", coverUrl);
+            hasUpdate = true;
+        }
+        if (hasUpdate) {
+            galaxyMapper.update(null, update);
+        }
+        galaxy = galaxyMapper.selectById(galaxyId);
         return toView(galaxy);
     }
 
@@ -266,23 +431,36 @@ public class GalaxyService {
                 .build();
     }
 
+    /**
+     * admin 挂载返回的精简视图：只做存在性确认，不做富化——
+     * 富化属于公开列表契约（listContent），挂载响应里逐行查文档是纯浪费。
+     * summary/cover/authorName 为 null，前端以 listContent 刷新为准。
+     */
     private GalaxyContentView toContentView(GalaxyContent content) {
-        SearchDocument document = searchDocumentMapper.findByObject(content.getObjectType(), content.getObjectId());
         return GalaxyContentView.builder()
                 .id(content.getId())
                 .objectType(content.getObjectType())
                 .objectId(content.getObjectId())
-                .title(document == null ? content.getObjectId() : document.getTitle())
                 .pinned(Boolean.TRUE.equals(content.getPinned()))
                 .build();
     }
 
+    /**
+     * 公共展示视图（列表/详情共用）。description/coverUrl 由 V051 列直接透传
+     * （SchemaMigrator 是 ApplicationRunner：启动即执行 pending 迁移，实体加列
+     * 与迁移执行在同一启动生命周期内达成一致，不会出现 Unknown column）。
+     * joined/contentCount 仅由 {@link #getBySlug} 填充——列表端点不逐行查
+     * viewer 状态（N+1），builder 缺省即 null。
+     */
     private GalaxyView toView(Galaxy galaxy) {
         return GalaxyView.builder()
                 .id(galaxy.getId())
                 .slug(galaxy.getSlug())
                 .name(galaxy.getName())
                 .official(Boolean.TRUE.equals(galaxy.getOfficial()))
+                .joinMode(galaxy.getJoinMode())
+                .description(galaxy.getDescription())
+                .coverUrl(galaxy.getCoverUrl())
                 .memberCount(memberMapper.countByGalaxyId(galaxy.getId()))
                 .build();
     }

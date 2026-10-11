@@ -127,4 +127,20 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
     /** Health read: rows kept but marked not-public. */
     @Select("SELECT COUNT(*) FROM search_document WHERE removed_at IS NOT NULL")
     long countRemoved();
+
+    /**
+     * 批量取同类型的活文档（removed_at IS NULL）。供 Galaxy 内容行等聚合面使用：
+     * 一类一批，避免逐行 findByObject（N+1）；已下架/删除的文档不在结果里，
+     * 上层据此跳过对应行（下架联动，2026-10-10 Phase 4.2）。
+     */
+    @Select("""
+            <script>
+            SELECT * FROM search_document
+            WHERE removed_at IS NULL AND object_type = #{objectType}
+              AND object_id IN
+              <foreach collection='objectIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            </script>
+            """)
+    List<SearchDocument> findLiveByTypeAndIds(@Param("objectType") String objectType,
+                                              @Param("objectIds") List<String> objectIds);
 }

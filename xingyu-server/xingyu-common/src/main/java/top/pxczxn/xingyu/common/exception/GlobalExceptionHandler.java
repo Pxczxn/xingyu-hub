@@ -35,6 +35,27 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 字段契约校验失败（admin 域此前无此分支：任何 @RequestBody 校验抛出的
+     * FieldContractException 都落入 RuntimeException → 500。管理端错误惯例为
+     * HTTP 200 + envelope code，故返回 code=400 让 admin 前端按既定方式提示。
+     * 2026-10-10 Galaxy Identity 契约收口时补齐。）
+     */
+    @ExceptionHandler(top.pxczxn.xingyu.common.contract.FieldContractException.class)
+    public Result<Void> handleFieldContractException(top.pxczxn.xingyu.common.contract.FieldContractException e) {
+        log.warn("字段契约校验失败: {}", e.getMessage());
+        return Result.fail(400, e.getMessage());
+    }
+
+    /**
+     * 通用契约异常（admin 域 NOT_FOUND/CONFLICT 等），同上补齐，避免 500。
+     */
+    @ExceptionHandler(top.pxczxn.xingyu.common.contract.ContractException.class)
+    public Result<Void> handleContractException(top.pxczxn.xingyu.common.contract.ContractException e) {
+        log.warn("契约异常: {}", e.getMessage());
+        return Result.fail(e.getErrorCode().getStatus().value(), e.getMessage());
+    }
+
+    /**
      * 未登录异常
      */
     @ExceptionHandler(NotLoginException.class)
