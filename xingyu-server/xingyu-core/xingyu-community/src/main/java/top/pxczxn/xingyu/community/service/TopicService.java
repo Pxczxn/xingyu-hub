@@ -55,6 +55,7 @@ public class TopicService {
     private final CommunityProfileMapper profileMapper;
     private final ReservedWordMapper reservedWordMapper;
     private final TopicMergeRecordMapper topicMergeRecordMapper;
+    private final HomeFeedEnrichmentService enrichmentService;
     private final ContentCoverService contentCoverService;
 
     public List<Topic> list(String keyword, String status) {
@@ -197,7 +198,13 @@ public class TopicService {
         List<SearchDocument> documents = "hot".equalsIgnoreCase(sort)
                 ? articleTopicMapper.listHotContent(topic.getId(), limit)
                 : articleTopicMapper.listLatestContent(topic.getId(), limit);
-        return documents.stream().map(this::toContentCard).toList();
+        List<ContentCardView> cards = documents.stream().map(this::toContentCard).toList();
+        // Phase 6（2026-10-11）：批量富化补齐 SERIES/MOMENT 卡的 authorName——
+        // 此前只有 ARTICLE 卡带作者，同页三种类型描述不一致。复用首页/发现页
+        // 同一批量富化通道（每类型一批 owner + 一批 profile，零新增逐行查询）；
+        // /topics/{slug} 为公开端点，富化不带 viewer 态。
+        return enrichmentService.applyCards(
+                cards, enrichmentService.enrich(HomeFeedEnrichmentService.refsOfCards(cards), null));
     }
 
     public List<TopicCreatorView> listCreators(String rawSlug, int limit) {

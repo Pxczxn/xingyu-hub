@@ -123,25 +123,32 @@ public class RecommendationService {
         if (limit <= 0) {
             limit = 20;
         }
+        // Phase 5.1-F：查询 limit+1 条探测"是否还有下一页"——items.size()==limit
+        // 恰好整页时无法区分"正好穷尽"与"还有更多"，旧判据会在整页倍数处多出
+        // 一次空翻页。多取的 1 条只用作探针，不返回给客户端。
+        int probeLimit = limit + 1;
         List<SearchDocument> documents;
         if (cursor != null && !cursor.isBlank()) {
             String[] parts = CursorCodec.decode(cursor);
             if (parts == null) {
                 // Phase 5.1：非法 cursor 是明确的客户端错误（400），不再静默回首页——
                 // 静默重置会让用户在不知情中重复看到第一页。
-                throw new FieldContractException("cursor", "分页游标无效或已过期，请从第一页重新浏览");
+                throw new FieldContractException("cursor", "分页游标无效");
             }
             documents = searchDocumentMapper.listActiveByRecencyAfter(
-                    Instant.ofEpochMilli(Long.parseLong(parts[1])), parts[0], parts[2], limit);
+                    Instant.ofEpochMilli(Long.parseLong(parts[1])), parts[0], parts[2], probeLimit);
         } else {
-            documents = searchDocumentMapper.listActiveByRecency(limit);
+            documents = searchDocumentMapper.listActiveByRecency(probeLimit);
         }
-        List<ContentCardView> items = documents.stream().map(this::toContentCard).toList();
-        String nextCursor = items.size() == limit && !documents.isEmpty()
+        boolean hasMore = documents.size() > limit;
+        List<SearchDocument> page = hasMore ? documents.subList(0, limit) : documents;
+        List<ContentCardView> items = page.stream().map(this::toContentCard).toList();
+        // 游标 = 最后一条<b>实际返回</b>记录的三元组（不是探针记录）。
+        String nextCursor = hasMore
                 ? CursorCodec.encode(
-                        documents.get(documents.size() - 1).getObjectType(),
-                        documents.get(documents.size() - 1).getIndexedAt(),
-                        documents.get(documents.size() - 1).getObjectId())
+                        page.get(page.size() - 1).getObjectType(),
+                        page.get(page.size() - 1).getIndexedAt(),
+                        page.get(page.size() - 1).getObjectId())
                 : null;
         // Phase 5.1：total 不再冒充当前页大小——keyset 分页拿不到廉价总数，
         // 前端契约 total 为 optional，discover 不返回。

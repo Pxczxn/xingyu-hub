@@ -65,7 +65,7 @@ export function DiscoverPage() {
       // 保留已有内容；游标失效（400）时关闭翻页入口，其余失败保留按钮可重试
       if (err instanceof ApiError && err.problem.status === 400) {
         setNextCursor(null);
-        setLoadMoreError("分页链接已失效，已显示全部可加载内容；刷新页面可从头浏览。");
+        setLoadMoreError("分页链接无效，请刷新页面从第一页重新浏览。");
       } else {
         setLoadMoreError("加载更多失败，请重试。");
       }
