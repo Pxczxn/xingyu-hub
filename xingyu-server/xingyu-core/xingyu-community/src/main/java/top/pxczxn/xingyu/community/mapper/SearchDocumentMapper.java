@@ -143,4 +143,31 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
             """)
     List<SearchDocument> findLiveByTypeAndIds(@Param("objectType") String objectType,
                                               @Param("objectIds") List<String> objectIds);
+
+    /**
+     * 发现页 keyset 分页（2026-10-11 Phase 5）：按 indexed_at DESC, object_id DESC
+     * 稳定排序，cursor 为上一页末条的 (indexed_at, object_id)。like_count 排序
+     * 不适合做 keyset（点赞数随时变化会导致跨页重复/丢失），故发现页统一走
+     * 最新语义。
+     */
+    @Select("""
+            SELECT * FROM search_document
+            WHERE removed_at IS NULL
+            ORDER BY indexed_at DESC, object_id DESC
+            LIMIT #{limit}
+            """)
+    List<SearchDocument> listActiveByRecency(@Param("limit") int limit);
+
+    @Select("""
+            SELECT * FROM search_document
+            WHERE removed_at IS NULL
+              AND (indexed_at < #{cursorIndexedAt}
+                   OR (indexed_at = #{cursorIndexedAt} AND object_id < #{cursorId}))
+            ORDER BY indexed_at DESC, object_id DESC
+            LIMIT #{limit}
+            """)
+    List<SearchDocument> listActiveByRecencyAfter(
+            @Param("cursorIndexedAt") java.time.Instant cursorIndexedAt,
+            @Param("cursorId") String cursorId,
+            @Param("limit") int limit);
 }

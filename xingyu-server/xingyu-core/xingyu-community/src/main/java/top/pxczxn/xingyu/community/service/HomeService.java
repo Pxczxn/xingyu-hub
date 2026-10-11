@@ -168,19 +168,16 @@ public class HomeService {
     }
 
     public PageResultView<ContentCardView> discover(int limit, String cursor) {
-        if (limit <= 0) {
-            limit = 20;
-        }
-        List<ContentCardView> items = recommendationService.recommend(null, limit).getItems();
-        // Same enrichment the home rails get. `ContentCard` renders `authorName`, so without
-        // this the discover grid shows anonymous cards while the home feed shows authors —
-        // the same content, described two different ways.
-        // No viewer here: /discover is a public endpoint and takes no session.
+        // Phase 5（2026-10-11）：keyset 翻页实现（此前 nextCursor 恒 null、
+        // 超过单页的内容不可达）。同样做一轮批量富化，保持与首页 rails 一致
+        // 的作者/计数描述；/discover 为公开端点，富化不带 viewer。
+        PageResultView<ContentCardView> page = recommendationService.discoverPage(limit, cursor);
+        List<ContentCardView> items = page.getItems();
         List<ContentCardView> enriched = enrichmentService.applyCards(
                 items, enrichmentService.enrich(HomeFeedEnrichmentService.refsOfCards(items), null));
         return PageResultView.<ContentCardView>builder()
                 .items(enriched)
-                .nextCursor(null)
+                .nextCursor(page.getNextCursor())
                 .total((long) enriched.size())
                 .build();
     }

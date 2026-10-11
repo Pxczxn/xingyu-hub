@@ -4,6 +4,7 @@ import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.dto.ContentCardView;
+import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.FeaturedContentView;
 import top.pxczxn.xingyu.community.dto.RecommendationFeedView;
 import top.pxczxn.xingyu.community.entity.Article;
@@ -17,6 +18,7 @@ import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.FeaturedContentMapper;
 import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
+import top.pxczxn.xingyu.community.support.CursorCodec;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
@@ -104,6 +106,45 @@ public class RecommendationService {
         return RecommendationFeedView.builder()
                 .strategy(strategy)
                 .items(dedupe(items, limit))
+                .build();
+    }
+
+    /**
+     * 发现页（Phase 5，2026-10-11）：统一的"最新内容"keyset 流。
+     *
+     * <p>此前 discover 复用 recommend(null, limit)（featured 池 + hot 池拼接、
+     * 忽略 cursor、nextCursor 恒 null）——超过单页的内容经公开分发面不可达
+     * （真实阻断）。现在固定排序 (indexed_at DESC, object_id DESC) +
+     * keyset 游标：跨页不重不漏，且不受点赞数变化影响。
+     *
+     * <p>非法/伪造 cursor 回退首页（游标是透明的续读标记，不是权限边界）。
+     */
+    public PageResultView<ContentCardView> discoverPage(int limit, String cursor) {
+        if (limit <= 0) {
+            limit = 20;
+        }
+        List<SearchDocument> documents;
+        if (cursor != null && !cursor.isBlank()) {
+            String[] parts = CursorCodec.decode(cursor);
+            if (parts == null) {
+                documents = searchDocumentMapper.listActiveByRecency(limit);
+            } else {
+                documents = searchDocumentMapper.listActiveByRecencyAfter(
+                        Instant.ofEpochMilli(Long.parseLong(parts[0])), parts[1], limit);
+            }
+        } else {
+            documents = searchDocumentMapper.listActiveByRecency(limit);
+        }
+        List<ContentCardView> items = documents.stream().map(this::toContentCard).toList();
+        String nextCursor = items.size() == limit && !documents.isEmpty()
+                ? CursorCodec.encode(
+                        documents.get(documents.size() - 1).getIndexedAt(),
+                        documents.get(documents.size() - 1).getObjectId())
+                : null;
+        return PageResultView.<ContentCardView>builder()
+                .items(items)
+                .nextCursor(nextCursor)
+                .total((long) items.size())
                 .build();
     }
 
