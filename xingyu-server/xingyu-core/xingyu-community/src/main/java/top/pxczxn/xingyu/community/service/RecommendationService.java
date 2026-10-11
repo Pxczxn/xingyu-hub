@@ -195,38 +195,20 @@ public class RecommendationService {
         featuredContentMapper.updateById(featured);
     }
 
+    /**
+     * 关注优先推荐卡（Phase 6.1 批量化，2026-10-11）：与 HomeService 关注流共享
+     * 同一批量取数通道（三类型各一次集合查询），仅"每人动态条数"（3 vs 5）与
+     * 输出上限不同。优先级、fallback、去重与可见性规则不变。
+     */
     private List<ContentCardView> followBasedCards(CommunityUser user, int limit) {
         List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(user.getId());
         if (followeeIds.isEmpty()) {
             return List.of();
         }
         List<SearchDocument> documents = new ArrayList<>();
-        for (String followeeId : followeeIds) {
-            for (Article article : articleMapper.listByOwnerId(followeeId)) {
-                if (!ArticleStateSupport.isActiveLifecycle(article) || !ArticleStateSupport.isPublished(article)) {
-                    continue;
-                }
-                SearchDocument document = searchDocumentMapper.findByObject("ARTICLE", article.getId());
-                if (document != null && document.getRemovedAt() == null) {
-                    documents.add(document);
-                }
-            }
-            for (Series series : seriesMapper.listByOwnerId(followeeId)) {
-                if (!"ACTIVE".equals(series.getStatus())) {
-                    continue;
-                }
-                SearchDocument document = searchDocumentMapper.findByObject("SERIES", series.getId());
-                if (document != null && document.getRemovedAt() == null) {
-                    documents.add(document);
-                }
-            }
-            for (Moment moment : momentMapper.listByAuthorId(followeeId, 3)) {
-                SearchDocument document = searchDocumentMapper.findByObject("MOMENT", moment.getId());
-                if (document != null && document.getRemovedAt() == null) {
-                    documents.add(document);
-                }
-            }
-        }
+        documents.addAll(searchDocumentMapper.findLiveArticlesByOwnerIds(followeeIds));
+        documents.addAll(searchDocumentMapper.findLiveSeriesByOwnerIds(followeeIds));
+        documents.addAll(searchDocumentMapper.findRecentMomentsByAuthorIds(followeeIds, 3));
         return documents.stream()
                 .sorted((left, right) -> right.getIndexedAt().compareTo(left.getIndexedAt()))
                 .limit(limit)

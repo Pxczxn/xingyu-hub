@@ -30,6 +30,7 @@ import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import top.pxczxn.xingyu.community.support.PasswordSupport;
+import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -82,15 +83,21 @@ class FollowingFeedBaselineIntegrationTest {
     private MomentMapper momentMapper;
     @Autowired
     private SearchDocumentMapper searchDocumentMapper;
+    @Autowired
+    private SysConfigGroupService configGroupService;
 
     private final List<String> userIds = new ArrayList<>();
     private final List<String> authorEmails = new ArrayList<>();
+    /** seed 过的 search_document 主键——cleanup 按此精确删除（object_id 是 UUID，LIKE 前缀永不匹配）。 */
+    private final List<String> seededDocIds = new ArrayList<>();
 
     private String ownerToken;
     private String ownerId;
 
     @BeforeAll
     void seedOwners() throws Exception {
+        // rebuild 会重置登录验证码开关——测试 fixture 显式关闭（CommunityTestSupport 同款）
+        top.pxczxn.xingyu.CommunityTestSupport.ensureRegistrationOpen(configGroupService);
         // 主账号（关注者）+ 一个内容作者（保证 F=1 有内容可达）
         ownerId = seedUser("ffb-owner");
         ownerToken = login("ffb-owner");
@@ -100,6 +107,9 @@ class FollowingFeedBaselineIntegrationTest {
 
     @AfterAll
     void cleanup() {
+        for (String docId : seededDocIds) {
+            jdbcTemplate.update("DELETE FROM search_document WHERE id = ?", docId);
+        }
         for (String userId : userIds) {
             jdbcTemplate.update("DELETE FROM user_follow WHERE follower_id = ? OR followee_id = ?", userId, userId);
             jdbcTemplate.update("DELETE FROM search_document WHERE object_id LIKE ?", PREFIX + userId + "%");
@@ -133,6 +143,11 @@ class FollowingFeedBaselineIntegrationTest {
         System.out.println("[SQL-BASELINE] F=1 -> " + base1);
         System.out.println("[SQL-BASELINE] F=10 -> " + base10);
         System.out.println("[SQL-BASELINE] F=50 -> " + base50);
+        // 回归断言（Phase 6.1-F）：批量后单请求 SQL 数不随关注数线性增长。
+        // 批量实现 = 常数基础 + 每类型一次集合查询 + 富化批量；旧实现 F=50 时 354。
+        assertTrue(base50 < 220, "F=50 的 /me/home SQL 数必须远离旧实现的线性水平（354），实际=" + base50);
+        assertTrue(base50 - base0 <= 30,
+                "关注数 0→50 的 SQL 增量必须为常数级（三类型批量各一次/请求），实际增量=" + (base50 - base0));
     }
 
     // ---- Phase D：行为等价（oracle 锁定输出契约）----
@@ -151,16 +166,33 @@ class FollowingFeedBaselineIntegrationTest {
         String moment1 = UUID.randomUUID().toString();
         String moment2 = UUID.randomUUID().toString();
         String moment3 = UUID.randomUUID().toString();
-        seedArticle(publishedArticle, followee, spaceId, "PUBLISHED", "ACTIVE");
-        seedArticle(draftArticle, followee, spaceId, "DRAFT", "ACTIVE");
-        seedSeries(activeSeries, followee, spaceId);
-        seedMoment(moment1, followee, 30);
-        seedMoment(moment2, followee, 20);
-        seedMoment(moment3, followee, 10);
-        // moment3 治理隐藏（removed_at）——必须不可见
+        String moment4 = UUID.randomUUID().toString();
+        String moment5 = UUID.randomUUID().toString();
+        String moment6 = UUID.randomUUID().toString();
+        seedArticle(publishedArticle, followee, spaceId, "PUBLISHED", "ACTIVE", 65);
+        seedArticle(draftArticle, followee, spaceId, "DRAFT", "ACTIVE", 0);
+        seedSeries(activeSeries, followee, spaceId, 55);
+        seedMoment(moment1, followee, 60);
+        seedMoment(moment2, followee, 50);
+        seedMoment(moment3, followee, 40);
+        seedMoment(moment4, followee, 30);
+        seedMoment(moment5, followee, 20);
+        seedMoment(moment6, followee, 10);
+        // 治理隐藏：最新的 moment6——旧语义（每人前 5 内过滤）下不回填第 6 条
+        jdbcTemplate.update(
+                "UPDATE search_document SET removed_at = NOW() WHERE object_type = 'MOMENT' AND object_id = ?",
+                moment6);
         jdbcTemplate.update(
                 "UPDATE search_document SET removed_at = NOW() WHERE object_type = 'MOMENT' AND object_id = ?",
                 moment3);
+        System.out.println("[PROBE] map m1=" + moment1 + " m2=" + moment2 + " m3=" + moment3
+                + " m4=" + moment4 + " m5=" + moment5 + " m6=" + moment6);
+        System.out.println("[PROBE] hidden6=" + jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM search_document WHERE object_type='MOMENT' AND object_id=? AND removed_at IS NOT NULL",
+                Integer.class, moment6));
+        System.out.println("[PROBE] hidden3=" + jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM search_document WHERE object_type='MOMENT' AND object_id=? AND removed_at IS NOT NULL",
+                Integer.class, moment3));
         // 旧的 article_topic 式挂载不需要——following 流直接按 owner 查
         follow(authorEmails.get(1));
 
@@ -179,9 +211,13 @@ class FollowingFeedBaselineIntegrationTest {
         String actualJoined = "[" + String.join(", ", actual) + "]";
 
         assertEquals(expected, actualJoined, "followUpdates 必须与旧逐对象实现的输出逐项一致");
-        // 治理隐藏的 moment3 与草稿文章不得出现
+        // 治理隐藏与草稿不得出现
         assertTrue(actual.stream().noneMatch(x -> x.contains(draftArticle)), "草稿不可见");
         assertTrue(actual.stream().noneMatch(x -> x.contains(moment3)), "治理隐藏不可见");
+        assertTrue(actual.stream().noneMatch(x -> x.contains(moment6)), "最新隐藏动态不可见");
+        // 不回填：6 条动态、m3 与 m6（两条）治理隐藏 → 每人前 5 内（m6,m5,m4,m3,m2）
+        // 剩 3 条可见，m1 不得补位（ARTICLE + SERIES + 3 条可见动态）
+        assertEquals(4, actual.size() - 1, "隐藏不回填：m1 不得补位");
     }
 
     @Test
@@ -317,33 +353,38 @@ class FollowingFeedBaselineIntegrationTest {
         }
     }
 
-    private void seedArticle(String id, String ownerId, String spaceId, String status, String lifecycle) {
+    private void seedArticle(String id, String ownerId, String spaceId, String status, String lifecycle, int seq) {
         jdbcTemplate.update("""
                 INSERT INTO article (id, owner_id, space_id, status, lifecycle_status, moderation_status, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, 'NORMAL', NOW(), NOW())
                 """, id, ownerId, spaceId, status, lifecycle);
         if ("PUBLISHED".equals(status)) {
+            String docId = UUID.randomUUID().toString();
+            seededDocIds.add(docId);
             jdbcTemplate.update("""
                     INSERT INTO search_document
                         (id, object_type, object_id, title, summary, discovery_version, indexed_at)
-                    VALUES (?, 'ARTICLE', ?, '关注流文章', NULL, 1, NOW())
-                    """, UUID.randomUUID().toString(), id);
+                    VALUES (?, 'ARTICLE', ?, '关注流文章', NULL, 1, NOW() - INTERVAL ? SECOND)
+                    """, docId, id, seq);
         }
     }
 
-    private void seedSeries(String id, String ownerId, String spaceId) {
+    private void seedSeries(String id, String ownerId, String spaceId, int seq) {
         jdbcTemplate.update("""
                 INSERT INTO series (id, owner_id, space_id, title, slug, status, lock_version, created_at, updated_at)
                 VALUES (?, ?, ?, '关注流系列', ?, 'ACTIVE', 0, NOW(), NOW())
                 """, id, ownerId, spaceId, "ffb-series-" + (System.nanoTime() % 100000000L));
+        String seriesDocId = UUID.randomUUID().toString();
+        seededDocIds.add(seriesDocId);
         jdbcTemplate.update("""
                 INSERT INTO search_document
                     (id, object_type, object_id, title, summary, discovery_version, indexed_at)
-                VALUES (?, 'SERIES', ?, '关注流系列', NULL, 1, NOW())
-                """, UUID.randomUUID().toString(), id);
+                VALUES (?, 'SERIES', ?, '关注流系列', NULL, 1, NOW() - INTERVAL ? SECOND)
+                """, seriesDocId, id, seq);
     }
 
     private void seedMoment(String id, String ownerId, int sequence) {
+        int seq = sequence;
         // created_at 间隔 1 秒：秒精度下让排序确定性（同秒 tie-break 属实现细节）
         jdbcTemplate.update("""
                 INSERT INTO moment (id, author_id, status, created_at, updated_at)
@@ -352,11 +393,13 @@ class FollowingFeedBaselineIntegrationTest {
         jdbcTemplate.update("""
                 UPDATE moment SET created_at = NOW() - INTERVAL ? SECOND WHERE id = ?
                 """, sequence, id);
+        String momentDocId = UUID.randomUUID().toString();
+        seededDocIds.add(momentDocId);
         jdbcTemplate.update("""
                 INSERT INTO search_document
                     (id, object_type, object_id, title, summary, discovery_version, indexed_at)
-                VALUES (?, 'MOMENT', ?, '关注流动态', NULL, 1, NOW())
-                """, UUID.randomUUID().toString(), id);
+                VALUES (?, 'MOMENT', ?, '关注流动态', NULL, 1, NOW() - INTERVAL ? SECOND)
+                """, momentDocId, id, seq);
     }
 
     private String seedUser(String prefix) {

@@ -161,9 +161,9 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
     @Select("""
             SELECT * FROM search_document
             WHERE removed_at IS NULL
-              AND (indexed_at &lt; #{cursorIndexedAt}
+              AND (indexed_at < #{cursorIndexedAt}
                    OR (indexed_at = #{cursorIndexedAt}
-                       AND (object_type &gt; #{cursorObjectType}
+                       AND (object_type > #{cursorObjectType}
                             OR (object_type = #{cursorObjectType}
                                 AND object_id < #{cursorId}))))
             ORDER BY indexed_at DESC, object_type ASC, object_id DESC
@@ -206,21 +206,28 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
     List<SearchDocument> findLiveSeriesByOwnerIds(@Param("ownerIds") List<String> ownerIds);
 
     /**
-     * 关注流批量取数：每个作者的最近 N 条 PUBLISHED 动态的活文档
-     * （窗口函数保持"每人 5 条"的原有数量策略，且不整表加载历史）。
+     * 关注流批量取数：每个作者的最近 N 条 PUBLISHED 动态的活文档。
+     *
+     * <p><b>窗口语义（与逐条路径等价，2026-10-11 Phase 6.1-F）</b>：ROW_NUMBER
+     * 先在作者的全部 PUBLISHED 动态上取前 N（此时不看文档可见性），再 JOIN
+     * 活文档并过滤 removed——被治理隐藏的动态<b>不回填</b>第 N+1 条（旧逐条
+     * 路径先取最近 5 条再逐条查文档跳过隐藏项，行为一致）。同 created_at
+     * 由 m.id 保证确定性排序。rn 比较符在 script 内使用 &lt;= 实体。
      */
     @Select("""
             <script>
-            SELECT * FROM (
-                SELECT sd.*, m.author_id,
-                       ROW_NUMBER() OVER (PARTITION BY m.author_id ORDER BY m.created_at DESC) rn
+            SELECT sd.* FROM (
+                SELECT m.id AS moment_id,
+                       ROW_NUMBER() OVER (PARTITION BY m.author_id ORDER BY m.created_at DESC, m.id DESC) rn
                 FROM moment m
-                INNER JOIN search_document sd ON sd.object_type = 'MOMENT' AND sd.object_id = m.id
-                    AND sd.removed_at IS NULL
                 WHERE m.status = 'PUBLISHED'
                   AND m.author_id IN
                   <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
-            ) ranked WHERE rn &lt;= #{perAuthorLimit}
+            ) ranked
+            INNER JOIN moment m2 ON m2.id = ranked.moment_id
+            INNER JOIN search_document sd ON sd.object_type = 'MOMENT' AND sd.object_id = ranked.moment_id
+            WHERE ranked.rn &lt;= #{perAuthorLimit}
+              AND sd.removed_at IS NULL
             </script>
             """)
     List<SearchDocument> findRecentMomentsByAuthorIds(
