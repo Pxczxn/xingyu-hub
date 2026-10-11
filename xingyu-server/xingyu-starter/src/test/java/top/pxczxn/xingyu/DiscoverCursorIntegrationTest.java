@@ -120,6 +120,8 @@ class DiscoverCursorIntegrationTest {
         int rounds = 0;
         while (rounds < 10) {
             Page page = fetch(cursor);
+            System.out.println("[DCUR] page" + rounds + " items=" + page.ids().size()
+                    + " ids=" + page.ids());
             List<String> probes = probeIds(page);
             for (String id : probes) {
                 assertTrue(seen.add(id), "跨页不得重复：" + id);

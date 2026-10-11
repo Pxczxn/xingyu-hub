@@ -79,6 +79,17 @@ public class HomeService {
     }
 
     public MeHomeView composeForMe(CommunityUser user) {
+        if (user == null) {
+            // /me/home 带无效 token 时 resolveViewer 吞 401 返回 null——
+            // 返回空 rails（游客形态），绝不 500（Phase 7 P1 修复，2026-10-11）。
+            return MeHomeView.builder()
+                    .continueReading(List.of())
+                    .followUpdates(List.of())
+                    .recommendations(List.of())
+                    .draftArticles(List.of())
+                    .pendingActions(List.of())
+                    .build();
+        }
         List<ContentCardView> continueReading = readingService.continueReading(user, 10);
         List<ContentCardView> followUpdates = followingUpdatesFor(user).stream()
                 .map(this::toContentCard)
@@ -141,6 +152,10 @@ public class HomeService {
      * 同步 search_document），与逐条路径共享同一真相源。
      */
     private List<SearchResultView> followingUpdatesFor(CommunityUser user) {
+        if (user == null) {
+            // 游客（含带无效 token 的请求：resolveViewer 吞 401 返回 null）
+            return List.of();
+        }
         List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(user.getId());
         if (followeeIds.isEmpty()) {
             return List.of();
