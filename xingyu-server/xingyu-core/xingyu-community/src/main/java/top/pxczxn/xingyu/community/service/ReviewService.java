@@ -231,6 +231,18 @@ public class ReviewService {
         String normalizedDecision = normalizeDecision(decision);
         Instant now = Instant.now();
 
+        // 并发/重复防护（Phase 7-F，2026-10-11）：状态推进原子化——两个并发
+        // decide 只允许一个把 PENDING 推进为决策态，另一个在此失败（CONFLICT）。
+        // 单纯前置检查在并发下形同虚设（两请求都能读到 PENDING）。
+        int claimed = submissionMapper.update(null,
+                new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<ReviewSubmission>()
+                        .eq("id", submissionId)
+                        .eq("status", "PENDING")
+                        .set("status", normalizedDecision));
+        if (claimed == 0) {
+            throw new ContractException(ErrorCode.CONFLICT, "审核提交已处理");
+        }
+
         ReviewDecision reviewDecision = new ReviewDecision();
         reviewDecision.setId(TokenSupport.newId());
         reviewDecision.setSubmissionId(submissionId);
@@ -240,8 +252,6 @@ public class ReviewService {
         reviewDecision.setDecidedAt(now);
         decisionMapper.insert(reviewDecision);
 
-        submission.setStatus(normalizedDecision);
-        submissionMapper.updateById(submission);
 
         Article article = articleMapper.selectById(submission.getArticleId());
         if (article != null) {
