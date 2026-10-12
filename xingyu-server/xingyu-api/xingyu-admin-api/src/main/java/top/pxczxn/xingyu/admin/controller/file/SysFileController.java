@@ -91,6 +91,7 @@ public class SysFileController {
      * 下载文件
      */
     @GetMapping("/download/{id}")
+    @SaCheckPermission("sys:file:list")
     public ResponseEntity<byte[]> download(@PathVariable Long id) {
         SysFile sysFile = fileService.getById(id);
         if (sysFile == null) {
@@ -112,6 +113,7 @@ public class SysFileController {
      * 预览文件
      */
     @GetMapping("/preview/{id}")
+    @SaCheckPermission("sys:file:list")
     public ResponseEntity<byte[]> preview(@PathVariable Long id) {
         SysFile sysFile = fileService.getById(id);
         if (sysFile == null) {

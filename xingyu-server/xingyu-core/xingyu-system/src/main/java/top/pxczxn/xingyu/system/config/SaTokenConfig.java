@@ -55,8 +55,6 @@ public class SaTokenConfig implements WebMvcConfigurer {
                             "/api/v1/admin/crypto/**",
                             "/api/v1/admin/sys/config-group/public",
                             "/api/v1/admin/sys/user/template",
-                            "/api/v1/admin/sys/file/preview/**",
-                            "/api/v1/admin/sys/file/download/**",
                             "/api/v1/admin/file/**",
                             "/api/v1/admin/files/**"
                     )
