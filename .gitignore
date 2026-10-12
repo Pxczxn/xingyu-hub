@@ -89,6 +89,7 @@ id_ed25519.*
 /com/
 /maintenance/backups/
 /maintenance/*.sql
+/maintenance/drill/
 tmp/
 temp/
 *.tmp
