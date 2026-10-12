@@ -20,6 +20,7 @@ import type { EditorFormatState } from "@/lib/milkdown-editor-format-state";
 import { ArticleMarkdownBody } from "@/lib/article-markdown";
 import { extractMarkdownImages } from "@/lib/article-editor-images";
 import { describeEditorImageUploadError, uploadEditorImage } from "./editor-image-upload";
+import { withPrivateMediaAuth } from "@/lib/community-private-media-url";
 
 /*
  * Migrated from Legacy components/studio/article-editor-markdown-body.tsx.
@@ -326,7 +327,12 @@ export function ArticleEditorMarkdownBody({
         <div className={cn(styles.bodyImages)} aria-label="文中图片预览">
           {images.map((image) => (
             <figure key={`${image.lineIndex}-${image.url}`} className={cn(styles.bodyImage)}>
-              <img src={image.url} alt={image.alt || "文中插图"} width={560} height={320} />
+              <img
+                src={withPrivateMediaAuth(image.url)}
+                alt={image.alt || "文中插图"}
+                width={560}
+                height={320}
+              />
             </figure>
           ))}
         </div>

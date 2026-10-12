@@ -480,7 +480,7 @@ export function EditorPage() {
   const coverUrl = fields?.coverUrl ?? "";
   const topicIds = fields?.topicIds ?? [];
   const uploadArticleId = creating
-    ? createdDraftId ?? undefined
+    ? (createdDraftId ?? undefined)
     : articleId !== NEW_DRAFT_ROUTE_ID
       ? articleId
       : undefined;

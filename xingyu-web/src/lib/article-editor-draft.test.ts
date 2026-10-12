@@ -132,7 +132,16 @@ describe("buildDraftSavePayload", () => {
     const payload = buildDraftSavePayload(toEditorDraftFields(draft()), 0);
 
     expect(Object.keys(payload).sort()).toEqual(
-      ["body", "bodyMode", "coverUrl", "lockVersion", "summary", "title", "topicIds", "visibility"].sort(),
+      [
+        "body",
+        "bodyMode",
+        "coverUrl",
+        "lockVersion",
+        "summary",
+        "title",
+        "topicIds",
+        "visibility",
+      ].sort(),
     );
     expect(payload).not.toHaveProperty("categoryId");
     expect(payload).not.toHaveProperty("scheduledPublishAt");

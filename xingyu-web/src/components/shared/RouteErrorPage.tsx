@@ -78,11 +78,13 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
             </pre>
             {this.state.error.message.includes("Failed to fetch dynamically imported module") ? (
               <p className="max-w-md text-left text-meta text-muted-foreground">
-                这通常不是发现页业务逻辑报错，而是 Vite 没能加载该路由的 JS 模块（常见于依赖刚改过、HMR
-                卡住或 dev 缓存过期）。请停止 dev 服务后执行{" "}
+                这通常不是发现页业务逻辑报错，而是 Vite 没能加载该路由的 JS
+                模块（常见于依赖刚改过、HMR 卡住或 dev 缓存过期）。请停止 dev 服务后执行{" "}
                 <code className="rounded bg-surface-sunken px-1">rm -r node_modules/.vite</code>
-                （Windows 可删 <code className="rounded bg-surface-sunken px-1">node_modules\.vite</code>
-                ），再 <code className="rounded bg-surface-sunken px-1">npm run dev</code> 并硬刷新浏览器。
+                （Windows 可删{" "}
+                <code className="rounded bg-surface-sunken px-1">node_modules\.vite</code>
+                ），再 <code className="rounded bg-surface-sunken px-1">npm run dev</code>{" "}
+                并硬刷新浏览器。
               </p>
             ) : null}
           </>

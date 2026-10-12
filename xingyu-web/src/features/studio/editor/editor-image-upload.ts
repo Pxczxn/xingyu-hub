@@ -9,10 +9,7 @@ export class EditorImageUploadUnavailableError extends Error {
   }
 }
 
-export async function uploadEditorImage(
-  file: File,
-  articleId?: string,
-): Promise<{ url: string }> {
+export async function uploadEditorImage(file: File, articleId?: string): Promise<{ url: string }> {
   const uploaded = await filesApi.uploadArticleBodyImage(file, articleId);
   return { url: uploaded.url };
 }
