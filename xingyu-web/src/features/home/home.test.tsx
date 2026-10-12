@@ -736,7 +736,7 @@ describe("home masthead", () => {
     expect(container.querySelector(ARTWORK)).toBeNull();
 
     const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading).toHaveTextContent("把灵感，放进自己的星系");
+    expect(heading).toHaveTextContent("让灵感，在星语相遇");
 
     // A plain header, not a surface: no card fill, no border of its own.
     const masthead = heading.closest("header");

@@ -207,7 +207,7 @@ export function HomePage() {
       <HomeMasthead
         eyebrow={isAuthenticated ? undefined : "XINGYU COMMUNITY"}
         title={
-          isAuthenticated ? "欢迎回来，继续探索你的关注、阅读与创作。" : "把灵感，放进自己的星系"
+          isAuthenticated ? "欢迎回来，继续探索你的关注、阅读与创作。" : "让灵感，在星语相遇"
         }
         /*
          * The prototype asks for 「登录：简洁欢迎语，不占太多空间」. That is now
@@ -216,7 +216,7 @@ export function HomePage() {
          * less in it — not because a flag halves its padding.
          */
         description={
-          isAuthenticated ? undefined : "在这里发现优质的内容，认识同频的人，慢慢建立自己的轨道。"
+          isAuthenticated ? undefined : "分享见解，发现同好，与志同道合的人一起探索更多可能。"
         }
         actions={
           isAuthenticated ? undefined : (
