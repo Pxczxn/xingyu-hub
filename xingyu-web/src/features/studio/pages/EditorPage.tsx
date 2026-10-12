@@ -316,6 +316,11 @@ export function EditorPage() {
     [updateFields],
   );
 
+  const handleCoverUrlChange = useCallback(
+    (url: string) => updateFields({ coverUrl: url }),
+    [updateFields],
+  );
+
   /**
    * The rich-text editor re-serializes the loaded document on mount, which can
    * differ from the stored body (plain-text `[` / `_` get escaped). That first
@@ -472,7 +477,13 @@ export function EditorPage() {
   const body = fields?.body ?? "";
   const bodyMode = fields?.bodyMode ?? "MARKDOWN";
   const visibility = fields?.visibility ?? "PRIVATE";
+  const coverUrl = fields?.coverUrl ?? "";
   const topicIds = fields?.topicIds ?? [];
+  const uploadArticleId = creating
+    ? createdDraftId ?? undefined
+    : articleId !== NEW_DRAFT_ROUTE_ID
+      ? articleId
+      : undefined;
 
   const outline = useMemo(() => extractEditorOutline(body), [body]);
 
@@ -710,9 +721,13 @@ export function EditorPage() {
           topics={topics}
           topicIds={topicIds}
           visibility={visibility}
+          coverUrl={coverUrl}
+          articleId={uploadArticleId}
           readOnly={readOnly}
           onToggleTopic={handleToggleTopic}
           onVisibilityChange={handleVisibilityChange}
+          onCoverUrlChange={handleCoverUrlChange}
+          onCoverUploadError={setUploadError}
         />
       </div>
 

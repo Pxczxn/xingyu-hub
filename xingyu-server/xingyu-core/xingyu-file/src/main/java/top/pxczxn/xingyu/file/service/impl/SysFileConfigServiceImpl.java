@@ -13,6 +13,9 @@ import top.pxczxn.xingyu.file.entity.SysFileConfig;
 import top.pxczxn.xingyu.file.mapper.SysFileConfigMapper;
 import top.pxczxn.xingyu.file.service.SysFileConfigService;
 import top.pxczxn.xingyu.oss.*;
+import top.pxczxn.xingyu.file.support.FileStorageBootstrap;
+import top.pxczxn.xingyu.file.support.StoredFileStorageService;
+import top.pxczxn.xingyu.oss.MinioFileStorage;
 import top.pxczxn.xingyu.system.storage.FileStorageFactory;
 
 import java.util.List;
@@ -23,6 +26,8 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         implements SysFileConfigService {
 
     private final FileStorageFactory fileStorageFactory;
+    private final StoredFileStorageService storedFileStorageService;
+    private final FileStorageBootstrap fileStorageBootstrap;
 
     @Override
     public PageResult<SysFileConfig> page(int page, int pageSize, String name, String storageType) {
@@ -70,7 +75,7 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         }
         save(config);
         if (config.getMaster() == 1) {
-            fileStorageFactory.refresh();
+            refreshStorageCaches();
         }
     }
 
@@ -86,7 +91,7 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         }
         updateById(config);
         if (config.getMaster() != null && config.getMaster() == 1) {
-            fileStorageFactory.refresh();
+            refreshStorageCaches();
         }
     }
 
@@ -116,14 +121,22 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         clearMasterFlag();
         config.setMaster(1);
         updateById(config);
+        refreshStorageCaches();
+    }
+
+    private void refreshStorageCaches() {
         fileStorageFactory.refresh();
+        storedFileStorageService.refresh();
     }
 
     @Override
     public boolean testConnection(SysFileConfig config) {
         validate(config);
         try {
-            FileStorage storage = createStorage(config);
+            FileStorage storage = fileStorageBootstrap.create(config);
+            if (storage instanceof MinioFileStorage minio) {
+                return minio.verifyConnection();
+            }
             return storage != null && storage.getStorageType() != null;
         } catch (Exception ex) {
             return false;
@@ -143,57 +156,4 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         }
     }
 
-    private FileStorage createStorage(SysFileConfig config) {
-        String type = config.getStorageType().trim().toLowerCase();
-        return switch (type) {
-            case LocalFileStorage.STORAGE_TYPE -> {
-                LocalFileStorage storage = new LocalFileStorage();
-                storage.init(
-                        config.getBasePath() == null ? "runtime/uploads" : config.getBasePath(),
-                        config.getDomain() == null ? "" : config.getDomain());
-                yield storage;
-            }
-            case MinioFileStorage.STORAGE_TYPE -> {
-                MinioFileStorage storage = new MinioFileStorage();
-                storage.init(
-                        config.getEndpoint(),
-                        config.getAccessKey(),
-                        config.getSecretKey(),
-                        config.getBucketName(),
-                        config.getDomain());
-                yield storage;
-            }
-            case AliyunOssFileStorage.STORAGE_TYPE -> {
-                AliyunOssFileStorage storage = new AliyunOssFileStorage();
-                storage.init(
-                        config.getEndpoint(),
-                        config.getAccessKey(),
-                        config.getSecretKey(),
-                        config.getBucketName(),
-                        config.getDomain());
-                yield storage;
-            }
-            case TencentCosFileStorage.STORAGE_TYPE -> {
-                TencentCosFileStorage storage = new TencentCosFileStorage();
-                storage.init(
-                        config.getAccessKey(),
-                        config.getSecretKey(),
-                        config.getRegion(),
-                        config.getBucketName(),
-                        config.getDomain());
-                yield storage;
-            }
-            case RustFsFileStorage.STORAGE_TYPE -> {
-                RustFsFileStorage storage = new RustFsFileStorage();
-                storage.init(
-                        config.getEndpoint(),
-                        config.getAccessKey(),
-                        config.getSecretKey(),
-                        config.getBucketName(),
-                        config.getDomain());
-                yield storage;
-            }
-            default -> throw new BusinessException("不支持的存储类型: " + type);
-        };
-    }
 }

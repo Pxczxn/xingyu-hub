@@ -1,12 +1,10 @@
 /*
  * File-upload domain types (Phase 2A-2c).
  *
- * Shape read from `CommunityMessageController.uploadMessageAttachment`
- * (backend: xingyu-api/xingyu-community-api/.../CommunityMessageController.java)
- * and verified live on 2026-09-23 — see files.api.ts for the full contract.
+ * Shape from `CommunityFileController` / legacy message upload — see `files.api.ts`.
  */
 export type UploadedFile = {
-  /** Root-relative display path, e.g. `/api/v1/admin/files/community/messages/<uuid>.png`. */
+  /** Root-relative URL, e.g. `/api/v1/media/public/{fileId}` or `/api/v1/media/private/{fileId}`. */
   url: string;
   /**
    * `sys_file.id` (2026-10-06).

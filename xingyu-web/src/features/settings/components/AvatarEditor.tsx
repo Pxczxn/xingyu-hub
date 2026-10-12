@@ -163,7 +163,7 @@ export function AvatarEditor({
     try {
       let url = uploadedUrl;
       if (!url) {
-        const uploaded = await filesApi.uploadFile(selectedFile as File);
+        const uploaded = await filesApi.uploadAvatar(selectedFile as File);
         url = resolveAvatarSrc(uploaded.url);
         if (!url) throw new Error("上传响应缺少文件地址");
         setUploadedUrl(url);

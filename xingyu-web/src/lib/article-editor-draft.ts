@@ -36,6 +36,7 @@ function normalizeVisibility(value: string | null | undefined): ArticleVisibilit
 export type EditorDraftFields = {
   title: string;
   summary: string;
+  coverUrl: string;
   body: string;
   bodyMode: ArticleBodyMode;
   visibility: ArticleVisibility;
@@ -47,6 +48,7 @@ export function toEditorDraftFields(draft: ArticleDraft): EditorDraftFields {
   return {
     title: draft.title ?? "",
     summary: draft.summary ?? "",
+    coverUrl: draft.coverUrl ?? "",
     body: draft.body ?? "",
     bodyMode: normalizeBodyMode(draft.bodyMode),
     visibility: normalizeVisibility(draft.visibility),
@@ -66,6 +68,7 @@ export function draftFieldsEqual(a: EditorDraftFields, b: EditorDraftFields): bo
   return (
     a.title === b.title &&
     a.summary === b.summary &&
+    a.coverUrl === b.coverUrl &&
     a.body === b.body &&
     a.bodyMode === b.bodyMode &&
     a.visibility === b.visibility &&
@@ -97,6 +100,7 @@ export function buildDraftSavePayload(
   return {
     title: fields.title,
     summary: fields.summary,
+    coverUrl: fields.coverUrl.trim() ? fields.coverUrl.trim() : null,
     body: fields.body,
     bodyMode: fields.bodyMode,
     visibility: fields.visibility,

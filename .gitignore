@@ -108,6 +108,10 @@ coverage/
 playwright-report/
 test-results/
 .playwright-mcp/
+# Vite 预构建缓存（含 Agent 审计时复制的 .tmp-*-vite-cache）
+**/.tmp-vite-cache/
+**/.tmp-authaudit-vite-cache/
+**/.tmp-*-vite-cache/
 reports/
 .eslintcache
 work/
@@ -190,6 +194,7 @@ page-summaries.txt
 # 注意：必须写成 /scripts/* 而不是 /scripts/ —— 目录被整体排除后 git 不会进入目录，下面的例外会失效。
 /scripts/*
 !/scripts/ci-apply-migrations.sh
+!/scripts/local-db.properties.example
 
 
 

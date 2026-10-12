@@ -19,7 +19,7 @@ import { AttachmentPicker } from "./AttachmentPicker";
  */
 
 vi.mock("@/api/files/files.api", () => ({
-  filesApi: { uploadFile: vi.fn() },
+  filesApi: { uploadMessageAttachment: vi.fn() },
 }));
 
 vi.mock("@/api/messages/messages.api", () => ({
@@ -91,7 +91,7 @@ describe("AttachmentPicker — validation before the network", () => {
     expect(onError).toHaveBeenCalledWith(expect.stringContaining("仅支持图片"));
     // The point of pre-validating: the backend answers a bad extension with a
     // 500, so nothing may be sent at all.
-    expect(mockedFiles.uploadFile).not.toHaveBeenCalled();
+    expect(mockedFiles.uploadMessageAttachment).not.toHaveBeenCalled();
     expect(mockedMessages.sendAttachment).not.toHaveBeenCalled();
   });
 
@@ -100,7 +100,7 @@ describe("AttachmentPicker — validation before the network", () => {
     pick(fakeFile("big.zip", 101 * 1024 * 1024));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("100 MB");
-    expect(mockedFiles.uploadFile).not.toHaveBeenCalled();
+    expect(mockedFiles.uploadMessageAttachment).not.toHaveBeenCalled();
   });
 
   it("accepts the whole whitelist, not just images", () => {
@@ -116,7 +116,7 @@ describe("AttachmentPicker — validation before the network", () => {
 
 describe("AttachmentPicker — the two-step send", () => {
   it("uploads first, then sends a message referencing the returned url", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadMessageAttachment.mockResolvedValue({
       url: "/api/v1/admin/files/community/messages/a.png",
       name: "照片.png",
       mimeType: "image/png",
@@ -126,7 +126,7 @@ describe("AttachmentPicker — the two-step send", () => {
     mockedMessages.sendAttachment.mockResolvedValue(message);
 
     const calls: string[] = [];
-    mockedFiles.uploadFile.mockImplementation(async () => {
+    mockedFiles.uploadMessageAttachment.mockImplementation(async () => {
       calls.push("upload");
       return {
         url: "/api/v1/admin/files/community/messages/a.png",
@@ -158,7 +158,7 @@ describe("AttachmentPicker — the two-step send", () => {
   });
 
   it("derives FILE for a non-image in the whitelist", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadMessageAttachment.mockResolvedValue({
       url: "/files/a.pdf",
       name: "报告.pdf",
       mimeType: "application/pdf",
@@ -178,7 +178,7 @@ describe("AttachmentPicker — the two-step send", () => {
   });
 
   it("sends into a group through the group path", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadMessageAttachment.mockResolvedValue({
       url: "/files/a.png",
       name: "a.png",
       mimeType: "image/png",
@@ -196,7 +196,7 @@ describe("AttachmentPicker — the two-step send", () => {
 
 describe("AttachmentPicker — failures name the step", () => {
   it("reports an upload failure as an upload failure", async () => {
-    mockedFiles.uploadFile.mockRejectedValue(new Error("network"));
+    mockedFiles.uploadMessageAttachment.mockRejectedValue(new Error("network"));
 
     const { onError, onSent } = renderPicker();
     pick(fakeFile("a.png"));
@@ -211,7 +211,7 @@ describe("AttachmentPicker — failures name the step", () => {
   it("reports a send failure as a send failure, not an upload failure", async () => {
     // Both calls run while the control is busy, so a phase flag is the only way
     // to tell them apart — this pins that the flag is set at the right moment.
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadMessageAttachment.mockResolvedValue({
       url: "/files/a.png",
       name: "a.png",
       mimeType: "image/png",
@@ -224,11 +224,11 @@ describe("AttachmentPicker — failures name the step", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("附件发送失败");
     expect(onError).toHaveBeenCalledWith("附件发送失败，请重试。");
-    expect(mockedFiles.uploadFile).toHaveBeenCalledTimes(1);
+    expect(mockedFiles.uploadMessageAttachment).toHaveBeenCalledTimes(1);
   });
 
   it("prefers the backend's own reason over the generic copy", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadMessageAttachment.mockResolvedValue({
       url: "/files/a.png",
       name: "a.png",
       mimeType: "image/png",
@@ -256,14 +256,14 @@ describe("AttachmentPicker — repeat attempts", () => {
     // The input value is reset after every attempt, so re-picking the same file
     // still fires `change`. Without that reset a failed upload could never be
     // retried with the same file — the change event simply would not fire.
-    mockedFiles.uploadFile.mockRejectedValueOnce(new Error("network"));
+    mockedFiles.uploadMessageAttachment.mockRejectedValueOnce(new Error("network"));
     const { onSent } = renderPicker();
 
     const file = fakeFile("a.png");
     pick(file);
     expect(await screen.findByRole("alert")).toHaveTextContent("附件上传失败");
 
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadMessageAttachment.mockResolvedValue({
       url: "/files/a.png",
       name: "a.png",
       mimeType: "image/png",
@@ -273,13 +273,13 @@ describe("AttachmentPicker — repeat attempts", () => {
     pick(file);
 
     await waitFor(() => expect(onSent).toHaveBeenCalled());
-    expect(mockedFiles.uploadFile).toHaveBeenCalledTimes(2);
+    expect(mockedFiles.uploadMessageAttachment).toHaveBeenCalledTimes(2);
   });
 
   it("ignores a pick that carries no file", () => {
     renderPicker();
     fireEvent.change(screen.getByTestId("attachment-input"), { target: { files: [] } });
-    expect(mockedFiles.uploadFile).not.toHaveBeenCalled();
+    expect(mockedFiles.uploadMessageAttachment).not.toHaveBeenCalled();
   });
 });
 
@@ -291,7 +291,7 @@ describe("AttachmentPicker — busy state", () => {
 
   it("shows 上传中… and blocks a second pick while working", async () => {
     let release: (value: UploadedFile) => void = () => {};
-    mockedFiles.uploadFile.mockReturnValue(
+    mockedFiles.uploadMessageAttachment.mockReturnValue(
       new Promise((resolve) => {
         release = resolve;
       }),

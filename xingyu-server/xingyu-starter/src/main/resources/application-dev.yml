@@ -2,6 +2,13 @@ server:
   port: 7779
 
 spring:
+  # 本地凭据：优先环境变量；否则从仓库根 scripts/local-db.properties 加载（见 scripts/local-db.properties.example）。
+  # 多路径覆盖 IDEA 默认工作目录（仓库根 / xingyu-server / xingyu-starter）。
+  config:
+    import:
+      - optional:file:./scripts/local-db.properties
+      - optional:file:../scripts/local-db.properties
+      - optional:file:../../scripts/local-db.properties
   application:
     name: xingyu-hub
   jackson:

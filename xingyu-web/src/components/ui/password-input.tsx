@@ -1,5 +1,5 @@
 import { forwardRef, useState, type InputHTMLAttributes } from "react";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils";
 
 export type PasswordInputProps = InputHTMLAttributes<HTMLInputElement>;
 

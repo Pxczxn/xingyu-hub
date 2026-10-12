@@ -107,7 +107,7 @@ export function AttachmentPicker({
     // step as the one that broke.
     let phase: "upload" | "send" = "upload";
     try {
-      const uploaded = await filesApi.uploadFile(file);
+      const uploaded = await filesApi.uploadMessageAttachment(file);
       phase = "send";
       const created = await messagesApi.sendAttachment(conversationId, conversationType, {
         url: uploaded.url,

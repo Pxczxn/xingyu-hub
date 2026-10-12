@@ -1,0 +1,6 @@
+# 复制为同目录下的 local-db.properties（已被 .gitignore 忽略，不会提交）。
+# IDEA / mvn 启动 dev 时会自动 optional 加载；也可继续用 local-db.env + 环境变量。
+DB_USERNAME=pxczxn
+DB_PASSWORD=your_mysql_password_here
+DRUID_USERNAME=your_druid_console_user
+DRUID_PASSWORD=your_druid_console_password

@@ -18,6 +18,7 @@ public class MinioFileStorage implements FileStorage {
     private MinioClient minioClient;
     private String bucketName;
     private String domain;
+    private volatile boolean initialized;
 
     @Override
     public String getStorageType() {
@@ -47,9 +48,29 @@ public class MinioFileStorage implements FileStorage {
                         .build());
                 log.info("MinIO存储桶创建成功: {}", bucketName);
             }
+            initialized = true;
             log.info("MinIO存储初始化完成, endpoint: {}, bucket: {}", endpoint, bucketName);
         } catch (Exception e) {
+            initialized = false;
             log.error("MinIO初始化失败", e);
+            throw new IllegalStateException("MinIO 初始化失败: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean isInitialized() {
+        return initialized && minioClient != null;
+    }
+
+    /** 连接与桶可用性探测（用于管理端「测试连接」）。 */
+    public boolean verifyConnection() {
+        if (!isInitialized()) {
+            return false;
+        }
+        try {
+            return minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
+        } catch (Exception e) {
+            log.error("MinIO 连接探测失败", e);
+            return false;
         }
     }
 

@@ -1,57 +1,122 @@
 import styles from "./editor-workspace.module.css";
 import { cn } from "@/lib/cn";
+import { useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { filesApi } from "@/api/files/files.api";
+import {
+  AVATAR_ACCEPT_ATTR,
+  AVATAR_FORMAT_ERROR,
+  validateAvatarFile,
+} from "@/features/settings/avatar-file";
 
 import type { TopicSummary } from "@/api/topics/topics.types";
 import type { ArticleVisibility } from "@/api/articles/articles.types";
 import { VISIBILITY_OPTIONS } from "@/lib/article-editor-draft";
 
-/*
- * Editor settings — Phase 1C-2, deliberately reduced from Legacy
- * components/studio/article-editor-settings.tsx.
- *
- * Legacy rendered five sections; only two are backed by a contract this round
- * can actually persist:
- *
- *   KEPT   话题        GET /api/v1/topics  +  PUT draft { topicIds }   (verified)
- *   KEPT   可见范围     PUT draft { visibility }  PUBLIC|UNLISTED|PRIVATE (verified)
- *
- *   DROPPED 封面图      upload goes to POST /api/v1/attachments — backend image
- *                      upload is forbidden this round, so there is no way to
- *                      produce a coverUrl. Hidden rather than shown as a control
- *                      that always fails. `coverUrl` is omitted from the save
- *                      payload, so an existing cover is preserved.
- *   DROPPED 个人分类    GET /api/v1/me/creation-space/categories works but the dev
- *                      space has 0 categories, and creating them belongs to an
- *                      unmigrated subsystem. `categoryId` is omitted from the
- *                      save payload, so an existing category is preserved.
- *   DROPPED 定时发布     scheduledPublishAt — scheduled publishing is forbidden.
- *   DROPPED 删除草稿     trash — deleting drafts is forbidden.
- *
- * The active pill uses the CSS-module `isActive` class. Legacy wrote the literal
- * string "is-active" against a `.isActive` rule, so its selected state never
- * actually styled — that is fixed here rather than copied.
- */
-
 type ArticleEditorSettingsProps = {
   topics: TopicSummary[];
   topicIds: string[];
   visibility: ArticleVisibility;
-  /** Phase 1C-3: IN_REVIEW drafts are not editable — the backend rejects saves. */
+  coverUrl: string;
+  /** Real article id when known; omitted on `/studio/content/new` before first save. */
+  articleId?: string;
   readOnly?: boolean;
   onToggleTopic: (topicId: string) => void;
   onVisibilityChange: (value: ArticleVisibility) => void;
+  onCoverUrlChange: (url: string) => void;
+  onCoverUploadError?: (message: string | null) => void;
 };
 
 export function ArticleEditorSettings({
   topics,
   topicIds,
   visibility,
+  coverUrl,
+  articleId,
   readOnly = false,
   onToggleTopic,
   onVisibilityChange,
+  onCoverUrlChange,
+  onCoverUploadError,
 }: ArticleEditorSettingsProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+
+  const handleCoverPick = async (file: File) => {
+    const validationError = validateAvatarFile(file);
+    if (validationError) {
+      onCoverUploadError?.(validationError);
+      return;
+    }
+    onCoverUploadError?.(null);
+    setCoverUploading(true);
+    try {
+      const uploaded = await filesApi.uploadArticleCover(file, articleId);
+      onCoverUrlChange(uploaded.url);
+    } catch {
+      onCoverUploadError?.("封面上传失败，请稍后重试");
+    } finally {
+      setCoverUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
   return (
     <aside className={cn(styles.settings)} aria-label="发布设置">
+      <section className={cn(styles.settingsCard)}>
+        <h2>封面</h2>
+        <div className={cn(styles.settingsGroup)}>
+          {coverUrl ? (
+            <img
+              src={coverUrl}
+              alt=""
+              className="mb-2 w-full rounded-lg object-cover aspect-[2.15/1]"
+            />
+          ) : (
+            <p className={cn(styles.settingsHint)}>未设置封面（可选）</p>
+          )}
+          <input
+            ref={inputRef}
+            type="file"
+            accept={AVATAR_ACCEPT_ATTR}
+            className="sr-only"
+            disabled={readOnly || coverUploading}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void handleCoverPick(file);
+            }}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={cn(styles.settingsPills, "cursor-pointer text-sm")}
+              disabled={readOnly || coverUploading}
+              onClick={() => inputRef.current?.click()}
+            >
+              {coverUploading ? (
+                <>
+                  <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
+                  上传中…
+                </>
+              ) : (
+                "上传封面"
+              )}
+            </button>
+            {coverUrl ? (
+              <button
+                type="button"
+                className={cn(styles.settingsPills, "cursor-pointer text-sm")}
+                disabled={readOnly || coverUploading}
+                onClick={() => onCoverUrlChange("")}
+              >
+                移除封面
+              </button>
+            ) : null}
+          </div>
+          <p className={cn(styles.settingsHint)}>{AVATAR_FORMAT_ERROR}</p>
+        </div>
+      </section>
+
       <section className={cn(styles.settingsCard)}>
         <h2>话题分类</h2>
         <div className={cn(styles.settingsGroup)}>

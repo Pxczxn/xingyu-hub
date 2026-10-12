@@ -227,6 +227,13 @@ final class TestSchemaAssertions {
         column("chat_message", "recalled_at", "timestamp", true, null, "撤回时间（UTC）");
         column("working_draft", "cover_url", "varchar(1024)", true, null, "封面图 URL");
         column("formal_revision", "cover_url", "varchar(1024)", true, null, "封面图 URL");
+        column("sys_file", "file_config_id", "bigint", true, null, "上传时使用的 sys_file_config.id");
+        column("sys_file", "file_purpose", "varchar(64)", true, null, "业务用途枚举");
+        column("sys_file", "visibility", "varchar(16)", false, "public", "public|private");
+        column("sys_file", "owner_user_id", "varchar(64)", true, null, "社区用户 ID");
+        column("sys_file", "lifecycle_status", "varchar(32)", false, "active", "active|orphan_pending|deleted");
+        column("sys_file_config", "public_bucket_name", "varchar(128)", true, null, "公共桶名");
+        column("sys_file_config", "private_bucket_name", "varchar(128)", true, null, "私有桶名");
     }
 
     // ------------------------------------------------------------------

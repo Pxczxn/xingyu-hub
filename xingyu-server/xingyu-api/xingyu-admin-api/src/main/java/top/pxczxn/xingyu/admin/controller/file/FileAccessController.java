@@ -43,6 +43,7 @@ public class FileAccessController {
      */
     private static final String[] MEMBER_ONLY_PREFIXES = {
         "community/messages/",
+        "private/",
     };
 
     private final SystemConfigHelper configHelper;

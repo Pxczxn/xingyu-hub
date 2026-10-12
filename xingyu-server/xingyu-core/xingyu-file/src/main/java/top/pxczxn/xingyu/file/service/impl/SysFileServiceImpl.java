@@ -4,9 +4,16 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import top.pxczxn.xingyu.file.community.CommunityFilePathPlanner;
+import top.pxczxn.xingyu.file.community.CommunityFilePurpose;
+import top.pxczxn.xingyu.file.community.CommunityFileUploadCommand;
+import top.pxczxn.xingyu.file.community.CommunityUploadedFileView;
 import top.pxczxn.xingyu.file.entity.SysFile;
+import top.pxczxn.xingyu.file.entity.SysFileConfig;
 import top.pxczxn.xingyu.file.mapper.SysFileMapper;
 import top.pxczxn.xingyu.file.service.SysFileService;
+import top.pxczxn.xingyu.file.support.FileContentValidator;
+import top.pxczxn.xingyu.file.support.StoredFileStorageService;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
 import top.pxczxn.xingyu.oss.FileStorage;
 import top.pxczxn.xingyu.system.storage.FileStorageFactory;
@@ -34,6 +41,7 @@ public class SysFileServiceImpl implements SysFileService {
 
     private final SysFileMapper fileMapper;
     private final FileStorageFactory storageFactory;
+    private final StoredFileStorageService storedFileStorageService;
     private final SystemConfigHelper configHelper;
 
     @Override
@@ -111,8 +119,7 @@ public class SysFileServiceImpl implements SysFileService {
             configHelper.validateFileType(originalName);
         }
 
-        // 获取存储实例
-        FileStorage storage = storageFactory.getStorage();
+        FileStorage storage = storedFileStorageService.getMasterStorage(true);
         String suffix = getFileSuffix(originalName);
         String fileName = generateFileName(suffix);
 
@@ -172,9 +179,91 @@ public class SysFileServiceImpl implements SysFileService {
             throw new RuntimeException("文件不存在");
         }
 
-        // 使用当前存储获取文件
-        FileStorage storage = storageFactory.getStorage();
+        FileStorage storage = storedFileStorageService.getStorageForFile(sysFile);
         return storage.getFile(sysFile.getFilePath());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CommunityUploadedFileView uploadCommunity(MultipartFile file, CommunityFileUploadCommand command) {
+        CommunityFilePurpose purpose = command.getPurpose();
+        boolean publicZone = purpose.isPublicByDefault();
+        long maxBytes = storedFileStorageService.maxUploadBytes();
+        if (purpose == CommunityFilePurpose.MESSAGE_ATTACHMENT) {
+            FileContentValidator.validateAttachmentUpload(
+                    file,
+                    java.util.Set.of(
+                            "jpg", "jpeg", "png", "gif", "webp",
+                            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+                            "txt", "md", "csv", "zip"),
+                    maxBytes);
+        } else {
+            FileContentValidator.validateImageUpload(file, maxBytes);
+        }
+
+        String suffix = FileContentValidator.requireExtension(file.getOriginalFilename());
+        String objectKey = CommunityFilePathPlanner.objectKey(
+                purpose,
+                command.getOwnerUserId(),
+                "." + suffix,
+                command.getDraftId(),
+                command.getArticleId(),
+                command.getSeriesId(),
+                command.getGalaxyId(),
+                command.getMomentId());
+
+        SysFileConfig master = storedFileStorageService.getMasterConfig();
+        FileStorage storage = storedFileStorageService.getMasterStorage(publicZone);
+        String fileName = objectKey.substring(objectKey.lastIndexOf('/') + 1);
+        String storagePath = objectKey.substring(0, objectKey.lastIndexOf('/'));
+
+        try {
+            storage.upload(file.getInputStream(), storagePath, fileName);
+            SysFile sysFile = new SysFile();
+            sysFile.setOriginalName(file.getOriginalFilename());
+            sysFile.setFileName(fileName);
+            sysFile.setFilePath(storagePath + "/" + fileName);
+            sysFile.setUrl("");
+            sysFile.setFileSize(file.getSize());
+            sysFile.setFileType(file.getContentType());
+            sysFile.setFileSuffix("." + suffix);
+            sysFile.setStorageType(storage.getStorageType());
+            if (master != null) {
+                sysFile.setFileConfigId(master.getId());
+                sysFile.setBucketName(
+                        storedFileStorageService.resolveBucketName(master, publicZone, null));
+            }
+            sysFile.setFilePurpose(purpose.name());
+            sysFile.setVisibility(publicZone ? "public" : "private");
+            sysFile.setOwnerUserId(command.getOwnerUserId());
+            sysFile.setLifecycleStatus("active");
+            sysFile.setCreateBy(command.getOwnerUserId());
+            sysFile.setCreateTime(LocalDateTime.now());
+            fileMapper.insert(sysFile);
+            if (publicZone) {
+                sysFile.setUrl(publicMediaUrl(sysFile.getId()));
+                fileMapper.updateById(sysFile);
+            } else {
+                sysFile.setUrl("/api/v1/media/private/" + sysFile.getId());
+                fileMapper.updateById(sysFile);
+            }
+            return CommunityUploadedFileView.builder()
+                    .fileId(sysFile.getId())
+                    .url(sysFile.getUrl())
+                    .name(sysFile.getOriginalName() == null ? fileName : sysFile.getOriginalName())
+                    .mimeType(sysFile.getFileType() == null ? "" : sysFile.getFileType())
+                    .visibility(sysFile.getVisibility())
+                    .purpose(purpose.name())
+                    .build();
+        } catch (IOException e) {
+            log.error("社区文件上传失败", e);
+            throw new RuntimeException("文件上传失败", e);
+        }
+    }
+
+    @Override
+    public String publicMediaUrl(long fileId) {
+        return "/api/v1/media/public/" + fileId;
     }
 
     @Override
@@ -187,7 +276,7 @@ public class SysFileServiceImpl implements SysFileService {
 
         // 删除存储文件
         try {
-            FileStorage storage = storageFactory.getStorage();
+            FileStorage storage = storedFileStorageService.getStorageForFile(sysFile);
             storage.delete(sysFile.getFilePath());
         } catch (Exception e) {
             log.error("删除存储文件失败", e);

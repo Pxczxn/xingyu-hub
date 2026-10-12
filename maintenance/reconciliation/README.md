@@ -177,6 +177,9 @@ migration 声明 `COMMENT`，即证明其来源是 migration 而非测试 DDL。
 | 历史孤儿对象 | **不动** |
 | `register` / `login` 相关逻辑 | **不动** |
 
+> 注（2026-10-12）：上表是本轮（2026-09 账本补偿）的自我约束，其中「历史孤儿对象不动」已被 **§11.3** 部分更新 ——
+> 经用户确认，dev 中 7 张 `flow_*` 历史孤儿表已删除，以便 dev 结构与 fresh 对齐。理由、备份与恢复方式见 §11。
+
 ---
 
 ## 7. 如何执行
@@ -278,3 +281,89 @@ datasource 使用真实 dev 凭据（库 `xingyu_hub`）。
 
 回滚方式见 [`PLAN.md`](./PLAN.md) 附录 B；备份
 `.tmp-xingyu_hub_before_reconciliation_20260920-170556.sql` 待确认稳定后清理。
+
+---
+
+## 11. 2026-10-12 完整性审计与 dev 结构对齐
+
+日期：2026-10-12
+触发：用户要求检查数据库完整性；本节记录审计结论与随后的处置（经用户确认后执行）。
+范围：dev `xingyu_hub` 为审计对象；fresh 参照为 `xingyu_hub_test`（**未改动**）。
+
+### 11.1 审计结论摘要
+
+| 检查项 | 方法 | 结果 |
+|---|---|---|
+| 物理完整性 | `mysqlcheck --check --databases` | dev + fresh 共 **241 张表全 OK** |
+| 表集合 | `information_schema` | 审计前 dev 125 张 / fresh 116 张；对齐后 **116 / 116** |
+| 引擎与字符集 | `information_schema` | 两库全 InnoDB + `utf8mb4_0900_ai_ci`，无非 utf8mb4 字符列 |
+| 隐藏对象 | `VIEWS`/`TRIGGERS`/`ROUTINES`/`EVENTS` | 两库**全 0** |
+| 主键 | `TABLES`/`STATISTICS` | 每张表都有主键；105 张 `PK(id)`；33 张 `id` 为 AUTO_INCREMENT |
+| 自增冲突 | `AUTO_INCREMENT` vs `MAX(id)` | 0 例 |
+| 外键 | 全库 FK 统计 | 30 条全部落在 `qrtz_*`；**业务表无任何声明式外键** |
+| 迁移台账 | `schema_migration` + 按 `sql/rebuild.ps1` 口径复算 SHA-256 | 两库 **52 行（000–051）**，**52/52 checksum 与 `sql/V*.sql` 一致**，无孤儿文件/孤儿台账 |
+| 结构指纹 | `information_schema` 的 COL/IDX/TBL 三段 diff | 116 张共有表**零漂移** |
+| 自然键 | username / email / slug / seed_key | 0 重复 |
+| 档案一致性 | `community_user` ↔ `community_profile` | 两表各 49 行，双向 0 不匹配 |
+
+### 11.2 发现 1：V019 的 DDL/DML 在 dev 从未真实执行（台账 `SUCCESS` 与事实不符）
+
+`sql/V019__drop_mars_demo.sql` 要求 `DROP TABLE coder_banner/student` 并
+`DELETE FROM gen_table_column WHERE table_id = 4` / `DELETE FROM gen_table WHERE table_name = 'student'`。
+审计实测（改动前）：dev 中 `coder_banner`（1 行）、`student`（6 行）**仍然存在**，`gen_table` 1 行（id=4, student）、
+`gen_table_column` 13 行；而 fresh 库这些对象**都不存在**。→ dev 台账里 `V019 = SUCCESS` 是一个
+**不成立的执行事实断言**（与 §2 的口径冲突：`SUCCESS` 断言"SQL 被完整执行"，而 DDL 后置条件在 dev 不成立）。
+
+处置（2026-10-12，经用户确认）：在 dev **原样执行 `sql/V019__drop_mars_demo.sql`**（该文件全部语句幂等：
+`DELETE … WHERE` 精确谓词 + `DROP TABLE IF EXISTS`）。
+
+执行后核验：`coder_banner`/`student` 已不存在；`gen_table`、`gen_table_column` 均 0 行；
+student 菜单残留 0（执行前也是 0）；**`sys_menu` 102 行 / `sys_role_menu` 116 行执行前后不变**（该文件的菜单 DELETE 谓词在 dev 无命中）。
+台账行**未改动**——DDL/DML 补齐后，V019 的 `SUCCESS` 才真正成立。
+
+### 11.3 发现 2：7 张 `flow_*` 历史孤儿表
+
+dev 独有的 `flow_definition`(2 行)、`flow_his_task`(0)、`flow_instance`(0)、`flow_node`(6)、`flow_skip`(4)、
+`flow_task`(0)、`flow_user`(0)：**不出现在任何 `sql/V*.sql`**（既非创建也非删除），
+Java/XML/YAML 与前端全仓 grep 0 引用，pom 无 warm-flow / flowable 依赖 → 判定为历史脚手架残余。
+
+处置（2026-10-12，经用户确认）：dev 中 `DROP` 这 7 张表。删除后 dev 表数 **125 → 116**，与 fresh 相同。
+> 与 §6「历史孤儿对象 **不动**」的关系：§6 是 2026-09 账本补偿轮次的约束（那一轮的目标是"零变更"）。
+> 本轮目标是 dev 结构与 fresh 对齐，且**对象定义与数据已进备份**（§11.5），可恢复。
+
+### 11.4 发现 3：29 行悬空引用（硬删父行、无级联的残骸）
+
+成因：2026-10-07/10-08 的 fixture 清理直接 `DELETE` 父行；业务表**没有声明式外键**，数据库层无兜底。
+审计（改动前）按"父表不存在"判定：
+
+| 关系 | 孤儿行 | 说明 |
+|---|---|---|
+| `community_session.user_id` | 14 | 5 个已删除用户（`107ef842…`、`590e71c3…`、`dd906581…`、`df41ef60…`、`f5214ccd…`） |
+| `community_creation_space.user_id` | 7 | 7 个已删除用户；**这 7 个空间无任何 article/category/series 引用**（空容器） |
+| `auth_security_event.user_id` | 3 | 已删除用户 `dd906581…` —— **保留，见下** |
+| `moment_revision.moment_id` | 4 | 4 个已删除 moment |
+| `review_submission.article_id` / `formal_revision.article_id` / `working_draft.article_id` | 1 / 1 / 1 | 同一篇已删除文章 `ce1556ae-b9fd-4692-9ec0-31d0c99fd8e0` |
+| `review_decision.submission_id`（被上一条孤儿 submission 引用） | 1 | 删除 submission 前先删它，避免删出新孤儿 |
+
+处置（2026-10-12，经用户确认）：在**单个事务**内按子→父顺序删除 **29 行**
+（`review_decision` 1 → `review_submission` 1 → `formal_revision` 1 → `working_draft` 1 → `moment_revision` 4 →
+`community_session` 14 → `community_creation_space` 7），`ROW_COUNT()` 逐条与审计预期一致，`COMMIT`。
+
+**刻意保留**：`auth_security_event.user_id` 3 行。安全审计事件引用已删除账号是**设计上的留痕行为**
+（审计日志的生命周期长于账号），删除它会抹掉审计历史。因此本库的"悬空引用"从此**只剩这 3 行**，
+且属预期状态、不是缺陷。若哪天需要审计事件随账号级联清理，应先改业务策略再动数据。
+
+（假阳性说明：`sys_menu`/`sys_dept`/`sys_post` 的 `parent_id = 0` 是顶层节点约定；`auth_security_event` 中的
+`744f0d0c-…`（xchen@pxczxn.top）用户实际仍在 `community_user`。二者均不计入悬空。）
+
+### 11.5 备份与回滚
+
+| 产物 | 路径 | 说明 |
+|---|---|---|
+| 全库逻辑备份 | `.tmp-db-fix/xingyu_hub-before-fix-20261012-142749.sql`（2.6 MB） | `mysqldump --single-transaction --skip-lock-tables --no-tablespaces`，含被删 9 张表的 DDL+数据与全部待删行 |
+| 行数快照 | `.tmp-db-fix/rows-before.tsv`、`.tmp-db-fix/rows-after.tsv` | 逐表**精确**行数（改动前后），用于证明"只有预期表发生变化" |
+
+回滚：`mysql --host=127.0.0.1 --user=pxczxn xingyu_hub < .tmp-db-fix/xingyu_hub-before-fix-20261012-142749.sql`
+（或按需只恢复被删对象/行）。
+
+> ⚠️ 备份位于 `.tmp-db-fix/`，被 `.gitignore` 的 `.tmp-*` 忽略，属**本机临时证据**；若需长期留档，应移出临时目录。

@@ -64,12 +64,13 @@ export type ArticleVisibility = "PUBLIC" | "UNLISTED" | "PRIVATE";
  *
  * Only fields this round actually edits are included. The backend applies patch
  * semantics (`body.containsKey(...)`), so omitted keys are left untouched —
- * coverUrl / categoryId / slug / scheduledPublishAt are deliberately omitted so
- * an existing value is preserved rather than wiped.
+ * categoryId / slug / scheduledPublishAt are omitted when unchanged; coverUrl is
+ * included when the editor manages cover uploads.
  */
 export type ArticleDraftSavePayload = {
   title: string;
   summary: string;
+  coverUrl?: string | null;
   body: string;
   bodyMode: "MARKDOWN" | "RICH_TEXT";
   visibility: ArticleVisibility;

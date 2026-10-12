@@ -119,6 +119,7 @@ describe("buildDraftSavePayload", () => {
     expect(buildDraftSavePayload(fields, 7)).toEqual({
       title: "T",
       summary: "S",
+      coverUrl: null,
       body: "B",
       bodyMode: "RICH_TEXT",
       visibility: "UNLISTED",
@@ -131,9 +132,8 @@ describe("buildDraftSavePayload", () => {
     const payload = buildDraftSavePayload(toEditorDraftFields(draft()), 0);
 
     expect(Object.keys(payload).sort()).toEqual(
-      ["body", "bodyMode", "lockVersion", "summary", "title", "topicIds", "visibility"].sort(),
+      ["body", "bodyMode", "coverUrl", "lockVersion", "summary", "title", "topicIds", "visibility"].sort(),
     );
-    expect(payload).not.toHaveProperty("coverUrl");
     expect(payload).not.toHaveProperty("categoryId");
     expect(payload).not.toHaveProperty("scheduledPublishAt");
     expect(payload).not.toHaveProperty("slug");

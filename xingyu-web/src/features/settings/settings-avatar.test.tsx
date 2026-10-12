@@ -15,7 +15,7 @@ import { SettingsProfilePage } from "./pages/SettingsProfilePage";
  * Avatar loop on /settings/profile (Phase 2A-2c).
  *
  * The real chain is TWO requests (verified live 2026-09-23):
- *   1. POST /api/v1/messages/upload    -> { url }
+ *   1. POST /api/v1/files/upload?purpose=USER_AVATAR -> { url }
  *   2. PUT  /api/v1/me/client-settings -> { avatar: url }
  *
  * Everything here is about the parts jsdom CAN prove: validation, the object
@@ -36,7 +36,7 @@ vi.mock("@/api/users/users.api", () => ({
 }));
 
 vi.mock("@/api/files/files.api", () => ({
-  filesApi: { uploadFile: vi.fn() },
+  filesApi: { uploadAvatar: vi.fn() },
 }));
 
 vi.mock("@/api/settings/client-settings.api", () => ({
@@ -134,7 +134,7 @@ describe("avatar — picker and preview", () => {
     expect(preview).toHaveAttribute("src", "blob:mock/1");
     expect(screen.getByTestId("avatar-preview-hint")).toHaveTextContent("预览（尚未保存）");
     // Nothing has been sent anywhere yet.
-    expect(mockedFiles.uploadFile).not.toHaveBeenCalled();
+    expect(mockedFiles.uploadAvatar).not.toHaveBeenCalled();
     expect(mockedSettings.updateAvatar).not.toHaveBeenCalled();
   });
 
@@ -147,7 +147,7 @@ describe("avatar — picker and preview", () => {
     expect(await screen.findByTestId("avatar-error")).toHaveTextContent(
       "仅支持 PNG、JPG、GIF、WebP 格式的图片",
     );
-    expect(mockedFiles.uploadFile).not.toHaveBeenCalled();
+    expect(mockedFiles.uploadAvatar).not.toHaveBeenCalled();
     expect(screen.getByTestId("avatar-image")).toHaveAttribute("src", SAVED_AVATAR);
   });
 
@@ -157,7 +157,7 @@ describe("avatar — picker and preview", () => {
     selectFile(fileInput(), pngFile("huge.png", AVATAR_MAX_BYTES + 1));
 
     expect(await screen.findByTestId("avatar-error")).toHaveTextContent("图片不能超过 100 MB");
-    expect(mockedFiles.uploadFile).not.toHaveBeenCalled();
+    expect(mockedFiles.uploadAvatar).not.toHaveBeenCalled();
   });
 
   it("revokes the previous object URL when another file is picked", async () => {
@@ -184,7 +184,7 @@ describe("avatar — picker and preview", () => {
   });
 
   it("revokes the object URL once the upload succeeds", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadAvatar.mockResolvedValue({
       url: SAVED_AVATAR,
       name: "avatar.png",
       mimeType: "image/png",
@@ -205,7 +205,7 @@ describe("avatar — picker and preview", () => {
 
 describe("avatar — the two-phase upload", () => {
   it("uploads first, then writes the avatar, and adopts the server value", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadAvatar.mockResolvedValue({
       url: "/api/v1/admin/files/community/messages/new.png",
       name: "avatar.png",
       mimeType: "image/png",
@@ -220,7 +220,7 @@ describe("avatar — the two-phase upload", () => {
     await userEvent.click(screen.getByRole("button", { name: "上传头像" }));
 
     await screen.findByTestId("avatar-saved");
-    expect(mockedFiles.uploadFile).toHaveBeenCalledTimes(1);
+    expect(mockedFiles.uploadAvatar).toHaveBeenCalledTimes(1);
     expect(mockedSettings.updateAvatar).toHaveBeenCalledTimes(1);
     expect(mockedSettings.updateAvatar).toHaveBeenCalledWith(
       "/api/v1/admin/files/community/messages/new.png",
@@ -235,7 +235,7 @@ describe("avatar — the two-phase upload", () => {
 
   it("never sends the same upload twice when the button is clicked twice", async () => {
     let resolveUpload: (value: UploadedFile) => void = () => {};
-    mockedFiles.uploadFile.mockImplementation(
+    mockedFiles.uploadAvatar.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveUpload = resolve;
@@ -261,13 +261,13 @@ describe("avatar — the two-phase upload", () => {
     resolveUpload({ url: SAVED_AVATAR, name: "avatar.png", mimeType: "image/png", fileId: 1 });
 
     await screen.findByTestId("avatar-saved");
-    expect(mockedFiles.uploadFile).toHaveBeenCalledTimes(1);
+    expect(mockedFiles.uploadAvatar).toHaveBeenCalledTimes(1);
     expect(mockedSettings.updateAvatar).toHaveBeenCalledTimes(1);
   });
 
   it("does not touch the profile when the upload fails", async () => {
     mockedUsers.getMyProfile.mockResolvedValue(profile({ avatar: SAVED_AVATAR }));
-    mockedFiles.uploadFile.mockRejectedValue(apiError(500, "系统繁忙，请稍后再试"));
+    mockedFiles.uploadAvatar.mockRejectedValue(apiError(500, "系统繁忙，请稍后再试"));
 
     await renderPage();
     selectFile(fileInput(), pngFile());
@@ -284,7 +284,7 @@ describe("avatar — the two-phase upload", () => {
 
   it("reports a failure and keeps the OLD avatar when the settings write fails", async () => {
     mockedUsers.getMyProfile.mockResolvedValue(profile({ avatar: SAVED_AVATAR }));
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadAvatar.mockResolvedValue({
       url: "/api/v1/admin/files/community/messages/new.png",
       name: "avatar.png",
       mimeType: "image/png",
@@ -307,7 +307,7 @@ describe("avatar — the two-phase upload", () => {
 
   it("retries only the settings write, never re-uploading the file", async () => {
     mockedUsers.getMyProfile.mockResolvedValue(profile({ avatar: SAVED_AVATAR }));
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadAvatar.mockResolvedValue({
       url: "/api/v1/admin/files/community/messages/new.png",
       name: "avatar.png",
       mimeType: "image/png",
@@ -327,7 +327,7 @@ describe("avatar — the two-phase upload", () => {
 
     await screen.findByTestId("avatar-saved");
     // The file is already stored; a second upload would only add an orphan.
-    expect(mockedFiles.uploadFile).toHaveBeenCalledTimes(1);
+    expect(mockedFiles.uploadAvatar).toHaveBeenCalledTimes(1);
     expect(mockedSettings.updateAvatar).toHaveBeenCalledTimes(2);
   });
 });
@@ -367,7 +367,7 @@ describe("avatar — existing value, fallback and reset", () => {
   });
 
   it("shows the saved avatar again after a remount (the reload path)", async () => {
-    mockedFiles.uploadFile.mockResolvedValue({
+    mockedFiles.uploadAvatar.mockResolvedValue({
       url: SAVED_AVATAR,
       name: "avatar.png",
       mimeType: "image/png",

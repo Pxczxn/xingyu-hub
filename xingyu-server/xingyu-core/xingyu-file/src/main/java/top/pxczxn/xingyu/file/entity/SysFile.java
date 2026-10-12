@@ -65,6 +65,31 @@ public class SysFile implements Serializable {
     private String bucketName;
 
     /**
+     * 上传时使用的 sys_file_config.id
+     */
+    private Long fileConfigId;
+
+    /**
+     * 业务用途（CommunityFilePurpose 等）
+     */
+    private String filePurpose;
+
+    /**
+     * public | private
+     */
+    private String visibility;
+
+    /**
+     * 社区用户 ID
+     */
+    private String ownerUserId;
+
+    /**
+     * active | orphan_pending | deleted
+     */
+    private String lifecycleStatus;
+
+    /**
      * 分组ID
      */
     private Long groupId;

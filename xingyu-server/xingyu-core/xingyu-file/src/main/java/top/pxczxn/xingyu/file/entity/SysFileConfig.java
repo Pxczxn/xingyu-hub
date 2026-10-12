@@ -26,6 +26,12 @@ public class SysFileConfig implements Serializable {
 
     private String bucketName;
 
+    /** MinIO 公共桶（默认 xingyu-public） */
+    private String publicBucketName;
+
+    /** MinIO 私有桶（默认 xingyu-private） */
+    private String privateBucketName;
+
     private String accessKey;
 
     private String secretKey;

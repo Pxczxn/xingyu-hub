@@ -1,6 +1,8 @@
 package top.pxczxn.xingyu.file.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import top.pxczxn.xingyu.file.community.CommunityFileUploadCommand;
+import top.pxczxn.xingyu.file.community.CommunityUploadedFileView;
 import top.pxczxn.xingyu.file.entity.SysFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -53,6 +55,16 @@ public interface SysFileService {
      * 获取文件字节
      */
     byte[] getFileBytes(Long id);
+
+    /**
+     * 社区统一上传（按用途生成 Object Key，写入元数据）。
+     */
+    CommunityUploadedFileView uploadCommunity(MultipartFile file, CommunityFileUploadCommand command);
+
+    /**
+     * 公开媒体访问 URL（根相对路径）。
+     */
+    String publicMediaUrl(long fileId);
 
     /**
      * 删除文件

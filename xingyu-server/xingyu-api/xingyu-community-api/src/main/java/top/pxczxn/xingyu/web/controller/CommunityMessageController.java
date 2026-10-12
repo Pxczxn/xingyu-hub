@@ -9,6 +9,9 @@ import top.pxczxn.xingyu.community.dto.GroupJoinRequestView;
 import top.pxczxn.xingyu.community.service.ConversationService;
 import top.pxczxn.xingyu.community.service.ConversationService.MessageBackfillView;
 import top.pxczxn.xingyu.community.service.ConversationService.MessageContextView;
+import top.pxczxn.xingyu.file.community.CommunityFilePurpose;
+import top.pxczxn.xingyu.file.community.CommunityFileUploadCommand;
+import top.pxczxn.xingyu.file.community.CommunityUploadedFileView;
 import top.pxczxn.xingyu.file.entity.SysFile;
 import top.pxczxn.xingyu.file.service.SysFileService;
 import lombok.RequiredArgsConstructor;
@@ -146,14 +149,18 @@ public class CommunityMessageController {
      */
     @PostMapping("/upload")
     public Map<String, Object> uploadMessageAttachment(@RequestParam("file") MultipartFile file) {
-        validateCommunityAttachment(file);
         String uploaderId = CommunityAuthContext.requireUser().getId();
-        SysFile uploaded = fileService.upload(file, "community/messages", null, uploaderId);
+        CommunityUploadedFileView uploaded = fileService.uploadCommunity(
+                file,
+                CommunityFileUploadCommand.builder()
+                        .purpose(CommunityFilePurpose.MESSAGE_ATTACHMENT)
+                        .ownerUserId(uploaderId)
+                        .build());
         return Map.of(
                 "url", uploaded.getUrl(),
-                "name", uploaded.getOriginalName() == null ? "file" : uploaded.getOriginalName(),
-                "mimeType", uploaded.getFileType() == null ? "" : uploaded.getFileType(),
-                "fileId", uploaded.getId());
+                "name", uploaded.getName(),
+                "mimeType", uploaded.getMimeType(),
+                "fileId", uploaded.getFileId());
     }
 
     private void validateCommunityAttachment(MultipartFile file) {
