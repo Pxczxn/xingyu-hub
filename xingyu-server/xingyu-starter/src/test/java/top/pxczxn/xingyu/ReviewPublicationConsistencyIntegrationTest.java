@@ -92,10 +92,11 @@ class ReviewPublicationConsistencyIntegrationTest {
                 INSERT INTO community_creation_space (id, user_id, slug, display_name, created_at)
                 VALUES (?, ?, ?, '一致性验收', NOW())
                 """, UUID.randomUUID().toString(), authorId, "rpcons-space-" + slugSuffix);
+        String username = "rpcons_author_" + (System.nanoTime() % 1_000_000_000L);
         jdbcTemplate.update("""
                 INSERT INTO community_profile (id, user_id, username, visibility, lock_version, created_at)
-                VALUES (?, ?, username, 'PUBLIC', 0, NOW())
-                """, UUID.randomUUID().toString(), authorId);
+                VALUES (?, ?, ?, 'PUBLIC', 0, NOW())
+                """, UUID.randomUUID().toString(), authorId, username);
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"login\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}"))
