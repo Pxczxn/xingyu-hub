@@ -4,6 +4,7 @@ import { createMemoryRouter, Route, RouterProvider, Routes, useLocation } from "
 import { EditorPage } from "./pages/EditorPage";
 import { articlesApi } from "@/api/articles/articles.api";
 import { topicsApi } from "@/api/topics/topics.api";
+import { filesApi } from "@/api/files/files.api";
 import { ApiError } from "@/api/client";
 import type { ArticleDraft } from "@/api/articles/articles.types";
 import { NEW_DRAFT_ROUTE_ID } from "@/lib/article-editor-draft";
@@ -43,12 +44,19 @@ vi.mock("@/api/topics/topics.api", () => ({
   },
 }));
 
+vi.mock("@/api/files/files.api", () => ({
+  filesApi: {
+    uploadArticleBodyImage: vi.fn(),
+  },
+}));
+
 const getDraftMock = vi.mocked(articlesApi.getDraft);
 const createDraftMock = vi.mocked(articlesApi.createDraft);
 const saveDraftMock = vi.mocked(articlesApi.saveDraft);
 const submitForReviewMock = vi.mocked(articlesApi.submitForReview);
 const getMyArticleStatusMock = vi.mocked(articlesApi.getMyArticleStatus);
 const getTopicsMock = vi.mocked(topicsApi.getTopics);
+const uploadArticleBodyImageMock = vi.mocked(filesApi.uploadArticleBodyImage);
 
 const DRAFT_ID = "draft-1";
 const DRAFT_BODY = "# 一级标题\n\n## 二级标题\n\n正文段落\n\n### 三级小节\n";
@@ -409,8 +417,15 @@ describe("link", () => {
   });
 });
 
-describe("image upload is an honest placeholder", () => {
-  it("refuses the upload, inserts nothing and never calls the backend", async () => {
+describe("image upload", () => {
+  it("inserts markdown after a successful community file upload", async () => {
+    uploadArticleBodyImageMock.mockResolvedValue({
+      fileId: 1,
+      url: "/api/v1/media/private/1",
+      name: "photo.png",
+      mimeType: "image/png",
+    });
+
     const { container } = await renderLoaded();
     const before = bodyTextarea(container).value;
 
@@ -421,9 +436,11 @@ describe("image upload is an honest placeholder", () => {
       target: { files: [new File(["x"], "photo.png", { type: "image/png" })] },
     });
 
-    const alert = await screen.findByRole("alert", {}, { timeout: 15000 });
-    expect(alert.textContent).toContain("开发态占位");
-    expect(bodyTextarea(container)).toHaveValue(before);
+    await waitFor(() =>
+      expect(bodyTextarea(container).value).toContain("![photo](/api/v1/media/private/1)"),
+    );
+    expect(bodyTextarea(container).value).not.toBe(before);
+    expect(uploadArticleBodyImageMock).toHaveBeenCalledTimes(1);
     expect(saveDraftMock).not.toHaveBeenCalled();
   });
 });
@@ -542,6 +559,7 @@ describe("manual save", () => {
     expect(saveDraftMock).toHaveBeenCalledWith(DRAFT_ID, {
       title: "保存后的标题",
       summary: "真实草稿摘要",
+      coverUrl: null,
       body: DRAFT_BODY,
       bodyMode: "MARKDOWN",
       visibility: "PRIVATE",
@@ -699,6 +717,7 @@ describe("new draft lifecycle (/studio/content/new)", () => {
     expect(saveDraftMock).toHaveBeenCalledWith(NEW_ID, {
       title: "[WEB-V2 TEST] 新草稿",
       summary: "",
+      coverUrl: null,
       body: "# 新草稿\n",
       bodyMode: "MARKDOWN",
       visibility: "PRIVATE",
