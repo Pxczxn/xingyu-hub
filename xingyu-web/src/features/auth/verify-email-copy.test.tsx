@@ -69,9 +69,7 @@ describe("VerifyEmailPage arrival copy", () => {
     renderAt("?email=alice%40example.com&registered=1&mailPending=1");
 
     // Retry is the whole point of this state, so the action must be present.
-    expect(
-      screen.getByRole("button", { name: "重新发送验证邮件" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "重新发送验证邮件" })).toBeEnabled();
   });
 });
 
@@ -234,7 +232,9 @@ describe("VerifyEmailPage StrictMode double-mount guard", () => {
 
     render(
       <StrictMode>
-        <MemoryRouter initialEntries={["/verify-email?token=stale-token&email=alice%40example.com"]}>
+        <MemoryRouter
+          initialEntries={["/verify-email?token=stale-token&email=alice%40example.com"]}
+        >
           <VerifyEmailPage />
         </MemoryRouter>
       </StrictMode>,

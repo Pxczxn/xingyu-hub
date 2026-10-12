@@ -56,8 +56,10 @@ export function CreatorCardItem({
 
         {creator.profile?.articleCount != null && creator.profile.seriesCount != null ? (
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{creator.profile.articleCount}</span> 篇文章 ·{" "}
-            <span className="font-medium text-foreground">{creator.profile.seriesCount}</span> 个系列
+            <span className="font-medium text-foreground">{creator.profile.articleCount}</span>{" "}
+            篇文章 ·{" "}
+            <span className="font-medium text-foreground">{creator.profile.seriesCount}</span>{" "}
+            个系列
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">

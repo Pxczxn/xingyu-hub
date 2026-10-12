@@ -238,7 +238,13 @@ describe("NotificationsPage mark-read", () => {
     mocked.list.mockResolvedValue([FOLLOW]);
     mocked.getUnreadCount.mockResolvedValue(1);
     mocked.markRead.mockRejectedValue(
-      new ApiError({ type: "about:blank", title: "t", status: 500, detail: "boom", code: "UNKNOWN" }),
+      new ApiError({
+        type: "about:blank",
+        title: "t",
+        status: 500,
+        detail: "boom",
+        code: "UNKNOWN",
+      }),
     );
     renderPage();
     await screen.findByText("爱丽丝 关注了你");

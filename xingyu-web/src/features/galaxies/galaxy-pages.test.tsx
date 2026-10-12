@@ -34,7 +34,7 @@ const GALAXY = {
   name: "星语",
   official: true,
   memberCount: 12,
-      joinMode: "OPEN",
+  joinMode: "OPEN",
 };
 
 const MEMBERS = [

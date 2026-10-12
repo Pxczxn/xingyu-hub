@@ -138,9 +138,7 @@ describe("phase 2J-2 route resolution", () => {
     // ?objectType=&objectId=. Visited bare there is no target to report, so the
     // page shows the safe dead-end ("请从需要举报的内容页面发起举报") instead of
     // offering a raw id field to type into, and offers a way back home.
-    expect(
-      await screen.findByText(/请从需要举报的内容页面发起举报/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/请从需要举报的内容页面发起举报/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /返回首页/ })).toBeInTheDocument();
     // A user-facing id box belonged to the old contract; it must be gone.
     expect(screen.queryByLabelText("对象 ID")).not.toBeInTheDocument();

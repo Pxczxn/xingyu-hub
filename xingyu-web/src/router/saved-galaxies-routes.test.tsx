@@ -68,9 +68,9 @@ vi.mock("@/api/messages/messages.api", () => ({
 // 2026-10-06: the chat socket moved into a provider above the router; the stub
 // WebSocket in vitest.setup.ts keeps it from opening a real one.
 vi.mock("@/features/chat/chat-socket.context", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/features/chat/chat-socket.context")
-  >("@/features/chat/chat-socket.context");
+  const actual = await vi.importActual<typeof import("@/features/chat/chat-socket.context")>(
+    "@/features/chat/chat-socket.context",
+  );
   return { ...actual, useChatSocket: () => actual.chatSocketNoopValue };
 });
 

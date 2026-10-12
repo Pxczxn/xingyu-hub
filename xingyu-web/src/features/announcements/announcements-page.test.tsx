@@ -99,9 +99,7 @@ describe("AnnouncementsPage", () => {
    * 不代表它可以变成文章卡片 —— 所以只断言"正文出现了、且被压成单行"。
    */
   it("shows the body as a light single-line preview under the title", async () => {
-    mocked.list.mockResolvedValue([
-      { ...ITEM, body: "第一行\n\n第二行\t带制表符   多空格" },
-    ]);
+    mocked.list.mockResolvedValue([{ ...ITEM, body: "第一行\n\n第二行\t带制表符   多空格" }]);
     renderList();
 
     const preview = await screen.findByText("第一行 第二行 带制表符 多空格");

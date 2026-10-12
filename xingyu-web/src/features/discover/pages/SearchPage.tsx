@@ -46,7 +46,9 @@ function UserSearchResult({ item }: { item: ContentSummary }) {
             {item.title}
           </Link>
           <p className="text-meta text-muted-foreground">@{username}</p>
-          {bio ? <p className="mt-1 line-clamp-2 text-meta leading-5 text-muted-foreground">{bio}</p> : null}
+          {bio ? (
+            <p className="mt-1 line-clamp-2 text-meta leading-5 text-muted-foreground">{bio}</p>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -116,7 +118,9 @@ export function SearchPage() {
         <Button type="submit">搜索</Button>
       </form>
 
-      <p className="text-meta text-muted-foreground">可搜索文章、系列、动态与用户，结果按热门程度排列。</p>
+      <p className="text-meta text-muted-foreground">
+        可搜索文章、系列、动态与用户，结果按热门程度排列。
+      </p>
 
       {/* empty query */}
       {!query ? <PageState kind="empty" /> : null}
@@ -134,7 +138,7 @@ export function SearchPage() {
 
       {query && !loading && !error && items.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="search-results">
-          {items.map((item) => (
+          {items.map((item) =>
             (item.objectType ?? "").toUpperCase() === "USER" ? (
               <UserSearchResult key={`USER-${item.id}`} item={item} />
             ) : (
@@ -143,8 +147,8 @@ export function SearchPage() {
                 item={item}
                 showTypeBadge
               />
-            )
-          ))}
+            ),
+          )}
         </div>
       ) : null}
     </div>

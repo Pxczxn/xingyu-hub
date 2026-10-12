@@ -166,10 +166,7 @@ export function HomeFeedItem({
     byline.push(
       <span
         key="author"
-        className={cn(
-          "truncate text-foreground",
-          isSubscription ? "font-semibold" : "font-medium",
-        )}
+        className={cn("truncate text-foreground", isSubscription ? "font-semibold" : "font-medium")}
       >
         {author}
       </span>,
@@ -402,11 +399,7 @@ export function HomeFeedItem({
                   className={cn("h-3.5 w-3.5", bookmarked && "fill-current text-accent")}
                   aria-hidden
                 />
-                {bookmarked ? (
-                  <span className="text-accent-strong">已收藏</span>
-                ) : (
-                  "收藏"
-                )}
+                {bookmarked ? <span className="text-accent-strong">已收藏</span> : "收藏"}
               </button>
             ) : null}
           </div>

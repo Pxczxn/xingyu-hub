@@ -40,7 +40,9 @@ export function HomeFeedTabs({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center justify-between gap-4 border-b border-border", className)}>
+    <div
+      className={cn("flex items-center justify-between gap-4 border-b border-border", className)}
+    >
       <div role="tablist" aria-label="首页内容流" className="flex items-center gap-1">
         {TABS.map((tab) => {
           const selected = tab.id === value;

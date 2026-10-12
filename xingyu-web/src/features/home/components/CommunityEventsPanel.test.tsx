@@ -74,7 +74,12 @@ describe("CommunityEventsPanel", () => {
     // grouped with the live ones rather than being pushed down with history.
     // EVENT_LIMIT is 2, so exactly the two not-ended rows survive the slice.
     renderPanel([
-      event({ id: "done", title: "已结束的", startsAt: "2026-09-27T02:00:00Z", endsAt: "2026-09-27T03:00:00Z" }),
+      event({
+        id: "done",
+        title: "已结束的",
+        startsAt: "2026-09-27T02:00:00Z",
+        endsAt: "2026-09-27T03:00:00Z",
+      }),
       event({ id: "future", title: "未来的", startsAt: "2026-09-29T02:00:00Z", endsAt: null }),
       event({ id: "live", title: "进行中的" }),
     ]);
@@ -91,7 +96,12 @@ describe("CommunityEventsPanel", () => {
     // The server order here puts the ended event first (newest start). A naive
     // `slice(0, EVENT_LIMIT)` would drop the live event entirely.
     renderPanel([
-      event({ id: "done", title: "已结束的", startsAt: "2026-09-27T02:00:00Z", endsAt: "2026-09-27T03:00:00Z" }),
+      event({
+        id: "done",
+        title: "已结束的",
+        startsAt: "2026-09-27T02:00:00Z",
+        endsAt: "2026-09-27T03:00:00Z",
+      }),
       event({ id: "live", title: "进行中的" }),
     ]);
 
@@ -106,9 +116,24 @@ describe("CommunityEventsPanel", () => {
     // Three ended events ahead of one live event: with EVENT_LIMIT=2 the live
     // event must still be shown.
     renderPanel([
-      event({ id: "d1", title: "结束一", startsAt: "2026-09-27T02:00:00Z", endsAt: "2026-09-27T03:00:00Z" }),
-      event({ id: "d2", title: "结束二", startsAt: "2026-09-26T02:00:00Z", endsAt: "2026-09-26T03:00:00Z" }),
-      event({ id: "d3", title: "结束三", startsAt: "2026-09-25T02:00:00Z", endsAt: "2026-09-25T03:00:00Z" }),
+      event({
+        id: "d1",
+        title: "结束一",
+        startsAt: "2026-09-27T02:00:00Z",
+        endsAt: "2026-09-27T03:00:00Z",
+      }),
+      event({
+        id: "d2",
+        title: "结束二",
+        startsAt: "2026-09-26T02:00:00Z",
+        endsAt: "2026-09-26T03:00:00Z",
+      }),
+      event({
+        id: "d3",
+        title: "结束三",
+        startsAt: "2026-09-25T02:00:00Z",
+        endsAt: "2026-09-25T03:00:00Z",
+      }),
       event({ id: "live", title: "进行中的" }),
     ]);
 

@@ -232,15 +232,10 @@ function GalaxyOverview({ slug }: { slug: string }) {
           className="rounded-lg border border-border/60 bg-card p-4"
         >
           <div className="mb-3 flex items-center justify-between gap-4">
-            <h2
-              id="galaxy-members"
-              className="text-base font-semibold tracking-tight text-primary"
-            >
+            <h2 id="galaxy-members" className="text-base font-semibold tracking-tight text-primary">
               星系成员
             </h2>
-            <SectionLink to={`/galaxies/${encodeURIComponent(slug)}/members`}>
-              全部成员
-            </SectionLink>
+            <SectionLink to={`/galaxies/${encodeURIComponent(slug)}/members`}>全部成员</SectionLink>
           </div>
           {members.kind === "loading" ? <SectionMessage>正在加载成员…</SectionMessage> : null}
           {members.kind === "error" ? (

@@ -76,7 +76,10 @@ export function SettingsNav() {
           return (
             <li
               key={item.to}
-              className={cn("shrink-0", item.danger && "md:mt-2 md:border-t md:border-border md:pt-2")}
+              className={cn(
+                "shrink-0",
+                item.danger && "md:mt-2 md:border-t md:border-border md:pt-2",
+              )}
             >
               <NavLink
                 to={item.to}

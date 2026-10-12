@@ -277,7 +277,8 @@ export function MyEventsPage() {
             </h2>
             {recommendations.length === 0 ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                {rows.length === 0 ? "暂无可推荐活动。" : "你已经参与了所有进行中的活动。"}              </p>
+                {rows.length === 0 ? "暂无可推荐活动。" : "你已经参与了所有进行中的活动。"}{" "}
+              </p>
             ) : (
               <ul className="mt-2 flex flex-col gap-2">
                 {recommendations.map((event) => (

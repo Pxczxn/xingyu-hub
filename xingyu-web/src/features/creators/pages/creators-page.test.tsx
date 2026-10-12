@@ -114,14 +114,10 @@ describe("CreatorsPage — loading and failure", () => {
 describe("CreatorsPage — fan-out boundaries", () => {
   it("queries every published topic returned by the API", async () => {
     const topics = Array.from({ length: 13 }, (_, i) => topic(`t${i}`, `专题${i}`));
-    mockedTopics.getTopics.mockResolvedValue(
-      topics,
-    );
+    mockedTopics.getTopics.mockResolvedValue(topics);
     mockedTopics.getTopicCreators.mockResolvedValue([]);
     renderPage();
-    await waitFor(() =>
-      expect(mockedTopics.getTopicCreators).toHaveBeenCalledTimes(topics.length),
-    );
+    await waitFor(() => expect(mockedTopics.getTopicCreators).toHaveBeenCalledTimes(topics.length));
   });
 
   it("degrades a single failing topic to an empty list instead of failing the page", async () => {
@@ -447,9 +443,7 @@ describe("CreatorsPage — topic filter and search", () => {
 
   it("shows the topic chips from every published topic", async () => {
     const topics = Array.from({ length: 11 }, (_, i) => topic(`t${i}`, `专题${i}`));
-    mockedTopics.getTopics.mockResolvedValue(
-      topics,
-    );
+    mockedTopics.getTopics.mockResolvedValue(topics);
     mockedTopics.getTopicCreators.mockResolvedValue([]);
     renderPage();
 

@@ -3,12 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ChatMessage, Conversation } from "@/api/messages/messages.types";
 import { ConversationRow, formatConversationTime } from "./ConversationRow";
-import {
-  MessageBubble,
-  formatMessageTime,
-  senderName,
-  senderProfileHref,
-} from "./MessageBubble";
+import { MessageBubble, formatMessageTime, senderName, senderProfileHref } from "./MessageBubble";
 import { messagesApi } from "@/api/messages/messages.api";
 
 /*
@@ -183,18 +178,18 @@ describe("MessageBubble", () => {
     // profile (2026-10-06) rather than a plain span.
     return render(
       <MemoryRouter>
-      <ul>
-        <MessageBubble
-          message={message()}
-          conversationId="c1"
-          mine={false}
-          showSender={false}
-          canRecall={false}
-          pending={false}
-          onRecall={vi.fn()}
-          {...props}
-        />
-      </ul>
+        <ul>
+          <MessageBubble
+            message={message()}
+            conversationId="c1"
+            mine={false}
+            showSender={false}
+            canRecall={false}
+            pending={false}
+            onRecall={vi.fn()}
+            {...props}
+          />
+        </ul>
       </MemoryRouter>,
     );
   }
@@ -302,7 +297,11 @@ describe("MessageBubble", () => {
     const download = vi
       .spyOn(messagesApi, "downloadAttachment")
       .mockResolvedValue(new Blob(["x"]) as never);
-    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:file"), revokeObjectURL: vi.fn() });
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn(() => "blob:file"),
+      revokeObjectURL: vi.fn(),
+    });
 
     renderBubble({
       message: message({

@@ -100,7 +100,9 @@ export function NotificationRow({
           </span>
           {/* The dot is decorative; `read` is what assistive tech is told. */}
           {unread ? <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
-          {at ? <time className="shrink-0 text-xs tabular-nums text-muted-foreground">{at}</time> : null}
+          {at ? (
+            <time className="shrink-0 text-xs tabular-nums text-muted-foreground">{at}</time>
+          ) : null}
         </span>
 
         {notification.body ? (

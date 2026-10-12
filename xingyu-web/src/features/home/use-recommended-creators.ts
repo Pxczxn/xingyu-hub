@@ -79,9 +79,7 @@ export function useRecommendedCreators(
         const perTopic = await Promise.all(
           selected.map(async (topic) => ({
             topic,
-            creators: await topicsApi
-              .getTopicCreators(topic.slug, PER_TOPIC_LIMIT)
-              .catch(() => []),
+            creators: await topicsApi.getTopicCreators(topic.slug, PER_TOPIC_LIMIT).catch(() => []),
           })),
         );
         if (!active) return;

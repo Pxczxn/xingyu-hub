@@ -26,7 +26,10 @@ export function FeaturedTopics({ topics }: { topics: TopicSummary[] }) {
        * Two columns, not a different mobile card: same component, same icon, same
        * order — only the column count changes.
        */}
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6" data-testid="featured-topics">
+      <ul
+        className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6"
+        data-testid="featured-topics"
+      >
         {topics.map((topic) => (
           <TopicCard key={topic.id} topic={topic} featured />
         ))}

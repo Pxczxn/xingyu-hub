@@ -25,13 +25,7 @@ import type { AnnouncementSummary } from "@/api/common.types";
  * took, and shows only the newest one, because a one-line notice is one line.
  */
 
-export function HomeNotice({
-  item,
-  className,
-}: {
-  item: AnnouncementSummary;
-  className?: string;
-}) {
+export function HomeNotice({ item, className }: { item: AnnouncementSummary; className?: string }) {
   const href = `/announcements/${encodeURIComponent(item.id)}`;
 
   return (

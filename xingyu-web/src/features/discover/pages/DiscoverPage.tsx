@@ -115,7 +115,12 @@ export function DiscoverPage() {
 
       {!loading && !error && nextCursor ? (
         <div className="pt-2 text-center">
-          <Button variant="outline" size="sm" disabled={loadingMore} onClick={() => void loadMore()}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+          >
             {loadingMore ? "正在加载…" : "加载更多"}
           </Button>
         </div>

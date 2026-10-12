@@ -29,12 +29,8 @@ import { NewMessageComposer } from "../NewMessageComposer";
 
 export function MailboxPage() {
   const { conversationId } = useParams<{ conversationId?: string }>();
-  const {
-    conversations,
-    conversationsStatus,
-    conversationsError,
-    conversationsExpired,
-  } = useChatSocket();
+  const { conversations, conversationsStatus, conversationsError, conversationsExpired } =
+    useChatSocket();
   const threadOpen = Boolean(conversationId);
 
   if (conversationsStatus === "idle" || conversationsStatus === "loading") {

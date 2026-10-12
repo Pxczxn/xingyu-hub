@@ -73,10 +73,7 @@ export function TopicHeader({
               {following ? "已关注" : "关注"}
             </Button>
           ) : !isAuthenticated ? (
-            <Link
-              to="/login"
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
+            <Link to="/login" className={buttonVariants({ variant: "outline", size: "sm" })}>
               登录后关注
             </Link>
           ) : null}

@@ -96,7 +96,10 @@ describe("SettingsDeleteAccountPage — re-auth is required (2026-10-08)", () =>
   it("links to the re-auth page with a returnTo back here", () => {
     renderPage();
     const link = screen.getByRole("link", { name: "去验证身份" });
-    expect(link).toHaveAttribute("href", "/settings/security/re-authenticate?returnTo=/settings/data/delete-account");
+    expect(link).toHaveAttribute(
+      "href",
+      "/settings/security/re-authenticate?returnTo=/settings/data/delete-account",
+    );
   });
 
   it("hides the re-auth prompt once a valid grant exists", () => {
@@ -113,9 +116,7 @@ describe("SettingsDeleteAccountPage — re-auth is required (2026-10-08)", () =>
       target: { value: "停用账号" },
     });
     fireEvent.submit(screen.getByTestId("delete-account-form"));
-    await waitFor(() =>
-      expect(mocked.requestAccountDeletion).toHaveBeenCalledWith("grant-abc"),
-    );
+    await waitFor(() => expect(mocked.requestAccountDeletion).toHaveBeenCalledWith("grant-abc"));
   });
 });
 

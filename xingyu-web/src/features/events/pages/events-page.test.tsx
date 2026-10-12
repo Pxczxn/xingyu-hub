@@ -235,7 +235,12 @@ describe("EventsPage — time grouping", () => {
 
   it("keeps an event with endsAt=null in the running bucket indefinitely", async () => {
     mocked.list.mockResolvedValue([
-      event({ id: "no-end", title: "没有结束时间", startsAt: "2026-01-01T00:00:00Z", endsAt: null }),
+      event({
+        id: "no-end",
+        title: "没有结束时间",
+        startsAt: "2026-01-01T00:00:00Z",
+        endsAt: null,
+      }),
     ]);
     renderPage(NOW);
 
@@ -287,9 +292,7 @@ describe("EventsPage — calendar", () => {
   const RUNNING = { startsAt: "2026-08-20T02:00:00Z", endsAt: "2026-10-05T02:00:00Z" };
 
   it("marks the CST day of an event", async () => {
-    mocked.list.mockResolvedValue([
-      event({ ...RUNNING, startsAt: "2026-09-15T02:00:00Z" }),
-    ]);
+    mocked.list.mockResolvedValue([event({ ...RUNNING, startsAt: "2026-09-15T02:00:00Z" })]);
     renderPage(SEPTEMBER);
     await screen.findByLabelText("活动日历");
 

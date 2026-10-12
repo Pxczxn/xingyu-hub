@@ -253,19 +253,13 @@ export function GalaxyListPage() {
                 items={officialGalaxies}
                 variant="official"
                 featured={officialGalaxies.length > 1}
-                className={
-                  officialGalaxies.length > 1 ? "sm:grid-cols-2" : "max-w-xl"
-                }
+                className={officialGalaxies.length > 1 ? "sm:grid-cols-2" : "max-w-xl"}
               />
             </PageSection>
           ) : null}
 
           {communityGalaxies.length > 0 ? (
-            <PageSection
-              id="explore-galaxies"
-              title="探索星系"
-              count={communityGalaxies.length}
-            >
+            <PageSection id="explore-galaxies" title="探索星系" count={communityGalaxies.length}>
               <GalaxyGrid
                 items={communityGalaxies}
                 variant="community"

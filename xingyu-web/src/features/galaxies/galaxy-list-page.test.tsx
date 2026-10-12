@@ -27,8 +27,22 @@ vi.mock("@/features/auth/auth.store", () => ({
 const mocked = vi.mocked(galaxiesApi);
 
 const GALAXIES = [
-  { id: "g-1", slug: "xingyu-official", name: "星语", official: true, memberCount: 12, joinMode: "OPEN" },
-  { id: "g-2", slug: "dev-log", name: "开发日志", official: false, memberCount: 3, joinMode: "OPEN" },
+  {
+    id: "g-1",
+    slug: "xingyu-official",
+    name: "星语",
+    official: true,
+    memberCount: 12,
+    joinMode: "OPEN",
+  },
+  {
+    id: "g-2",
+    slug: "dev-log",
+    name: "开发日志",
+    official: false,
+    memberCount: 3,
+    joinMode: "OPEN",
+  },
 ];
 
 function renderList() {

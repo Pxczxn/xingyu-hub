@@ -495,7 +495,9 @@ describe("home feed byline", () => {
     homeMocked.getGuestHome.mockResolvedValue(
       guestHome({
         discoveries: [{ id: "d1", objectType: "ARTICLE", title: "推荐条目", authorName: "林深" }],
-        followingUpdates: [{ id: "f1", objectType: "ARTICLE", title: "关注条目", authorName: "林深" }],
+        followingUpdates: [
+          { id: "f1", objectType: "ARTICLE", title: "关注条目", authorName: "林深" },
+        ],
       }),
     );
 
@@ -800,7 +802,9 @@ describe("home notice", () => {
 
     expect(masthead).not.toBeNull();
     // Document order: masthead → notice → tabs. Not inside either of them.
-    expect(masthead!.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      masthead!.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(notice.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // It is a notice LINE, not a surface.
     expect(notice.className).not.toMatch(/bg-card|border(?!-)/);

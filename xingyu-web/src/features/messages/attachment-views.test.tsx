@@ -99,7 +99,9 @@ describe("AttachmentMediaGrid", () => {
     render(
       <AttachmentMediaGrid
         conversationId="c1"
-        items={[message({ id: "m1", messageType: "IMAGE", attachmentName: null, attachmentFileId: 1 })]}
+        items={[
+          message({ id: "m1", messageType: "IMAGE", attachmentName: null, attachmentFileId: 1 }),
+        ]}
       />,
     );
 
@@ -151,9 +153,7 @@ describe("AttachmentMediaGrid", () => {
     render(
       <AttachmentMediaGrid
         conversationId="c1"
-        items={[
-          message({ id: "m2", messageType: "IMAGE", attachmentFileId: 2, createdAt: null }),
-        ]}
+        items={[message({ id: "m2", messageType: "IMAGE", attachmentFileId: 2, createdAt: null })]}
       />,
     );
     expect(screen.queryByText(/Invalid/)).not.toBeInTheDocument();

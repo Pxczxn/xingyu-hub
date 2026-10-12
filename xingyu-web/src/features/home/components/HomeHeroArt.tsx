@@ -13,5 +13,13 @@ import heroArtwork from "@/assets/home-hero-generated.webp";
  * artwork, so it does not resolve through the semantic tokens.
  */
 export function HomeHeroArt({ className }: { className?: string }) {
-  return <img data-testid="home-hero-art" src={heroArtwork} alt="" aria-hidden="true" className={cn("h-32 w-auto rounded-xl object-cover md:h-36 lg:h-40", className)} />;
+  return (
+    <img
+      data-testid="home-hero-art"
+      src={heroArtwork}
+      alt=""
+      aria-hidden="true"
+      className={cn("h-32 w-auto rounded-xl object-cover md:h-36 lg:h-40", className)}
+    />
+  );
 }

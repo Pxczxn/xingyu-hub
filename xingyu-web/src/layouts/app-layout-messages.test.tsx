@@ -24,9 +24,9 @@ import { AppLayout } from "./AppLayout";
  * 2026-10-06: this component no longer opens a socket or fetches the mailbox itself.
  */
 vi.mock("@/features/chat/chat-socket.context", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/features/chat/chat-socket.context")
-  >("@/features/chat/chat-socket.context");
+  const actual = await vi.importActual<typeof import("@/features/chat/chat-socket.context")>(
+    "@/features/chat/chat-socket.context",
+  );
   const double = await import("@/features/chat/chat-socket.test-double");
   return { ...actual, useChatSocket: double.chatSocketValue };
 });

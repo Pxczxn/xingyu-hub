@@ -101,10 +101,7 @@ function ContinueReadingCard({ item }: { item: ContentSummary }) {
           className="h-16 w-16 shrink-0 rounded-md object-cover"
         />
       ) : (
-        <div
-          aria-hidden
-          className="h-16 w-16 shrink-0 rounded-md bg-muted"
-        />
+        <div aria-hidden className="h-16 w-16 shrink-0 rounded-md bg-muted" />
       )}
 
       <div className="min-w-0 flex-1">
@@ -114,9 +111,7 @@ function ContinueReadingCard({ item }: { item: ContentSummary }) {
         {item.chapterTitle ? (
           <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{item.chapterTitle}</p>
         ) : null}
-        {caption ? (
-          <p className="mt-1 text-xs text-muted-foreground">{caption}</p>
-        ) : null}
+        {caption ? <p className="mt-1 text-xs text-muted-foreground">{caption}</p> : null}
 
         {hasChapterProgress ? (
           <div className="mt-2 flex items-center gap-2">

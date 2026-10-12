@@ -102,8 +102,14 @@ let watching: { conversationId: string | null; knownMaxSequence: number } | null
 function Probe() {
   // Subscribing twice from ONE component is the closest cheap proxy for "many
   // consumers in the shell, the mailbox and the thread".
-  const { subscribe, myUserId, unreadTotal, conversationsStatus, conversations, watchConversation } =
-    useChatForTest();
+  const {
+    subscribe,
+    myUserId,
+    unreadTotal,
+    conversationsStatus,
+    conversations,
+    watchConversation,
+  } = useChatForTest();
   React.useEffect(() => {
     return subscribe((event) => received.push(event));
   }, [subscribe]);
@@ -252,7 +258,10 @@ describe("ChatSocketProvider — reconnect reconciliation", () => {
     expect(watching).toEqual({ conversationId: "c1", knownMaxSequence: 5 });
 
     mocked.listMessagesAfter.mockResolvedValue({
-      messages: [message({ id: "m6", sequenceNumber: 6 }), message({ id: "m7", sequenceNumber: 7 })],
+      messages: [
+        message({ id: "m6", sequenceNumber: 6 }),
+        message({ id: "m7", sequenceNumber: 7 }),
+      ],
       hasMore: false,
     });
     FakeSocket.instances[0].open();
@@ -264,7 +273,9 @@ describe("ChatSocketProvider — reconnect reconciliation", () => {
     // with exactly the same code path as a live push.
     await waitFor(() => expect(received.filter((e) => e.kind === "message")).toHaveLength(2));
     const events = received.filter((e) => e.kind === "message");
-    expect(events.map((e) => (e.kind === "message" ? e.message.sequenceNumber : 0))).toEqual([6, 7]);
+    expect(events.map((e) => (e.kind === "message" ? e.message.sequenceNumber : 0))).toEqual([
+      6, 7,
+    ]);
   });
 
   it("pages until it catches up when the first page is not enough", async () => {
@@ -272,8 +283,14 @@ describe("ChatSocketProvider — reconnect reconciliation", () => {
     await waitFor(() => expect(FakeSocket.instances).toHaveLength(1));
 
     mocked.listMessagesAfter
-      .mockResolvedValueOnce({ messages: [message({ id: "m6", sequenceNumber: 6 })], hasMore: true })
-      .mockResolvedValueOnce({ messages: [message({ id: "m7", sequenceNumber: 7 })], hasMore: false });
+      .mockResolvedValueOnce({
+        messages: [message({ id: "m6", sequenceNumber: 6 })],
+        hasMore: true,
+      })
+      .mockResolvedValueOnce({
+        messages: [message({ id: "m7", sequenceNumber: 7 })],
+        hasMore: false,
+      });
     FakeSocket.instances[0].open();
 
     await waitFor(() => expect(received.filter((e) => e.kind === "message")).toHaveLength(2));

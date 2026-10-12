@@ -70,9 +70,9 @@ export function VerifyEmailPage() {
   // RegisterPage 在注册返回 mailPending=true 时写入这个参数；本页此前**完全无视**它。
   const mailPending = params.get("mailPending") === "1";
 
-  const [status, setStatus] = useState<
-    "pending" | "verifying" | "verified" | "changed" | "error"
-  >(token ? "verifying" : "pending");
+  const [status, setStatus] = useState<"pending" | "verifying" | "verified" | "changed" | "error">(
+    token ? "verifying" : "pending",
+  );
   const [changedEmail, setChangedEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
@@ -208,20 +208,16 @@ export function VerifyEmailPage() {
     and never read it.
   */
   const body = failed ? (
-    <>
-      这个链接无法完成验证，可能已经过期或已被使用。你可以重新发送一封新的验证邮件，
-      或稍后再试。
-    </>
+    <>这个链接无法完成验证，可能已经过期或已被使用。你可以重新发送一封新的验证邮件， 或稍后再试。</>
   ) : mailPending ? (
     <>
-      <strong className="font-medium text-foreground">{email || "你的邮箱"}</strong>{" "}
-      的验证邮件<b className="font-semibold text-foreground">没有发出去</b>
+      <strong className="font-medium text-foreground">{email || "你的邮箱"}</strong> 的验证邮件
+      <b className="font-semibold text-foreground">没有发出去</b>
       （邮件通道未配置或发送失败）。你可以稍后重试；若持续失败请联系管理员。
     </>
   ) : (
     <>
-      验证链接已发往{" "}
-      <strong className="font-medium text-foreground">{email || "你的邮箱"}</strong>
+      验证链接已发往 <strong className="font-medium text-foreground">{email || "你的邮箱"}</strong>
       。若几分钟内没有收到，请检查垃圾邮件，或点击下方按钮重新发送。
     </>
   );

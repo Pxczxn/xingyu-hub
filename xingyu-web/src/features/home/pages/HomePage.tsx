@@ -183,11 +183,7 @@ export function HomePage() {
       ? announcementSection.items[0]
       : null;
 
-  const showSidebar = hasSidebarContent([
-    topicSection,
-    creatorSection,
-    eventSection,
-  ]);
+  const showSidebar = hasSidebarContent([topicSection, creatorSection, eventSection]);
 
   if (homeFatal) {
     return <PageState kind="error" />;
@@ -220,9 +216,7 @@ export function HomePage() {
          * less in it — not because a flag halves its padding.
          */
         description={
-          isAuthenticated
-            ? undefined
-            : "在这里发现优质的内容，认识同频的人，慢慢建立自己的轨道。"
+          isAuthenticated ? undefined : "在这里发现优质的内容，认识同频的人，慢慢建立自己的轨道。"
         }
         actions={
           isAuthenticated ? undefined : (

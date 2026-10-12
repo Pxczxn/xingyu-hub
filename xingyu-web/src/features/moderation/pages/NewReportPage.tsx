@@ -168,9 +168,7 @@ export function NewReportPage() {
 
   const view = target.target;
   const authorName = view.authorDisplayName?.trim() || view.authorUsername || "未知作者";
-  const authorHref = view.authorUsername
-    ? `/u/${encodeURIComponent(view.authorUsername)}`
-    : null;
+  const authorHref = view.authorUsername ? `/u/${encodeURIComponent(view.authorUsername)}` : null;
 
   return (
     <div className="section-gap">

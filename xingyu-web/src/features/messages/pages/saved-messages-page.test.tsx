@@ -204,7 +204,12 @@ describe("SavedMessagesPage — attachments", () => {
   it("does not render an attachment for a row that has no file id", async () => {
     // A row saved before the column existed must degrade, not link to a dead url.
     mockedList.mockResolvedValueOnce([
-      row({ messageType: "FILE", attachmentUrl: "/a.pdf", attachmentName: "旧附件.pdf", body: null }),
+      row({
+        messageType: "FILE",
+        attachmentUrl: "/a.pdf",
+        attachmentName: "旧附件.pdf",
+        body: null,
+      }),
     ]);
     renderPage();
 

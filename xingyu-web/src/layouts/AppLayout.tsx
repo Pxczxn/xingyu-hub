@@ -178,9 +178,15 @@ export function AppLayout() {
     }
     usersApi
       .getMyProfile()
-      .then((profile) => { if (active) setMyProfile(profile); })
-      .catch(() => { if (active) setMyProfile(null); });
-    return () => { active = false; };
+      .then((profile) => {
+        if (active) setMyProfile(profile);
+      })
+      .catch(() => {
+        if (active) setMyProfile(null);
+      });
+    return () => {
+      active = false;
+    };
   }, [isAuthenticated]);
 
   // A panel that survives navigation is a trap on a phone: the user taps a

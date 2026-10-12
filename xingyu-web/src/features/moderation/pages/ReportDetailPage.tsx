@@ -191,7 +191,9 @@ export function ReportDetailPage() {
         <dl className="mt-3 flex flex-col gap-4 text-sm">
           <div>
             <dt className="text-muted-foreground">举报原因</dt>
-            <dd className="mt-1 whitespace-pre-wrap text-foreground">{reportReasonLabel(report.reason)}</dd>
+            <dd className="mt-1 whitespace-pre-wrap text-foreground">
+              {reportReasonLabel(report.reason)}
+            </dd>
           </div>
           {report.detail?.trim() ? (
             <div>

@@ -15,24 +15,35 @@ export function ExploreTopics({
 
   if (status === "error") {
     return (
-      <section aria-labelledby="discover-topics" className="rounded-xl border border-border/70 bg-card/70 p-4">
-        <h2 id="discover-topics" className="text-base font-semibold text-primary">探索话题</h2>
+      <section
+        aria-labelledby="discover-topics"
+        className="rounded-xl border border-border/70 bg-card/70 p-4"
+      >
+        <h2 id="discover-topics" className="text-base font-semibold text-primary">
+          探索话题
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">探索方向暂时无法加载。</p>
       </section>
     );
   }
 
-  const visibleTopics = topics.filter((topic) => (topic.contentCount ?? 0) > 0).slice(0, TOPIC_LIMIT);
+  const visibleTopics = topics
+    .filter((topic) => (topic.contentCount ?? 0) > 0)
+    .slice(0, TOPIC_LIMIT);
   if (visibleTopics.length === 0) return null;
 
   return (
     <section aria-labelledby="discover-topics">
       <div className="mb-3 flex items-end justify-between gap-4">
         <div>
-          <h2 id="discover-topics" className="text-lg font-semibold tracking-tight text-primary">探索话题</h2>
+          <h2 id="discover-topics" className="text-lg font-semibold tracking-tight text-primary">
+            探索话题
+          </h2>
         </div>
         {topics.filter((topic) => (topic.contentCount ?? 0) > 0).length > TOPIC_LIMIT ? (
-          <Link to="/topics" className="shrink-0 text-sm text-accent-strong hover:underline">查看全部话题 ›</Link>
+          <Link to="/topics" className="shrink-0 text-sm text-accent-strong hover:underline">
+            查看全部话题 ›
+          </Link>
         ) : null}
       </div>
       <ul className="flex flex-wrap gap-3" data-testid="discover-topics-list">

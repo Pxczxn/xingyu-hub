@@ -139,11 +139,7 @@ export function MomentsPage() {
       )}
 
       {items.length === 0 ? (
-        <PageState
-          kind="empty"
-          title="暂时还没有动态"
-          className="p-4 [&>svg]:mb-2 [&>svg]:h-12"
-        />
+        <PageState kind="empty" title="暂时还没有动态" className="p-4 [&>svg]:mb-2 [&>svg]:h-12" />
       ) : (
         /*
           Feed, not a list of identical grey cards.

@@ -193,5 +193,4 @@ describe("MyGroupsPage — ownership", () => {
     expect(screen.queryByRole("button", { name: /公告/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /退出/ })).not.toBeInTheDocument();
   });
-
 });

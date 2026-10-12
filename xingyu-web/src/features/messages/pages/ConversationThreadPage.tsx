@@ -110,7 +110,8 @@ export function ConversationThreadPage() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [recalling, setRecalling] = useState<Record<string, boolean>>({});
 
-  const { myUserId, subscribe, watchConversation, connection, refreshConversations } = useChatSocket();
+  const { myUserId, subscribe, watchConversation, connection, refreshConversations } =
+    useChatSocket();
   const [searchParams] = useSearchParams();
   /** The scrolling element for the message list — never the document. */
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -217,8 +218,10 @@ export function ConversationThreadPage() {
     // 落点滚动也遵守同一套策略：消息区在滚就只滚它（`scrollIntoView` 会连带把 document
     // 一起挪，实测在 1440 上仍会移动 54px）；消息区不在滚才让文档动。
     if (viewport && scrollStrategyOf(viewport) === "viewport") {
-      const rowTop = row.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
-      viewport.scrollTop = rowTop - (viewport.clientHeight - row.getBoundingClientRect().height) / 2;
+      const rowTop =
+        row.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+      viewport.scrollTop =
+        rowTop - (viewport.clientHeight - row.getBoundingClientRect().height) / 2;
       return;
     }
     row.scrollIntoView({ block: "center" });

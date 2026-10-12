@@ -64,7 +64,12 @@ describe("NewReportPage", () => {
 
   it("shows the server's title, summary and author", async () => {
     mockedPreview.mockResolvedValue(
-      target({ objectType: "ARTICLE", title: "一篇文章", summary: "摘要内容", authorDisplayName: "作者甲" }),
+      target({
+        objectType: "ARTICLE",
+        title: "一篇文章",
+        summary: "摘要内容",
+        authorDisplayName: "作者甲",
+      }),
     );
     renderPage("?objectType=ARTICLE&objectId=a1");
     expect(await screen.findByText("一篇文章")).toBeInTheDocument();
@@ -83,9 +88,7 @@ describe("NewReportPage", () => {
 
   it("shows where to start when visited with no target", async () => {
     renderPage("");
-    expect(
-      await screen.findByText("请从需要举报的内容页面发起举报"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("请从需要举报的内容页面发起举报")).toBeInTheDocument();
     // No dead-end UUID form, and no call to the preview endpoint.
     expect(screen.queryByLabelText("对象 ID")).not.toBeInTheDocument();
     expect(mockedPreview).not.toHaveBeenCalled();

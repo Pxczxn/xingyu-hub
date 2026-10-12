@@ -13,9 +13,9 @@ import { MailboxPage } from "./pages/MailboxPage";
  * testable: there is only one list.
  */
 vi.mock("@/features/chat/chat-socket.context", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/features/chat/chat-socket.context")
-  >("@/features/chat/chat-socket.context");
+  const actual = await vi.importActual<typeof import("@/features/chat/chat-socket.context")>(
+    "@/features/chat/chat-socket.context",
+  );
   const double = await import("@/features/chat/chat-socket.test-double");
   return { ...actual, useChatSocket: double.chatSocketValue };
 });
@@ -216,7 +216,10 @@ describe("MailboxPage — layout", () => {
     renderMailbox();
     await screen.findByLabelText("会话列表");
 
-    expect(screen.getByRole("link", { name: /搜索消息/ })).toHaveAttribute("href", "/messages/search");
+    expect(screen.getByRole("link", { name: /搜索消息/ })).toHaveAttribute(
+      "href",
+      "/messages/search",
+    );
   });
 
   it("replaces the placeholder with the thread once a conversation is open", async () => {

@@ -155,9 +155,7 @@ export function MyGroupsPage() {
               <UsersRound className="h-5 w-5" aria-hidden />
               我的群聊
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              你参与或创建的群聊会话。
-            </p>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">你参与或创建的群聊会话。</p>
           </div>
           {/*
             创建入口暂时下线（2026-10-06）。

@@ -4,7 +4,11 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { messagesApi } from "@/api/messages/messages.api";
 import { ApiError } from "@/api/client";
 import type { ChatMessage, Conversation } from "@/api/messages/messages.types";
-import { chatSocket, emitChatEvent, resetChatSocketDouble } from "@/features/chat/chat-socket.test-double";
+import {
+  chatSocket,
+  emitChatEvent,
+  resetChatSocketDouble,
+} from "@/features/chat/chat-socket.test-double";
 import { ConversationThreadPage, scrollStrategyOf } from "./pages/ConversationThreadPage";
 import { formatMessageTimeShort, isRecallable, senderName } from "./MessageBubble";
 import { shouldShowMessageTime } from "@/api/messages/messages.types";
@@ -15,9 +19,9 @@ import { shouldShowMessageTime } from "@/api/messages/messages.types";
  * own test for that).
  */
 vi.mock("@/features/chat/chat-socket.context", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/features/chat/chat-socket.context")
-  >("@/features/chat/chat-socket.context");
+  const actual = await vi.importActual<typeof import("@/features/chat/chat-socket.context")>(
+    "@/features/chat/chat-socket.context",
+  );
   const double = await import("@/features/chat/chat-socket.test-double");
   return { ...actual, useChatSocket: double.chatSocketValue };
 });
@@ -230,9 +234,9 @@ describe("ConversationThreadPage — sender identity", () => {
   });
 
   it("falls back from displayName to username", () => {
-    expect(senderName(message({ sender: { userId: "u", username: "them", displayName: null } }))).toBe(
-      "them",
-    );
+    expect(
+      senderName(message({ sender: { userId: "u", username: "them", displayName: null } })),
+    ).toBe("them");
   });
 });
 
@@ -421,7 +425,7 @@ describe("scrollStrategyOf — which element is actually scrolling", () => {
 
 describe("shouldShowMessageTime — no more repeated identical timestamps", () => {
   const at = (iso: string, id: string) =>
-    ({ id, createdAt: iso } as unknown as Parameters<typeof shouldShowMessageTime>[0]);
+    ({ id, createdAt: iso }) as unknown as Parameters<typeof shouldShowMessageTime>[0];
 
   it("shows the time on the first message of the list", () => {
     expect(shouldShowMessageTime(at("2026-10-06T02:00:00Z", "a"), undefined)).toBe(true);

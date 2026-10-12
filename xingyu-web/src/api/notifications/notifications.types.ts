@@ -94,7 +94,9 @@ export function countUnread(items: Notification[]): number {
  * Note this reads the ACTOR, not a stored username: never build the href from a
  * username that was captured at produce time.
  */
-export function notificationHref(notification: Pick<Notification, "category" | "actor">): string | null {
+export function notificationHref(
+  notification: Pick<Notification, "category" | "actor">,
+): string | null {
   const username = notification.actor?.username?.trim();
   if (username) return `/u/${encodeURIComponent(username)}`;
   if ((notification.category ?? "").trim().toUpperCase() === "ANNOUNCE") return "/announcements";

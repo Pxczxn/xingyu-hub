@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "@/api/client";
 import { messagesApi } from "@/api/messages/messages.api";
-import { countUnreadConversations, type ChatMessage, type Conversation } from "@/api/messages/messages.types";
+import {
+  countUnreadConversations,
+  type ChatMessage,
+  type Conversation,
+} from "@/api/messages/messages.types";
 import { getStoredToken } from "@/lib/storage";
 import {
   ChatSocketContext,
@@ -93,7 +97,8 @@ export function ChatSocketProvider({ children }: { children: ReactNode }) {
       setConversationsStatus((current) => (current === "ready" ? "ready" : "error"));
       setConversationsError(err instanceof Error ? err.message : "无法读取会话列表");
       setConversationsExpired(
-        err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED"),
+        err instanceof ApiError &&
+          (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED"),
       );
     }
   }, []);
@@ -148,7 +153,10 @@ export function ChatSocketProvider({ children }: { children: ReactNode }) {
   const watchConversation = useCallback(
     (conversationId: string | null, knownMaxSequence: number) => {
       const current = watchRef.current;
-      if (current.conversationId === conversationId && current.knownMaxSequence === knownMaxSequence) {
+      if (
+        current.conversationId === conversationId &&
+        current.knownMaxSequence === knownMaxSequence
+      ) {
         return;
       }
       watchRef.current = { conversationId, knownMaxSequence };
@@ -228,7 +236,11 @@ export function ChatSocketProvider({ children }: { children: ReactNode }) {
             sequenceNumber: payload.sequenceNumber,
           });
         } else if (payload.type === "recall" && payload.conversationId && payload.message) {
-          emit({ kind: "recall", conversationId: payload.conversationId, message: payload.message });
+          emit({
+            kind: "recall",
+            conversationId: payload.conversationId,
+            message: payload.message,
+          });
         }
       };
 

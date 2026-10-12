@@ -76,9 +76,7 @@ describe("NewAppealPage — with a case/measure", () => {
     expect(screen.queryByText("meas-1")).not.toBeInTheDocument();
     expect(screen.queryByText("关联案件")).not.toBeInTheDocument();
     expect(screen.queryByText("处置措施")).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/你将针对一条已经作出的治理处置提交申诉/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/你将针对一条已经作出的治理处置提交申诉/)).toBeInTheDocument();
   });
 
   it("submits both measureId and caseId when both are present", async () => {

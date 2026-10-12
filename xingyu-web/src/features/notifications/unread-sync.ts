@@ -33,9 +33,7 @@ export const NOTIFICATIONS_CHANGED_EVENT = "xingyu-notifications-changed";
 export function notifyUnreadChanged(unread: number): void {
   if (typeof window === "undefined") return;
   if (!Number.isFinite(unread) || unread < 0) return;
-  window.dispatchEvent(
-    new CustomEvent(NOTIFICATIONS_CHANGED_EVENT, { detail: { unread } }),
-  );
+  window.dispatchEvent(new CustomEvent(NOTIFICATIONS_CHANGED_EVENT, { detail: { unread } }));
 }
 
 /**

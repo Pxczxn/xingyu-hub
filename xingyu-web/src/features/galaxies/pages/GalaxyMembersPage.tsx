@@ -62,11 +62,7 @@ function GalaxyMembers({ slug }: { slug: string }) {
   const { members } = state;
 
   return (
-    <PageSection
-      id="galaxy-members"
-      title="成员"
-      description={`共 ${members.length} 位公开成员`}
-    >
+    <PageSection id="galaxy-members" title="成员" description={`共 ${members.length} 位公开成员`}>
       {members.length === 0 ? (
         <PageState kind="empty" title="暂无公开成员" description="成员加入后会显示在这里。" />
       ) : (

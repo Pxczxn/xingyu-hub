@@ -31,7 +31,9 @@ export function AuthCard({
   return (
     <Card>
       <CardHeader>
-        <h1 className="text-card font-semibold leading-none tracking-tight text-primary">{title}</h1>
+        <h1 className="text-card font-semibold leading-none tracking-tight text-primary">
+          {title}
+        </h1>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

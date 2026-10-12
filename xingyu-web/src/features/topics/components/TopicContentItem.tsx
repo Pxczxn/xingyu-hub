@@ -42,7 +42,9 @@ export function TopicContentItem({ item }: { item: ContentSummary }) {
               </span>
             ) : null}
             {item.authorName ? <span className="truncate">{item.authorName}</span> : null}
-            {typeLabel ? <span className="rounded-md bg-muted px-2 py-0.5">{typeLabel}</span> : null}
+            {typeLabel ? (
+              <span className="rounded-md bg-muted px-2 py-0.5">{typeLabel}</span>
+            ) : null}
           </div>
         ) : null}
         <Link

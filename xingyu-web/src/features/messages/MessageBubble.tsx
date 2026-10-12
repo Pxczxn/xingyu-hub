@@ -60,7 +60,8 @@ export function formatMessageTimeShort(value: string | null | undefined): string
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   const now = new Date();
-  const sameDay = now.toLocaleDateString("zh-CN", { timeZone: SHANGHAI }) ===
+  const sameDay =
+    now.toLocaleDateString("zh-CN", { timeZone: SHANGHAI }) ===
     date.toLocaleDateString("zh-CN", { timeZone: SHANGHAI });
   return date.toLocaleString("zh-CN", {
     ...(sameDay ? {} : { month: "2-digit", day: "2-digit" }),
@@ -150,10 +151,7 @@ export function MessageBubble({
 
   return (
     <li
-      className={cn(
-        "flex scroll-mt-24 flex-col gap-1",
-        mine ? "items-end" : "items-start",
-      )}
+      className={cn("flex scroll-mt-24 flex-col gap-1", mine ? "items-end" : "items-start")}
       data-recalled={recalled ? "true" : undefined}
       data-highlighted={highlighted ? "true" : undefined}
       data-message-id={rowId}

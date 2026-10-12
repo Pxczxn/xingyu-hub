@@ -147,7 +147,9 @@ describe("ReportDetailPage", () => {
     mockedGet.mockResolvedValue(detail({ caseId: "case-1", measureId: "meas-9" }));
     renderPage();
     await screen.findByText("处理结果");
-    expect(screen.getByText("该举报对应的案件已作出处置。被处理方可以对该处置提出申诉。")).toBeInTheDocument();
+    expect(
+      screen.getByText("该举报对应的案件已作出处置。被处理方可以对该处置提出申诉。"),
+    ).toBeInTheDocument();
   });
 
   it("says the case is still being handled while no measure exists", async () => {
