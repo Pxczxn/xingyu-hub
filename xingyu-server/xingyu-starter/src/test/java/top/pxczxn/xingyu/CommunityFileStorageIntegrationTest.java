@@ -76,6 +76,37 @@ class CommunityFileStorageIntegrationTest {
     }
 
     @Test
+    void articleBodyImageUploadIsPrivateUntilPromoted() throws Exception {
+        String token = communityToken();
+        MvcResult upload = mockMvc.perform(multipart("/api/v1/files/upload")
+                        .file(pngFile("body.png"))
+                        .param("purpose", "ARTICLE_BODY_IMAGE")
+                        .header("satoken", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.visibility").value("private"))
+                .andReturn();
+
+        long fileId = objectMapper.readTree(upload.getResponse().getContentAsString()).get("fileId").asLong();
+
+        mockMvc.perform(get("/api/v1/media/public/" + fileId))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/v1/media/private/" + fileId))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void articleCoverUploadIsPrivateByDefault() throws Exception {
+        String token = communityToken();
+        mockMvc.perform(multipart("/api/v1/files/upload")
+                        .file(pngFile("cover.png"))
+                        .param("purpose", "ARTICLE_COVER")
+                        .header("satoken", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.visibility").value("private"));
+    }
+
+    @Test
     void legacyMessagePathRemainsBlockedFromStaticAccess() throws Exception {
         mockMvc.perform(get("/api/v1/admin/files/private/messages/test-user/fake.png"))
                 .andExpect(status().isForbidden());

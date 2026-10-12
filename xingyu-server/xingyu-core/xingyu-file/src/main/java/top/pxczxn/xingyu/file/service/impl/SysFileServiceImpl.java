@@ -4,6 +4,8 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import top.pxczxn.xingyu.file.community.CommunityFileMediaUrls;
+import top.pxczxn.xingyu.file.community.CommunityFileMediaUrls;
 import top.pxczxn.xingyu.file.community.CommunityFilePathPlanner;
 import top.pxczxn.xingyu.file.community.CommunityFilePurpose;
 import top.pxczxn.xingyu.file.community.CommunityFileUploadCommand;
@@ -264,6 +266,52 @@ public class SysFileServiceImpl implements SysFileService {
     @Override
     public String publicMediaUrl(long fileId) {
         return "/api/v1/media/public/" + fileId;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void promoteCommunityFileToPublic(long fileId, String expectedOwnerUserId) {
+        SysFile sysFile = fileMapper.selectById(fileId);
+        if (sysFile == null || "deleted".equalsIgnoreCase(sysFile.getLifecycleStatus())) {
+            return;
+        }
+        if ("public".equalsIgnoreCase(sysFile.getVisibility())) {
+            return;
+        }
+        if (expectedOwnerUserId == null
+                || sysFile.getOwnerUserId() == null
+                || !expectedOwnerUserId.equals(sysFile.getOwnerUserId())) {
+            throw new RuntimeException("无权发布该媒体文件");
+        }
+        sysFile.setVisibility("public");
+        sysFile.setUrl(publicMediaUrl(fileId));
+        fileMapper.updateById(sysFile);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String promotePrivateMediaInText(String text, String expectedOwnerUserId) {
+        if (text == null || text.isBlank()) {
+            return text;
+        }
+        for (Long fileId : CommunityFileMediaUrls.extractPrivateFileIds(text)) {
+            promoteCommunityFileToPublic(fileId, expectedOwnerUserId);
+        }
+        return CommunityFileMediaUrls.replacePrivateWithPublic(text);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String promotePrivateMediaUrl(String url, String expectedOwnerUserId) {
+        if (url == null || url.isBlank()) {
+            return url;
+        }
+        Long fileId = CommunityFileMediaUrls.extractSinglePrivateFileId(url);
+        if (fileId == null) {
+            return url;
+        }
+        promoteCommunityFileToPublic(fileId, expectedOwnerUserId);
+        return publicMediaUrl(fileId);
     }
 
     @Override

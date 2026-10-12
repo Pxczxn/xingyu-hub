@@ -10,9 +10,11 @@ import top.pxczxn.xingyu.community.mapper.PublishedRevisionMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import top.pxczxn.xingyu.community.support.CommunityEventSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
+import top.pxczxn.xingyu.file.service.SysFileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 
@@ -24,6 +26,7 @@ public class PublicationService {
     private final FormalRevisionMapper formalRevisionMapper;
     private final PublishedRevisionMapper publishedRevisionMapper;
     private final CommunityEventSupport eventSupport;
+    private final SysFileService fileService;
 
     @Transactional
     public PublishedRevision publishApprovedRevision(ReviewSubmission submission) {
@@ -36,6 +39,20 @@ public class PublicationService {
         FormalRevision revision = formalRevisionMapper.selectById(submission.getFormalRevisionId());
         if (revision == null) {
             throw new IllegalStateException("Formal revision missing for submission " + submission.getId());
+        }
+
+        Article article = articleMapper.selectById(submission.getArticleId());
+        String ownerId = article == null ? null : article.getOwnerId();
+        if (StringUtils.hasText(ownerId)) {
+            String promotedBody = fileService.promotePrivateMediaInText(revision.getBody(), ownerId);
+            String promotedCover = fileService.promotePrivateMediaUrl(revision.getCoverUrl(), ownerId);
+            boolean changed = !java.util.Objects.equals(promotedBody, revision.getBody())
+                    || !java.util.Objects.equals(promotedCover, revision.getCoverUrl());
+            if (changed) {
+                revision.setBody(promotedBody);
+                revision.setCoverUrl(promotedCover);
+                formalRevisionMapper.updateById(revision);
+            }
         }
 
         Instant now = Instant.now();
@@ -55,7 +72,6 @@ public class PublicationService {
             publishedRevisionMapper.updateById(published);
         }
 
-        Article article = articleMapper.selectById(submission.getArticleId());
         if (article != null) {
             article.setStatus(ArticleStateSupport.EDITORIAL_PUBLISHED);
             article.setUpdatedAt(now);

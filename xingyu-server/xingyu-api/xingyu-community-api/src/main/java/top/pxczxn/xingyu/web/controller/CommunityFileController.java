@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
+import top.pxczxn.xingyu.community.entity.Article;
+import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.file.community.CommunityFilePurpose;
 import top.pxczxn.xingyu.file.community.CommunityFileUploadCommand;
 import top.pxczxn.xingyu.file.community.CommunityUploadedFileView;
@@ -23,6 +25,7 @@ import top.pxczxn.xingyu.file.service.SysFileService;
 public class CommunityFileController {
 
     private final SysFileService fileService;
+    private final ArticleMapper articleMapper;
 
     @PostMapping("/upload")
     public CommunityUploadedFileView upload(
@@ -40,7 +43,7 @@ public class CommunityFileController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "未知的 purpose");
         }
         String ownerUserId = CommunityAuthContext.requireUser().getId();
-        assertPurposeAllowed(parsed, ownerUserId);
+        assertPurposeAllowed(parsed, ownerUserId, articleId);
         return fileService.uploadCommunity(
                 file,
                 CommunityFileUploadCommand.builder()
@@ -54,10 +57,19 @@ public class CommunityFileController {
                         .build());
     }
 
-    private static void assertPurposeAllowed(CommunityFilePurpose purpose, String ownerUserId) {
+    private void assertPurposeAllowed(CommunityFilePurpose purpose, String ownerUserId, String articleId) {
         if (ownerUserId == null || ownerUserId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "需要登录");
         }
-        // 细粒度归属校验（文章/系列是否属于当前用户）在业务保存阶段完成；上传阶段仅校验登录与 purpose 枚举。
+        if (purpose != CommunityFilePurpose.ARTICLE_COVER && purpose != CommunityFilePurpose.ARTICLE_BODY_IMAGE) {
+            return;
+        }
+        if (articleId == null || articleId.isBlank()) {
+            return;
+        }
+        Article article = articleMapper.selectById(articleId);
+        if (article == null || article.getOwnerId() == null || !article.getOwnerId().equals(ownerUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权向该文章上传资源");
+        }
     }
 }

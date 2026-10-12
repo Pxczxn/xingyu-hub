@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.common.result.PageResult;
+import top.pxczxn.xingyu.file.entity.SysFile;
 import top.pxczxn.xingyu.file.entity.SysFileConfig;
 import top.pxczxn.xingyu.file.mapper.SysFileConfigMapper;
+import top.pxczxn.xingyu.file.mapper.SysFileMapper;
 import top.pxczxn.xingyu.file.service.SysFileConfigService;
 import top.pxczxn.xingyu.oss.*;
 import top.pxczxn.xingyu.file.support.FileStorageBootstrap;
@@ -28,6 +30,7 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
     private final FileStorageFactory fileStorageFactory;
     private final StoredFileStorageService storedFileStorageService;
     private final FileStorageBootstrap fileStorageBootstrap;
+    private final SysFileMapper sysFileMapper;
 
     @Override
     public PageResult<SysFileConfig> page(int page, int pageSize, String name, String storageType) {
@@ -104,6 +107,11 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         }
         if (existing.getMaster() != null && existing.getMaster() == 1) {
             throw new BusinessException("不能删除主存储配置");
+        }
+        long referenced = sysFileMapper.selectCount(
+                new LambdaQueryWrapper<SysFile>().eq(SysFile::getFileConfigId, id));
+        if (referenced > 0) {
+            throw new BusinessException("仍有 " + referenced + " 个文件引用该存储配置，无法删除");
         }
         removeById(id);
     }

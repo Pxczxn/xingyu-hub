@@ -67,6 +67,21 @@ public interface SysFileService {
     String publicMediaUrl(long fileId);
 
     /**
+     * 将指定文件从私有提升为公开（校验所有者），用于文章发布等场景。
+     */
+    void promoteCommunityFileToPublic(long fileId, String expectedOwnerUserId);
+
+    /**
+     * 将文本中的私有媒体 URL 提升为公开，并替换为 public URL。
+     */
+    String promotePrivateMediaInText(String text, String expectedOwnerUserId);
+
+    /**
+     * 若 coverUrl 指向私有媒体，则提升并返回新的 public URL。
+     */
+    String promotePrivateMediaUrl(String url, String expectedOwnerUserId);
+
+    /**
      * 删除文件
      */
     void delete(Long id);

@@ -25,8 +25,9 @@ public enum CommunityFilePurpose {
 
     public boolean isPublicByDefault() {
         return switch (this) {
-            case USER_AVATAR, USER_BANNER, ARTICLE_COVER, SERIES_COVER, GALAXY_COVER, MOMENT_MEDIA -> true;
-            case ARTICLE_BODY_IMAGE, MESSAGE_ATTACHMENT, DRAFT_IMAGE, DRAFT_ATTACHMENT, TEMP_UPLOAD -> false;
+            case USER_AVATAR, USER_BANNER, SERIES_COVER, GALAXY_COVER, MOMENT_MEDIA -> true;
+            case ARTICLE_COVER, ARTICLE_BODY_IMAGE, MESSAGE_ATTACHMENT, DRAFT_IMAGE, DRAFT_ATTACHMENT, TEMP_UPLOAD ->
+                    false;
         };
     }
 }

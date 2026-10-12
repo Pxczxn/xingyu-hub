@@ -37,6 +37,10 @@
         </dependency>
         <dependency>
             <groupId>top.pxczxn</groupId>
+            <artifactId>xingyu-file</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>top.pxczxn</groupId>
             <artifactId>xingyu-platform</artifactId>
         </dependency>
         <dependency>
