@@ -19,7 +19,11 @@ export function parseCommunityPrivateMediaPath(
   if (!match) {
     return null;
   }
-  return `/api/v1/media/private/${match[1]}`;
+  const fileId = Number(match[1]);
+  if (!Number.isFinite(fileId)) {
+    return null;
+  }
+  return `/api/v1/media/private/${fileId}`;
 }
 
 export function isCommunityPrivateMediaPath(url: string): boolean {
