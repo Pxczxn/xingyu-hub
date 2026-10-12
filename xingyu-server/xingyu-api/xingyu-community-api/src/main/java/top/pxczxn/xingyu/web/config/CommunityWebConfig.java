@@ -66,6 +66,12 @@ public class CommunityWebConfig implements WebMvcConfigurer {
                         // 该路由同时要服务游客，因此拦截器把它当作「公开读取 + 有 token 就带上身份」。
                         "/api/v1/bookmarks/**",
                         "/api/v1/u/*/follow",
-                        "/api/v1/users/*/follow");
+                        "/api/v1/users/*/follow",
+                        // 社区统一上传与私有媒体读取：必须解析 satoken 并写入 CommunityAuthContext。
+                        // 未列入时 Controller 内 requireUser() 会因上下文为空而 500，且匿名请求不会被拒。
+                        "/api/v1/files",
+                        "/api/v1/files/**",
+                        "/api/v1/media/private",
+                        "/api/v1/media/private/**");
     }
 }

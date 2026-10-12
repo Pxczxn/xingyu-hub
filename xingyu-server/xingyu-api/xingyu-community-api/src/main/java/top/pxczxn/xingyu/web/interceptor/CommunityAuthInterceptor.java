@@ -35,7 +35,7 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
             populateContextIfPresent(request);
             return true;
         }
-        String token = request.getHeader("satoken");
+        String token = resolveToken(request);
         CommunitySession session = accountService.requireActiveSession(token);
         CommunityUser user = userMapper.selectById(session.getUserId());
         CommunityAuthContext.set(user, session);
@@ -57,7 +57,7 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
      * answer without one — so the request simply continues as a guest.
      */
     private void populateContextIfPresent(HttpServletRequest request) {
-        String token = request.getHeader("satoken");
+        String token = resolveToken(request);
         if (token == null || token.isBlank()) {
             return;
         }
@@ -70,6 +70,26 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
         } catch (Exception ignored) {
             // Treat an unusable token as "not signed in" rather than failing a public read.
         }
+    }
+
+    /**
+     * 社区会话 token：优先请求头；对私有媒体 GET 允许 query（仅供 {@code <img>} 预览，与前端约定）。
+     */
+    private String resolveToken(HttpServletRequest request) {
+        String token = request.getHeader("satoken");
+        if (token != null && !token.isBlank()) {
+            return token;
+        }
+        if ("GET".equalsIgnoreCase(request.getMethod())) {
+            String uri = request.getRequestURI();
+            if (uri != null && uri.startsWith("/api/v1/media/private/")) {
+                String queryToken = request.getParameter("satoken");
+                if (queryToken != null && !queryToken.isBlank()) {
+                    return queryToken;
+                }
+            }
+        }
+        return null;
     }
 
     private boolean isPublicRead(HttpServletRequest request) {

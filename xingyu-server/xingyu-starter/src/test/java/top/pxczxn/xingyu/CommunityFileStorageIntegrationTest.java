@@ -13,6 +13,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import top.pxczxn.xingyu.file.service.SysFileService;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
 import javax.imageio.ImageIO;
@@ -43,10 +44,21 @@ class CommunityFileStorageIntegrationTest {
     @Autowired
     private SysConfigGroupService configGroupService;
 
+    @Autowired
+    private SysFileService fileService;
+
     @BeforeEach
     void setUp() {
         CommunityTestSupport.ensureRegistrationOpen(configGroupService);
         TestSchemaAssertions.of(jdbcTemplate).assertDriftProneBaseline();
+    }
+
+    @Test
+    void anonymousCannotUploadCommunityFile() throws Exception {
+        mockMvc.perform(multipart("/api/v1/files/upload")
+                        .file(pngFile("x.png"))
+                        .param("purpose", "USER_AVATAR"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -76,22 +88,40 @@ class CommunityFileStorageIntegrationTest {
     }
 
     @Test
-    void articleBodyImageUploadIsPrivateUntilPromoted() throws Exception {
-        String token = communityToken();
+    void privateArticleBodyImageAuthContract() throws Exception {
+        String ownerToken = communityToken();
+        String otherToken = communityToken();
+
         MvcResult upload = mockMvc.perform(multipart("/api/v1/files/upload")
                         .file(pngFile("body.png"))
                         .param("purpose", "ARTICLE_BODY_IMAGE")
-                        .header("satoken", token))
+                        .header("satoken", ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.visibility").value("private"))
                 .andReturn();
 
         long fileId = objectMapper.readTree(upload.getResponse().getContentAsString()).get("fileId").asLong();
 
+        mockMvc.perform(get("/api/v1/media/private/" + fileId))
+                .andExpect(status().isUnauthorized());
+
         mockMvc.perform(get("/api/v1/media/public/" + fileId))
                 .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/api/v1/media/private/" + fileId))
+        mockMvc.perform(get("/api/v1/media/private/" + fileId).header("satoken", ownerToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/media/private/" + fileId).param("satoken", ownerToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/media/private/" + fileId).header("satoken", otherToken))
+                .andExpect(status().isForbidden());
+
+        String ownerId = jdbcTemplate.queryForObject(
+                "SELECT owner_user_id FROM sys_file WHERE id = ?", String.class, fileId);
+        fileService.promoteCommunityFileToPublic(fileId, ownerId);
+
+        mockMvc.perform(get("/api/v1/media/public/" + fileId))
                 .andExpect(status().isOk());
     }
 

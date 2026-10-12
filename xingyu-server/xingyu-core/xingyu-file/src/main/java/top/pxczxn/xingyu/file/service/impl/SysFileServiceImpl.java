@@ -283,6 +283,7 @@ public class SysFileServiceImpl implements SysFileService {
                 || !expectedOwnerUserId.equals(sysFile.getOwnerUserId())) {
             throw new RuntimeException("无权发布该媒体文件");
         }
+        // 访问边界由 visibility + /media/public 代理；对象仍留在原 private/ 路径（未做 MinIO 跨桶物理复制）。
         sysFile.setVisibility("public");
         sysFile.setUrl(publicMediaUrl(fileId));
         fileMapper.updateById(sysFile);
