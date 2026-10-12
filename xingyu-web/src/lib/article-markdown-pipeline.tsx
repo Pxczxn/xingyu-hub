@@ -8,7 +8,7 @@ import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 import { visit } from "unist-util-visit";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
-import { withPrivateMediaAuth } from "@/lib/community-private-media-url";
+import { ArticleMarkdownImg } from "@/lib/article-markdown-media-context";
 
 /*
  * Article Markdown READING pipeline — migrated from Legacy
@@ -42,9 +42,7 @@ const articleMarkdownComponents: Components = {
       {children}
     </a>
   ),
-  img: ({ src, alt }) => (
-    <img src={withPrivateMediaAuth(src ?? "")} alt={alt ?? ""} loading="lazy" />
-  ),
+  img: ({ src, alt }) => <ArticleMarkdownImg src={src} alt={alt} />,
 };
 
 const articleMarkdownProcessor = unified()

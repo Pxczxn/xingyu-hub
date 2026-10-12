@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,7 +16,6 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import top.pxczxn.xingyu.file.service.SysFileService;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
 import javax.imageio.ImageIO;
@@ -23,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,9 +46,6 @@ class CommunityFileStorageIntegrationTest {
 
     @Autowired
     private SysConfigGroupService configGroupService;
-
-    @Autowired
-    private SysFileService fileService;
 
     @BeforeEach
     void setUp() {
@@ -112,17 +112,72 @@ class CommunityFileStorageIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/media/private/" + fileId).param("satoken", ownerToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/v1/media/private/" + fileId).header("satoken", otherToken))
                 .andExpect(status().isForbidden());
+    }
 
-        String ownerId = jdbcTemplate.queryForObject(
-                "SELECT owner_user_id FROM sys_file WHERE id = ?", String.class, fileId);
-        fileService.promoteCommunityFileToPublic(fileId, ownerId);
+    @Test
+    void articleBodyImageVisibleToGuestAfterReviewApproval() throws Exception {
+        String ownerToken = communityToken();
+
+        MvcResult upload = mockMvc.perform(multipart("/api/v1/files/upload")
+                        .file(pngFile("flow.png"))
+                        .param("purpose", "ARTICLE_BODY_IMAGE")
+                        .header("satoken", ownerToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        long fileId = objectMapper.readTree(upload.getResponse().getContentAsString()).get("fileId").asLong();
+        String privateUrl = "/api/v1/media/private/" + fileId;
+
+        MvcResult created = mockMvc.perform(post("/api/v1/me/articles").header("satoken", ownerToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        String articleId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .get("articleId")
+                .asText();
+
+        mockMvc.perform(put("/api/v1/me/articles/" + articleId + "/draft")
+                        .header("satoken", ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"图文发布","summary":"","bodyMode":"MARKDOWN","body":"![插图](%s)","lockVersion":0,"visibility":"PUBLIC"}
+                                """.formatted(privateUrl)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/me/articles/" + articleId + "/submit").header("satoken", ownerToken))
+                .andExpect(status().isOk());
+
+        String adminToken = adminToken();
+        assertTrue(!adminToken.isBlank(), "admin login required for review approval");
+
+        MvcResult queueResult = mockMvc.perform(get("/api/v1/admin/review/queue").header("satoken", adminToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode queueBody = objectMapper.readTree(queueResult.getResponse().getContentAsString());
+        JsonNode queue = queueBody.isArray() ? queueBody : queueBody.path("data");
+        String submissionId = null;
+        for (JsonNode item : queue) {
+            if (articleId.equals(item.path("articleId").asText(null))) {
+                submissionId = item.path("submissionId").asText(null);
+                break;
+            }
+        }
+        assertNotNull(submissionId, "submission not found for article " + articleId);
+
+        mockMvc.perform(post("/api/v1/admin/review/" + submissionId + "/decide")
+                        .header("satoken", adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"decision\":\"APPROVED\",\"comment\":\"ok\"}"))
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/media/public/" + fileId))
                 .andExpect(status().isOk());
+
+        String visibility = jdbcTemplate.queryForObject(
+                "SELECT visibility FROM sys_file WHERE id = ?", String.class, fileId);
+        assertTrue("public".equalsIgnoreCase(visibility), "publish promotes metadata visibility only");
     }
 
     @Test
@@ -140,6 +195,18 @@ class CommunityFileStorageIntegrationTest {
     void legacyMessagePathRemainsBlockedFromStaticAccess() throws Exception {
         mockMvc.perform(get("/api/v1/admin/files/private/messages/test-user/fake.png"))
                 .andExpect(status().isForbidden());
+    }
+
+    private String adminToken() throws Exception {
+        MvcResult adminLogin = mockMvc.perform(post("/api/v1/admin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"admin123\"}"))
+                .andReturn();
+        if (adminLogin.getResponse().getStatus() != 200) {
+            return "";
+        }
+        JsonNode body = objectMapper.readTree(adminLogin.getResponse().getContentAsString());
+        return body.path("data").path("token").asText("");
     }
 
     private String communityToken() throws Exception {

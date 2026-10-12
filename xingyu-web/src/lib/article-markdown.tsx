@@ -7,6 +7,7 @@ import {
   parseArticleMarkdownAst,
   renderArticleMarkdown,
 } from "@/lib/article-markdown-pipeline";
+import { ArticleMarkdownMediaProvider } from "@/lib/article-markdown-media-context";
 
 /*
  * Migrated from Legacy lib/article-markdown.tsx — READ path only.
@@ -39,7 +40,14 @@ export function extractArticleOutline(body: string): ArticleOutlineItem[] {
   return items;
 }
 
-export function ArticleMarkdownBody({ body }: { body: string }) {
+export function ArticleMarkdownBody({
+  body,
+  authenticatePrivateMedia = false,
+}: {
+  body: string;
+  /** 仅编辑器草稿预览：私有图片走认证 fetch，阅读页必须保持 false。 */
+  authenticatePrivateMedia?: boolean;
+}) {
   const content = useMemo(() => {
     if (!body.trim()) return null;
     return renderArticleMarkdown(body);
@@ -53,5 +61,9 @@ export function ArticleMarkdownBody({ body }: { body: string }) {
     );
   }
 
-  return <div className="article-body">{content}</div>;
+  return (
+    <ArticleMarkdownMediaProvider authenticatePrivateMedia={authenticatePrivateMedia}>
+      <div className="article-body">{content}</div>
+    </ArticleMarkdownMediaProvider>
+  );
 }

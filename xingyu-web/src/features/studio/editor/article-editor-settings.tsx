@@ -12,6 +12,7 @@ import {
 import type { TopicSummary } from "@/api/topics/topics.types";
 import type { ArticleVisibility } from "@/api/articles/articles.types";
 import { VISIBILITY_OPTIONS } from "@/lib/article-editor-draft";
+import { CommunityPrivateMediaImage } from "@/components/media/CommunityPrivateMediaImage";
 
 type ArticleEditorSettingsProps = {
   topics: TopicSummary[];
@@ -67,10 +68,10 @@ export function ArticleEditorSettings({
         <h2>封面</h2>
         <div className={cn(styles.settingsGroup)}>
           {coverUrl ? (
-            <img
-              src={coverUrl}
+            <CommunityPrivateMediaImage
+              url={coverUrl}
               alt=""
-              className="mb-2 w-full rounded-lg object-cover aspect-[2.15/1]"
+              className="mb-2 aspect-[2.15/1] w-full rounded-lg object-cover"
             />
           ) : (
             <p className={cn(styles.settingsHint)}>未设置封面（可选）</p>
