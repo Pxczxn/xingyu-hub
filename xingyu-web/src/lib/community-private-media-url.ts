@@ -1,4 +1,4 @@
-import { getStoredToken } from "@/api/client";
+import { getStoredToken } from "@/lib/storage";
 
 /**
  * `<img src>` 无法带 satoken 请求头；私有媒体 GET 允许 query satoken（见 CommunityAuthInterceptor）。
