@@ -7,9 +7,11 @@ import top.pxczxn.xingyu.common.contract.ProblemDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestControllerAdvice(basePackages = "top.pxczxn.xingyu.web.controller")
@@ -46,10 +48,35 @@ public class CommunityApiExceptionHandler {
         return problem(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.getTitle(), request);
     }
 
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ProblemDetails> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        if (status.is5xxServerError()) {
+            log.error("community api response status", ex);
+        }
+        ErrorCode code = errorCodeFor(status);
+        String detail = ex.getReason() != null ? ex.getReason() : code.getTitle();
+        return problem(code, detail, request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetails> handleOther(Exception ex, HttpServletRequest request) {
         log.error("community api error", ex);
         return problem(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.getTitle(), request);
+    }
+
+    private static ErrorCode errorCodeFor(HttpStatus status) {
+        return switch (status) {
+            case BAD_REQUEST -> ErrorCode.VALIDATION_FAILED;
+            case UNAUTHORIZED -> ErrorCode.AUTH_REQUIRED;
+            case FORBIDDEN -> ErrorCode.AUTH_FORBIDDEN;
+            case NOT_FOUND -> ErrorCode.NOT_FOUND;
+            case CONFLICT -> ErrorCode.CONFLICT;
+            default -> status.is4xxClientError() ? ErrorCode.VALIDATION_FAILED : ErrorCode.INTERNAL_ERROR;
+        };
     }
 
     private ResponseEntity<ProblemDetails> problem(ErrorCode code, String detail, HttpServletRequest request) {
