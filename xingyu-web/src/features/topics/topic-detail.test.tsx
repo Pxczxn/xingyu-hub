@@ -15,6 +15,16 @@ import { TopicDetailPage } from "./pages/TopicDetailPage";
  * (SocialService required status=ENABLED while topics are ACTIVE, so every
  * follow 404'd) and GET /topics/{slug} now reports `following` for signed-in
  * viewers. Guests get a login CTA instead of a toggle.
+ *
+ * 2026-10-13 (批次 04) — two tests were added for the layout pass, and both pin
+ * decisions rather than pixels:
+ *
+ *   - the sort control reports which tab is active (`aria-pressed`), so the
+ *     state is not carried by a gold underline alone;
+ *   - the content list is NOT on a card surface, and its rows arrive staggered.
+ *     That second assertion exists because the list used to sit inside a
+ *     `bg-card/70` panel, which is exactly the kind of thing a later pass
+ *     "helpfully" puts back.
  */
 
 vi.mock("@/api/topics/topics.api", () => ({
@@ -204,6 +214,49 @@ describe("topic detail", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "热门" }));
     await waitFor(() => expect(mocked.getTopicContent).toHaveBeenCalledWith("spring", "hot", 12));
+  });
+
+  it("marks the active sort tab for assistive tech and flips it on selection", async () => {
+    mocked.getTopic.mockResolvedValue({ id: "t1", slug: "spring", name: "Spring 话题" });
+    mocked.getTopicContent.mockResolvedValue([{ id: "c1", title: "内容", objectType: "ARTICLE" }]);
+
+    renderAt("spring");
+
+    const latest = await screen.findByRole("button", { name: "最新" });
+    expect(latest).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "热门" })).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(screen.getByRole("button", { name: "热门" }));
+
+    await waitFor(() => expect(latest).toHaveAttribute("aria-pressed", "false"));
+    expect(screen.getByRole("button", { name: "热门" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("stages the content rows in and keeps the list off a card surface", async () => {
+    mocked.getTopic.mockResolvedValue({ id: "t1", slug: "spring", name: "Spring 话题" });
+    mocked.getTopicContent.mockResolvedValue([
+      { id: "c1", title: "第一行", objectType: "ARTICLE" },
+      { id: "c2", title: "第二行", objectType: "ARTICLE" },
+    ]);
+
+    renderAt("spring");
+
+    const feed = await screen.findByTestId("topic-content");
+
+    /*
+     * P0 discipline (设计方案 §3.3). The list IS this page's core, so it must not
+     * sit on a `bg-card/70` panel: a translucent surface reads as a secondary
+     * block, and its border implies the whole thing is one operable object.
+     */
+    expect(feed.className).not.toContain("bg-card");
+
+    const rows = within(feed).getAllByRole("article");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].className).toContain("animate-rise-in");
+    expect(rows[1].className).toContain("animate-rise-in");
+    // Inline, because `animate-rise-in` resets `animation-delay` (lib/stagger.ts).
+    expect(rows[0].style.animationDelay).toBe("0ms");
+    expect(rows[1].style.animationDelay).toBe("40ms");
   });
 
   it("keeps a local loading state while content is pending", async () => {

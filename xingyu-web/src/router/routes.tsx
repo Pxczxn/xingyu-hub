@@ -324,6 +324,17 @@ const MomentDetailPage = lazy(() =>
   })),
 );
 
+/*
+ * 批次 06 (2026-10-13): the studio's shared workbench frame. Lazy like every
+ * other layout — it is a shell, not a page, but it still only needs to exist
+ * once a studio route is entered.
+ */
+const WorkbenchShell = lazy(() =>
+  import("@/features/studio/components/WorkbenchShell").then((module) => ({
+    default: module.WorkbenchShell,
+  })),
+);
+
 const StudioPage = lazy(() =>
   import("@/features/studio/pages/StudioPage").then((module) => ({ default: module.StudioPage })),
 );
@@ -977,81 +988,6 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-        <Route
-          path="/studio"
-          element={
-            <RequireAuth>
-              <StudioPage />
-            </RequireAuth>
-          }
-        />
-        {/* Phase 3G: content management. This is the LIST route the editor's
-            comments kept referring to as missing. React Router ranks
-            `/studio/content/:articleId` above nothing here — both are declared,
-            and the static segment wins for the exact path `/studio/content`. */}
-        <Route
-          path="/studio/content"
-          element={
-            <RequireAuth>
-              <ContentListPage />
-            </RequireAuth>
-          }
-        />
-        {/* Phase 2K-2: review submissions. Both are session-scoped
-            (`/me/submissions*`), so RequireAuth on both.
-
-            NOTE the paths are `/studio/submissions*`, NOT `/me/submissions*`:
-            Legacy hosted this at `/studio/submissions/{id}` and the studio is
-            where a writer looks for their own submissions. The API path stays
-            `/me/*`. */}
-        <Route
-          path="/studio/submissions"
-          element={
-            <RequireAuth>
-              <MySubmissionsPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/studio/submissions/:submissionId"
-          element={
-            <RequireAuth>
-              <SubmissionDetailPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/studio/series"
-          element={
-            <RequireAuth>
-              <SeriesListPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/studio/series/new"
-          element={
-            <RequireAuth>
-              <SeriesNewPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/studio/series/:id/edit"
-          element={
-            <RequireAuth>
-              <SeriesEditPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/studio/series/:id/articles"
-          element={
-            <RequireAuth>
-              <SeriesArticlesPage />
-            </RequireAuth>
-          }
-        />
         {/* Phase 2A-3: onboarding. Subpaths are aliases so Legacy bookmarks
             land on the same step machine (the server `step` field). */}
         <Route
@@ -1114,66 +1050,88 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-        {/* Phase 2L: version history and analytics. Both are owner-only views of
-            data the API already exposes (listRevisions / me/insights). */}
-        <Route
-          path="/studio/analytics"
-          element={
-            <RequireAuth>
-              <StudioAnalyticsPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/studio/content/:articleId/versions"
-          element={
-            <RequireAuth>
-              <ArticleVersionsPage />
-            </RequireAuth>
-          }
-        />
-        {/* Phase 2M: collaboration invites. Both pages are RequireAuth.
-            The invite format is a strictly POST-a-session operation
-            (`POST /me/collaboration-invites`). Accept (`POST
-            /collaboration/invites/accept`) ALSO needs a session even though
-            resolve (`GET /collaboration/invites/resolve`) is public — gating both
-            keeps the flow coherent, and a guest simply gets bounced to login.
+        {/*
+          Phase 3G / 2K-2 / 2L / 2M / 2N: the studio, declared as ONE contiguous
+          section (batch 06, 2026-10-13).
 
-            ⚠️ `/studio/collaboration/accept` is declared AFTER
-            `/studio/collaboration` on purpose. They are siblings (accept is not a
-            child of the create page), and React Router 7 would rank the static
-            "accept" segment above the param if one were introduced — but the
-            intent is clearer written in this order.
+          These pages used to sit in two clusters a hundred lines apart, each
+          carrying its own `<RequireAuth>`. Batch 06 gives them a shared
+          workbench shell (left rail + main column), and a shell can only be
+          shared by a route that owns every page underneath it — hence the
+          single pathless parent below.
 
-            ⚠️ Neither page implies a working collaboration handshake: the backend
-            has no relationship table and accept writes nothing. See
-            collaboration.types.ts. */}
+          The parent is PATHLESS for the same reason as the settings group
+          above: it owns no URL of its own, it only contributes the frame. Two
+          studio paths are deliberately OUTSIDE it, and each says why where it
+          is declared: invite acceptance (a flow step, not a workplace) and the
+          editor (its own full-width three-column workspace).
+        */}
         <Route
-          path="/studio/collaboration"
           element={
             <RequireAuth>
-              <CollaborationInvitePage />
+              <WorkbenchShell />
             </RequireAuth>
           }
-        />
+        >
+          <Route path="/studio" element={<StudioPage />} />
+          {/* Phase 3G: content management. This is the LIST route the editor's
+              comments kept referring to as missing. React Router ranks
+              `/studio/content/:articleId` above nothing here — both are declared,
+              and the static segment wins for the exact path `/studio/content`. */}
+          <Route path="/studio/content" element={<ContentListPage />} />
+          {/* Phase 2K-2: review submissions. Both are session-scoped
+              (`/me/submissions*`), so both are gated — the gate now lives on the
+              parent rather than on each route.
+
+              NOTE the paths are `/studio/submissions*`, NOT `/me/submissions*`:
+              Legacy hosted this at `/studio/submissions/{id}` and the studio is
+              where a writer looks for their own submissions. The API path stays
+              `/me/*`. */}
+          <Route path="/studio/submissions" element={<MySubmissionsPage />} />
+          <Route path="/studio/submissions/:submissionId" element={<SubmissionDetailPage />} />
+          <Route path="/studio/series" element={<SeriesListPage />} />
+          <Route path="/studio/series/new" element={<SeriesNewPage />} />
+          <Route path="/studio/series/:id/edit" element={<SeriesEditPage />} />
+          <Route path="/studio/series/:id/articles" element={<SeriesArticlesPage />} />
+          {/* Phase 2L: version history and analytics. Both are owner-only views
+              of data the API already exposes (listRevisions / me/insights). */}
+          <Route path="/studio/analytics" element={<StudioAnalyticsPage />} />
+          <Route path="/studio/content/:articleId/versions" element={<ArticleVersionsPage />} />
+          {/* Phase 2M: collaboration invites. The invite format is a strictly
+              POST-a-session operation (`POST /me/collaboration-invites`).
+
+              ⚠️ Neither page implies a working collaboration handshake: the
+              backend has no relationship table and accept writes nothing. See
+              collaboration.types.ts. */}
+          <Route path="/studio/collaboration" element={<CollaborationInvitePage />} />
+          {/* Phase 2N: creation-space categories. Not a migration — the backend
+              CRUD (`/me/creation-space/categories`) was fully implemented while
+              Legacy shipped no page for it (`app/studio/categories/` has no
+              page.tsx, and its redirect sends /studio/categories to the empty
+              /studio/settings shell). */}
+          <Route path="/studio/categories" element={<StudioCategoriesPage />} />
+        </Route>
+        {/*
+          Phase 2M, second half: invite acceptance. OUTSIDE the workbench shell
+          (batch 06) — it is a step in a flow, not a place you work, and it
+          already renders its own centred card with its own exits. The same call
+          the settings re-authentication screen got on 2026-10-03.
+
+          It is declared AFTER `/studio/collaboration` on purpose. They are
+          siblings (accept is not a child of the create page), and React Router 7
+          would rank the static "accept" segment above the param if one were
+          introduced — but the intent is clearer written in this order.
+
+          RequireAuth here even though resolve (`GET
+          /collaboration/invites/resolve`) is public: accept (`POST
+          /collaboration/invites/accept`) needs a session, and gating both keeps
+          the flow coherent — a guest simply gets bounced to login.
+        */}
         <Route
           path="/studio/collaboration/accept"
           element={
             <RequireAuth>
               <CollaborationAcceptPage />
-            </RequireAuth>
-          }
-        />
-        {/* Phase 2N: creation-space categories. Not a migration — the backend
-            CRUD (`/me/creation-space/categories`) was fully implemented while
-            Legacy shipped no page for it (`app/studio/categories/` has no
-            page.tsx, and its redirect sends /studio/categories to the empty
-            /studio/settings shell). RequireAuth: every endpoint needs a session. */}
-        <Route
-          path="/studio/categories"
-          element={
-            <RequireAuth>
-              <StudioCategoriesPage />
             </RequireAuth>
           }
         />

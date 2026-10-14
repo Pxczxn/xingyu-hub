@@ -36,7 +36,14 @@ export function AttachmentFileList({
         const who = senderName(message);
         return (
           <li key={message.id}>
-            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
+            {/*
+              2026-10-13 (batch 07c): `rounded-xl` + `border-border/70` is the card
+              surface used everywhere else in the app; this row was the last
+              `rounded-md` + full-strength border left in the feature, which reads as a
+              slightly harder, slightly older box next to the image tiles and the
+              mailbox rows.
+            */}
+            <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card p-3">
               <span
                 aria-hidden
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-muted text-xs font-semibold text-muted-foreground"
@@ -54,13 +61,19 @@ export function AttachmentFileList({
                       href={url}
                       download={message.attachmentName ?? "附件"}
                       rel="noreferrer"
-                      className="block truncate text-sm text-accent hover:underline"
+                      className="block truncate text-sm text-accent-strong hover:underline"
                     >
                       {message.attachmentName ?? "附件"}
                     </a>
                   )}
                 </AuthenticatedAttachment>
-                <span className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+                {/*
+                  2026-10-13 (batch 07c): this line carries TWO facts — who sent it and
+                  when — so it takes the prose step (`text-meta`, 13px), not the 11px
+                  micro step. 11px is for a label that is glanced at (a pill, a badge);
+                  two facts stacked under a filename are read.
+                */}
+                <span className="mt-0.5 flex items-center gap-2 text-meta text-muted-foreground">
                   <span>{who ?? "已注销用户"}</span>
                   {at ? <time>{at}</time> : null}
                 </span>

@@ -69,16 +69,27 @@ export function ArticleInteractions({
     if (pending) return; // duplicate-click guard
     setError(null);
     const next = !liked;
-    // Optimistic update, rolled back if the request fails.
+    /*
+      Snapshot + restore, NOT reverse arithmetic.
+
+      The rollback used to subtract 1 (`c + (next ? -1 : 1)`). That is only
+      valid when both writes share one basis, and here they do not: if the
+      reader clicks before the count request resolves, `count` is still `null`,
+      so the optimistic write changes nothing — but a failure landing after the
+      GET has arrived would then subtract 1 from the server's number and print
+      a count that never existed. Restoring the snapshot is correct on every
+      interleaving, including that one.
+    */
+    const snapshot = count;
     setLiked(next);
-    setCount((c) => (c === null ? c : Math.max(0, c + (next ? 1 : -1))));
+    setCount(count === null ? null : Math.max(0, count + (next ? 1 : -1)));
     setPending(true);
     try {
       if (next) await interactionsApi.like(objectType, objectId);
       else await interactionsApi.unlike(objectType, objectId);
     } catch {
       setLiked(!next);
-      setCount((c) => (c === null ? c : Math.max(0, c + (next ? -1 : 1))));
+      setCount(snapshot);
       setError("操作失败，请稍后重试");
     } finally {
       setPending(false);
@@ -135,7 +146,7 @@ export function ArticleInteractions({
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Heart className="h-4 w-4" aria-hidden />
           {count !== null ? `${count} 赞` : "点赞"}
-          <Link to="/login" className="ml-1 text-accent hover:underline">
+          <Link to="/login" className="ml-1 text-accent-strong hover:underline">
             登录后互动
           </Link>
         </span>

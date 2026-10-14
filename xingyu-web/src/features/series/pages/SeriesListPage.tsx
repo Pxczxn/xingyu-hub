@@ -87,13 +87,13 @@ export function SeriesListPage() {
               <div className="mt-3 flex flex-wrap gap-3">
                 <Link
                   to={`/studio/series/${encodeURIComponent(item.id)}/edit`}
-                  className="text-sm text-accent hover:underline"
+                  className="text-sm text-accent-strong hover:underline"
                 >
                   编辑
                 </Link>
                 <Link
                   to={`/studio/series/${encodeURIComponent(item.id)}/articles`}
-                  className="text-sm text-accent hover:underline"
+                  className="text-sm text-accent-strong hover:underline"
                 >
                   文章编排
                 </Link>

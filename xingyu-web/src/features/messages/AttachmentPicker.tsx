@@ -152,8 +152,13 @@ export function AttachmentPicker({
         <Paperclip className="h-4 w-4" aria-hidden />
         {uploading ? "上传中…" : "附件"}
       </button>
+      {/*
+        2026-10-13 (batch 07c): 10px -> 11px. This is a one-line error under a button
+        that sits in the composer bar, so it takes the micro step — it must be readable
+        but must not push the composer row taller. 11px is this app's floor.
+      */}
       {localError ? (
-        <p role="alert" className="max-w-40 text-[10px] text-destructive">
+        <p role="alert" className="max-w-40 text-[11px] text-destructive">
           {localError}
         </p>
       ) : null}

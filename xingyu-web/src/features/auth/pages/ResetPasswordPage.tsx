@@ -99,7 +99,7 @@ export function ResetPasswordPage() {
     <AuthCard
       title="设置新密码"
       footer={
-        <Link to="/login" className="text-accent hover:underline">
+        <Link to="/login" className="text-accent-strong hover:underline">
           返回登录
         </Link>
       }

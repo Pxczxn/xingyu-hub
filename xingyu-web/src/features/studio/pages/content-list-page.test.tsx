@@ -197,6 +197,103 @@ describe("ContentListPage", () => {
   });
 });
 
+describe("ContentListPage — title search", () => {
+  const rows = [
+    article({ id: "1", status: "DRAFT", title: "星空观测笔记" }),
+    article({ id: "2", status: "DRAFT", title: "City Lights" }),
+    article({ id: "3", status: "PUBLISHED", title: "星空下的城市" }),
+  ];
+
+  it("offers a search box once the list has content", async () => {
+    mocked.listMine.mockResolvedValue(rows);
+    renderPage();
+    expect(await screen.findByRole("searchbox", { name: "搜索文章" })).toBeInTheDocument();
+  });
+
+  it("withholds the search box when there is nothing it could search", async () => {
+    // The default mock resolves to []; a dead input is worse than no input.
+    renderPage();
+    await screen.findByTestId("content-counters");
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+
+  it("withholds the search box on the trash tab — that tab is a different endpoint", async () => {
+    mocked.listMine.mockResolvedValue(rows);
+    mocked.listTrash.mockResolvedValue([trashItem()]);
+    renderPage("/studio/content?tab=trash");
+    await screen.findByTestId("trash-rows");
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+
+  it("narrows the list to matching titles", async () => {
+    mocked.listMine.mockResolvedValue(rows);
+    renderPage();
+    const box = await screen.findByRole("searchbox", { name: "搜索文章" });
+    fireEvent.change(box, { target: { value: "星空" } });
+    const list = screen.getByTestId("content-rows");
+    expect(list).toHaveTextContent("星空观测笔记");
+    expect(list).toHaveTextContent("星空下的城市");
+    expect(list).not.toHaveTextContent("City Lights");
+  });
+
+  it("matches case-insensitively so part-English titles are findable", async () => {
+    mocked.listMine.mockResolvedValue(rows);
+    renderPage();
+    fireEvent.change(await screen.findByRole("searchbox", { name: "搜索文章" }), {
+      target: { value: "city lights" },
+    });
+    expect(screen.getByTestId("content-rows")).toHaveTextContent("City Lights");
+  });
+
+  it("searches WITHIN the active tab rather than across it", async () => {
+    // The highlighted tab has to mean what it says: a published piece must not
+    // appear while 草稿 is selected.
+    mocked.listMine.mockResolvedValue(rows);
+    renderPage("/studio/content?tab=drafts");
+    fireEvent.change(await screen.findByRole("searchbox", { name: "搜索文章" }), {
+      target: { value: "星空" },
+    });
+    const list = screen.getByTestId("content-rows");
+    expect(list).toHaveTextContent("星空观测笔记");
+    expect(list).not.toHaveTextContent("星空下的城市");
+  });
+
+  it("says the search found nothing instead of claiming the author has no articles", async () => {
+    mocked.listMine.mockResolvedValue(rows);
+    renderPage();
+    fireEvent.change(await screen.findByRole("searchbox", { name: "搜索文章" }), {
+      target: { value: "不存在的关键词" },
+    });
+    expect(screen.getByText("没有匹配的文章")).toBeInTheDocument();
+    expect(screen.queryByText("还没有文章")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("content-rows")).not.toBeInTheDocument();
+  });
+
+  it("keeps the tab's own empty copy when the query is not why it is empty", async () => {
+    mocked.listMine.mockResolvedValue([article({ id: "1", status: "DRAFT", title: "草稿篇" })]);
+    renderPage("/studio/content?tab=reviewing");
+    fireEvent.change(await screen.findByRole("searchbox", { name: "搜索文章" }), {
+      target: { value: "草稿" },
+    });
+    expect(screen.getByText("没有审核中的文章")).toBeInTheDocument();
+    expect(screen.queryByText("没有匹配的文章")).not.toBeInTheDocument();
+  });
+
+  it("offers 清除搜索 as a button — a control that navigates nowhere must not be a link", async () => {
+    // Contract: every <Link> on this page resolves into /studio/content.
+    mocked.listMine.mockResolvedValue(rows);
+    renderPage();
+    expect(screen.queryByRole("button", { name: "清除搜索" })).not.toBeInTheDocument();
+    fireEvent.change(await screen.findByRole("searchbox", { name: "搜索文章" }), {
+      target: { value: "星空" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "清除搜索" }));
+    const list = screen.getByTestId("content-rows");
+    expect(list).toHaveTextContent("City Lights");
+    expect(screen.queryByRole("button", { name: "清除搜索" })).not.toBeInTheDocument();
+  });
+});
+
 describe("ContentListPage — trash tab", () => {
   it("fetches the trash endpoint lazily, only when the tab is opened", async () => {
     renderPage();

@@ -7,6 +7,7 @@ import { contentHref } from "@/components/shared/ContentCard";
 import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import { staggerDelay } from "@/lib/stagger";
 import {
   GALAXY_CONTENT_FILTERS,
   type GalaxyContentFilter,
@@ -47,6 +48,9 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [filter, setFilter] = useState<GalaxyContentFilter>(null);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -63,7 +67,7 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, reloadKey]);
 
   const rawItems = state.kind === "ready" ? state.items : [];
 
@@ -78,7 +82,16 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
 
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "error") {
-    return <PageState kind="error" title="内容加载失败" description="请稍后重试。" />;
+    return (
+      <div className="section-gap">
+        <PageState kind="error" title="内容加载失败" description="请稍后重试。" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -115,12 +128,29 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
               description="当前筛选条件下没有可展示的内容。"
             />
           ) : (
-            <ul className="mt-3 divide-y divide-border rounded-lg border border-border bg-card">
-              {visible.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            /*
+              `key` carries BOTH controls, because to the reader the type chips
+              and 仅看置顶 are one filter: a key that tracked only one of them
+              would replay for half the switches and not the other half. A new
+              key unmounts the list, so the rows animate in for the filter just
+              applied — same mechanism as MyEventsPage, same reason (a filter
+              that swaps content with no motion reads as a filter that did
+              nothing). Delays are inline because `animate-rise-in` is the
+              `animation` shorthand and resets `animation-delay` (stagger.ts).
+            */
+            <ul
+              key={`filter=${filter ?? "all"}&pinned=${pinnedOnly}`}
+              className="mt-3 divide-y divide-border rounded-lg border border-border bg-card"
+            >
+              {visible.map((item, index) => (
+                <li
+                  key={item.id}
+                  className="animate-rise-in flex flex-wrap items-center gap-3 px-4 py-3"
+                  style={{ animationDelay: staggerDelay(index) }}
+                >
                   <Link
                     to={contentHref({ id: item.objectId, objectType: item.objectType })}
-                    className="text-sm font-medium hover:text-accent"
+                    className="text-sm font-medium hover:text-accent-strong"
                   >
                     {item.title}
                   </Link>
@@ -128,7 +158,7 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
                     {galaxyContentTypeLabel(item.objectType)}
                   </span>
                   {item.pinned ? (
-                    <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent">
+                    <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent-strong">
                       置顶
                     </span>
                   ) : null}

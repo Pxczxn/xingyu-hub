@@ -48,6 +48,30 @@ export type ToastCategoryVisual = {
   label: string;
 };
 
+/*
+ * 2026-10-13 (batch 07d): the four categories that had their own hand-picked palette
+ * (LIKE rose, COMMENT/MESSAGE sky, MENTION violet) now share the neutral disc.
+ *
+ * Two reasons, and the second is the load-bearing one:
+ *
+ *  1. `tokens.css` says every component colour must resolve through a semantic
+ *     variable. There is no token for "rose" or "sky" to move to, because this design
+ *     system has no info/success/warning family — gold, navy, cream and one red are the
+ *     whole vocabulary. Naming raw palette steps was the only alternative to picking
+ *     from that vocabulary, and it is not an alternative.
+ *
+ *  2. The backend produces exactly ONE category today (`notifyUserFollowed` -> FOLLOW).
+ *     Inventing a validated palette for four categories that cannot arrive would mean
+ *     four colours nobody has ever seen, sitting next to the four that do appear. The
+ *     ICON is what carries the type here, and a glyph is also the part that survives
+ *     colour blindness — so nothing is lost by waiting.
+ *
+ * When a real producer ships for one of these, give THAT category a token then, with a
+ * real sample to measure contrast against. FOLLOW keeps its gold now because it is the
+ * one category that actually happens.
+ */
+const NEUTRAL_DISC = "bg-surface-sunken text-foreground-soft";
+
 const VISUALS: Record<string, ToastCategoryVisual> = {
   FOLLOW: {
     icon: UserPlus,
@@ -56,34 +80,34 @@ const VISUALS: Record<string, ToastCategoryVisual> = {
   },
   LIKE: {
     icon: Heart,
-    disc: "bg-rose-50 text-rose-600",
+    disc: NEUTRAL_DISC,
     label: "点赞",
   },
   COMMENT: {
     icon: MessageCircle,
-    disc: "bg-sky-50 text-sky-700",
+    disc: NEUTRAL_DISC,
     label: "评论",
   },
   MENTION: {
     icon: AtSign,
-    disc: "bg-violet-50 text-violet-700",
+    disc: NEUTRAL_DISC,
     label: "提及",
   },
   MESSAGE: {
     icon: Mail,
-    disc: "bg-sky-50 text-sky-700",
+    disc: NEUTRAL_DISC,
     label: "私信",
   },
   SYSTEM: {
     icon: Megaphone,
-    disc: "bg-surface-sunken text-foreground-soft",
+    disc: NEUTRAL_DISC,
     label: "系统",
   },
 };
 
 const FALLBACK: ToastCategoryVisual = {
   icon: Bell,
-  disc: "bg-surface-sunken text-foreground-soft",
+  disc: NEUTRAL_DISC,
   label: "通知",
 };
 

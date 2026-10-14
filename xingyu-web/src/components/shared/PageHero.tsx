@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Orbit } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ILLUSTRATION_SLOTS } from "./illustration-slots";
 
 /*
  * The page banner used by every top-level surface.
@@ -133,7 +134,15 @@ export function PageHero({
         </div>
 
         {compact || immersive ? null : illustration ? (
-          <div className="relative hidden shrink-0 lg:block" aria-hidden>
+          /* Capped at the `hero` slot width (illustration-slots.ts). The text
+             column is `min-w-0`, so without a cap a wide supplied image would
+             silently squeeze the title at 1024–1280px, where the two columns sit
+             side by side but the shell is still narrow. */
+          <div
+            className="relative hidden shrink-0 lg:block"
+            style={{ maxWidth: `${ILLUSTRATION_SLOTS.hero.width}px` }}
+            aria-hidden
+          >
             {illustration}
           </div>
         ) : (

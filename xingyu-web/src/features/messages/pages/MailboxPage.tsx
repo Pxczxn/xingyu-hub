@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 import { useChatSocket } from "@/features/chat/chat-socket.context";
 import { cn } from "@/lib/cn";
 import { ConversationRow } from "../ConversationRow";
@@ -25,12 +26,47 @@ import { NewMessageComposer } from "../NewMessageComposer";
  *
  * `GET /api/v1/messages` is a BARE ARRAY and the mapper already sorts
  * `updated_at DESC`; the list is rendered in that order and never re-sorted.
+ *
+ * 2026-10-13 (batch 07c) — THE SURFACE RULES FOR THE WHOLE messages/ FEATURE.
+ * ============================================================
+ * Every file in this feature follows these three; the per-file comments below
+ * only say what is specific to that file. A change that breaks one of them has
+ * to argue for itself here first.
+ *
+ *   1. THE DOMAIN'S CARDS ARE THE APP'S CARDS: `rounded-xl` + `border-border/70`
+ *      + `bg-card`. The mailbox is the one list in the app whose rows are
+ *      SEPARATE cards in a `flex flex-col gap-2` flow instead of one card with
+ *      `divide-y` — a row carries its own unread state and its own hover, and a
+ *      divider between rows can express neither. That is the shape, not an
+ *      oversight, so the `divide-y` recipe used by the events pages does NOT
+ *      apply here.
+ *
+ *   2. PROSE IS `text-meta` (13px), MICRO-LABELS ARE `text-[11px]`, CONTROLS
+ *      KEEP `text-sm`. Preview lines, timestamps, counters and attachment
+ *      captions are prose; pills and badges are micro-labels; buttons, inputs
+ *      and nav links are controls and stay at the size the rest of the app sets
+ *      them. Nothing in this feature sits at 10px any more: 11px is this app's
+ *      own floor (`.eyebrow`), and 10px is where a number a reader has to take
+ *      in at a glance — an unread count — stops being glanceable.
+ *
+ *   3. ENTRANCE MOTION IS `animate-rise-in` + AN INLINE `staggerDelay(index)`,
+ *      AND IT PLAYS ONCE PER MOUNT. The conversation list deliberately has NO
+ *      `key=` replay: the socket pushes a frame on every message, and replaying
+ *      the entire mailbox because someone typed a sentence is exactly the motion
+ *      abuse this batch exists to avoid. Pages that switch between a fixed set
+ *      of tabs DO replay via `key=` (see MyEventsPage) — there the switch is the
+ *      reader's own act, so the motion answers something the reader just did.
  */
 
 export function MailboxPage() {
   const { conversationId } = useParams<{ conversationId?: string }>();
-  const { conversations, conversationsStatus, conversationsError, conversationsExpired } =
-    useChatSocket();
+  const {
+    conversations,
+    conversationsStatus,
+    conversationsError,
+    conversationsExpired,
+    refreshConversations,
+  } = useChatSocket();
   const threadOpen = Boolean(conversationId);
 
   if (conversationsStatus === "idle" || conversationsStatus === "loading") {
@@ -54,11 +90,19 @@ export function MailboxPage() {
             whole error surface. */}
         {conversationsExpired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the read itself failed, so ask the provider
+             to run it again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => void refreshConversations()}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -149,11 +193,12 @@ export function MailboxPage() {
             />
           ) : (
             <ul aria-label="会话列表" className="flex list-none flex-col gap-2 p-0">
-              {items.map((conversation) => (
+              {items.map((conversation, index) => (
                 <ConversationRow
                   key={conversation.id}
                   conversation={conversation}
                   active={conversation.id === conversationId}
+                  index={index}
                 />
               ))}
             </ul>

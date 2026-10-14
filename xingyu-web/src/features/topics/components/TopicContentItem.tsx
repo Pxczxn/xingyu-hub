@@ -1,6 +1,8 @@
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { ContentSummary } from "@/api/common.types";
 import { contentHref } from "@/components/shared/ContentCard";
+import { cn } from "@/lib/cn";
 
 const TYPE_LABELS: Record<string, string> = { ARTICLE: "文章", SERIES: "系列", MOMENT: "动态" };
 
@@ -20,14 +22,31 @@ const TYPE_LABELS: Record<string, string> = { ARTICLE: "文章", SERIES: "系列
  *
  * The container is conditional too: an item with no author, no avatar and no type renders
  * no empty meta line, and the title then loses its `mt-2` rather than leaving a stray gap.
+ *
+ * 2026-10-13 (批次 04) — `className` / `style` are forwarded to the row itself, because
+ * the row IS the animation target: the detail page staggers these in with
+ * `animate-rise-in`, and a wrapper div around each row would be worse than useless —
+ * it would turn every row into its own parent's only child, so the `last:border-0`
+ * separator rule would fire on all of them and the list would lose every divider.
  */
-export function TopicContentItem({ item }: { item: ContentSummary }) {
+export function TopicContentItem({
+  item,
+  className,
+  style,
+}: {
+  item: ContentSummary;
+  className?: string;
+  style?: CSSProperties;
+}) {
   const typeLabel = item.objectType ? TYPE_LABELS[item.objectType.toUpperCase()] : undefined;
   const authorInitial = (item.authorName ?? "").trim().charAt(0).toUpperCase();
   const hasMeta = Boolean(item.avatar || item.authorName || typeLabel);
 
   return (
-    <article className="flex gap-4 border-b border-border/50 py-4 last:border-0">
+    <article
+      className={cn("flex gap-4 border-b border-border/50 py-4 last:border-0", className)}
+      style={style}
+    >
       <div className="min-w-0 flex-1">
         {hasMeta ? (
           <div

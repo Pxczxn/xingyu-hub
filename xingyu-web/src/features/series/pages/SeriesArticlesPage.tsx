@@ -20,6 +20,9 @@ export function SeriesArticlesPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const pendingRef = useRef(false);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!id) {
@@ -43,7 +46,7 @@ export function SeriesArticlesPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   function move(index: number, delta: number) {
     const next = index + delta;
@@ -93,7 +96,14 @@ export function SeriesArticlesPage() {
     return (
       <div className="section-gap">
         <PageState kind="error" />
-        <BackLink />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+        <p className="text-center">
+          <BackLink />
+        </p>
       </div>
     );
   }
@@ -186,7 +196,7 @@ export function SeriesArticlesPage() {
 
 function BackLink() {
   return (
-    <Link to="/studio/series" className="text-sm text-accent hover:underline">
+    <Link to="/studio/series" className="text-sm text-accent-strong hover:underline">
       返回系列列表
     </Link>
   );

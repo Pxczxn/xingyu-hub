@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { myCommentsApi } from "@/api/me-activity/me-activity.api";
 import { MY_ACTIVITY_LIMIT, type MyCommentView } from "@/api/me-activity/me-activity.types";
 import { contentHref } from "@/components/shared/ContentCard";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 /*
@@ -52,6 +51,9 @@ function formatTime(value: string): string {
 
 export function MyCommentsPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -74,7 +76,7 @@ export function MyCommentsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -92,11 +94,19 @@ export function MyCommentsPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -105,17 +115,14 @@ export function MyCommentsPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <MessageCircle className="h-5 w-5" aria-hidden />
-          我的评论
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的评论</h1>
+        <p className="lede mt-2 max-w-2xl">
           你在社区的评论记录。已隐藏或删除的评论不会显示在这里。
         </p>
       </header>
 
-      <section className="rounded-lg border border-border bg-card">
+      <section className="rounded-xl border border-border/70 bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="section-heading">评论记录</h2>
           {/* No "load more": the endpoint returns a bare array with no cursor. */}
@@ -153,7 +160,7 @@ export function MyCommentsPage() {
                         so linking to the comment id would be a dead link. */}
                     <Link
                       to={contentHref({ id: comment.objectId, objectType: comment.objectType })}
-                      className="text-accent hover:underline"
+                      className="text-accent-strong hover:underline"
                     >
                       {comment.objectTitle || comment.objectId}
                     </Link>

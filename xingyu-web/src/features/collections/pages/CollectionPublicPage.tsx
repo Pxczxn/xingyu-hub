@@ -4,6 +4,7 @@ import { collectionsApi } from "@/api/collections/collections.api";
 import { visibilityLabel, type CollectionDetail } from "@/api/collections/collections.types";
 import { ApiError } from "@/api/client";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 
 type LoadState =
   | { kind: "loading" }
@@ -33,6 +34,9 @@ function itemHref(objectType: string, objectId: string): string | null {
 export function CollectionPublicPage() {
   const { id = "" } = useParams<{ id: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!id) {
@@ -53,10 +57,21 @@ export function CollectionPublicPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
-  if (state.kind === "error") return <PageState kind="error" />;
+  if (state.kind === "error") {
+    return (
+      <div className="section-gap">
+        <PageState kind="error" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (state.kind === "unavailable") {
     return <PageState kind="empty" title="收藏夹不存在或暂不可访问" />;
   }
@@ -104,9 +119,13 @@ export function CollectionPublicPage() {
             return (
               <li key={item.id} className="min-w-0">
                 {href ? (
+                  // Whole-card target -> `.card-lift`. The former
+                  // `transition-colors hover:border-accent-line` is gone on
+                  // purpose: `.card-lift` already transitions `border-color` and
+                  // the two rules would race on the same property.
                   <Link
                     to={href}
-                    className="focus-ring flex h-full flex-col gap-2 rounded-xl border border-border/70 bg-card p-4 transition-colors hover:border-accent-line"
+                    className="card-lift focus-ring flex h-full flex-col gap-2 rounded-xl border border-border/70 bg-card p-4"
                   >
                     <span className="w-fit rounded-md bg-surface-sunken px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                       {typeLabel}

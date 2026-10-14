@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { reportsApi } from "@/api/moderation/moderation.api";
 import type { ReportTargetView } from "@/api/moderation/moderation.types";
 import { reportReasonLabel } from "@/api/moderation/moderation.types";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { cn } from "@/lib/cn";
 
 /*
@@ -68,6 +69,9 @@ export function NewReportPage() {
   const [detail, setDetail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* Bumping the key replays the target-preview effect — the retry mechanism
+     for the error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!objectType || !objectId) {
@@ -97,7 +101,7 @@ export function NewReportPage() {
     return () => {
       active = false;
     };
-  }, [objectType, objectId]);
+  }, [objectType, objectId, reloadKey]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -157,8 +161,18 @@ export function NewReportPage() {
     return (
       <div className="section-gap">
         <PageState kind="error" title={title} description={description} />
+        {/* Retry only when the read itself failed: a missing target has
+            nothing to re-read, an expired session needs a fresh login, and a
+            409 refusal is the server's verdict, not a transient fault. */}
+        {!target.notFound && !target.expired && !target.conflict ? (
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        ) : null}
         <p className="text-center">
-          <Link to="/reports" className="text-sm text-accent hover:underline">
+          <Link to="/reports" className="text-sm text-accent-strong hover:underline">
             返回我的举报
           </Link>
         </p>
@@ -175,25 +189,42 @@ export function NewReportPage() {
       <p>
         <Link
           to="/reports"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-strong"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           返回我的举报
         </Link>
       </p>
 
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <ShieldAlert className="h-5 w-5" aria-hidden />
-          提交举报
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+      {/*
+        页头（2026-10-13，批次 08c）—— 与 /reports、/appeals 同形：去卡片、去图标、
+        改分隔线式。完整判据见 MyReportsPage 的注释，这里不重复。
+
+        这一页另有本批两处可用性修复，都落在「细节可用性」这个批次目标上：
+
+        1) 原因下拉与补充说明这两个手写控件原本**没有任何焦点指示** —— 没有
+           `focus-visible:ring`，也没有 `.focus-ring`。整张表单里 Tab 进去看不出
+           光标落在哪，与 08b 在 onboarding 修掉的是同一个缺陷（那里是简介
+           textarea）。加 `.focus-ring` 是最小干预：不动 border 色、不动 bg、也不
+           换成 ui/ 表单组件 —— 本域没有 ui/ 表单组件的既有语境，换组件会顺带改掉
+           三样视觉，超出「修缺陷」的范围。
+
+        2) 提交失败原本是裸 `<p className="text-sm text-destructive">`。这正是
+           AuthFormError 头部注释逐字点名要消灭的三种漂移形态之一（`Login /
+           ResetPassword / Register` 那一行），而同一段注释声明框式是「the one that
+           becomes the standard」。这里是**表单级**失败（提交动作失败，不是某个字段
+           校验错），所以取 `focusOnMount`：错误渲染在表单底部，长表单里不聚焦用户
+           看不到。08b 已在 onboarding 建好跨域复用的先例。
+      */}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">提交举报</h1>
+        <p className="lede mt-2 max-w-2xl">
           请基于事实填写。举报提交后，可在「我的举报」中查看处理进度。
         </p>
       </header>
 
       {/* The target, as the SERVER sees it. No UUID is shown or editable. */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">举报对象</h2>
         <dl className="mt-3 flex flex-col gap-4 text-sm">
           <div>
@@ -216,7 +247,7 @@ export function NewReportPage() {
             <dt className="text-muted-foreground">作者</dt>
             <dd className="mt-1 text-foreground">
               {authorHref ? (
-                <Link to={authorHref} className="text-accent hover:underline">
+                <Link to={authorHref} className="text-accent-strong hover:underline">
                   {authorName}
                 </Link>
               ) : (
@@ -232,7 +263,7 @@ export function NewReportPage() {
         ) : null}
       </section>
 
-      <form onSubmit={submit} className="rounded-lg border border-border bg-card p-5">
+      <form onSubmit={submit} className="rounded-xl border border-border/70 bg-card p-5">
         <div className="flex flex-col gap-4">
           <div>
             <label htmlFor="report-reason" className="text-sm font-medium text-foreground">
@@ -242,7 +273,7 @@ export function NewReportPage() {
               id="report-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm text-foreground"
+              className="focus-ring mt-2 w-full rounded-md border border-border bg-background p-2 text-sm text-foreground"
             >
               {REASON_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -262,15 +293,11 @@ export function NewReportPage() {
               value={detail}
               onChange={(e) => setDetail(e.target.value)}
               rows={4}
-              className="mt-2 w-full rounded-md border border-border bg-background p-3 text-sm text-foreground"
+              className="focus-ring mt-2 w-full rounded-md border border-border bg-background p-3 text-sm text-foreground"
             />
           </div>
 
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
+          {error ? <AuthFormError focusOnMount>{error}</AuthFormError> : null}
 
           <div className="flex flex-wrap gap-3">
             <button

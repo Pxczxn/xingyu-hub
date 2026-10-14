@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { LostOrbit } from "./illustrations";
+import { IllustrationSlot, LostOrbit } from "./illustrations";
 
 /*
  * 404 fallback for the catch-all route.
@@ -27,14 +27,14 @@ export function NotFound() {
     <div className="flex min-h-[70vh] items-center justify-center py-10">
       <Card className="w-full max-w-md">
         <CardContent className="flex flex-col items-center gap-4 pt-8 pb-8 text-center">
-          <LostOrbit className="h-28 w-auto sm:h-32" />
+          <IllustrationSlot id="notFound" fallback={<LostOrbit className="h-full w-full" />} />
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-primary">页面不存在</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               你访问的页面尚未迁移到 Web V2，或者地址有误。
             </p>
           </div>
-          <Link to="/" className="text-sm font-medium text-accent hover:underline">
+          <Link to="/" className="text-sm font-medium text-accent-strong hover:underline">
             返回首页
           </Link>
         </CardContent>

@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { UserPlus } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { messagesApi } from "@/api/messages/messages.api";
 import type { MyGroupJoinRequest } from "@/api/messages/messages.types";
 import { GROUP_JOIN_REQUEST_LIMIT } from "@/api/messages/messages.types";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import {
   groupIsGone,
@@ -64,6 +63,9 @@ function formatTime(value?: string | null): string {
 
 export function GroupJoinRequestsPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -86,7 +88,7 @@ export function GroupJoinRequestsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -104,11 +106,19 @@ export function GroupJoinRequestsPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -117,13 +127,10 @@ export function GroupJoinRequestsPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <UserPlus className="h-5 w-5" aria-hidden />
-          关系请求
-        </h1>
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">关系请求</h1>
         {/* Scope stated up front — following is open, so only join requests exist. */}
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+        <p className="lede mt-2 max-w-2xl">
           这里显示你发起的群聊入群申请。关注是开放模式，不需要申请，所以不会出现在这里。
         </p>
       </header>
@@ -137,7 +144,7 @@ export function GroupJoinRequestsPage() {
       ) : (
         <>
           {pending.length > 0 ? (
-            <section aria-label="待处理" className="rounded-lg border border-border bg-card">
+            <section aria-label="待处理" className="rounded-xl border border-border/70 bg-card">
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <h2 className="section-heading">待处理</h2>
                 <span className="text-xs text-muted-foreground">{pending.length} 条</span>
@@ -151,7 +158,7 @@ export function GroupJoinRequestsPage() {
           ) : null}
 
           {resolved.length > 0 ? (
-            <section aria-label="历史记录" className="rounded-lg border border-border bg-card">
+            <section aria-label="历史记录" className="rounded-xl border border-border/70 bg-card">
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <h2 className="section-heading">历史记录</h2>
                 <span className="text-xs text-muted-foreground">{resolved.length} 条</span>
@@ -209,7 +216,7 @@ function RequestRow({ request }: { request: MyGroupJoinRequest }) {
           className={cn(
             "shrink-0 rounded-full border px-2 py-0.5 text-xs",
             request.status === "PENDING"
-              ? "border-accent/50 text-accent"
+              ? "border-accent/50 text-accent-strong"
               : "border-border text-muted-foreground",
           )}
         >
@@ -224,7 +231,7 @@ function RequestRow({ request }: { request: MyGroupJoinRequest }) {
       {href ? (
         // V2 routes /messages/:conversationId for groups too (tries DIRECT, then
         // falls back to GROUP on 404) — unlike Legacy's unrouted /messages/group/{id}.
-        <Link to={href} className="text-sm text-accent hover:underline">
+        <Link to={href} className="text-sm text-accent-strong hover:underline">
           查看群聊
         </Link>
       ) : null}

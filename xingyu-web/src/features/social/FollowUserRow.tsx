@@ -38,9 +38,11 @@ export function FollowUserRow({
   const followedAt = formatFollowedAt(user.followedAt);
 
   return (
+    // Row surface, not a whole-card link: the name inside is the only target, so
+    // `.card-lift` would raise the row for a click it cannot honour.
     <li
       className={cn(
-        "flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4",
+        "flex flex-wrap items-center gap-4 rounded-xl border border-border/70 bg-card p-4",
         className,
       )}
     >
@@ -54,7 +56,7 @@ export function FollowUserRow({
       <span className="min-w-0 flex-1">
         <Link
           to={`/u/${encodeURIComponent(user.username)}`}
-          className="block truncate text-sm font-medium text-foreground hover:text-accent"
+          className="block truncate text-sm font-medium text-foreground hover:text-accent-strong"
         >
           {label}
         </Link>

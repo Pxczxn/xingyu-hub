@@ -15,7 +15,7 @@ function SectionLink({ to, children }: { to: string; children: React.ReactNode }
   return (
     <Link
       to={to}
-      className="group focus-ring inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-accent"
+      className="group focus-ring inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-accent-strong"
     >
       {children}
       <ArrowRight
@@ -85,6 +85,9 @@ function GalaxyContentRows({ items, slug }: { items: GalaxyContent[]; slug: stri
                 {dateLabel ? <span>{dateLabel}</span> : null}
                 {item.pinned ? (
                   <span className="inline-flex items-center gap-1 text-accent/80">
+                    {/* Decorative: the word 置顶 beside it carries the state, so
+                        the mark keeps the vivid brand gold rather than the
+                        `--accent-strong` that text uses. */}
                     <Pin className="h-3 w-3" aria-hidden />
                     置顶
                   </span>
@@ -92,7 +95,7 @@ function GalaxyContentRows({ items, slug }: { items: GalaxyContent[]; slug: stri
               </div>
               <Link
                 to={contentHref({ id: item.objectId, objectType: item.objectType })}
-                className="focus-ring block truncate text-sm font-semibold text-primary transition-colors hover:text-accent"
+                className="focus-ring block truncate text-sm font-semibold text-primary transition-colors hover:text-accent-strong"
               >
                 {item.title}
               </Link>
@@ -259,7 +262,7 @@ function GalaxyOverview({ slug }: { slug: string }) {
                         {name.trim().charAt(0).toUpperCase()}
                       </span>
                       <span className="min-w-0">
-                        <span className="block max-w-36 truncate text-sm font-medium text-primary transition-colors group-hover:text-accent">
+                        <span className="block max-w-36 truncate text-sm font-medium text-primary transition-colors group-hover:text-accent-strong">
                           {name}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">

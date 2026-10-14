@@ -71,9 +71,13 @@ export function SettingsEmailPage() {
   const [busy, setBusy] = useState(false);
   const [hasGrant, setHasGrant] = useState(() => getStoredRecentAuth() !== null);
   const [formOpen, setFormOpen] = useState(false);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setMeState("loading");
     authApi
       .getMe()
       .then((data) => {
@@ -87,7 +91,7 @@ export function SettingsEmailPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -132,7 +136,16 @@ export function SettingsEmailPage() {
 
   if (meState === "loading") return <PageState kind="loading" />;
   if (meState === "error") {
-    return <PageState kind="error" title="无法读取账号信息" description="请确认登录状态后重试。" />;
+    return (
+      <div className="section-gap">
+        <PageState kind="error" title="无法读取账号信息" description="请确认登录状态后重试。" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -109,6 +109,48 @@ export default {
   		maxWidth: {
   			shell: 'var(--shell-max-width)'
   		},
+  		/*
+  		 * Enhanced shadow system for visual depth hierarchy.
+  		 *
+  		 * All shadows are tinted with --foreground rather than black. A
+  		 * pure-black shadow over cream goes grey; the navy tint keeps the
+  		 * surface reading as the same material it sits on.
+  		 *
+  		 * - sm: subtle depth for static cards
+  		 * - DEFAULT (md): standard card elevation
+  		 * - lg: prominent surfaces (modals, dropdowns)
+  		 * - xl: maximum elevation (toasts, notifications)
+  		 * - lift: interactive hover state
+  		 */
+  		boxShadow: {
+  			sm: '0 1px 3px 0 hsl(var(--foreground) / 0.05)',
+  			DEFAULT: '0 2px 6px -1px hsl(var(--foreground) / 0.06)',
+  			md: '0 2px 6px -1px hsl(var(--foreground) / 0.06)',
+  			lg: '0 8px 16px -4px hsl(var(--foreground) / 0.08)',
+  			xl: '0 12px 24px -6px hsl(var(--foreground) / 0.10)',
+  			lift: '0 4px 12px -2px hsl(var(--foreground) / 0.08)'
+  		},
+  		/*
+  		 * Motion vocabulary (see docs/design-system/前端Layout设计方案.md §6.2).
+  		 *
+  		 * Four rules these follow: only express a state change; only animate
+  		 * opacity + transform; stay under 400ms; and inherit the global
+  		 * `prefers-reduced-motion` clamp already in globals.css, which drops every
+  		 * animation to 0.01ms — so none of them need their own reduced-motion case.
+  		 *
+  		 * `backwards` fill-mode, NOT `both`. A retained `transform` — and
+  		 * `translateY(0)` is still a transform — makes the element a containing
+  		 * block for every `position: fixed` descendant, permanently, which would
+  		 * break in-tree fixed layers (the editor workspace has two). `backwards`
+  		 * applies the first frame during any delay and releases the element once
+  		 * the animation ends; since the last frame equals the element's own style,
+  		 * nothing moves. It is also what makes a staggered item invisible until
+  		 * its delay elapses — without it, the item paints, blinks out, then fades in.
+  		 *
+  		 * Delays for staggered lists are set inline (`animationDelay`), not here —
+  		 * a utility class cannot beat Tailwind's own `animation` shorthand, which
+  		 * resets `animation-delay` whenever both land on one element.
+  		 */
   		keyframes: {
   			'sheet-in': {
   				from: {
@@ -135,12 +177,43 @@ export default {
   				to: {
   					height: '0'
   				}
+  			},
+  			'fade-in': {
+  				from: {
+  					opacity: '0'
+  				},
+  				to: {
+  					opacity: '1'
+  				}
+  			},
+  			'rise-in': {
+  				from: {
+  					opacity: '0',
+  					transform: 'translateY(8px)'
+  				},
+  				to: {
+  					opacity: '1',
+  					transform: 'translateY(0)'
+  				}
+  			},
+  			'page-enter': {
+  				from: {
+  					opacity: '0',
+  					transform: 'translateY(6px)'
+  				},
+  				to: {
+  					opacity: '1',
+  					transform: 'translateY(0)'
+  				}
   			}
   		},
   		animation: {
   			'sheet-in': 'sheet-in 140ms ease-out',
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'fade-in': 'fade-in 220ms ease-out backwards',
+  			'rise-in': 'rise-in 260ms ease-out backwards',
+  			'page-enter': 'page-enter 280ms ease-out backwards'
   		}
   	}
   },

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { LoaderCircle, UsersRound } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { messagesApi } from "@/api/messages/messages.api";
 import type { Conversation } from "@/api/messages/messages.types";
@@ -64,6 +64,9 @@ function isAuthError(err: unknown): boolean {
 
 export function MyGroupsPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
   const [creating, setCreating] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -90,7 +93,7 @@ export function MyGroupsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const handleCreate = async () => {
     const validated = validateGroupTitle(draftTitle);
@@ -137,92 +140,91 @@ export function MyGroupsPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-              <UsersRound className="h-5 w-5" aria-hidden />
-              我的群聊
-            </h1>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">你参与或创建的群聊会话。</p>
-          </div>
-          {/*
-            创建入口暂时下线（2026-10-06）。
-
-            原因不是「还没做」，而是**做出来也没用**：`POST /messages/group` 只吃 title、
-            硬编码 joinMode=OPEN、只建 1 个 OWNER 成员，而 V2 没有任何加成员 / 邀请的入口
-            （群管理写端点刻意没有暴露）。也就是说新建的群永远只有一个人，旁人无法发现
-            —— 一个用户可见的、必然产出死功能的按钮。
-
-            保留 GROUP 数据模型、后端管理能力与本路由（读仍是真的）；等
-            Group Messaging Product Phase 把「加成员 / 群发现 / 群主审批」补齐后再恢复。
-          */}
-        </div>
-
-        {creating ? (
-          <div className="mt-4 rounded-md border border-border bg-muted/40 p-4">
-            <label htmlFor="new-group-title" className="text-sm font-medium text-foreground">
-              群聊名称
-            </label>
-            <div className="mt-2 flex max-w-md gap-2">
-              <Input
-                id="new-group-title"
-                value={draftTitle}
-                onChange={(event) => {
-                  setDraftTitle(event.target.value);
-                  setFormError(null);
-                }}
-                placeholder="例如：前端交流"
-                aria-invalid={formError ? true : undefined}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void handleCreate();
-                  }
-                }}
-              />
-              <Button type="button" onClick={() => void handleCreate()} disabled={submitting}>
-                {submitting ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  "创建"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submitting}
-                onClick={() => {
-                  setCreating(false);
-                  setDraftTitle("");
-                  setFormError(null);
-                }}
-              >
-                取消
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              最多 {MAX_GROUP_TITLE_LENGTH} 个字符。
-            </p>
-            {formError ? (
-              <p role="alert" className="mt-2 text-sm text-destructive">
-                {formError}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的群聊</h1>
+        <p className="lede mt-2 max-w-2xl">你参与或创建的群聊会话。</p>
       </header>
+
+      {/*
+        创建入口暂时下线（2026-10-06）。
+
+        原因不是「还没做」，而是**做出来也没用**：`POST /messages/group` 只吃 title、
+        硬编码 joinMode=OPEN、只建 1 个 OWNER 成员，而 V2 没有任何加成员 / 邀请的入口
+        （群管理写端点刻意没有暴露）。也就是说新建的群永远只有一个人，旁人无法发现
+        —— 一个用户可见的、必然产出死功能的按钮。
+
+        保留 GROUP 数据模型、后端管理能力与本路由（读仍是真的）；等
+        Group Messaging Product Phase 把「加成员 / 群发现 / 群主审批」补齐后再恢复。
+      */}
+
+      {/* 表单不属于页头：它出现时是页头之后的第一个区块，而不是标题的一部分。 */}
+      {creating ? (
+        <div className="rounded-xl border border-border/70 bg-muted/40 p-4">
+          <label htmlFor="new-group-title" className="text-sm font-medium text-foreground">
+            群聊名称
+          </label>
+          <div className="mt-2 flex max-w-md gap-2">
+            <Input
+              id="new-group-title"
+              value={draftTitle}
+              onChange={(event) => {
+                setDraftTitle(event.target.value);
+                setFormError(null);
+              }}
+              placeholder="例如：前端交流"
+              aria-invalid={formError ? true : undefined}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleCreate();
+                }
+              }}
+            />
+            <Button type="button" onClick={() => void handleCreate()} disabled={submitting}>
+              {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden /> : "创建"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => {
+                setCreating(false);
+                setDraftTitle("");
+                setFormError(null);
+              }}
+            >
+              取消
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            最多 {MAX_GROUP_TITLE_LENGTH} 个字符。
+          </p>
+          {formError ? (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {formError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {state.groups.length === 0 ? (
         <PageState kind="empty" title="暂无群聊" description="创建群聊，与创作者或读者交流。" />
@@ -236,7 +238,7 @@ export function MyGroupsPage() {
               <li key={group.id}>
                 <Link
                   to={groupHref(group)}
-                  className="block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/50"
+                  className="card-lift focus-ring block rounded-xl border border-border/70 bg-card p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -255,7 +257,7 @@ export function MyGroupsPage() {
                           className={cn(
                             "rounded-full border px-2 py-0.5 text-xs",
                             canAdminister(group)
-                              ? "border-accent/50 text-accent"
+                              ? "border-accent/50 text-accent-strong"
                               : "border-border text-muted-foreground",
                           )}
                         >
@@ -280,7 +282,7 @@ export function MyGroupsPage() {
       )}
 
       <p className="text-center">
-        <Link to="/messages" className="text-sm text-accent hover:underline">
+        <Link to="/messages" className="text-sm text-accent-strong hover:underline">
           去消息中心
         </Link>
       </p>

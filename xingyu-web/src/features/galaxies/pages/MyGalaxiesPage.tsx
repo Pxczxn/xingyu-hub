@@ -4,6 +4,7 @@ import { ApiError } from "@/api/client";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxySummary } from "@/api/galaxies/galaxies.types";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 import { galaxyKindLabel } from "../galaxy-labels";
 
 /*
@@ -40,6 +41,9 @@ function isAuthError(err: unknown): boolean {
 
 export function MyGalaxiesPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -54,7 +58,7 @@ export function MyGalaxiesPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -70,11 +74,19 @@ export function MyGalaxiesPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -90,7 +102,7 @@ export function MyGalaxiesPage() {
             {items.length > 0 ? `共 ${items.length} 个星系` : "你加入的星系会出现在这里。"}
           </p>
         </div>
-        <Link to="/galaxies" className="text-sm text-accent hover:underline">
+        <Link to="/galaxies" className="text-sm text-accent-strong hover:underline">
           浏览全部星系
         </Link>
       </header>
@@ -105,9 +117,15 @@ export function MyGalaxiesPage() {
         <ul className="grid gap-3 sm:grid-cols-2" data-testid="my-galaxy-rows">
           {items.map((item) => (
             <li key={item.id}>
+              {/*
+                Same shape as the member roster: a whole-card `<Link>` in a grid,
+                so `.card-lift` is honest and the old `hover:border-accent` is
+                dropped — the lift's own edge-sharpening is the hover language
+                every other whole-card link in the app now speaks.
+              */}
               <Link
                 to={`/galaxies/${encodeURIComponent(item.slug)}`}
-                className="block rounded-lg border border-border bg-card p-4 hover:border-accent"
+                className="card-lift focus-ring block rounded-xl border border-border/70 bg-card p-4"
               >
                 <p className="text-sm font-medium text-foreground">{item.name}</p>
                 <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">

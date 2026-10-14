@@ -110,6 +110,31 @@ export function filterByTab(items: MyArticleSummary[], tab: ContentTab): MyArtic
   }
 }
 
+/**
+ * Title search for the content toolbar.
+ *
+ * §3.6 asks for 「工具栏（搜索 + 筛选 + 新建）」; filtering is `filterByTab` above,
+ * this is the search half. Three decisions worth recording:
+ *
+ *  1. **Title only.** Status already owns the tabs, so folding status words into
+ *     the text match would make 「草稿」 return every draft instead of the pieces
+ *     that actually say 草稿 — a search that ignores what you typed.
+ *  2. **Matches the DISPLAY title** (`articleListTitle`), so a shell draft with a
+ *     null title is findable as 「无标题文章」 — the exact string its row shows.
+ *  3. **Case-insensitive**, because titles are frequently part-English; Chinese is
+ *     unaffected by lower-casing. A blank query returns the list untouched, so a
+ *     caller can compose it unconditionally.
+ *
+ * Callers stack this ON TOP of `filterByTab` (search within the active tab), the
+ * same way every list-plus-facets UI behaves: the highlighted tab tells the user
+ * what is being searched.
+ */
+export function filterByQuery(items: MyArticleSummary[], query: string): MyArticleSummary[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return items;
+  return items.filter((item) => articleListTitle(item).toLowerCase().includes(needle));
+}
+
 export type ContentCounters = {
   published: number;
   draft: number;

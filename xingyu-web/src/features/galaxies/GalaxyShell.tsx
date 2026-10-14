@@ -181,7 +181,7 @@ function GalaxyJoinControl({
     return (
       <Link
         to={`/login?returnTo=${encodeURIComponent(`/galaxies/${galaxy.slug}`)}`}
-        className="text-sm text-accent hover:underline"
+        className="text-sm text-accent-strong hover:underline"
       >
         登录后加入星系
       </Link>
@@ -294,7 +294,7 @@ export function GalaxyShell({
           description="它可能已被移除，或链接有误。"
         />
         <p className="text-center">
-          <Link to="/galaxies" className="text-sm text-accent hover:underline">
+          <Link to="/galaxies" className="text-sm text-accent-strong hover:underline">
             返回星系广场
           </Link>
         </p>
@@ -303,11 +303,28 @@ export function GalaxyShell({
   }
 
   const { galaxy } = state;
+  const approval = galaxy.joinMode === "APPROVAL";
 
   return (
     <article className="section-gap">
-      <header className="surface-card p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+      {/*
+        团队身份头（设计方案 §3.4「全站身份头最重的页面」，目标 ~200px）。
+        实测旧版约 140–160px，与话题头（~120px）几乎同级，读者读不出「这是一个
+        有成员、有归属的团队」——而方案明确警告「不得退化为普通内容流 + 小头像」。
+        加高来自三处，都不是装饰：封面 80/96px → 96/128px，内边距 p-4/5 → p-5/6，
+        标题 24/28px → 26/30px。
+
+        官方星系用品牌色边框与底色（方案「可用品牌色/纹理与普通页区分」）。只用
+        一层极轻的 accent 底，不加渐变、不加纹理——那是表面细化的红线。非官方
+        星系保持中性，于是「官方」这个身份在整页范围内一眼可辨。
+      */}
+      <header
+        className={cn(
+          "rounded-xl border p-5 sm:p-6",
+          galaxy.official ? "border-accent-line/50 bg-accent-soft/25" : "border-border/70 bg-card",
+        )}
+      >
+        <div className="flex flex-wrap items-center gap-5 sm:gap-6">
           {galaxy.coverUrl && !coverBroken ? (
             /*
               真实封面（V051）：admin 写了 coverUrl 才渲染 img。
@@ -318,17 +335,32 @@ export function GalaxyShell({
               src={galaxy.coverUrl}
               alt={`${galaxy.name} 封面`}
               onError={() => setCoverBroken(true)}
-              className="h-20 w-32 shrink-0 rounded-lg border border-border/60 object-cover sm:h-24 sm:w-40"
+              className="h-24 w-36 shrink-0 rounded-lg border border-border/60 object-cover sm:h-32 sm:w-52"
             />
           ) : (
-            <GalaxyVisual stableKey={galaxy.slug} official={galaxy.official} variant="masthead" />
+            <GalaxyVisual
+              stableKey={galaxy.slug}
+              official={galaxy.official}
+              variant="masthead"
+              className="h-24 w-36 sm:h-32 sm:w-52"
+            />
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              {galaxyKindLabel(galaxy.official)}
-              {galaxy.joinMode === "APPROVAL" ? " · 需申请加入" : ""}
+            {/*
+              身份陈述独占 eyebrow，`joinMode` 提示退到第二个 span 里。
+              `.eyebrow` 是 flex + gap，把两个字符串直接放进同一个 <p> 会让
+              gap 落在它们之间；分成两个 span 后，「官方星系」本身仍是一个
+              完整的文本节点，`getByText("官方星系")` 在任何 joinMode 下都成立。
+            */}
+            <p className="eyebrow">
+              <span>{galaxyKindLabel(galaxy.official)}</span>
+              {approval ? (
+                <span className="font-medium tracking-[0.16em] text-muted-foreground">
+                  · 需申请加入
+                </span>
+              ) : null}
             </p>
-            <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight text-primary sm:text-[28px]">
+            <h1 className="mt-1.5 truncate text-[26px] font-semibold tracking-tight text-primary sm:text-3xl">
               {galaxy.name}
             </h1>
             {/*
@@ -336,22 +368,43 @@ export function GalaxyShell({
               编一段占位文案等于替运营撒谎。
             */}
             {galaxy.description ? (
-              <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
                 {galaxy.description}
               </p>
             ) : null}
-            <p className="mt-1 text-sm text-muted-foreground">
-              {galaxyMemberLabel(galaxy.memberCount)}
-              {typeof galaxy.contentCount === "number" ? ` · ${galaxy.contentCount} 篇内容` : ""}
+            {/*
+              计数是这个团队的实质，所以留在 meta 步进而不是 12px 灰。成员数
+              单独成一个 span：它的文本节点因此恰好是「12 位成员」，后面的
+              「N 篇内容」是拼接上去的，不会把标签本身撑长。
+            */}
+            <p className="mt-2 text-sm text-foreground-soft">
+              <span>{galaxyMemberLabel(galaxy.memberCount)}</span>
+              {typeof galaxy.contentCount === "number" ? (
+                <span className="text-muted-foreground"> · {galaxy.contentCount} 篇内容</span>
+              ) : null}
             </p>
-            <div className="mt-3">
+            <div className="mt-4">
               <GalaxyJoinControl galaxy={galaxy} onMembershipChanged={retry} />
             </div>
           </div>
         </div>
       </header>
 
-      <nav aria-label="星系导航" className="flex flex-wrap gap-6 border-b border-border/70">
+      {/*
+        sticky（设计方案 §3.4 第 2 行）。身份头滚走后，这三个 tab 是「我在看哪个
+        星系的哪一页」的唯一剩余线索，而概览页下面还有一屏内容。
+
+        `top-24` 而非 `top-0`：shell header 自己就是 `sticky top-0 z-30`，钉在
+        `top-0` 的导航会滑到它下面去。96px 是全站既有的内容级 sticky 偏移
+        （TopicHeader / ArticleDetailPage / RulesPage / SettingsProfilePage 同值）。
+
+        背景必须不透明（`bg-background`，不是 `/95`）：半透明的 sticky 条会让
+        正文从底下透出来。z-20 低于 shell header 的 z-30，也低于弹层。
+      */}
+      <nav
+        aria-label="星系导航"
+        className="flex flex-wrap gap-6 border-b border-border/70 bg-background pb-2 pt-2 lg:sticky lg:top-24 lg:z-20"
+      >
         {TABS.map((tab) => (
           <Link
             key={tab.key}

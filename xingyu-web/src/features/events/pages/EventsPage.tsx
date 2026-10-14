@@ -11,8 +11,12 @@ import {
   type EventView,
 } from "@/api/events/events.types";
 import { PageState } from "@/components/shared/PageState";
+import { PageHero } from "@/components/shared/PageHero";
+import { IllustrationSlot, LostOrbit } from "@/components/shared/illustrations";
+import { Button } from "@/components/ui/button";
 import { EventDateBlock } from "../components/EventDateBlock";
 import { cn } from "@/lib/cn";
+import { staggerDelay } from "@/lib/stagger";
 
 /*
  * The events square (Phase 2I-4) — a public, guest-readable page.
@@ -31,6 +35,26 @@ import { cn } from "@/lib/cn";
  * The calendar marks days that carry an event. It is a rendering aid over data
  * already fetched — it fetches nothing itself, which is why it has no loading or
  * error state of its own.
+ *
+ * 2026-10-13 (batch 07b) — three things changed across this page and its three
+ * siblings (detail / submit / mine), and they are stated once here because all
+ * four follow them:
+ *
+ *   1. SURFACE. Cards are `rounded-xl border border-border/70 bg-card`, matching
+ *      the rest of batch 07. The 70% border is the outer frame; anything nested
+ *      inside a card keeps a full-strength divider. `rounded-lg` was the old
+ *      language and is gone from the domain.
+ *   2. TYPE SCALE. tokens.css declares four steps — display 28 / title 18 /
+ *      card 15 / meta 13 — and says they are "the ones components should reach
+ *      for". This domain had drifted onto `text-xs` (12px) and `text-[10px]`,
+ *      which are not steps at all: 29 and 13 uses respectively, the densest
+ *      concentration in the app. Body and meta text is now `text-meta`. The one
+ *      deliberate exception is the status chip, which keeps the 11px micro step
+ *      that `.eyebrow` and every other pill in the app already use — a chip is
+ *      a badge, not prose, and 13px inside a 2px-padded pill reads as a blob.
+ *   3. MOTION. The two card grids rise in on mount with `staggerDelay`, same as
+ *      the moment feed. The delay is inline because `animate-rise-in` is the
+ *      `animation` shorthand and would reset `animation-delay` (stagger.ts).
  */
 
 type LoadState =
@@ -100,6 +124,9 @@ function isFutureStart(event: EventView, now: number): boolean {
 export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [calendarDate, setCalendarDate] = useState(() => new Date(now));
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -119,7 +146,7 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const events = state.kind === "ready" ? state.items : [];
 
@@ -167,17 +194,45 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
 
   return (
     <div className="section-gap">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">社区活动</h1>
-        <p className="text-sm text-muted-foreground">发现正在进行的活动，和同好一起参与创作。</p>
-      </header>
+      {/*
+        Banner, not a bare header. /events is the fifth plaza surface — the layout
+        doc files it under the same S3 grid template as 话题 / 系列 / 星系 / 创作者
+        广场 — and all four of those already open with `PageHero`. PageHeader.tsx
+        draws the line itself: a plaza page "SELLS the page", a utility page only
+        "LABELS it and gets out of the way". This was the one square still opening
+        with an <h1> and a line of grey.
+
+        `PageMasthead` is not the alternative here either — its own doc says the
+        plaza pages "still use the banner, and should".
+
+        The artwork goes through the shared `hero` slot rather than a bespoke
+        drawing: `IllustrationSlot` renders `ILLUSTRATION_SLOTS.hero.src` once a
+        file is dropped at public/illustrations/, and that one image is meant to
+        serve every plaza banner. A per-page placeholder would be replaced by the
+        same shared image anyway, so it could only ever be a fork.
+      */}
+      <PageHero
+        eyebrow="EVENTS"
+        title="社区活动"
+        description="发现正在进行的活动，和同好一起参与创作。"
+        illustration={
+          <IllustrationSlot id="hero" fallback={<LostOrbit className="h-full w-full" />} />
+        }
+      />
 
       {state.kind === "error" ? (
-        <PageState
-          kind="error"
-          title="活动加载失败"
-          description={state.detail ?? "无法读取活动列表，请稍后重试。"}
-        />
+        <>
+          <PageState
+            kind="error"
+            title="活动加载失败"
+            description={state.detail ?? "无法读取活动列表，请稍后重试。"}
+          />
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        </>
       ) : events.length === 0 ? (
         <PageState
           kind="empty"
@@ -186,7 +241,8 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
         />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <section className="flex flex-col gap-6" aria-label="活动内容">
+          {/* Cards stacked in one column — the tight rhythm, not `section-gap`. */}
+          <section className="section-gap-tight" aria-label="活动内容">
             {/* The server's own first still-open row is the feature — not a client re-rank.
                 An ended event must never be the hero, so the live set drives this. */}
             {live.length > 0 ? <FeatureCard event={live[0]} now={now} /> : null}
@@ -194,14 +250,24 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
             <section className="flex flex-col gap-3">
               <div className="flex items-baseline justify-between">
                 <h2 className="section-heading">进行中的活动</h2>
-                <span className="text-xs text-muted-foreground">共 {live.length} 场</span>
+                <span className="text-meta text-muted-foreground">共 {live.length} 场</span>
               </div>
               {live.length === 0 ? (
-                <p className="text-xs text-muted-foreground">当前没有进行中的活动。</p>
+                <p className="text-meta text-muted-foreground">当前没有进行中的活动。</p>
               ) : (
+                /*
+                  Each card rises in on its own delay, so the grid reads as content
+                  filling in rather than as one block painting at once. The delay is
+                  an inline style: `animate-rise-in` is the `animation` shorthand and
+                  resets `animation-delay` to 0, so a class cannot win that cascade.
+                */
                 <ul aria-label="活动列表" className="grid gap-3 sm:grid-cols-2">
-                  {live.map((event) => (
-                    <li key={event.id}>
+                  {live.map((event, index) => (
+                    <li
+                      key={event.id}
+                      className="animate-rise-in min-w-0"
+                      style={{ animationDelay: staggerDelay(index) }}
+                    >
                       <EventCard event={event} now={now} />
                     </li>
                   ))}
@@ -209,17 +275,33 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
               )}
             </section>
 
-            {/* Ended events stay browsable as history, but are visibly separated
-                from what a reader can still join. */}
+            {/*
+              Ended events stay browsable as history, but are visibly separated
+              from what a reader can still join. The layout doc calls this bucket
+              "P3, 去饱和" — and the desaturation is done by MOVING THE SURFACE, not
+              by lowering opacity. An `opacity-70` wrapper would dim the 13px
+              muted text along with everything else and drop it under AA; a
+              surface shift leaves every word at full contrast while the card
+              still reads as a page of the past.
+
+              The stagger restarts at 0 rather than continuing from the live grid.
+              They are two independent lists, and a reader who scrolls down to the
+              ended block should watch it fill in — not catch the tail of an
+              animation that started above the fold.
+            */}
             {ended.length > 0 ? (
               <section className="flex flex-col gap-3">
                 <div className="flex items-baseline justify-between">
                   <h2 className="section-heading">已结束</h2>
-                  <span className="text-xs text-muted-foreground">共 {ended.length} 场</span>
+                  <span className="text-meta text-muted-foreground">共 {ended.length} 场</span>
                 </div>
                 <ul aria-label="已结束的活动列表" className="grid gap-3 sm:grid-cols-2">
-                  {ended.map((event) => (
-                    <li key={event.id}>
+                  {ended.map((event, index) => (
+                    <li
+                      key={event.id}
+                      className="animate-rise-in min-w-0"
+                      style={{ animationDelay: staggerDelay(index) }}
+                    >
                       <EventCard event={event} now={now} />
                     </li>
                   ))}
@@ -229,9 +311,16 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
           </section>
 
           <aside className="flex flex-col gap-4" aria-label="活动日历">
-            <section className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <section className="rounded-xl border border-border/70 bg-card p-4">
+              {/*
+                `flex-wrap` here is not decoration. At 18px the heading (icon +
+                four glyphs, ~93px) plus the month stepper (~144px) plus the gap
+                is 245px inside a 280px rail minus 32px of padding — it fits, but
+                by three pixels. Wrapping is the failure mode that degrades
+                gracefully if a font ever measures wider than this one.
+              */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="section-heading flex items-center gap-1.5">
                   <CalendarDays className="h-4 w-4" aria-hidden />
                   活动日历
                 </h2>
@@ -248,7 +337,10 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
                   >
                     <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
                   </button>
-                  <span className="min-w-20 text-center text-xs text-muted-foreground">
+                  {/* `min-w-20` stays. It is a floor, not a width: without it the
+                      stepper arrows shift left and right every time the month
+                      label changes between one and two digits. */}
+                  <span className="min-w-20 text-center text-meta text-muted-foreground">
                     {monthTitle}
                   </span>
                   <button
@@ -271,8 +363,15 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
                 role="grid"
                 aria-label={monthTitle}
               >
+                {/*
+                  The weekday row keeps the 11px micro step — the same one
+                  `.eyebrow` and every pill in the app already use — and does NOT
+                  go up to `text-meta`. It has to stay smaller than the day
+                  numbers under it, or the column labels would outweigh the data
+                  they label; 13px labels above 13px numbers is not a hierarchy.
+                */}
                 {WEEKDAYS.map((weekday) => (
-                  <span key={weekday} className="text-[10px] text-muted-foreground">
+                  <span key={weekday} className="text-[11px] text-muted-foreground">
                     {weekday}
                   </span>
                 ))}
@@ -289,10 +388,10 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
                       data-event={marked ? "true" : undefined}
                       aria-label={marked ? `${day.getDate()} 日有活动` : undefined}
                       className={cn(
-                        "grid h-7 place-items-center rounded text-xs",
+                        "grid h-7 place-items-center rounded text-meta",
                         !inMonth && "text-muted-foreground/40",
                         inMonth && !marked && "text-foreground",
-                        marked && "bg-accent/20 font-semibold text-accent",
+                        marked && "bg-accent/20 font-semibold text-accent-strong",
                       )}
                     >
                       {day.getDate()}
@@ -302,26 +401,33 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
               </div>
             </section>
 
-            <section className="rounded-lg border border-border bg-card p-4">
+            <section className="rounded-xl border border-border/70 bg-card p-4">
               <h2 className="section-heading">即将开始</h2>
               {upcoming.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">暂无即将开始的活动。</p>
+                <p className="mt-2 text-meta text-muted-foreground">暂无即将开始的活动。</p>
               ) : (
+                /*
+                  All three lines sit at `text-meta` and are told apart by weight
+                  and colour instead of by size. A 280px rail has no room for a
+                  fourth type step, and shrinking the date and the status to 12px
+                  and 10px — which is what this row used to do — made the two facts
+                  a reader is actually scanning for the hardest things to read.
+                */
                 <ul className="mt-2 flex flex-col gap-2">
                   {upcoming.slice(0, 3).map((event) => (
                     <li key={event.id}>
                       <Link
                         to={`/events/${encodeURIComponent(event.id)}`}
-                        className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted"
+                        className="focus-ring flex items-start gap-2 rounded-md p-1.5 transition-colors hover:bg-muted"
                       >
-                        <time className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        <time className="shrink-0 text-meta tabular-nums text-muted-foreground">
                           {formatEventDay(event.startsAt) ?? "待定"}
                         </time>
                         <span className="min-w-0">
-                          <span className="block truncate text-xs font-medium text-foreground">
+                          <span className="block truncate text-meta font-medium text-foreground">
                             {event.title}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-meta text-muted-foreground">
                             {statusLabel(event, now)}
                           </span>
                         </span>
@@ -342,11 +448,16 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
 function FeatureCard({ event, now }: { event: EventView; now: number }) {
   const countdown = eventCountdown(event, now);
   return (
-    <article className="flex flex-col gap-4 rounded-xl border border-accent-line/50 bg-accent-soft/40 p-5 sm:flex-row sm:gap-5">
+    <article className="animate-rise-in flex flex-col gap-4 rounded-xl border border-accent-line/50 bg-accent-soft/40 p-5 sm:flex-row sm:gap-5">
       <EventDateBlock startsAt={event.startsAt} size="large" />
 
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-        <span className="self-start rounded border border-accent-line/60 bg-card px-1.5 py-0.5 text-[10px] font-medium text-accent-strong">
+        {/*
+          The same pill as an `EventCard`'s status, at the same 11px step. The
+          two used to differ by one pixel — 10 here, 11 there — which is the kind
+          of gap nobody can name and everybody can see once the rows sit together.
+        */}
+        <span className="self-start rounded border border-accent-line/60 bg-card px-1.5 py-0.5 text-[11px] font-medium text-accent-strong">
           {statusLabel(event, now)}
         </span>
         <h2 className="text-lg font-semibold text-primary">{event.title}</h2>
@@ -387,16 +498,32 @@ function FeatureCard({ event, now }: { event: EventView; now: number }) {
   );
 }
 
+/*
+ * One card in either grid.
+ *
+ * NOT `card-lift`. Only the two controls inside are links — the `title` on the
+ * date block's wrapper is a tooltip, not a target — so raising the whole surface
+ * on hover would promise a click the card cannot honour. globals.css is explicit
+ * about that failure: "the lift is a lie the click then corrects". MomentsPage's
+ * cards earn the lift because there the entire card is a single <Link>.
+ */
 function EventCard({ event, now }: { event: EventView; now: number }) {
   const day = formatEventDay(event.startsAt);
   const ended = isEventEnded(event, now) === true;
   return (
-    <article className="flex h-full flex-col gap-3 rounded-xl border border-border/70 bg-card p-4">
+    <article
+      className={cn(
+        "flex h-full flex-col gap-3 rounded-xl border p-4",
+        ended ? "border-border/60 bg-surface-sunken/40" : "border-border/70 bg-card",
+      )}
+    >
       <div className="flex items-start gap-3">
         {/* Date block rather than a 12px chip. The literal MM/DD stays available
-            through `title` so nothing is lost for a reader who wants it. */}
+            through `title` so nothing is lost for a reader who wants it. An ended
+            event's block gives up its gold: that hairline is the one accent in the
+            card, and keeping it would go on saying "this is current". */}
         <span title={day ?? undefined}>
-          <EventDateBlock startsAt={event.startsAt} />
+          <EventDateBlock startsAt={event.startsAt} muted={ended} />
         </span>
         <div className="min-w-0">
           <h3 className="truncate text-card font-semibold text-primary">{event.title}</h3>
@@ -406,10 +533,25 @@ function EventCard({ event, now }: { event: EventView; now: number }) {
         </div>
       </div>
       <div className="mt-auto flex items-center justify-between gap-2">
+        {/*
+          Status as a pill, matching the feature row — and a pill that STAYS
+          READABLE once the event is over. The layout doc's rule is 「状态徽标视觉
+          优先于封面 … 必须一眼知道它结束了」. The old version answered that by
+          dropping 已结束 to bare muted text, which made the status the quietest
+          thing on the card rather than the clearest. It is grey now, because the
+          event is over, but it is still a badge, because the reader must not have
+          to hunt for that.
+
+          A chip's surface sits one step off its host so the pill never dissolves
+          into it: card-coloured on the gold feature row, gold on the card, and
+          card-coloured again on the sunken ended row.
+        */}
         <span
           className={cn(
-            "text-[11px] font-medium",
-            ended ? "text-muted-foreground" : "text-accent-strong",
+            "rounded border px-1.5 py-0.5 text-[11px] font-medium",
+            ended
+              ? "border-border bg-card text-muted-foreground"
+              : "border-accent-line/60 bg-accent-soft text-accent-strong",
           )}
         >
           {statusLabel(event, now)}

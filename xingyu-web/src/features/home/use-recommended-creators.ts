@@ -56,6 +56,8 @@ export type RecommendedCreatorsState = {
 export function useRecommendedCreators(
   ready: boolean,
   signedIn: boolean,
+  /** Bumped by the home page's retry — replaying the fan-out is part of a page reload. */
+  reloadKey = 0,
 ): RecommendedCreatorsState {
   const [status, setStatus] = useState<SectionStatus>("loading");
   const [creators, setCreators] = useState<RecommendedCreator[]>([]);
@@ -119,7 +121,7 @@ export function useRecommendedCreators(
     return () => {
       active = false;
     };
-  }, [ready, signedIn]);
+  }, [ready, signedIn, reloadKey]);
 
   const toggleFollow = useCallback(async (creator: RecommendedCreator) => {
     setFollowError(null);

@@ -142,6 +142,9 @@ export function EditorPage() {
   const [createdDraftId, setCreatedDraftId] = useState<string | null>(null);
   /** Set after a successful first save; the URL is adopted once the editor is clean. */
   const [adoptDraftId, setAdoptDraftId] = useState<string | null>(null);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   const bodyControllerRef = useRef<ArticleEditorBodyController | null>(null);
   /** Guards the post-save `replace` navigation from re-fetching and clobbering local state. */
@@ -256,7 +259,7 @@ export function EditorPage() {
     return () => {
       active = false;
     };
-  }, [articleId, creating]);
+  }, [articleId, creating, reloadKey]);
 
   // Topics feed the settings panel only; a failure must never block the editor.
   useEffect(() => {
@@ -554,7 +557,7 @@ export function EditorPage() {
           title="草稿不存在或无权编辑"
           description="它可能已被删除，或不属于当前账号。"
         />
-        <Link to="/studio" className="text-sm text-accent hover:underline">
+        <Link to="/studio" className="text-sm text-accent-strong hover:underline">
           返回创作中心
         </Link>
       </div>
@@ -565,9 +568,16 @@ export function EditorPage() {
     return (
       <div className="section-gap">
         <PageState kind="error" description="草稿加载失败，请稍后重试。" />
-        <Link to="/studio" className="text-sm text-accent hover:underline">
-          返回创作中心
-        </Link>
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+        <p className="text-center">
+          <Link to="/studio" className="text-sm text-accent-strong hover:underline">
+            返回创作中心
+          </Link>
+        </p>
       </div>
     );
   }

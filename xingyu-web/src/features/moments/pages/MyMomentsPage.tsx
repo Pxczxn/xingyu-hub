@@ -7,8 +7,9 @@ import { MY_MOMENTS_LIMIT, type InsightsView, type MomentView } from "@/api/mome
 import { usersApi } from "@/api/users/users.api";
 import type { ProfileDetail } from "@/api/users/users.types";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { staggerDelay } from "@/lib/stagger";
 
 /*
  * My moments (Phase 2I-5) — the owner's own moment history.
@@ -53,6 +54,9 @@ function formatMomentTime(value: string): string {
 
 export function MyMomentsPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
   // Decoration state is separate so its failure cannot sink the page.
   const [profile, setProfile] = useState<ProfileDetail | null>(null);
   const [insights, setInsights] = useState<InsightsView | null>(null);
@@ -98,7 +102,7 @@ export function MyMomentsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const moments = state.kind === "ready" ? state.moments : [];
 
@@ -121,11 +125,19 @@ export function MyMomentsPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -134,11 +146,37 @@ export function MyMomentsPage() {
 
   return (
     <div className="section-gap">
-      <header className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 sm:flex-row sm:items-center">
-        <div className="min-w-0 flex-1">
+      {/*
+        Page head (S7 light) — NOT a profile card.
+
+        The layout design names this page and /me/events on one line —
+        「页头 + 列表（S7 轻量）；状态与操作优先」— and states the rule for the whole
+        /me/* group: 「优先状态、记录和操作，不放个人资料大卡（与个人主页区分）」.
+
+        This block WAS that card: `rounded-lg border bg-card p-5` around a display
+        name, an ID line and a bio, with an action button beside them — the same
+        shape as the identity header on /u/:username, on the one page the design
+        sets apart from it. MyEventsPage, the other page named on that line,
+        carries no surface at all: a bare `<header>` holding a title, a status
+        line and one action. This now matches it, so the two pages read as one
+        family instead of two.
+
+        `sm:items-end`, not `sm:items-center`: centring the button against a
+        three-line text block makes it read as a card's trailing control.
+        Bottom-aligning puts the action on the text's last baseline, which is what
+        a header LINE looks like. `sm:justify-between` then does the pushing the
+        old `flex-1` spacer did, without a spacer to keep in sync.
+
+        The ID line and the bio stay. The CARD was the profile-card problem, not
+        the sentence — and both carry the reader's own data, already on this page.
+        Dropping either would be a content regression wearing a layout change's
+        clothes. `ID: {username}` keeps its exact form; the header test pins it.
+      */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-primary">{heading}</h1>
           {profile?.username ? (
-            <p className="mt-1 text-xs text-muted-foreground">ID: {profile.username}</p>
+            <p className="mt-1 text-meta text-muted-foreground">ID: {profile.username}</p>
           ) : null}
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             {profile?.bio?.trim() || "记录灵感、阅读与社区交流的每一刻。"}
@@ -151,10 +189,23 @@ export function MyMomentsPage() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <section className="rounded-lg border border-border bg-card">
+        {/*
+          The list is one surface holding rows, not a grid of cards — the shape
+          /me/likes and /me/comments already use, and the right one here: these
+          rows are records of the same kind, so a per-row card would add fifty
+          borders to say what one column edge already says.
+
+          Surface language follows the rest of batch 07 (`rounded-xl` over
+          `border-border/70`), so this page and the two beside it in the same
+          feature read as one set. The inner rules are deliberately left alone:
+          an outer frame at 70% with full-strength dividers is how a list is
+          meant to look — the rows are the structure, the frame is only a
+          boundary.
+        */}
+        <section className="rounded-xl border border-border/70 bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="section-heading">全部动态</h2>
-            <span className="text-xs text-muted-foreground">按时间倒序</span>
+            <span className="text-meta text-muted-foreground">按时间倒序</span>
           </div>
 
           {moments.length === 0 ? (
@@ -166,31 +217,45 @@ export function MyMomentsPage() {
               />
             </div>
           ) : (
+            /*
+              Rows rise in on mount with the same stagger the feed uses, so
+              arriving from /moments keeps one motion language.
+
+              Fifty rows is more than the feed ever renders, and that is fine:
+              the delay caps at index 8 (see staggerDelay) and this is a MOUNT
+              animation, not a scroll trigger — everything past the first screen
+              has already settled before anyone scrolls to it, which is free.
+
+              The delay is an inline style on purpose. `animate-rise-in` is the
+              `animation` shorthand and resets `animation-delay` to 0, so a class
+              cannot win the cascade here.
+            */
             <ul aria-label="我的动态列表" className="divide-y divide-border">
-              {moments.map((moment) => (
+              {moments.map((moment, index) => (
                 <li
                   key={moment.id}
-                  className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
+                  className="animate-rise-in grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
+                  style={{ animationDelay: staggerDelay(index) }}
                 >
                   <time
                     dateTime={moment.createdAt}
-                    className="text-xs tabular-nums text-muted-foreground"
+                    className="text-meta tabular-nums text-muted-foreground"
                   >
                     {formatMomentTime(moment.createdAt)}
                   </time>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">
+                    <p className="text-meta font-medium text-muted-foreground">
                       {moment.id === latestId ? "最近发布" : "发布动态"}
                     </p>
                     <Link
                       to={`/moments/${encodeURIComponent(moment.id)}`}
-                      className="mt-2 block whitespace-pre-wrap text-sm leading-6 text-foreground hover:text-accent"
+                      className="mt-2 block whitespace-pre-wrap text-sm leading-6 text-foreground hover:text-accent-strong"
                     >
                       {moment.body?.trim() || "（无内容）"}
                     </Link>
                     <Link
                       to={`/moments/${encodeURIComponent(moment.id)}`}
-                      className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-accent"
+                      className="mt-3 inline-flex items-center gap-1.5 text-meta text-muted-foreground hover:text-accent-strong"
                     >
                       <MessageCircle className="h-3.5 w-3.5" aria-hidden />
                       查看互动
@@ -203,12 +268,12 @@ export function MyMomentsPage() {
         </section>
 
         <aside className="flex flex-col gap-4">
-          <section className="rounded-lg border border-border bg-card p-4">
+          <section className="rounded-xl border border-border/70 bg-card p-4">
             <h2 className="section-heading flex items-center gap-1.5">
               <Sparkles className="h-4 w-4" aria-hidden />
               动态概览
             </h2>
-            <dl className="mt-3 flex flex-col gap-3 text-xs">
+            <dl className="mt-3 flex flex-col gap-3 text-meta">
               <Row icon={CalendarDays} label="已发布动态" value={`${moments.length} 条`} />
               {/* 「—」 rather than 0 when the read failed: the counters are
                   non-null longs server-side, so 0 is a real value and must not
@@ -237,9 +302,9 @@ export function MyMomentsPage() {
             </dl>
           </section>
 
-          <section className="rounded-lg border border-border bg-card p-4">
+          <section className="rounded-xl border border-border/70 bg-card p-4">
             <h2 className="section-heading">创作足迹</h2>
-            <p className="mt-2 text-xs leading-6 text-muted-foreground">
+            <p className="mt-2 text-meta leading-6 text-muted-foreground">
               每一条公开动态都会沉淀为你在星语社区的交流轨迹。动态发布后即可公开阅读，删除后会从动态页消失。
             </p>
           </section>

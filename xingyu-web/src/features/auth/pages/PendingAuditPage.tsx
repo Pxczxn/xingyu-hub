@@ -44,7 +44,9 @@ export function PendingAuditPage() {
   const registered = params.get("registered") === "1";
 
   return (
-    <div className="flex flex-col gap-6">
+    // `.section-gap-tight`: three cards in one column, all the same kind of
+    // thing — 32px between them would read as a hole, not a pause.
+    <div className="section-gap-tight">
       {/* Conclusion first — this is the whole point of the page. */}
       <div className="rounded-xl border border-border/70 bg-card px-6 py-7 text-center">
         <span

@@ -26,9 +26,51 @@
  *   - `aria-hidden`: every one duplicates meaning already carried by the heading and
  *     copy beside it. Announcing them again is noise.
  *   - Flat. No filters, no gradients — the same rule the rest of the surfaces follow.
+ *
+ * 2026-10-13 — slots:
+ *   The drawings below are placeholders. `IllustrationSlot` renders one into the
+ *   box its slot declares in `illustration-slots.ts`, and renders a supplied image
+ *   instead once that slot's `src` is set. Call sites go through the wrapper so the
+ *   artwork swap stays a data change (one field) rather than a component rewrite.
+ *   The SVG keeps `h-full w-full` so the slot's box is what decides the size.
  */
 
+import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
+import { ILLUSTRATION_SLOTS, illustrationBox, type IllustrationSlotId } from "./illustration-slots";
+
 type IllustrationProps = { className?: string };
+
+/**
+ * Renders the artwork for a slot: the supplied image if one is configured, the
+ * built-in drawing otherwise.
+ *
+ * The wrapper owns the box (fixed width × height from `illustration-slots.ts`) and
+ * is `aria-hidden` as a whole — every drawing here duplicates meaning already
+ * carried by the heading and copy beside it, so the image is decorative by
+ * definition and `alt` stays empty.
+ */
+export function IllustrationSlot({
+  id,
+  fallback,
+  className,
+}: {
+  id: IllustrationSlotId;
+  /** Built-in drawing used until the slot has a `src`. */
+  fallback: ReactNode;
+  className?: string;
+}) {
+  const slot = ILLUSTRATION_SLOTS[id];
+  return (
+    <div
+      aria-hidden
+      style={illustrationBox(id)}
+      className={cn("flex shrink-0 items-center justify-center", className)}
+    >
+      {slot.src ? <img src={slot.src} alt="" className="h-full w-full object-contain" /> : fallback}
+    </div>
+  );
+}
 
 /*
  * A star that has slipped its orbit.

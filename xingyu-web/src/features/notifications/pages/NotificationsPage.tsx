@@ -130,6 +130,9 @@ function groupByDay(items: Notification[]): NotificationGroup[] {
 export function NotificationsPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -186,7 +189,7 @@ export function NotificationsPage() {
     return () => {
       active = false;
     };
-  }, [publishServerUnread]);
+  }, [publishServerUnread, reloadKey]);
 
   function replaceItems(next: Notification[]) {
     setState((current) => (current.kind === "ready" ? { kind: "ready", items: next } : current));
@@ -279,11 +282,19 @@ export function NotificationsPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -357,12 +368,24 @@ export function NotificationsPage() {
               </div>
 
               <ul className="flex list-none flex-col gap-2 p-0">
-                {group.items.map((item) => (
+                {/*
+                  07d: staggered by position WITHIN the day, and the stagger restarts at
+                  each group — a day is its own visual unit, so its first row is the first
+                  thing the eye lands on when that group scrolls into view.
+
+                  Deliberately NO `key=` replay on this list. The rows re-render on every
+                  mark-read, and replaying fifty of them because one was clicked is the
+                  motion abuse this batch exists to avoid. `animate-rise-in` only fires on
+                  mount, which is the one moment the content is genuinely new: the first
+                  paint, or coming back to the page.
+                */}
+                {group.items.map((item, index) => (
                   <NotificationRow
                     key={item.id}
                     notification={item}
                     href={notificationHref(item)}
                     pending={Boolean(pending[item.id])}
+                    index={index}
                     onOpen={(row) => void onOpen(row)}
                   />
                 ))}

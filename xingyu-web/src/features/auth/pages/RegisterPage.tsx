@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import type { PasswordPolicy } from "@/api/auth/auth.types";
+import { AuthCaptchaImage } from "@/features/auth/components/AuthCaptchaImage";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { Bookmark, PenLine, Users } from "lucide-react";
@@ -171,7 +172,7 @@ export function RegisterPage() {
   if (registrationOpen === false) {
     return (
       <AuthCard title="注册已关闭" description="当前站点未开放注册，请联系管理员。">
-        <Link to="/login" className="text-sm text-accent hover:underline">
+        <Link to="/login" className="text-meta text-accent-strong hover:underline">
           返回登录
         </Link>
       </AuthCard>
@@ -203,6 +204,16 @@ export function RegisterPage() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8">
       <div className="rounded-xl border border-border/70 bg-card p-6 sm:p-7">
+        {/*
+          24px 是域内唯一的例外，别"对齐"成 20px。
+
+          认证域（S8 窄栏）的 L1 是 20px —— 理由写在 `AuthStatusPanel` 的注释里。
+          这里保留内容页的 24px，因为本页是域内唯一有第二份工作的页面：它除了收
+          字段还要回答"我为什么要注册"，而那个回答放在 320px 的 aside 里（见上）。
+          20px 的标题配一块并排的价值主张，读起来像"一个表单附带了一段说明"；
+          24px 才让表单列成为这一页的主体。它也不会与任何 20px 标题同屏 —— 从
+          本页离开是去 `/login`，那是一次导航，不是同页状态切换。
+        */}
         <header>
           <h1 className="text-2xl font-semibold tracking-tight text-primary">注册星语</h1>
           <p className="mt-1.5 text-meta leading-6 text-muted-foreground">
@@ -285,7 +296,13 @@ export function RegisterPage() {
                 aria-describedby={fieldErrors.password ? "password-error" : undefined}
                 required
               />
-              <p className="text-xs text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
+              {/*
+                规则提示与紧跟其下的错误信息是同一个字段的两条注释，此前一个
+                12px（`text-xs`）一个 13px（`text-meta`），叠在一起像两级信息。
+                认证域的辅助文本只有 `text-meta` 一档（见 `AuthCard` 的注释），
+                这里收进去。
+              */}
+              <p className="text-meta text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
               {fieldErrors.password ? (
                 <p id="password-error" role="alert" className="text-meta text-destructive">
                   {fieldErrors.password}
@@ -332,13 +349,7 @@ export function RegisterPage() {
                     onChange={(e) => setCaptchaCode(e.target.value)}
                     required
                   />
-                  {captcha?.img ? (
-                    <img
-                      src={captcha.img}
-                      alt="验证码"
-                      className="h-10 rounded border border-border"
-                    />
-                  ) : null}
+                  {captcha?.img ? <AuthCaptchaImage src={captcha.img} /> : null}
                 </div>
               </div>
             ) : null}

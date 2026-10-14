@@ -63,6 +63,9 @@ export function SubmissionDetailPage() {
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const pendingRef = useRef(false);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -88,7 +91,7 @@ export function SubmissionDetailPage() {
     return () => {
       active = false;
     };
-  }, [submissionId]);
+  }, [submissionId, reloadKey]);
 
   async function onWithdraw() {
     if (!submissionId || pendingRef.current) return;
@@ -125,7 +128,18 @@ export function SubmissionDetailPage() {
   }
 
   if (state.kind === "loading") return <PageState kind="loading" />;
-  if (state.kind === "error") return <PageState kind="error" />;
+  if (state.kind === "error") {
+    return (
+      <div className="section-gap">
+        <PageState kind="error" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (state.kind === "unavailable") {
     return <PageState kind="empty" title="投稿不存在或无权查看" />;
   }

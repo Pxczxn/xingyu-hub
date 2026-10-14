@@ -84,7 +84,7 @@ export function TopicVisual({
       data-topic-visual-key={stableKey}
       data-topic-visual-icon={iconName}
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center overflow-hidden border bg-accent/10 text-primary transition-colors group-hover:border-accent/50 group-hover:text-accent",
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden border bg-accent/10 text-primary transition-colors group-hover:border-accent/50 group-hover:text-accent-strong",
         size === "md" ? "h-12 w-12 rounded-lg" : "h-9 w-9 rounded-md",
         className,
       )}

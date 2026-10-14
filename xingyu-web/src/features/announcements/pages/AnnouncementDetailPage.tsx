@@ -4,6 +4,7 @@ import { announcementsApi } from "@/api/announcements/announcements.api";
 import type { Announcement } from "@/api/announcements/announcements.types";
 import { ApiError } from "@/api/client";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 
 type LoadState =
   | { kind: "loading" }
@@ -20,6 +21,9 @@ function isNotFound(err: unknown): boolean {
 export function AnnouncementDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!id) {
@@ -40,14 +44,21 @@ export function AnnouncementDetailPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "error") {
     return (
       <div className="section-gap">
         <PageState kind="error" />
-        <BackToList />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+        <p className="text-center">
+          <BackToList />
+        </p>
       </div>
     );
   }
@@ -111,7 +122,7 @@ export function AnnouncementDetailPage() {
 
 function BackToList() {
   return (
-    <Link to="/announcements" className="text-sm text-accent hover:underline">
+    <Link to="/announcements" className="text-sm text-accent-strong hover:underline">
       返回公告列表
     </Link>
   );

@@ -36,15 +36,15 @@ export function RecommendedCreatorsPanel({
   return (
     <section
       aria-labelledby="home-recommended-creators"
-      className="rounded-xl border border-border/60 bg-surface-sunken/55 p-4"
+      className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
     >
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h2 id="home-recommended-creators" className="text-sm font-medium text-foreground-soft">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 id="home-recommended-creators" className="text-sm font-semibold text-foreground">
           推荐创作者
         </h2>
         <Link
           to="/creators"
-          className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-accent-strong"
+          className="shrink-0 text-xs text-accent-strong transition-colors hover:underline"
         >
           全部 ›
         </Link>
@@ -61,7 +61,7 @@ export function RecommendedCreatorsPanel({
               {followError}
             </p>
           ) : null}
-          <ul className="flex flex-col gap-2.5">
+          <ul className="flex flex-col gap-3">
             {creators.map((creator) => (
               <li key={creator.username} className="flex items-center gap-3">
                 {creator.avatar ? (
@@ -69,12 +69,12 @@ export function RecommendedCreatorsPanel({
                     src={creator.avatar}
                     alt=""
                     loading="lazy"
-                    className="h-9 w-9 shrink-0 rounded-full object-cover"
+                    className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-accent/10"
                   />
                 ) : (
                   <span
                     aria-hidden
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium text-muted-foreground"
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent/20 to-accent/10 text-sm font-semibold text-accent-foreground"
                   >
                     {creator.displayName.slice(0, 1)}
                   </span>
@@ -83,7 +83,7 @@ export function RecommendedCreatorsPanel({
                 <div className="min-w-0 flex-1">
                   <Link
                     to={`/u/${encodeURIComponent(creator.username)}`}
-                    className="block truncate text-sm font-medium text-foreground hover:text-accent-strong"
+                    className="block truncate text-sm font-semibold text-foreground transition-colors hover:text-accent-strong"
                   >
                     {creator.displayName}
                   </Link>
@@ -98,10 +98,10 @@ export function RecommendedCreatorsPanel({
                     onClick={() => onToggleFollow(creator)}
                     disabled={pendingUsername === creator.username}
                     className={cn(
-                      "shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+                      "shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 disabled:opacity-50",
                       creator.following
                         ? "border-border bg-card text-foreground hover:bg-muted"
-                        : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10",
+                        : "border-accent/30 bg-accent/10 text-accent-foreground hover:bg-accent/20 hover:shadow-sm",
                     )}
                   >
                     {creator.following ? "已关注" : "关注"}

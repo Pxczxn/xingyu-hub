@@ -13,6 +13,7 @@ import {
   type SavedMessageView,
 } from "@/api/saved-messages/saved-messages.types";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 import { AuthenticatedAttachment } from "../AuthenticatedAttachment";
 
 /*
@@ -55,6 +56,9 @@ const RECALLED_TOMBSTONE = "[消息已撤回]";
 
 export function SavedMessagesPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -71,7 +75,7 @@ export function SavedMessagesPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const handleRemove = useCallback(async (item: SavedMessageView) => {
     setActionError(null);
@@ -112,11 +116,19 @@ export function SavedMessagesPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -132,8 +144,15 @@ export function SavedMessagesPage() {
         </p>
       </header>
 
+      {/*
+        2026-10-13 (batch 07c): `text-red-600` was the ONLY hard-coded colour left in
+        the whole messages feature. `text-destructive` is the token every other error
+        surface in the app uses, and it is the one that follows the theme — a raw
+        Tailwind red stays put when the palette moves and reads as a slightly different
+        red than the alert one page away.
+      */}
       {actionError ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-destructive">
           {actionError}
         </p>
       ) : null}
@@ -173,7 +192,12 @@ export function SavedMessagesPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">
+                    {/*
+                      2026-10-13 (batch 07c): both meta lines on this card (this one and
+                      the 「查看原会话」 footer) move `text-xs` -> `text-meta`. They are
+                      prose — 「会话 · 谁 · 何时」 — not labels on a control.
+                    */}
+                    <p className="text-meta text-muted-foreground">
                       {savedConversationLabel(item)} · {savedSenderLabel(item.senderId)}
                       {at ? <span className="ml-2">{at}</span> : null}
                     </p>
@@ -240,10 +264,10 @@ export function SavedMessagesPage() {
                       </>
                     )}
 
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    <p className="mt-2 text-meta text-muted-foreground">
                       <Link
                         to={savedConversationHref(item)}
-                        className="text-accent hover:underline"
+                        className="text-accent-strong hover:underline"
                       >
                         查看原会话
                       </Link>

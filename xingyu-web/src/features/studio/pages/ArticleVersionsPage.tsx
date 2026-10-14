@@ -59,6 +59,9 @@ export function ArticleVersionsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
   const pendingRef = useRef(false);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `signal` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   const load = useCallback(
     async (signal: { active: boolean }) => {
@@ -66,6 +69,7 @@ export function ArticleVersionsPage() {
         setState({ kind: "unavailable" });
         return;
       }
+      setState({ kind: "loading" });
       try {
         // The owner list is the ONLY contract source for editorial status (the
         // draft DTO does not carry it). A failure here must not break the page —
@@ -93,7 +97,7 @@ export function ArticleVersionsPage() {
     return () => {
       signal.active = false;
     };
-  }, [load]);
+  }, [load, reloadKey]);
 
   async function onRestore() {
     if (!articleId || !selectedId || pendingRef.current) return;
@@ -124,11 +128,18 @@ export function ArticleVersionsPage() {
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "error") {
     return (
-      <PageState
-        kind="error"
-        title="加载版本历史失败"
-        description="无法读取这篇文章的历史版本，请稍后重试。"
-      />
+      <div className="section-gap">
+        <PageState
+          kind="error"
+          title="加载版本历史失败"
+          description="无法读取这篇文章的历史版本，请稍后重试。"
+        />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
     );
   }
   if (state.kind === "unavailable") {
@@ -175,7 +186,7 @@ export function ArticleVersionsPage() {
           已恢复为当前草稿。
           <Link
             to={`/studio/content/${encodeURIComponent(articleId ?? "")}`}
-            className="ml-1 text-accent hover:underline"
+            className="ml-1 text-accent-strong hover:underline"
           >
             返回编辑器
           </Link>

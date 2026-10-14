@@ -88,7 +88,7 @@ export function ForgotPasswordPage() {
       title="找回密码"
       description="输入注册时使用的邮箱或用户名，我们会发送重置链接。"
       footer={
-        <Link to="/login" className="text-accent hover:underline">
+        <Link to="/login" className="text-accent-strong hover:underline">
           返回登录
         </Link>
       }

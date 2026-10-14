@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { myLikesApi } from "@/api/me-activity/me-activity.api";
 import { MY_ACTIVITY_LIMIT, type MyLikeView } from "@/api/me-activity/me-activity.types";
 import { contentHref } from "@/components/shared/ContentCard";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 /*
@@ -53,6 +52,9 @@ function formatTime(value: string): string {
 
 export function MyLikesPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -75,7 +77,7 @@ export function MyLikesPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -93,11 +95,19 @@ export function MyLikesPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -106,17 +116,12 @@ export function MyLikesPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <Heart className="h-5 w-5" aria-hidden />
-          我的喜欢
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          你当前点赞过的内容。取消点赞后，条目会从这里移除。
-        </p>
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的喜欢</h1>
+        <p className="lede mt-2 max-w-2xl">你当前点赞过的内容。取消点赞后，条目会从这里移除。</p>
       </header>
 
-      <section className="rounded-lg border border-border bg-card">
+      <section className="rounded-xl border border-border/70 bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="section-heading">点赞记录</h2>
           {/* No "load more": the endpoint returns a bare array with no cursor. */}
@@ -149,7 +154,7 @@ export function MyLikesPage() {
                   <p className="text-xs font-medium text-muted-foreground">{like.objectType}</p>
                   <Link
                     to={contentHref({ id: like.objectId, objectType: like.objectType })}
-                    className="mt-1 block truncate text-sm font-medium text-foreground hover:text-accent"
+                    className="mt-1 block truncate text-sm font-medium text-foreground hover:text-accent-strong"
                   >
                     {like.title || like.objectId}
                   </Link>

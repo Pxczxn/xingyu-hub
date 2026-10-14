@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Gavel } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { appealsApi } from "@/api/moderation/moderation.api";
 import { PageState } from "@/components/shared/PageState";
 import { buttonVariants } from "@/components/ui/button";
+import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { cn } from "@/lib/cn";
 
 /*
@@ -74,25 +75,32 @@ export function NewAppealPage() {
       <p>
         <Link
           to="/appeals"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-strong"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           返回申诉列表
         </Link>
       </p>
 
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <Gavel className="h-5 w-5" aria-hidden />
-          提交申诉
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+      {/*
+        页头（2026-10-13，批次 08c）—— 与 /reports/new 同形：去卡片、去图标、改成
+        分隔线式。完整判据见 MyReportsPage 的注释，这里不重复。
+
+        本页与 /reports/new 是同一形态的两个实例（一个提交举报、一个提交申诉），
+        所以两页的可用性修复也一致：申诉说明的 textarea 补 `.focus-ring`（原本
+        Tab 进去看不出焦点），提交失败从裸 `<p className="text-sm text-destructive">`
+        换成 `AuthFormError focusOnMount`（表单级失败，错误在表单底部，不聚焦用户
+        看不到）。两条理由与 /reports/new 逐字相同。
+      */}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">提交申诉</h1>
+        <p className="lede mt-2 max-w-2xl">
           如果你对某项治理措施有异议，可以在这里提交申诉并说明理由。
         </p>
       </header>
 
       {!hasTarget ? (
-        <section className="rounded-lg border border-border bg-card p-5">
+        <section className="rounded-xl border border-border/70 bg-card p-5">
           <PageState
             kind="empty"
             title="没有可申诉的处置"
@@ -105,7 +113,7 @@ export function NewAppealPage() {
           </p>
         </section>
       ) : (
-        <form onSubmit={submit} className="rounded-lg border border-border bg-card p-5">
+        <form onSubmit={submit} className="rounded-xl border border-border/70 bg-card p-5">
           <div className="flex flex-col gap-4">
             {/*
              * 这里刻意不显示 caseId / measureId 的原始值。
@@ -127,16 +135,12 @@ export function NewAppealPage() {
                 value={detail}
                 onChange={(e) => setDetail(e.target.value)}
                 rows={5}
-                className="mt-2 w-full rounded-md border border-border bg-background p-3 text-sm text-foreground"
+                className="focus-ring mt-2 w-full rounded-md border border-border bg-background p-3 text-sm text-foreground"
                 placeholder="请说明你认为该处置不当的理由"
               />
             </div>
 
-            {error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            ) : null}
+            {error ? <AuthFormError focusOnMount>{error}</AuthFormError> : null}
 
             <div className="flex flex-wrap gap-3">
               <button

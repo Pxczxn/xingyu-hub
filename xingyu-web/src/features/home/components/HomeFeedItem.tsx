@@ -395,6 +395,12 @@ export function HomeFeedItem({
                   bookmarked ? "hover:bg-muted" : "hover:bg-muted hover:text-foreground",
                 )}
               >
+                {/*
+                 * Same split as the heart above: the filled mark keeps the vivid
+                 * gold, the label beside it resolves through `--accent-strong`.
+                 * The button also carries `aria-pressed` and swaps 收藏 / 已收藏,
+                 * so colour is never the only carrier of the state.
+                 */}
                 <Bookmark
                   className={cn("h-3.5 w-3.5", bookmarked && "fill-current text-accent")}
                   aria-hidden

@@ -46,6 +46,9 @@ export function CreatorsPage() {
   const [query, setQuery] = useState("");
   const [followError, setFollowError] = useState<string | null>(null);
   const [pendingUsername, setPendingUsername] = useState<string | null>(null);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -99,7 +102,7 @@ export function CreatorsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const toggleFollow = useCallback(async (creator: CreatorCard) => {
     const wasFollowing = creator.profile?.following === true;
@@ -154,7 +157,14 @@ export function CreatorsPage() {
 
       {loading ? <PageState kind="loading" /> : null}
       {!loading && failed ? (
-        <PageState kind="error" title="作者列表加载失败" description="请稍后重试。" />
+        <>
+          <PageState kind="error" title="作者列表加载失败" description="请稍后重试。" />
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        </>
       ) : null}
 
       {!loading && !failed && !hasAnyTopic ? (

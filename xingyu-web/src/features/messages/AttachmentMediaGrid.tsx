@@ -37,7 +37,7 @@ export function AttachmentMediaGrid({
                   href={url}
                   target="_blank"
                   rel="noreferrer"
-                  className="block overflow-hidden rounded-md border border-border"
+                  className="block overflow-hidden rounded-xl border border-border/70"
                 >
                   <img
                     src={url}
@@ -48,10 +48,17 @@ export function AttachmentMediaGrid({
                 </a>
               )}
             </AuthenticatedAttachment>
-            <span className="truncate px-1 text-[10px] text-muted-foreground">
+            {/*
+              2026-10-13 (batch 07c): the caption and the time stay at the MICRO step
+              (11px), NOT `text-meta`. At `sm:grid-cols-3 lg:grid-cols-4` a tile is
+              roughly 150px wide inside the thread pane, and 13px prose in a cell that
+              narrow starts wrapping filenames that get truncated anyway — the worst of
+              both. 10px was a pixel under this app's floor.
+            */}
+            <span className="truncate px-1 text-[11px] text-muted-foreground">
               {message.attachmentName ?? "图片"}
             </span>
-            {at ? <time className="px-1 text-[10px] text-muted-foreground">{at}</time> : null}
+            {at ? <time className="px-1 text-[11px] text-muted-foreground">{at}</time> : null}
           </li>
         );
       })}

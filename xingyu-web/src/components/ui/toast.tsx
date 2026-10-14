@@ -5,6 +5,34 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+/*
+ * Vendored shadcn toast primitive. Customised 2026-10-13 (batch 07d) — the same
+ * treatment `button.tsx` and `card.tsx` already got, for the same reason: this file is
+ * the only thing between a Radix primitive and the app's surface language, and the
+ * stock defaults were two steps off it.
+ *
+ * What changed and why:
+ *
+ *   - `rounded-md` -> `rounded-xl`, `border` -> `border-border/70`, `bg-background`
+ *     -> `bg-card`, `shadow-lg` -> `shadow-lift`. The first pair is the stock shadcn
+ *     card; every surface in this app is `rounded-xl` over a 70% border with the
+ *     navy-tinted `lift` shadow. A floating card is where a mismatch shows most,
+ *     because there is no page content around it to blend into.
+ *   - `ToastTitle` `text-sm` -> `text-card`, `[&+div]:text-xs` and `ToastDescription`
+ *     `text-sm` -> `text-meta`. 15px title over 13px body is the app's card-title /
+ *     prose pair; 14px over 12px was a third pair that appears nowhere else.
+ *   - Viewport `md:max-w-[420px]` -> `sm:max-w-[420px]`. Between 640px and 768px the
+ *     stock breakpoint let the stack run the full width of the window as a banner
+ *     pinned to the corner; the consumer's own layout contract has always said the
+ *     narrow card starts at `sm`.
+ *
+ * The `destructive` variant and its `group-[.destructive]:` rules are left EXACTLY as
+ * shadcn ships them, raw reds included. Nothing in the app selects that variant — the
+ * notification stack is the only consumer and it uses `default` — so re-tinting a path
+ * with no producer would mean inventing colours for a state nobody can see. If a
+ * destructive toast is ever needed, that is the moment to decide what it looks like.
+ */
+
 const ToastProvider = ToastPrimitives.Provider;
 
 const ToastViewport = React.forwardRef<
@@ -14,7 +42,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+      "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col sm:max-w-[420px]",
       className,
     )}
     {...props}
@@ -23,11 +51,11 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-2 overflow-hidden rounded-md border p-4 pr-6 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-2 overflow-hidden rounded-xl border border-border/70 p-4 pr-6 shadow-lift transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
+        default: "bg-card text-foreground",
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
       },
@@ -92,7 +120,7 @@ const ToastTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Title
     ref={ref}
-    className={cn("text-sm font-semibold [&+div]:text-xs", className)}
+    className={cn("text-card font-semibold [&+div]:text-meta", className)}
     {...props}
   />
 ));
@@ -104,7 +132,7 @@ const ToastDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Description
     ref={ref}
-    className={cn("text-sm opacity-90", className)}
+    className={cn("text-meta opacity-90", className)}
     {...props}
   />
 ));

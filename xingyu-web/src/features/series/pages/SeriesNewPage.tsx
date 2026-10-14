@@ -52,7 +52,7 @@ export function SeriesNewPage() {
 
   return (
     <div className="section-gap">
-      <Link to="/studio/series" className="text-sm text-accent hover:underline">
+      <Link to="/studio/series" className="text-sm text-accent-strong hover:underline">
         返回系列列表
       </Link>
       <h1 className="text-2xl font-semibold tracking-tight text-primary">创建系列</h1>

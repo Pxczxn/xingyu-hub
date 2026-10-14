@@ -29,12 +29,12 @@ export function CreatorCardItem({
   const work = creator.latestWork;
 
   return (
-    <Card className="h-full" data-testid={`creator-card-${creator.username}`}>
-      <CardContent className="flex flex-col gap-3 p-5">
+    <Card className="h-full transition-all duration-200 hover:shadow-md" data-testid={`creator-card-${creator.username}`}>
+      <CardContent className="flex flex-col gap-4 p-6">
         <div className="flex items-start gap-3">
           <span
             aria-hidden="true"
-            className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-sunken text-base font-semibold text-foreground-soft"
+            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent/20 to-accent/10 text-lg font-semibold text-accent-foreground ring-2 ring-accent/10"
           >
             {avatar ? (
               <img src={avatar} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -43,8 +43,11 @@ export function CreatorCardItem({
             )}
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-semibold text-primary">
-              <Link to={`/u/${encodeURIComponent(creator.username)}`} className="hover:text-accent">
+            <h2 className="truncate text-base font-bold text-primary">
+              <Link
+                to={`/u/${encodeURIComponent(creator.username)}`}
+                className="transition-colors hover:text-accent-strong"
+              >
                 {name}
               </Link>
             </h2>
@@ -55,31 +58,31 @@ export function CreatorCardItem({
         </div>
 
         {creator.profile?.articleCount != null && creator.profile.seriesCount != null ? (
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{creator.profile.articleCount}</span>{" "}
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{creator.profile.articleCount}</span>{" "}
             篇文章 ·{" "}
-            <span className="font-medium text-foreground">{creator.profile.seriesCount}</span>{" "}
+            <span className="font-semibold text-foreground">{creator.profile.seriesCount}</span>{" "}
             个系列
           </p>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            专题收录 <span className="font-medium text-foreground">{creator.contentCount}</span> 篇
+          <p className="text-sm text-muted-foreground">
+            专题收录 <span className="font-semibold text-foreground">{creator.contentCount}</span> 篇
           </p>
         )}
 
         {work ? (
           <Link
             to={`/articles/${encodeURIComponent(work.id)}`}
-            className="block rounded-md border border-border p-3 hover:border-accent"
+            className="block rounded-lg border border-border bg-surface-sunken/30 p-3 transition-all duration-200 hover:border-accent hover:bg-card hover:shadow-sm"
           >
-            <span className="block text-xs text-muted-foreground">最新公开作品</span>
-            <span className="line-clamp-2 text-meta font-medium text-foreground-soft">
+            <span className="block text-xs font-medium text-muted-foreground">最新公开作品</span>
+            <span className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
               {work.title || "未命名作品"}
             </span>
           </Link>
         ) : (
           <p
-            className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground"
+            className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground"
             data-testid={`creator-no-work-${creator.username}`}
           >
             暂未获得公开作品
@@ -89,7 +92,7 @@ export function CreatorCardItem({
         <div className="mt-auto flex items-center gap-2 pt-1">
           <Link
             to={`/u/${encodeURIComponent(creator.username)}`}
-            className="text-xs text-muted-foreground hover:text-foreground"
+            className="text-xs font-medium text-accent-strong transition-colors hover:underline"
           >
             查看主页
           </Link>
@@ -98,7 +101,7 @@ export function CreatorCardItem({
               type="button"
               size="sm"
               variant={following ? "outline" : "default"}
-              className="ml-auto"
+              className="ml-auto transition-all duration-200 hover:scale-105"
               disabled={followPending}
               onClick={() => onToggleFollow(creator)}
             >

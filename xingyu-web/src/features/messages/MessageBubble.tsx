@@ -225,7 +225,15 @@ export function MessageBubble({
         )}
       </div>
 
-      <span className="flex items-center gap-2 px-2 text-[10px] text-muted-foreground">
+      {/*
+        2026-10-13 (batch 07c). The time + 「撤回」 line is a FOOTNOTE ON THE BUBBLE, so
+        it takes the micro step — 11px — and not `text-meta`. It is read together with
+        the bubble it hangs off, not as a sentence in the flow, and the prose step here
+        would make the timestamp compete with the message it is dating. 10px was a
+        pixel under this app's floor (`.eyebrow`); the 「撤回」 button rides the same
+        size on purpose, because it belongs to the same footnote.
+      */}
+      <span className="flex items-center gap-2 px-2 text-[11px] text-muted-foreground">
         {at ? <time>{at}</time> : null}
         {canRecall ? (
           <button

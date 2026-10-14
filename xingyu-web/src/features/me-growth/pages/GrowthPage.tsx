@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Award, BookOpen, MessageSquare, TrendingUp } from "lucide-react";
+import { Award, BookOpen, MessageSquare } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { badgesApi } from "@/api/badges/badges.api";
 import type { BadgeView } from "@/api/badges/badges.types";
@@ -127,12 +127,17 @@ export function GrowthPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <TrendingUp className="h-5 w-5" aria-hidden />
-          成长记录
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+      {/*
+        S7 header (batch 08). The card surface and the icon are gone: this page's
+        first screen is five records, not a statement about the page, and a
+        bordered panel here would be a second white plane above the five sections
+        that already carry their own surfaces. The hairline keeps the title
+        attached to what follows. §4.3's rule for /me/* — "优先状态、记录和操作，
+        不放个人资料大卡" — is what this shape implements.
+      */}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">成长记录</h1>
+        <p className="lede mt-2 max-w-2xl">
           你的创作数据、徽章、阅读轨迹与最近互动。每个区块各自加载，读不到时会单独说明。
         </p>
       </header>
@@ -140,14 +145,14 @@ export function GrowthPage() {
       {sessionExpired ? (
         <p className="text-center text-sm text-muted-foreground">
           部分数据因登录状态过期无法读取。
-          <Link to="/login" className="ml-1 text-accent hover:underline">
+          <Link to="/login" className="ml-1 text-accent-strong hover:underline">
             去登录
           </Link>
         </p>
       ) : null}
 
       {/* ---- 创作数据 ---- */}
-      <section className="rounded-lg border border-border bg-card p-5" aria-label="创作数据">
+      <section className="rounded-xl border border-border/70 bg-card p-5" aria-label="创作数据">
         <h2 className="section-heading">创作数据</h2>
         {insights.kind === "loading" ? (
           <p className="mt-2 text-sm text-muted-foreground">正在读取…</p>
@@ -169,7 +174,7 @@ export function GrowthPage() {
 
       {/* ---- 待处理 ---- */}
       {pending.kind === "ready" && dedupedPending.length > 0 ? (
-        <section className="rounded-lg border border-border bg-card p-5" aria-label="待处理">
+        <section className="rounded-xl border border-border/70 bg-card p-5" aria-label="待处理">
           <h2 className="section-heading">待处理</h2>
           <ul className="mt-3 space-y-2">
             {dedupedPending.map((action, index) => {
@@ -181,7 +186,7 @@ export function GrowthPage() {
                   {href ? (
                     <Link
                       to={href}
-                      className="block rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-accent/50 hover:text-accent"
+                      className="block rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-accent/50 hover:text-accent-strong"
                     >
                       {label}
                       {count && count > 1 ? (
@@ -210,13 +215,13 @@ export function GrowthPage() {
       ) : null}
 
       {/* ---- 徽章 ---- */}
-      <section className="rounded-lg border border-border bg-card p-5" aria-label="徽章">
+      <section className="rounded-xl border border-border/70 bg-card p-5" aria-label="徽章">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Award className="h-4 w-4" aria-hidden />
             徽章
           </h2>
-          <Link to="/me/badges" className="text-xs text-accent hover:underline">
+          <Link to="/me/badges" className="text-xs text-accent-strong hover:underline">
             查看全部
           </Link>
         </div>
@@ -239,7 +244,7 @@ export function GrowthPage() {
                   className={cn(
                     "rounded-full border px-3 py-1 text-xs",
                     badge.earned
-                      ? "border-accent/50 text-accent"
+                      ? "border-accent/50 text-accent-strong"
                       : "border-border text-muted-foreground",
                   )}
                 >
@@ -252,7 +257,7 @@ export function GrowthPage() {
       </section>
 
       {/* ---- 最近阅读 ---- */}
-      <section className="rounded-lg border border-border bg-card p-5" aria-label="最近阅读">
+      <section className="rounded-xl border border-border/70 bg-card p-5" aria-label="最近阅读">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <BookOpen className="h-4 w-4" aria-hidden />
           最近阅读
@@ -275,7 +280,7 @@ export function GrowthPage() {
               <li key={item.id} className="flex items-center justify-between gap-3 py-3">
                 <Link
                   to={contentHref({ id: item.id, objectType: item.objectType })}
-                  className="min-w-0 truncate text-sm text-foreground hover:text-accent"
+                  className="min-w-0 truncate text-sm text-foreground hover:text-accent-strong"
                 >
                   {item.title || item.id}
                 </Link>
@@ -289,7 +294,7 @@ export function GrowthPage() {
       </section>
 
       {/* ---- 最近评论 ---- */}
-      <section className="rounded-lg border border-border bg-card p-5" aria-label="最近评论">
+      <section className="rounded-xl border border-border/70 bg-card p-5" aria-label="最近评论">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <MessageSquare className="h-4 w-4" aria-hidden />
           最近评论

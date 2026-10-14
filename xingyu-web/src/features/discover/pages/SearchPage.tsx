@@ -64,6 +64,9 @@ export function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [searched, setSearched] = useState(false);
+  /* Bumping the key replays the search effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     setDraft(query);
@@ -95,7 +98,7 @@ export function SearchPage() {
     return () => {
       active = false;
     };
-  }, [query]);
+  }, [query, reloadKey]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -126,7 +129,16 @@ export function SearchPage() {
       {!query ? <PageState kind="empty" /> : null}
 
       {query && loading ? <PageState kind="loading" /> : null}
-      {query && !loading && error ? <PageState kind="error" /> : null}
+      {query && !loading && error ? (
+        <>
+          <PageState kind="error" />
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        </>
+      ) : null}
       {query && !loading && !error && searched && items.length === 0 ? (
         <div
           data-testid="search-no-results"

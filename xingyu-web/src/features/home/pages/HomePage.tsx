@@ -11,13 +11,14 @@ import type { AnnouncementSummary, ContentSummary } from "@/api/common.types";
 import { useAuth } from "@/features/auth/auth.store";
 import { SectionState, type SectionStatus } from "@/components/shared/SectionState";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { PageMasthead } from "@/components/shared/PageMasthead";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { staggerDelay } from "@/lib/stagger";
 import { HomeFeedTabs, type HomeFeedTab } from "@/features/home/components/HomeFeedTabs";
 import { HomeFeedItem } from "@/features/home/components/HomeFeedItem";
 import { ContinueReadingStrip } from "@/features/home/components/ContinueReadingStrip";
 import { HomeSidebar, hasSidebarContent } from "@/features/home/components/HomeSidebar";
-import { HomeMasthead } from "@/features/home/components/HomeMasthead";
 import { HomeNotice } from "@/features/home/components/HomeNotice";
 import { EVENT_LIMIT } from "@/features/home/components/CommunityEventsPanel";
 import { useRecommendedCreators } from "@/features/home/use-recommended-creators";
@@ -32,7 +33,7 @@ import { useRecommendedCreators } from "@/features/home/use-recommended-creators
  * dashboard. This file owns data state and composition only — every visual unit
  * lives in ./components.
  *
- *   HomeMasthead      (guest: 加入星语 / 登录)
+ *   PageMasthead      (guest: 加入星语 / 登录)
  *   ├── left  (2/3)   HomeFeedTabs (推荐 / 关注 + 查看更多)
  *   │                 → ContinueReadingStrip → feed rows
  *   └── right (1/3)   HomeSidebar (热门话题 · 推荐创作者 · 社区活动)
@@ -41,9 +42,14 @@ import { useRecommendedCreators } from "@/features/home/use-recommended-creators
  * error inside that section only (never a blank page), and the home-specific
  * rule for non-critical modules is "empty means invisible" (see HomeSidebar).
  *
- * 2026-10-04 (A0): the opening block is HomeMasthead, not PageHero. See that
+ * 2026-10-04 (A0): the opening block is PageMasthead, not PageHero. See that
  * component for why — short version: a banner card with an illustration slot is
  * wrong for a page whose first screen has to hand the reader to a feed.
+ *
+ * 2026-10-13 (layout batch 02): that block moved from
+ * features/home/components/HomeMasthead to components/shared/PageMasthead when
+ * Discover adopted the same shape. This page's composition is unchanged — only
+ * the import path and the name.
  */
 
 type Section<T> = { status: SectionStatus; data: T | null };
@@ -86,6 +92,9 @@ export function HomePage() {
   const [homeStatus, setHomeStatus] = useState<SectionStatus>("loading");
   const [homeFatal, setHomeFatal] = useState(false);
   const [tab, setTab] = useState<HomeFeedTab>("recommend");
+  /* Bumping the key replays the page's load effects — the retry mechanism for
+     the error branch below. The effects keep their per-run `active` guards. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Home composition: guest vs member hit different endpoints, same layout.
   useEffect(() => {
@@ -109,14 +118,14 @@ export function HomePage() {
     return () => {
       active = false;
     };
-  }, [ready, isAuthenticated]);
+  }, [ready, isAuthenticated, reloadKey]);
 
   // Non-critical rail modules, isolated so failures cannot blank the page.
   const announcements = useSection<AnnouncementSummary[]>(
     () => homeApi.getAnnouncements(3),
-    [ready],
+    [ready, reloadKey],
   );
-  const topics = useSection<TopicSummary[]>(() => topicsApi.getTopics(), [ready]);
+  const topics = useSection<TopicSummary[]>(() => topicsApi.getTopics(), [ready, reloadKey]);
   /*
    * Fetch a little more than the rail renders. The server list is ordered by
    * `starts_at DESC` with no notion of ended-ness, and an ended event can sit at
@@ -124,8 +133,8 @@ export function HomePage() {
    * nothing to filter with, so a live event could be pushed out by ended ones.
    * The panel does the ended-demotion; this over-fetch is what makes it possible.
    */
-  const events = useSection<EventView[]>(() => eventsApi.list(EVENT_LIMIT + 4), [ready]);
-  const creators = useRecommendedCreators(ready, isAuthenticated);
+  const events = useSection<EventView[]>(() => eventsApi.list(EVENT_LIMIT + 4), [ready, reloadKey]);
+  const creators = useRecommendedCreators(ready, isAuthenticated, reloadKey);
 
   /*
    * Both feed tabs read the SAME composition payload — there is no separate feed
@@ -186,7 +195,16 @@ export function HomePage() {
   const showSidebar = hasSidebarContent([topicSection, creatorSection, eventSection]);
 
   if (homeFatal) {
-    return <PageState kind="error" />;
+    return (
+      <div className="section-gap">
+        <PageState kind="error" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -200,11 +218,18 @@ export function HomePage() {
        * between that column and the artwork, and a card border that made the banner
        * a second white surface stacked above the feed panel.
        *
-       * `PageHero` itself is NOT touched: the other six top-level pages, /discover's
-       * DiscoverHero and /creators all still use it. Only Home opts out, because
-       * only Home's first screen has to hand the reader straight to a feed.
+       * `PageHero` itself is NOT touched: /moments, /galaxies and /series still use
+       * it, and should — they are entry surfaces where a banner earns its space.
+       * Only Home and /discover opt out, because their first screen has to hand the
+       * reader straight to content rather than to a pitch about the content.
+       *
+       * 2026-10-13 (layout batch 02): the block below moved out of
+       * features/home/components/HomeMasthead into components/shared/PageMasthead,
+       * when Discover adopted the same shape. Composition on this page is unchanged
+       * — only the import path and the name.
        */}
-      <HomeMasthead
+      <PageMasthead
+        variant={isAuthenticated ? "default" : "featured"}
         eyebrow={isAuthenticated ? undefined : "XINGYU COMMUNITY"}
         title={isAuthenticated ? "欢迎回来，继续探索你的关注、阅读与创作。" : "让灵感，在星语相遇"}
         /*
@@ -226,8 +251,14 @@ export function HomePage() {
              * screen is one action offered twice. The masthead keeps only the gold
              * primary CTA; signing in is the header's job.
              */
-            <Link to="/register" className={cn(buttonVariants({ variant: "accent" }), "gap-1.5")}>
-              <Sparkles className="h-4 w-4" aria-hidden />
+            <Link
+              to="/register"
+              className={cn(
+                buttonVariants({ variant: "accent", size: "lg" }),
+                "gap-2 shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg",
+              )}
+            >
+              <Sparkles className="h-5 w-5" aria-hidden />
               加入星语
             </Link>
           )
@@ -283,13 +314,35 @@ export function HomePage() {
                * contents.
                */
               feedStatus === "ready" &&
-                "rounded-xl border border-border/70 bg-card px-5 shadow-none sm:px-6",
+                "rounded-2xl border border-border/70 bg-card px-5 shadow-sm sm:px-6",
             )}
           >
             <SectionState status={feedStatus} emptyText={emptyText}>
-              <ul className="flex flex-col">
-                {(feedItems ?? []).map((item) => (
-                  <li key={item.id} className="border-b border-border/50 last:border-b-0">
+              {/*
+                `key={tab}` on the <ul> is the whole replay mechanism, same as
+                MyEventsPage: a new key unmounts the list, so the rows the reader
+                just asked for animate in again. Without it 关注 would simply
+                replace 推荐, and a tab that swaps content with no motion reads
+                as a tab that did nothing.
+
+                The key sits on the <ul>, NOT on the framed <section> above it —
+                that section owns the border and the card background, and
+                remounting it would blink the panel outline out from under its
+                own rows. Only the contents are new; the container is not.
+
+                It changes with the tab and nothing else, so liking a row
+                re-renders it without restarting the entrance — the distinction
+                NotificationsPage draws for its own list. Delays are inline
+                because `animate-rise-in` is the `animation` shorthand and resets
+                `animation-delay` (stagger.ts).
+              */}
+              <ul key={tab} className="flex flex-col">
+                {(feedItems ?? []).map((item, index) => (
+                  <li
+                    key={item.id}
+                    className="animate-rise-in border-b border-border/50 last:border-b-0"
+                    style={{ animationDelay: staggerDelay(index) }}
+                  >
                     {/*
                      * The two tabs are NOT the same feed with different data.
                      * 推荐 is a discovery feed and 关注 is a subscription feed, so

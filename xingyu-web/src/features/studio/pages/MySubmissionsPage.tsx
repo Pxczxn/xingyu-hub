@@ -10,6 +10,7 @@ import {
   submissionTitle,
 } from "@/api/submissions/submissions.types";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 /*
@@ -29,6 +30,9 @@ export function MySubmissionsPage() {
   const [items, setItems] = useState<ReviewSubmissionDetailView[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState<"auth" | "other" | null>(null);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branches below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -52,17 +56,33 @@ export function MySubmissionsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (loading) return <PageState kind="loading" />;
 
   if (failed === "auth") {
     return (
-      <PageState kind="error" title="登录状态已过期" description="请重新登录后查看你的投稿。" />
+      <div className="section-gap">
+        <PageState kind="error" title="登录状态已过期" description="请重新登录后查看你的投稿。" />
+        <p className="text-center">
+          <Link to="/login" className="text-sm text-accent-strong hover:underline">
+            去登录
+          </Link>
+        </p>
+      </div>
     );
   }
   if (failed) {
-    return <PageState kind="error" title="投稿列表加载失败" description="请稍后重试。" />;
+    return (
+      <div className="section-gap">
+        <PageState kind="error" title="投稿列表加载失败" description="请稍后重试。" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -90,7 +110,7 @@ export function MySubmissionsPage() {
                       <h2 className="text-card font-semibold text-primary">
                         <Link
                           to={`/studio/submissions/${encodeURIComponent(item.id)}`}
-                          className="hover:text-accent"
+                          className="hover:text-accent-strong"
                         >
                           {submissionTitle(item)}
                         </Link>

@@ -6,6 +6,7 @@ import type { FollowUser } from "@/api/social/social.types";
 import { usersApi } from "@/api/users/users.api";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { FollowUserRow } from "../FollowUserRow";
 
 type LoadState =
@@ -45,6 +46,20 @@ const COPY: Record<Direction, { title: string; empty: string; emptyHint: string 
   },
 };
 
+/*
+ * One recipe for both tabs. The active/inactive pair used to be copy-pasted per
+ * link; hoisting it keeps the two from drifting, and gives the hand-rolled tabs
+ * the shared focus ring that a bare `Link` does not carry.
+ */
+function tabClass(active: boolean): string {
+  return cn(
+    "focus-ring rounded-md border px-3 py-1.5 text-sm",
+    active
+      ? "border-accent bg-accent/10 font-medium text-accent-strong"
+      : "border-border text-muted-foreground hover:bg-muted",
+  );
+}
+
 function isAuthError(err: unknown): boolean {
   return (
     err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
@@ -53,6 +68,9 @@ function isAuthError(err: unknown): boolean {
 
 export function FollowListPage({ direction }: { direction: Direction }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [rowError, setRowError] = useState<string | null>(null);
   const copy = COPY[direction];
@@ -78,7 +96,7 @@ export function FollowListPage({ direction }: { direction: Direction }) {
     return () => {
       active = false;
     };
-  }, [direction]);
+  }, [direction, reloadKey]);
 
   /**
    * Follow back, from the followers list. The button is only rendered for
@@ -130,11 +148,19 @@ export function FollowListPage({ direction }: { direction: Direction }) {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -143,31 +169,23 @@ export function FollowListPage({ direction }: { direction: Direction }) {
 
   return (
     <div className="section-gap">
-      <header>
+      <header className="border-b border-border/70 pb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-primary">{copy.title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{`共 ${users.length} 位`}</p>
+        <p className="lede mt-2 max-w-2xl">{`共 ${users.length} 位`}</p>
       </header>
 
       <nav aria-label="关注导航" className="flex gap-2">
         <Link
           to="/me/following"
           aria-current={direction === "following" ? "page" : undefined}
-          className={
-            direction === "following"
-              ? "rounded-md border border-accent bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent"
-              : "rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-          }
+          className={tabClass(direction === "following")}
         >
           关注
         </Link>
         <Link
           to="/me/followers"
           aria-current={direction === "followers" ? "page" : undefined}
-          className={
-            direction === "followers"
-              ? "rounded-md border border-accent bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent"
-              : "rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-          }
+          className={tabClass(direction === "followers")}
         >
           粉丝
         </Link>

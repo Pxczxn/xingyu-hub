@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldAlert } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { reportsApi } from "@/api/moderation/moderation.api";
 import {
@@ -11,8 +10,9 @@ import {
   type UserReportView,
 } from "@/api/moderation/moderation.types";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { staggerDelay } from "@/lib/stagger";
 
 /*
  * My reports — the moderation reports the session user filed.
@@ -61,6 +61,9 @@ function formatTime(value: string): string {
 
 export function MyReportsPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -83,7 +86,7 @@ export function MyReportsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -101,11 +104,19 @@ export function MyReportsPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -114,14 +125,41 @@ export function MyReportsPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <ShieldAlert className="h-5 w-5" aria-hidden />
-          我的举报
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          你提交过的举报记录与处理进展。
-        </p>
+      {/*
+        页头（2026-10-13，批次 08c）—— 去卡片，改成分隔线式。
+
+        这里原本是一张 `rounded-lg border border-border bg-card p-5` 的卡片，装着
+        标题和一句说明。方案 §4.6 给治理页组的原则是逐字的：「用户来举报和申诉
+        不是来欣赏视觉设计的——状态与操作必须比装饰优先」。S9 的骨架定义是
+        「状态卡 + 时间线/进度」，要的是**状态卡**；一张只装标题的卡不是状态卡，
+        是装饰。页头卡 + 紧邻的列表卡还会在首屏叠成两张白面，正是 `PageMasthead`
+        选型时记下的那个问题。
+
+        全库另有 15 处卡片式页头，逐一查过：**零处**带「刻意保留」注释 —— 它们是
+        存量，不是设计。批次 07 已为 /me/moments、/me/events 建好无表面页头，本批
+        把同一条线走到治理页组。
+
+        形态取 `border-b border-border/70 pb-5`：与 07 的 NotificationsPage、08a 的
+        SettingsLayout 逐字相同，全库 8 处（含本批 08d 的 announcements / guide /
+        rules 四页）都用它 —— 而不是 BookshelfPage 那种完全无装饰的裸 `<header>`，
+        后者的 4 处都停在更早的形态上。
+
+        h1 里的 lucide 图标一并去掉。全库 15 处带图标的 h1 **全部**落在卡片页头
+        里，零反例；无卡片页头的 h1（含 NotificationsPage、SettingsLayout）全部
+        无图标。图标是「卡片页头」这一形态的伴生物，不是标题的内容。「我的举报 /
+        我的申诉」两页的区别由下面那个切换器承担，不靠图标。
+
+        说明行进 `.lede`（`lede mt-2 max-w-2xl`）：与 PageMasthead / PageHeader /
+        PageSection 三个共享页头组件、以及 settings 域八页逐字一致。
+
+        卡片表面升到 `rounded-xl border border-border/70 bg-card` —— 批次 07 起的
+        表面语言（见 MyMomentsPage 的注释）。列表标题行那条 `border-b border-border`
+        保持全量不动：同一处注释讲过，外框 70% 配内部分隔全量，列表就该长这样，
+        行才是结构，框只是边界。列表行也照批次 07 的语言错峰入场。
+      */}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的举报</h1>
+        <p className="lede mt-2 max-w-2xl">你提交过的举报记录与处理进展。</p>
       </header>
 
       <nav className="flex flex-wrap gap-2" aria-label="举报与申诉">
@@ -131,10 +169,10 @@ export function MyReportsPage() {
         </Link>
       </nav>
 
-      <section className="rounded-lg border border-border bg-card">
+      <section className="rounded-xl border border-border/70 bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="section-heading">举报记录</h2>
-          <span className="text-xs text-muted-foreground">按最近更新</span>
+          <span className="text-meta text-muted-foreground">按最近更新</span>
         </div>
 
         {reports.length === 0 ? (
@@ -147,8 +185,12 @@ export function MyReportsPage() {
           </div>
         ) : (
           <ul aria-label="我的举报列表" className="divide-y divide-border">
-            {reports.map((report) => (
-              <li key={report.id} className="px-5 py-4">
+            {reports.map((report, index) => (
+              <li
+                key={report.id}
+                className="animate-rise-in px-5 py-4"
+                style={{ animationDelay: staggerDelay(index) }}
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-medium text-muted-foreground">
                     {objectTypeLabel(report.targetType)}
@@ -161,7 +203,7 @@ export function MyReportsPage() {
                 {/* The subject, as the server describes it — never a UUID. */}
                 <Link
                   to={`/reports/${encodeURIComponent(report.id)}`}
-                  className="mt-1 block text-sm font-medium text-foreground hover:text-accent"
+                  className="mt-1 block text-sm font-medium text-foreground hover:text-accent-strong"
                 >
                   {targetDescription(report)}
                 </Link>

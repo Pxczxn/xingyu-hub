@@ -171,11 +171,28 @@ describe("home (guest)", () => {
     renderHome();
 
     expect(await screen.findByText("游客推荐条目")).toBeInTheDocument();
+    const listBefore = screen.getByText("游客推荐条目").closest("ul");
+
     fireEvent.click(screen.getByRole("tab", { name: "关注" }));
 
     expect(await screen.findByText("游客关注条目")).toBeInTheDocument();
     expect(screen.queryByText("游客推荐条目")).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "关注" })).toHaveAttribute("aria-selected", "true");
+
+    /*
+     * The switch replays the entrance: `key={tab}` on the <ul> unmounts the old
+     * list, so the rows the reader just asked for animate in again. Without the
+     * key React reuses the <ul> — same node — and 关注 would replace 推荐 with no
+     * motion at all, which reads as a tab that did nothing. Node identity is the
+     * assertion that actually locks the mechanism; the class alone would still
+     * pass if the key were deleted.
+     */
+    expect(screen.getByText("游客关注条目").closest("ul")).not.toBe(listBefore);
+
+    // Inline, because `animate-rise-in` resets `animation-delay` (lib/stagger.ts).
+    const row = screen.getByText("游客关注条目").closest("li");
+    expect(row?.className).toContain("animate-rise-in");
+    expect(row?.style.animationDelay).toBe("0ms");
   });
 
   it("offers exactly one guest CTA — 加入星语 — and hides it for a member", async () => {
@@ -671,10 +688,21 @@ describe("home feed 点赞", () => {
 
     renderHome();
 
+    const rowBefore = (await screen.findByText("推荐条目")).closest("li");
     fireEvent.click(await screen.findByRole("button", { name: "128 次点赞" }));
 
     await waitFor(() => expect(interactionsMocked.like).toHaveBeenCalledWith("ARTICLE", "r1"));
     expect(await screen.findByRole("button", { name: "129 次点赞" })).toBeInTheDocument();
+
+    /*
+     * A like is an inline action, not a content switch, so it must NOT replay the
+     * entrance — the line NotificationsPage draws for its own list ("replaying
+     * fifty of them because one was clicked is the motion abuse this batch exists
+     * to avoid"). `key={tab}` changes with the tab and nothing else, so the row
+     * keeps its DOM node across the re-render. This is what pins that: a key that
+     * also tracked the item's own state would fail here.
+     */
+    expect(screen.getByText("推荐条目").closest("li")).toBe(rowBefore);
   });
 
   it("un-likes an already liked item", async () => {

@@ -52,6 +52,9 @@ export function SearchMessagesPage() {
 
   const [draft, setDraft] = useState(query);
   const [state, setState] = useState<SearchState>({ kind: "idle" });
+  /* Bumping the key replays the search effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Keep the box in step when the URL changes from outside (back/forward, or a
   // link into this page carrying ?q=).
@@ -86,7 +89,7 @@ export function SearchMessagesPage() {
     return () => {
       active = false;
     };
-  }, [query]);
+  }, [query, reloadKey]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,7 +108,7 @@ export function SearchMessagesPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-primary">搜索消息</h1>
         <p className="text-sm text-muted-foreground">在你参与的所有会话中查找消息内容。</p>
         <nav className="text-sm">
-          <Link to="/messages" className="text-accent hover:underline">
+          <Link to="/messages" className="text-accent-strong hover:underline">
             返回私信
           </Link>
         </nav>
@@ -144,11 +147,19 @@ export function SearchMessagesPage() {
           />
           {state.expired ? (
             <p className="text-center">
-              <Link to="/login" className="text-sm text-accent hover:underline">
+              <Link to="/login" className="text-sm text-accent-strong hover:underline">
                 去登录
               </Link>
             </p>
-          ) : null}
+          ) : (
+            /* Not an auth failure — the search itself failed, so run it again
+               instead of leaving the reader at a dead end. */
+            <div className="text-center">
+              <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+                重新加载
+              </Button>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -172,7 +183,15 @@ export function SearchMessagesPage() {
             const showCounterpart = counterpart !== (who ?? "");
             return (
               <li key={message.id} className="flex flex-col gap-1">
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                {/*
+                  2026-10-13 (batch 07c): both the context line and the jump link move
+                  `text-xs` -> `text-meta`. The context line is prose (「谁 · 在哪 · 何时」),
+                  and the link matches 「查看原会话」 on SavedMessagesPage — the two are the
+                  same act, so they cannot be two sizes. Leaving the link at 12px would
+                  also have made it the smallest thing in a card whose whole point is
+                  that you can go read the message in place.
+                */}
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta text-muted-foreground">
                   {showCounterpart ? (
                     <span className="font-medium text-foreground-soft">{counterpart}</span>
                   ) : null}
@@ -206,7 +225,7 @@ export function SearchMessagesPage() {
                   to={`/messages/${encodeURIComponent(message.conversationId)}?${MESSAGE_LOCATOR_PARAM}=${encodeURIComponent(
                     message.id,
                   )}&${MESSAGE_SEQUENCE_PARAM}=${message.sequenceNumber}`}
-                  className="self-start text-xs text-accent hover:underline"
+                  className="self-start text-meta text-accent-strong hover:underline"
                 >
                   在会话中查看这条消息
                 </Link>

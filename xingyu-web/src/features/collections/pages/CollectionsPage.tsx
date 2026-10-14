@@ -8,6 +8,7 @@ import {
   type CollectionVisibility,
 } from "@/api/collections/collections.types";
 import { ApiError } from "@/api/client";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 
@@ -89,34 +90,39 @@ export function CollectionsPage() {
 
   return (
     <div className="section-gap">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-primary">我的收藏夹</h1>
-          <p className="mt-1 text-sm text-muted-foreground">按可见范围整理收藏夹。</p>
-        </div>
-        <Button
-          variant="accent"
-          onClick={() => {
-            setCreating(true);
-            setTitleError(null);
-            setCreateError(null);
-          }}
-        >
-          新建收藏夹
-        </Button>
-      </header>
+      {/* PageHeader's `actions` slot, not a hand-rolled flex row: the primary
+          control belongs to the page's identity line, and the shared header
+          already owns the hairline + the "primary one is last" rule. */}
+      <PageHeader
+        title="我的收藏夹"
+        description="按可见范围整理收藏夹。"
+        actions={
+          <Button
+            variant="accent"
+            onClick={() => {
+              setCreating(true);
+              setTitleError(null);
+              setCreateError(null);
+            }}
+          >
+            新建收藏夹
+          </Button>
+        }
+      />
 
       {creating ? (
         <form
           onSubmit={(event) => void onCreate(event)}
-          className="space-y-3 rounded-lg border border-border bg-card p-4"
+          className="space-y-3 rounded-xl border border-border/70 bg-card p-4"
         >
           <label className="block text-sm font-medium text-foreground">
             名称
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              // Hand-written rather than the shared Input, so it carries its own
+              // focus ring — same recipe as the feedback textarea.
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               name="title"
               aria-invalid={Boolean(titleError)}
             />
@@ -169,11 +175,14 @@ export function CollectionsPage() {
         <PageState kind="empty" title="还没有收藏夹" description="可以先新建一个收藏夹。" />
       ) : (
         <ul className="grid gap-3">
+          {/* Not whole-card links: two links with different destinations live in
+              each item, so `.card-lift` would promise a click the card cannot
+              honour. Surface only. */}
           {items.map((item) => (
-            <li key={item.id} className="rounded-lg border border-border bg-card p-4">
+            <li key={item.id} className="rounded-xl border border-border/70 bg-card p-4">
               <Link
                 to={`/me/collections/${encodeURIComponent(item.id)}`}
-                className="text-sm font-medium text-foreground hover:text-accent"
+                className="text-sm font-medium text-foreground hover:text-accent-strong"
               >
                 {item.title}
               </Link>
@@ -183,7 +192,7 @@ export function CollectionsPage() {
               {item.visibility === "PUBLIC" ? (
                 <Link
                   to={`/collections/${encodeURIComponent(item.id)}`}
-                  className="mt-2 inline-block text-xs text-accent hover:underline"
+                  className="mt-2 inline-block text-xs text-accent-strong hover:underline"
                 >
                   公开页
                 </Link>

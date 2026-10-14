@@ -109,6 +109,9 @@ export function ConversationThreadPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [recalling, setRecalling] = useState<Record<string, boolean>>({});
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   const { myUserId, subscribe, watchConversation, connection, refreshConversations } =
     useChatSocket();
@@ -198,7 +201,7 @@ export function ConversationThreadPage() {
     // refreshConversations is stable (useCallback with no deps) — re-running on it
     // would refetch the thread on every list refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
+  }, [conversationId, reloadKey]);
 
   /*
    * Search landing (2026-10-06).
@@ -471,17 +474,28 @@ export function ConversationThreadPage() {
                 : "无法读取这个会话，请稍后重试。"
           }
         />
-        <p className="text-center">
-          {state.expired ? (
-            <Link to="/login" className="text-sm text-accent hover:underline">
+        {state.expired ? (
+          <p className="text-center">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
-          ) : (
-            <Link to="/messages" className="text-sm text-accent hover:underline">
+          </p>
+        ) : state.notFound ? (
+          <p className="text-center">
+            <Link to="/messages" className="text-sm text-accent-strong hover:underline">
               返回会话列表
             </Link>
-          )}
-        </p>
+          </p>
+        ) : (
+          /* Not an auth failure and not a missing conversation — the load
+             itself failed, so run it again instead of leaving the reader at
+             a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -500,7 +514,9 @@ export function ConversationThreadPage() {
         <div className="flex items-center gap-2">
           <h2 className="section-heading">{conversationLabel(conversation)}</h2>
           {isGroup ? (
-            <span className="rounded border border-border px-1 text-[10px] text-muted-foreground">
+            // 2026-10-13 (batch 07c): 10px -> 11px, matching the 「群聊」 pill on the
+            // mailbox row. The same label in two places must not be two sizes.
+            <span className="rounded border border-border px-1 text-[11px] text-muted-foreground">
               群聊
             </span>
           ) : null}
@@ -516,12 +532,22 @@ export function ConversationThreadPage() {
           ) : null}
         </div>
         {isGroup && conversation.announcement ? (
-          <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          /*
+            2026-10-13 (batch 07c): `text-xs` -> `text-meta`. An announcement is prose —
+            the reader actually reads it — so it takes the prose step like every other
+            line of running text in this feature.
+
+            It deliberately does NOT take the card surface (`rounded-xl` +
+            `border-border/70` + `bg-card`): it is a strip inside the thread header, not
+            a card of its own, and promoting it would make an announcement visually
+            outrank the conversation title sitting one line above it.
+          */
+          <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-meta text-muted-foreground">
             群公告：{conversation.announcement}
           </p>
         ) : null}
         <nav className="flex items-center gap-3 text-sm">
-          <Link to="/messages" className="text-accent hover:underline lg:hidden">
+          <Link to="/messages" className="text-accent-strong hover:underline lg:hidden">
             返回会话列表
           </Link>
           <Link

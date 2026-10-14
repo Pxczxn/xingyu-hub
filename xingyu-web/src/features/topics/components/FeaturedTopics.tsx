@@ -1,37 +1,47 @@
+import { Link } from "react-router-dom";
 import type { TopicSummary } from "@/api/topics/topics.types";
-import { TopicCard } from "./TopicCard";
+import { TopicVisual } from "@/components/visual/TopicVisual";
 
+/*
+ * Hot topics, as a compact chip row (批次 04).
+ *
+ * 它原来是六张 `min-h-[104px]` 的卡片，和下方的全部话题网格用同一个组件、同一套
+ * 尺寸——于是页面顶部出现两片长得一样的网格，读者分不清哪一片是 P0。现在它退回
+ * 到自己真正的角色：一排「按内容数排出来的快捷入口」，视觉重量远低于目录本身，
+ * 把 P0 让给全部话题网格。
+ *
+ * 名称与内容数仍然是卡片（`TopicCard`）的重点，这里不是卡片：热度已经由顺序
+ * 表达，chip 上再挂一个裸数字，读者无法判断它是内容数还是关注数。
+ */
 export function FeaturedTopics({ topics }: { topics: TopicSummary[] }) {
   if (topics.length === 0) return null;
 
   return (
-    <section aria-labelledby="featured-topics">
-      <h2 id="featured-topics" className="mb-3 text-base font-semibold tracking-tight text-primary">
-        热门领域入口
+    <section aria-labelledby="featured-topics" className="min-w-0">
+      <h2 id="featured-topics" className="mb-2.5 text-meta font-medium text-muted-foreground">
+        热门话题
       </h2>
       {/*
-       * Responsive columns.
-       *
-       * 2026-10-03: this shipped as a bare `grid-cols-6`, which on a 390px phone gives
-       * each cell 44px — narrower than the card's own icon plus its label, so the
-       * content pushed the page sideways.
-       *
-       * 2026-10-04: that fix went to `grid-cols-3`, which DID stop the sideways scroll
-       * but left the card unreadable. Measured at 390: a 101px cell minus `p-3.5` (28),
-       * the 36px visual, `gap-3` (12) and the 16px arrow leaves ~9px for the text —
-       * so the topic NAME vanished entirely and 「2 篇内容」 stacked one character per
-       * line. 2 columns give ~157px and ~65px of text column, which fits the name and
-       * the count on one line each.
-       *
-       * Two columns, not a different mobile card: same component, same icon, same
-       * order — only the column count changes.
+       * Two columns on a phone is not needed here — chips wrap, so the row stays
+       * one line per item and never squeezes a name into a 9px column.
        */}
-      <ul
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6"
-        data-testid="featured-topics"
-      >
+      <ul className="flex list-none flex-wrap gap-2 p-0" data-testid="featured-topics">
         {topics.map((topic) => (
-          <TopicCard key={topic.id} topic={topic} featured />
+          <li key={topic.id} className="min-w-0">
+            <Link
+              to={`/topics/${encodeURIComponent(topic.slug)}`}
+              className="group focus-ring inline-flex max-w-full items-center gap-2 rounded-full border border-border/60 bg-card/70 py-1 pl-1 pr-3.5 transition-colors hover:border-accent-line hover:bg-card"
+            >
+              <TopicVisual
+                name={topic.name}
+                stableKey={topic.slug || topic.id}
+                className="h-7 w-7 rounded-full"
+              />
+              <span className="truncate text-meta font-medium text-primary transition-colors group-hover:text-accent-strong">
+                {topic.name}
+              </span>
+            </Link>
+          </li>
         ))}
       </ul>
     </section>

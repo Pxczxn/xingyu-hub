@@ -5,11 +5,15 @@ import { GuideBody } from "@/features/guide/components/GuideBody";
 import { guideApi } from "@/api/guide/guide.api";
 import type { GuidePage } from "@/api/guide/guide.types";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 
 type LoadState = { kind: "loading" } | { kind: "unavailable" } | { kind: "ready"; page: GuidePage };
 
 export function RulesPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -25,7 +29,7 @@ export function RulesPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "unavailable") {
@@ -36,9 +40,16 @@ export function RulesPage() {
           title="社区规则暂不可用"
           description="请稍后重试，或先查看使用指南。"
         />
-        <Link to="/guide" className="text-sm text-accent hover:underline">
-          查看使用指南
-        </Link>
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+        <p className="text-center">
+          <Link to="/guide" className="text-sm text-accent-strong hover:underline">
+            查看使用指南
+          </Link>
+        </p>
       </div>
     );
   }
@@ -86,7 +97,7 @@ export function RulesPage() {
       </header>
 
       {/*
-        Two columns from : a clause index beside the document.
+        Two columns from `lg` up: a clause index beside the document.
         This is the reason the body is now structured. A reader consults 社区规则
         by looking something up — 「违规处理是怎么规定的」 — and a 2000-word
         document with no index makes that a scroll-and-scan. The index is built

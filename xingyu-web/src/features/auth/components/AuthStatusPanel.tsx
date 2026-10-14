@@ -56,12 +56,27 @@ export function AuthStatusPanel({
         {icon}
       </span>
       {/*
-        DELIBERATELY 20px, not the 24px L1 used by every other page title.
-        This heading is not the top of a left-aligned page header — it sits
-        centred under a 48px glyph, and at 24px it competes with that glyph
-        instead of following it. A repo-wide audit of heading steps will flag
-        these four status screens (this panel plus its three call sites) as the
-        only remaining `text-xl` h1s; that is intended, not an oversight.
+        20px —— 认证域（S8）的 L1 档。
+
+        域外的内容页（S1–S6）L1 是 24px（`text-2xl`，全库 55 处）。认证页不跟：
+        S8 是 448px 窄栏（`AuthLayout` 的 `max-w-md`），24px 的标题放进这么窄的
+        栏里就不再是"页面的第一行"，而是一块压住下面所有内容的字。
+
+        居中面板还多一层理由：这个标题不是左对齐页头的顶端，它居中坐在一个 48px
+        的字形下面 —— 24px 会与那个字形相争，而不是跟着它。
+
+        2026-10-13（批次 08）修正
+        -------------------------
+        这里原本写的是"DELIBERATELY 20px, not the 24px L1 used by every other
+        page title … 全库审计只会剩下这四个状态屏"。这句话写下时就与事实不符：
+        `ForceChangePasswordPage` 与 `PendingAuditPage` 也是 20px，并不是本面板的
+        调用点。更糟的是 `AuthCard`（登录 / 找回密码表单态 / 重置密码表单态 /
+        注册关闭态）当时是 15px —— 比状态屏更小，于是 `ForgotPasswordPage` 一提交、
+        `ResetPasswordPage` 一遇到失效 token，标题就在原地跳 5px。
+
+        现在 `AuthCard` 收进 20px，域内统一。唯一例外是 `/register` 的宽栏落地态
+        （24px）：它是域内唯一有第二份工作的页面（表单旁边要放价值主张），而且与
+        任何 20px 标题之间隔着一次导航，不会同屏出现。
       */}
       <h1 className="mt-3 text-xl font-semibold tracking-tight text-primary">{title}</h1>
       <div className="mx-auto mt-2 max-w-sm text-meta leading-6 text-muted-foreground">{body}</div>

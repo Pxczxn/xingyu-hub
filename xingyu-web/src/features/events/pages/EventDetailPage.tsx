@@ -25,6 +25,7 @@ import { PageState } from "@/components/shared/PageState";
 import { EventDateBlock } from "../components/EventDateBlock";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { staggerDelay } from "@/lib/stagger";
 import { useAuth } from "@/features/auth/auth.store";
 
 /*
@@ -47,6 +48,29 @@ import { useAuth } from "@/features/auth/auth.store";
  * The public submission list is ACCEPTED-ONLY. An empty list says nothing about
  * whether anyone submitted, so the copy says 「暂无通过审核的投稿」 rather than
  * 「还没有人投稿」.
+ *
+ * 2026-10-13 (batch 07b). The three surface and type rules this whole domain now
+ * follows are stated once at the top of EventsPage.tsx; only what is specific to
+ * this page is repeated here:
+ *
+ *   1. NO BANNER, and no `PageHero`. That component is documented as "the page
+ *      banner used by every top-level surface" — this is not one, it is a single
+ *      event reached from the plaza. The header keeps its own shape (date block,
+ *      title, actions) because that shape is the answer to the question the
+ *      reader arrived with: can I still make it, and do I need to register.
+ *
+ *   2. NESTED SURFACES KEEP FULL-STRENGTH BORDERS. The four cards are
+ *      `rounded-xl border border-border/70 bg-card`; the submission rows inside
+ *      the second one stay `rounded-md border border-border`. The 70% frame is
+ *      for the edge of a surface, not for a divider between two things that are
+ *      both already on screen.
+ *
+ *   3. A CHIP STAYS AT 11px EVEN WHEN ITS LINE GOES TO 13px. The submission meta
+ *      row carries a type chip, a status and a time on one line. They are one
+ *      line but not one kind of thing: the text rose to `text-meta` with the rest
+ *      of the domain, the chip stayed on the micro step that `.eyebrow` and every
+ *      other pill in the app already uses. A chip that matches the size of the
+ *      prose beside it has stopped being a chip.
  */
 
 type LoadState =
@@ -61,6 +85,9 @@ export function EventDetailPage() {
   const [registered, setRegistered] = useState<boolean | null>(null);
   const [registrationBusy, setRegistrationBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!eventId) return;
@@ -90,7 +117,7 @@ export function EventDetailPage() {
     return () => {
       active = false;
     };
-  }, [eventId]);
+  }, [eventId, reloadKey]);
 
   const onRegister = useCallback(async () => {
     if (!eventId || registrationBusy) return;
@@ -146,8 +173,17 @@ export function EventDetailPage() {
               : (state.detail ?? "无法读取活动详情，请稍后重试。")
           }
         />
+        {/* Retry only when the read itself failed — a 404 has nothing to
+            re-read. */}
+        {!state.notFound ? (
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        ) : null}
         <p className="text-center">
-          <Link to="/events" className="text-sm text-accent hover:underline">
+          <Link to="/events" className="text-sm text-accent-strong hover:underline">
             返回活动广场
           </Link>
         </p>
@@ -163,7 +199,7 @@ export function EventDetailPage() {
   return (
     <div className="section-gap">
       <nav className="text-sm">
-        <Link to="/events" className="text-accent hover:underline">
+        <Link to="/events" className="text-accent-strong hover:underline">
           返回活动广场
         </Link>
       </nav>
@@ -180,7 +216,11 @@ export function EventDetailPage() {
 
         <div className="flex min-w-0 flex-1 flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded border border-accent-line/60 bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent-strong">
+            {/* The same pill as the plaza card's status, at the same 11px step.
+                Both used to sit at 10px, one pixel under the micro step the rest
+                of the app uses for badges — a gap nobody can name and everybody
+                can see once the two surfaces are compared. */}
+            <span className="rounded border border-accent-line/60 bg-accent-soft px-1.5 py-0.5 text-[11px] font-medium text-accent-strong">
               {ended ? "已结束" : event.submissionOpen ? "开放投稿" : "暂未开放投稿"}
             </span>
             <span className="text-meta text-muted-foreground">社区活动</span>
@@ -216,9 +256,16 @@ export function EventDetailPage() {
 
         <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           {canSubmit ? (
+            /*
+              `buttonVariants({ variant: "accent" })` instead of a hand-written
+              class string. The inline version carried no height, so this link and
+              the two real <Button>s sitting beside it disagreed about how tall a
+              control is — `h-9` is the answer and it only comes from the variant.
+              It also brings the focus ring, which the inline version never had.
+            */
             <Link
               to={`/events/${encodeURIComponent(event.id)}/submit`}
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90"
+              className={cn(buttonVariants({ variant: "accent" }))}
             >
               提交作品
             </Link>
@@ -267,9 +314,11 @@ export function EventDetailPage() {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <section className="flex flex-col gap-6">
-          <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+        {/* Same rhythm as EventsPage's main column: cards stacked in one
+            column, so `.section-gap-tight` rather than `section-gap`. */}
+        <section className="section-gap-tight">
+          <section className="rounded-xl border border-border/70 bg-card p-5">
+            <h2 className="section-heading flex items-center gap-1.5">
               <FileText className="h-4 w-4" aria-hidden />
               活动说明
             </h2>
@@ -284,28 +333,55 @@ export function EventDetailPage() {
             </dl>
           </section>
 
-          <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <section className="rounded-xl border border-border/70 bg-card p-5">
+            <h2 className="section-heading flex items-center gap-1.5">
               <PenLine className="h-4 w-4" aria-hidden />
               活动投稿
             </h2>
             {submissions.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">
+              /*
+                `text-meta`, matching the two empty-list lines on the plaza. They
+                are the same thing — a sentence standing in for a list that has
+                nothing in it — and they used to differ by one pixel, 14 here and
+                13 there, which is the kind of gap nobody can name and everybody
+                can see once the two pages are open side by side.
+              */
+              <p className="mt-3 text-meta text-muted-foreground">
                 暂无通过审核的投稿。投稿需要经过审核后才会公示。
               </p>
             ) : (
+              /*
+                The rows rise in on their own delays, like the plaza grids. This
+                list is the one block on the page whose length is not known ahead
+                of time, so it is the one block where the stagger has something to
+                say. The four cards around it deliberately do NOT stagger:
+                AppLayout already plays `animate-page-enter` on every route change,
+                and a second entrance stacked on four fixed blocks would only make
+                the page slower to read.
+              */
               <ul aria-label="投稿列表" className="mt-3 flex flex-col gap-2">
-                {submissions.map((submission) => (
+                {submissions.map((submission, index) => (
                   <li
                     key={submission.id}
-                    className="flex items-start gap-3 rounded-md border border-border p-3"
+                    className="animate-rise-in flex items-start gap-3 rounded-md border border-border p-3"
+                    style={{ animationDelay: staggerDelay(index) }}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">
+                      {/* `text-card`, the step the rest of the app uses for the
+                          main text of a list row — `font-semibold text-primary`
+                          is that step's house style (ContentCard, SearchPage,
+                          ProfileWorks, MySubmissionsPage all land on the same
+                          three classes), so a work is titled the same way
+                          whether you meet it in a grid, under an event, or in
+                          your own submission list. */}
+                      <span className="block truncate text-card font-semibold text-primary">
                         {submission.objectTitle?.trim() || "未命名作品"}
                       </span>
-                      <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                        <span className="rounded border border-border px-1">
+                      {/* One line, two steps on purpose: the chip is a badge and
+                          keeps 11px, the status and the time are prose and rose
+                          to `text-meta` with the rest of the domain. */}
+                      <span className="mt-0.5 flex flex-wrap items-center gap-2 text-meta text-muted-foreground">
+                        <span className="rounded border border-border px-1 text-[11px]">
                           {SUBMISSION_OBJECT_LABELS[submission.objectType] ?? submission.objectType}
                         </span>
                         <span>{submissionStatusLabel(submission.status)}</span>
@@ -314,13 +390,16 @@ export function EventDetailPage() {
                         ) : null}
                       </span>
                       {submission.note?.trim() ? (
-                        <span className="mt-1 block text-xs text-muted-foreground">
+                        <span className="mt-1 block text-meta text-muted-foreground">
                           {submission.note}
                         </span>
                       ) : null}
                     </span>
                     {isSubmissionAccepted(submission.status) ? (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" aria-label="已通过" />
+                      <CheckCircle2
+                        className="h-4 w-4 shrink-0 text-accent-strong"
+                        aria-label="已通过"
+                      />
                     ) : null}
                   </li>
                 ))}
@@ -330,21 +409,21 @@ export function EventDetailPage() {
         </section>
 
         <aside className="flex flex-col gap-4">
-          <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <section className="rounded-xl border border-border/70 bg-card p-4">
+            <h2 className="section-heading flex items-center gap-1.5">
               <Sparkles className="h-4 w-4" aria-hidden />
               {ended ? "参与方式（活动规则）" : "参与方式"}
             </h2>
             {/* Kept as the historical rule set for an ended event, but demoted
                 from an instruction to a record: no imperative verbs, and no
                 「去投稿」entry. */}
-            <ol className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground">
+            <ol className="mt-3 flex flex-col gap-2 text-meta text-muted-foreground">
               <li>1. 选择自己已发布的文章、系列或动态</li>
               <li>2. 填写投稿说明后提交</li>
               <li>3. 在「我的活动」查看投稿进度</li>
             </ol>
             {ended ? (
-              <p className="mt-3 text-xs text-muted-foreground">
+              <p className="mt-3 text-meta text-muted-foreground">
                 活动已结束，以上为本次活动当时的参与规则。
               </p>
             ) : null}
@@ -365,12 +444,12 @@ export function EventDetailPage() {
 
           {/* An ended event has no submission rules that can still be acted on. */}
           {ended ? null : (
-            <section className="rounded-lg border border-border bg-card p-4">
-              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <section className="rounded-xl border border-border/70 bg-card p-4">
+              <h2 className="section-heading flex items-center gap-1.5">
                 <UsersRound className="h-4 w-4" aria-hidden />
                 投稿须知
               </h2>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-meta text-muted-foreground">
                 只能提交自己已发布的内容。草稿和审核中的文章不在可投稿范围内，投稿后原内容不会被修改。
               </p>
             </section>
@@ -384,8 +463,8 @@ export function EventDetailPage() {
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2 border-b border-border pb-2">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-xs font-medium text-foreground">{value}</dd>
+      <dt className="text-meta text-muted-foreground">{label}</dt>
+      <dd className="text-meta font-medium text-foreground">{value}</dd>
     </div>
   );
 }

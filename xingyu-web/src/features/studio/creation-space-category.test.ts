@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "@/api/client";
 import type { CreationSpaceCategory } from "@/api/creation-space/creation-space.types";
 import {
-  categoryPathHint,
   countArchived,
   deriveSlug,
   describeCategoryError,
@@ -130,16 +129,9 @@ describe("optionalSlug", () => {
   });
 });
 
-describe("categoryPathHint", () => {
-  it("uses the real V2 profile path", () => {
-    expect(categoryPathHint("alice", "essay")).toBe("/u/alice/works/essay");
-  });
-
-  it("degrades to a relative hint when the username is unknown", () => {
-    expect(categoryPathHint(null, "essay")).toBe("/works/essay");
-    expect(categoryPathHint("   ", "essay")).toBe("/works/essay");
-  });
-});
+// `categoryPathHint` used to live here, asserting `/u/alice/works/essay`. That path
+// was never routable — the assertion was pinning a fabrication, which is worse than
+// no test, so it is gone rather than rewritten. See creation-space-category.ts.
 
 describe("statusLabel / statusTone", () => {
   it("translates the two known statuses", () => {

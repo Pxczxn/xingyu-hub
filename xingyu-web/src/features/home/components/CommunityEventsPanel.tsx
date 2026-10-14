@@ -53,22 +53,22 @@ export function CommunityEventsPanel({
   return (
     <section
       aria-labelledby="home-events"
-      className="rounded-xl border border-border/60 bg-surface-sunken/55 p-4"
+      className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
     >
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h2 id="home-events" className="text-sm font-medium text-foreground-soft">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 id="home-events" className="text-sm font-semibold text-foreground">
           社区活动
         </h2>
         <Link
           to="/events"
-          className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-accent-strong"
+          className="shrink-0 text-xs text-accent-strong transition-colors hover:underline"
         >
           全部 ›
         </Link>
       </div>
 
       <SectionState status={status} emptyText="暂无活动" className="border-0 bg-transparent p-0">
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col gap-2">
           {events.map((event) => {
             const range = formatRange(event.startsAt, event.endsAt);
             const ended = isEventEnded(event, now) === true;
@@ -76,16 +76,31 @@ export function CommunityEventsPanel({
               <li key={event.id}>
                 <Link
                   to={`/events/${encodeURIComponent(event.id)}`}
-                  className="block rounded-md border border-border/60 p-2.5 transition-colors hover:bg-card/70"
+                  className="block rounded-lg border border-border/60 bg-surface-sunken/30 p-3 transition-all duration-200 hover:border-border hover:bg-card hover:shadow-sm"
                 >
-                  <p className="line-clamp-2 text-sm font-medium text-foreground">{event.title}</p>
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+                    {event.title}
+                  </p>
+                  <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                     {ended ? (
-                      <span className="shrink-0 rounded border border-border px-1 text-[10px]">
+                      /* 11px, the micro step every pill in the app uses — and the
+                         step this exact badge now sits at on the plaza card, the
+                         detail header and /me/events. It was the fourth copy of
+                         one badge and the only one at 10px, one pixel under the
+                         floor, which is the kind of gap nobody can name and
+                         everybody can see once the surfaces are compared.
+
+                         The panel's own surface language is left alone: this is
+                         the home rail, it sits on `bg-surface-sunken/55` beside
+                         AnnouncementPanel and RecommendedCreatorsPanel, and its
+                         row text is at the rail's step. Only the badge converged,
+                         because the badge is the one thing here that belongs to
+                         another feature. */
+                      <span className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[11px] font-medium">
                         已结束
                       </span>
                     ) : null}
-                    {range ? <span>{range}</span> : null}
+                    {range ? <span className="font-medium">{range}</span> : null}
                   </p>
                 </Link>
               </li>

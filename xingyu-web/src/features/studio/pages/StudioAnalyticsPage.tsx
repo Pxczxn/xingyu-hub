@@ -5,7 +5,7 @@ import type { InsightsView } from "@/api/moments/moments.types";
 import { articlesApi } from "@/api/articles/articles.api";
 import type { MyArticleSummary } from "@/api/articles/articles.types";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 /*
@@ -34,6 +34,9 @@ export function StudioAnalyticsPage() {
   const [state, setState] = useState<InsightsState>({ kind: "loading" });
   // Drafts are a secondary nicety: a failed list must not blank the counters.
   const [drafts, setDrafts] = useState<MyArticleSummary[] | null>(null);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -60,7 +63,7 @@ export function StudioAnalyticsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const unreviewed = drafts?.filter((d) => (d.status ?? "").toUpperCase() === "DRAFT") ?? null;
 
@@ -82,13 +85,20 @@ export function StudioAnalyticsPage() {
       {state.kind === "loading" ? <PageState kind="loading" /> : null}
 
       {state.kind === "error" ? (
-        <PageState
-          kind="error"
-          title="数据加载失败"
-          // Says plainly that we do not know, instead of printing dashes that
-          // read as zeros. This is the specific Legacy failure mode.
-          description="暂时无法读取你的创作数据，因此这里不显示任何数字。请稍后重试。"
-        />
+        <>
+          <PageState
+            kind="error"
+            title="数据加载失败"
+            // Says plainly that we do not know, instead of printing dashes that
+            // read as zeros. This is the specific Legacy failure mode.
+            description="暂时无法读取你的创作数据，因此这里不显示任何数字。请稍后重试。"
+          />
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        </>
       ) : null}
 
       {state.kind === "ready" ? (

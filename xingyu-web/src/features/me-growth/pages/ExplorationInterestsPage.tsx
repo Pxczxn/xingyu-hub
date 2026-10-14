@@ -70,6 +70,9 @@ function isAuthError(err: unknown): boolean {
 
 export function ExplorationInterestsPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [labels, setLabels] = useState<string[]>([]);
@@ -107,7 +110,7 @@ export function ExplorationInterestsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -125,11 +128,19 @@ export function ExplorationInterestsPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -175,12 +186,9 @@ export function ExplorationInterestsPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <Sparkles className="h-5 w-5" aria-hidden />
-          我的探索
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的探索</h1>
+        <p className="lede mt-2 max-w-2xl">
           从官方领域星图中选择你关心的方向，也可以添加个人兴趣标签。
           这只影响你自己的探索视图，不会改变社区的公共结构。
         </p>
@@ -197,7 +205,7 @@ export function ExplorationInterestsPage() {
       ) : (
         <section
           aria-label="官方领域"
-          className="space-y-6 rounded-lg border border-border bg-card p-5"
+          className="space-y-6 rounded-xl border border-border/70 bg-card p-5"
         >
           <h2 className="section-heading">官方领域</h2>
           {state.map.map((group) => {
@@ -206,6 +214,8 @@ export function ExplorationInterestsPage() {
             return (
               <div key={group.id}>
                 <h3 className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  {/* Decorative: the domain name beside it carries the meaning,
+                      so the mark keeps the vivid brand gold. */}
                   <Sparkles className="h-3.5 w-3.5 text-accent" aria-hidden />
                   {group.name}
                 </h3>
@@ -222,9 +232,11 @@ export function ExplorationInterestsPage() {
                         aria-pressed={active}
                         onClick={() => setSelectedIds((current) => toggleId(current, domain.id))}
                         className={cn(
-                          "rounded-full border px-4 py-2 text-sm transition-colors",
+                          // Hand-written toggle, so it carries the shared focus
+                          // ring itself — the Button primitive is not involved.
+                          "focus-ring rounded-full border px-4 py-2 text-sm transition-colors",
                           active
-                            ? "border-accent bg-accent/10 font-medium text-accent"
+                            ? "border-accent bg-accent/10 font-medium text-accent-strong"
                             : "border-border bg-card text-muted-foreground hover:border-accent/50",
                         )}
                       >
@@ -239,7 +251,7 @@ export function ExplorationInterestsPage() {
         </section>
       )}
 
-      <section aria-label="个人兴趣" className="rounded-lg border border-border bg-card p-5">
+      <section aria-label="个人兴趣" className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">个人兴趣标签</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           例如 Java、独立开发、逆向研究——只对你可见，不进入官方星图。 最多 {MAX_CUSTOM_LABELS}{" "}
@@ -260,7 +272,7 @@ export function ExplorationInterestsPage() {
                   setLabels((current) => removeLabel(current, label));
                   setLabelError(null);
                 }}
-                className="text-muted-foreground hover:text-foreground"
+                className="focus-ring rounded-sm text-muted-foreground hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" aria-hidden />
               </button>

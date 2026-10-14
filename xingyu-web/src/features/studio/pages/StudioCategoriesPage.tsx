@@ -3,13 +3,11 @@ import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { creationSpaceApi } from "@/api/creation-space/creation-space.api";
 import type { CreationSpaceCategory } from "@/api/creation-space/creation-space.types";
-import { useAuth } from "@/features/auth/auth.store";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  categoryPathHint,
   countArchived,
   describeCategoryError,
   effectiveSlug,
@@ -58,7 +56,6 @@ type ListState =
   | { kind: "ready"; categories: CreationSpaceCategory[] };
 
 export function StudioCategoriesPage() {
-  const { user } = useAuth();
   const [state, setState] = useState<ListState>({ kind: "loading" });
 
   const [name, setName] = useState("");
@@ -76,6 +73,9 @@ export function StudioCategoriesPage() {
 
   const createPendingRef = useRef(false);
   const rowPendingRef = useRef(false);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `signal` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   const load = useCallback(async (signal?: { active: boolean }) => {
     try {
@@ -93,11 +93,12 @@ export function StudioCategoriesPage() {
 
   useEffect(() => {
     const signal = { active: true };
+    setState({ kind: "loading" });
     void load(signal);
     return () => {
       signal.active = false;
     };
-  }, [load]);
+  }, [load, reloadKey]);
 
   const categories = state.kind === "ready" ? state.categories : [];
   const displayed = useMemo(() => sortForDisplay(categories), [categories]);
@@ -232,11 +233,18 @@ export function StudioCategoriesPage() {
 
   if (state.kind === "error") {
     return (
-      <PageState
-        kind="error"
-        title="加载分类失败"
-        description="暂时无法读取你的创作空间分类，请稍后重试。"
-      />
+      <div className="section-gap">
+        <PageState
+          kind="error"
+          title="加载分类失败"
+          description="暂时无法读取你的创作空间分类，请稍后重试。"
+        />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -311,10 +319,11 @@ export function StudioCategoriesPage() {
               />
               {/* Shows the value that will actually be submitted, including the
                   one the server would derive — so "leave it blank" is not a
-                  mystery. */}
+                  mystery. It names the slug's job rather than a URL: a category
+                  has no page of its own (see creation-space-category.ts). */}
               <p className="text-xs text-muted-foreground" data-testid="category-slug-preview">
                 {derivedSlug
-                  ? `地址预览：${categoryPathHint(user?.username ?? null, derivedSlug)}`
+                  ? `提交后使用别名「${derivedSlug}」，用于按分类筛选你的作品。`
                   : "留空时会根据名称自动生成别名。"}
               </p>
             </div>
@@ -427,7 +436,7 @@ export function StudioCategoriesPage() {
                                 "rounded-full border px-2 py-0.5 text-xs " +
                                 (tone === "archived"
                                   ? "border-border text-muted-foreground"
-                                  : "border-accent/50 text-accent")
+                                  : "border-accent/50 text-accent-strong")
                               }
                             >
                               {statusLabel(category.status)}
@@ -546,7 +555,7 @@ export function StudioCategoriesPage() {
         </>
       )}
 
-      <Link to="/studio" className="text-sm text-accent hover:underline">
+      <Link to="/studio" className="text-sm text-accent-strong hover:underline">
         返回创作中心
       </Link>
     </div>

@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { isRecalled } from "@/api/messages/messages.types";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 import { AttachmentMediaGrid } from "../AttachmentMediaGrid";
 import { AttachmentFileList } from "../AttachmentFileList";
 import { useConversationAttachments } from "../use-conversation-attachments";
@@ -52,20 +53,32 @@ export function ConversationAssetsPage({ kind }: { kind: AttachmentKind }) {
                 : "无法读取这个会话的内容，请稍后重试。"
           }
         />
-        <p className="text-center">
-          {state.expired ? (
-            <Link to="/login" className="text-sm text-accent hover:underline">
+        {state.expired ? (
+          <p className="text-center">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
-          ) : (
+          </p>
+        ) : state.notFound ? (
+          <p className="text-center">
             <Link
               to={`/messages/${encodeURIComponent(conversationId)}`}
-              className="text-sm text-accent hover:underline"
+              className="text-sm text-accent-strong hover:underline"
             >
               返回会话
             </Link>
-          )}
-        </p>
+          </p>
+        ) : (
+          /* Not an auth failure and not a missing conversation — the load
+             itself failed, so run it again instead of leaving the reader at
+             a dead end. The hook owns the retry path, so this calls its
+             `reload` rather than keeping a local replay key. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => void reload()}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }

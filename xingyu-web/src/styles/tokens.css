@@ -57,7 +57,20 @@
   --primary: 226 37% 16%; /* navy */
   --primary-foreground: 44 33% 96%; /* cream on navy */
 
-  --accent: 38 92% 50%; /* gold — FILL ONLY (navy text sits on it at 7.4:1) */
+  /*
+   * Gold — FILL ONLY. Navy sits on it at 7.47:1, but gold as TEXT on white
+   * is 2.13:1 and fails AA, so text resolves through --accent-strong.
+   *
+   * Two exceptions are deliberate, so nobody "fixes" them twice:
+   *  - Decorative marks that are `aria-hidden` or `fill-current` keep the
+   *    vivid gold; they carry no reading (ruling in HomeFeedItem.tsx).
+   *  - `border-accent` on selected/active/hover states is an accent, not the
+   *    sole cue — the same element also changes its text colour or surface,
+   *    and states expose aria-selected / aria-pressed / sr-only text. Note
+   *    that --accent-line is LIGHTER than --accent, so swapping it in would
+   *    lower contrast rather than raise it.
+   */
+  --accent: 38 92% 50%;
   --accent-foreground: 226 37% 16%; /* navy on gold for contrast */
 
   /* Gold as TEXT. #B35309: measured 5.05:1 on white, 4.72:1 on cream — passes AA. */
@@ -72,7 +85,15 @@
 
   --border: 40 14% 87%;
   --input: 40 14% 87%;
-  --ring: 38 92% 50%; /* gold focus ring */
+  /*
+   * Focus ring. Raw gold measured 2.13:1 on white / 1.97:1 on cream, and
+   * every `.focus-ring` sets `outline-none` — so this ring is the ONLY focus
+   * indicator and 3:1 (WCAG 1.4.11) is the floor, not a nicety.
+   * --accent-strong clears it on every surface in the system: white 5.05,
+   * muted 4.17 at the lowest. `ring-offset` is always a light colour, so
+   * those are the surfaces a ring actually sits against.
+   */
+  --ring: 26 90% 37%;
 
   /* A recessed surface one step below --card: chips, table headers, code. */
   --surface-sunken: 42 24% 92%;

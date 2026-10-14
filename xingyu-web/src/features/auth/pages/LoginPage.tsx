@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
+import { AuthCaptchaImage } from "@/features/auth/components/AuthCaptchaImage";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { useAuth } from "@/features/auth/auth.store";
@@ -105,11 +106,11 @@ export function LoginPage() {
       footer={
         <>
           还没有账号？
-          <Link to="/register" className="ml-1 text-accent hover:underline">
+          <Link to="/register" className="ml-1 text-accent-strong hover:underline">
             立即注册
           </Link>
           <span className="mx-2 text-muted-foreground">·</span>
-          <Link to="/forgot-password" className="text-accent hover:underline">
+          <Link to="/forgot-password" className="text-accent-strong hover:underline">
             忘记密码
           </Link>
         </>
@@ -157,9 +158,7 @@ export function LoginPage() {
                 placeholder="请输入验证码"
                 required
               />
-              {captcha?.img ? (
-                <img src={captcha.img} alt="验证码" className="h-10 rounded border border-border" />
-              ) : null}
+              {captcha?.img ? <AuthCaptchaImage src={captcha.img} /> : null}
             </div>
           </div>
         ) : null}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Gavel } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { appealsApi } from "@/api/moderation/moderation.api";
 import {
@@ -11,6 +11,7 @@ import {
   type AppealDetailView,
 } from "@/api/moderation/moderation.types";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 
 /*
  * Appeal detail (reworked by the Governance Static Design收敛 pass).
@@ -55,6 +56,9 @@ function formatTime(value: string): string {
 export function AppealDetailPage() {
   const { appealId = "" } = useParams<{ appealId: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -79,7 +83,7 @@ export function AppealDetailPage() {
     return () => {
       active = false;
     };
-  }, [appealId]);
+  }, [appealId, reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -97,8 +101,18 @@ export function AppealDetailPage() {
                 : (state.detail ?? "无法读取申诉详情，请稍后重试。")
           }
         />
+        {/* Retry only when the read itself failed: a missing appeal has
+            nothing to re-read, and an expired session needs a fresh login,
+            not another request. */}
+        {!state.notFound && !state.expired ? (
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        ) : null}
         <p className="text-center">
-          <Link to="/appeals" className="text-sm text-accent hover:underline">
+          <Link to="/appeals" className="text-sm text-accent-strong hover:underline">
             返回申诉列表
           </Link>
         </p>
@@ -117,19 +131,33 @@ export function AppealDetailPage() {
       <p>
         <Link
           to="/appeals"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-strong"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           返回申诉列表
         </Link>
       </p>
 
-      {/* ① 原处理对象 / 原决定 + 当前状态 */}
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <Gavel className="h-5 w-5" aria-hidden />
-          申诉详情
-        </h1>
+      {/*
+        页头（2026-10-13，批次 08c）—— 与 /reports/:id 同形：去卡片、去图标、改分隔
+        线式。完整判据见 MyReportsPage 的注释，这里不重复。两页详情必须逐字同形，
+        理由与 /reports 和 /appeals 列表页相同：读者在同一套流程里来回走。
+
+        页头兼作 §一「原处理对象 / 原决定」，与 /reports/:id 把「对象」并入页头是同
+        一条理由 —— LOCKED SECTION ORDER 的第一节就是这一页的身份，单独发卡等于把
+        同一件事在首屏说两遍。状态徽章留在 h1 正下方：测试逐字记着「已批准」在这里
+        和「最终结果」各出现一次是刻意的，同一个词说同一件事。
+
+        h1 里的 Gavel 一并去掉（图标是卡片页头的伴生物）。
+
+        动效：本页**整页不错峰**。EventDetailPage 的注释逐字写过判据 —— AppLayout
+        的 `animate-page-enter` 已经负责每次路由切换的入场，在一个长度固定的区块栈
+        上再叠一层入场只会让页面更慢读完。本页五个区块全是固定的，也没有列表，所以
+        一处 staggerDelay 都不加；/reports/:id 的补充说明列表是全库唯一例外，因为它
+        的长度由服务端决定。
+      */}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">申诉详情</h1>
         <p className="mt-3">
           {/* The appeal's current status is always visible, decided or not. */}
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
@@ -154,13 +182,13 @@ export function AppealDetailPage() {
       </header>
 
       {/* ② 我的申诉理由 */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">我的申诉理由</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{appeal.body}</p>
       </section>
 
       {/* ③ 最终结果 —— 只表达系统真正执行过的 */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">最终结果</h2>
         {decided ? (
           <>
@@ -186,7 +214,7 @@ export function AppealDetailPage() {
 
       {/* ④ 处理说明 */}
       {decided ? (
-        <section className="rounded-lg border border-border bg-card p-5">
+        <section className="rounded-xl border border-border/70 bg-card p-5">
           <h2 className="section-heading">处理说明</h2>
           {appeal.decisionNote?.trim() ? (
             <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
@@ -199,7 +227,7 @@ export function AppealDetailPage() {
       ) : null}
 
       {/* ⑤ 时间 */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">时间</h2>
         <dl className="mt-3 flex flex-col gap-3 text-sm">
           <div>
@@ -216,7 +244,7 @@ export function AppealDetailPage() {
       </section>
 
       <p className="text-center">
-        <Link to="/reports" className="text-sm text-accent hover:underline">
+        <Link to="/reports" className="text-sm text-accent-strong hover:underline">
           查看我的举报
         </Link>
       </p>

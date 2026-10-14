@@ -8,6 +8,13 @@ import type { ProfileDetail } from "@/api/users/users.types";
  * /me/followers and /me/following. Those routes are self-scoped (`/me/*`), so a
  * link only makes sense on your own profile — on someone else's profile the
  * counts stay plain text rather than pointing at your own lists.
+ *
+ * 批次 06：这块从「页面中段的 4 联横排」搬进了 S4 的 300px 侧栏，所以
+ * `sm:grid-cols-4` 撤掉了 —— 300px 分 4 列每格只有 75px，「正在关注」四个字
+ * 都放不下。2 列在侧栏（约 140px/格）和窄屏（整宽）下都成立，一个值覆盖两处。
+ *
+ * 链接的悬停色同时从 `text-accent` 改为 `text-accent-strong`：前者是 FILL
+ * token，白底 2.15:1，悬停时反而比静止更看不清。
  */
 export function ProfileStats({ profile }: { profile: ProfileDetail }) {
   const owner = profile.owner === true;
@@ -20,13 +27,13 @@ export function ProfileStats({ profile }: { profile: ProfileDetail }) {
   ];
 
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="profile-stats">
+    <dl className="grid grid-cols-2 gap-3" data-testid="profile-stats">
       {stats.map((stat) => (
         <div key={stat.label} className="rounded-lg border border-border bg-card p-3 text-center">
           <dt className="text-meta text-muted-foreground">{stat.label}</dt>
           <dd className="mt-1 text-lg font-semibold tabular-nums text-primary">
             {stat.to ? (
-              <Link to={stat.to} className="hover:text-accent hover:underline">
+              <Link to={stat.to} className="focus-ring hover:text-accent-strong hover:underline">
                 {stat.value}
               </Link>
             ) : (

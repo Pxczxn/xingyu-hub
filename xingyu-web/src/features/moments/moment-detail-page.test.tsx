@@ -17,6 +17,35 @@ vi.mock("@/api/moments/moments.api", () => ({
   },
 }));
 
+/*
+ * Batch 07 put the shared interaction bar and comment thread on this page with
+ * `objectType="MOMENT"`, so the interaction API now needs a stub here. It did
+ * not before: the detail view drew no interaction surface at all.
+ *
+ * Every method those two components can reach is listed. A missing one is not
+ * a no-op — the components call `interactionsApi.getX(...).then(...)` straight
+ * from `useEffect`, so an undefined method throws a synchronous TypeError
+ * before any promise exists, and nothing catches it. Guests never get that far
+ * (both components bail on `!isAuthenticated`), but seven tests in this file
+ * sign in, and those do.
+ *
+ * The resolved values are deliberately neutral — nothing liked, nothing
+ * bookmarked, no comments — so no assertion in this file can observe them.
+ */
+vi.mock("@/api/interactions/interactions.api", () => ({
+  interactionsApi: {
+    like: vi.fn(),
+    unlike: vi.fn(),
+    getLikeStatus: vi.fn(async () => ({ liked: false })),
+    getLikeCount: vi.fn(async () => ({ count: 0 })),
+    getComments: vi.fn(async () => []),
+    createComment: vi.fn(),
+    addBookmark: vi.fn(),
+    removeBookmark: vi.fn(),
+    getBookmarkStatus: vi.fn(async () => ({ bookmarked: false })),
+  },
+}));
+
 vi.mock("@/features/auth/auth.store", () => ({
   useAuth: vi.fn(),
 }));

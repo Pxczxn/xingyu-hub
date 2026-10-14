@@ -9,6 +9,7 @@ import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { ArticleMarkdownBody, extractArticleOutline } from "@/lib/article-markdown";
 import { prepareArticleBodyForRead } from "@/lib/article-body-read";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 
 /*
  * Article detail (Phase 1B) — real implementation.
@@ -34,6 +35,9 @@ function formatDate(value: string | null): string {
 export function ArticleDetailPage() {
   const { articleId = "" } = useParams<{ articleId: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!articleId) {
@@ -55,7 +59,7 @@ export function ArticleDetailPage() {
     return () => {
       active = false;
     };
-  }, [articleId]);
+  }, [articleId, reloadKey]);
 
   const article = state.kind === "ready" ? state.article : null;
 
@@ -78,79 +82,112 @@ export function ArticleDetailPage() {
       />
     );
   }
-  if (state.kind === "error" || !article) return <PageState kind="error" />;
+  if (state.kind === "error" || !article) {
+    return (
+      <div className="section-gap">
+        <PageState kind="error" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <article className="section-gap">
-      <header className="flex flex-col gap-3">
-        <h1 className="text-2xl font-semibold leading-snug text-primary">{article.title}</h1>
+      <header className="flex flex-col gap-4">
+        <h1 className="text-display font-semibold tracking-tight text-primary">{article.title}</h1>
 
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <Link
-            to={`/u/${article.ownerUsername}`}
-            className="flex items-center gap-2 hover:text-accent"
-          >
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-meta text-muted-foreground">
+          <Link to={`/u/${article.ownerUsername}`} className="group flex items-center gap-2">
             {article.ownerAvatar ? (
-              <img src={article.ownerAvatar} alt="" className="h-7 w-7 rounded-full object-cover" />
+              <img src={article.ownerAvatar} alt="" className="h-6 w-6 rounded-full object-cover" />
             ) : (
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-muted text-xs">
+              /*
+                2026-10-13 (batch 07c): the 10px on this fallback avatar is deliberate,
+                and after this batch it is the ONLY 10px left in the app — every other
+                occurrence came up to the 11px floor. It is not a text step: it is the
+                first glyph of a 24px disc, i.e. part of a graphic, sitting in a header
+                whose name is rendered at `text-meta` right beside it. 10px is already
+                the large end for a fallback avatar at a 0.42 glyph-to-disc ratio, and
+                the character is decorative — the real name is the link text one line
+                over, so nothing here has to be read at a glance.
+              */
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-muted text-[10px]">
                 {(article.ownerDisplayName ?? article.ownerUsername).slice(0, 1)}
               </span>
             )}
-            <span className="font-medium text-foreground">
+            <span className="font-medium text-foreground transition-colors group-hover:text-accent-strong">
               {article.ownerDisplayName ?? article.ownerUsername}
             </span>
           </Link>
-          {article.publishedAt ? <span>{formatDate(article.publishedAt)}</span> : null}
+          {article.publishedAt ? (
+            <>
+              <span aria-hidden className="text-border">
+                ·
+              </span>
+              <span className="tabular-nums">{formatDate(article.publishedAt)}</span>
+            </>
+          ) : null}
         </div>
 
+        {/*
+          The summary is the article's LEDE, not a panel. It was wrapped in
+          `rounded-lg border bg-card p-4` — a card inside the reading column,
+          which reads as a separate object the reader may skip, and which adds a
+          second border 12px under the title. A lede is the title's continuation:
+          no surface, one step down in weight, same left edge as the body below.
+        */}
         {article.summary ? (
-          <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+          <p className="max-w-[68ch] text-[15px] leading-7 text-muted-foreground">
             {article.summary}
           </p>
         ) : null}
 
-        {article.topicSlugs && article.topicSlugs.length > 0 ? (
-          <ul className="flex flex-wrap gap-2">
-            {article.topicSlugs.map((slug) => (
-              <li key={slug}>
-                <Link
-                  to={`/topics/${slug}`}
-                  className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground hover:text-accent"
-                >
-                  #{slug}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {article.seriesContexts.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-            <span className="text-muted-foreground">收录于</span>
-            <ul className="flex flex-wrap gap-x-3 gap-y-2">
-              {article.seriesContexts.map((series) => (
-                <li key={series.id}>
+        {/*
+          Series context and topic chips share ONE metadata row below the lede.
+          They are the same kind of fact — where this article sits — and giving
+          each its own full-width line pushed the body 56px further down for two
+          facts the reader scans rather than reads. `text-meta` (13px) is the
+          weight the priority table asks for: below the title and the author,
+          above nothing.
+        */}
+        {article.seriesContexts.length > 0 || (article.topicSlugs?.length ?? 0) > 0 ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-meta">
+            {article.seriesContexts.length > 0 ? (
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="text-muted-foreground">收录于</span>
+                {article.seriesContexts.map((series) => (
                   <Link
+                    key={series.id}
                     to={`/series/${encodeURIComponent(series.id)}`}
-                    className="font-medium text-foreground hover:text-accent"
+                    className="focus-ring rounded-sm font-medium text-foreground transition-colors hover:text-accent-strong"
                   >
                     {series.title} · 第 {series.position} 章
                   </Link>
-                </li>
-              ))}
-            </ul>
+                ))}
+              </span>
+            ) : null}
+
+            {article.topicSlugs && article.topicSlugs.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5">
+                {article.topicSlugs.map((slug) => (
+                  <li key={slug}>
+                    <Link
+                      to={`/topics/${slug}`}
+                      className="focus-ring inline-block rounded-full border border-border/70 px-2.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-accent-line hover:text-accent-strong"
+                    >
+                      #{slug}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         ) : null}
       </header>
-
-      {article.coverUrl ? (
-        <img
-          src={article.coverUrl}
-          alt=""
-          className="aspect-[16/9] w-full rounded-lg border border-border object-cover"
-        />
-      ) : null}
 
       {/*
         Reading layout.
@@ -175,6 +212,31 @@ export function ArticleDetailPage() {
       */}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start lg:gap-10">
         <div className="order-2 min-w-0 lg:order-1">
+          {/*
+            The cover lives INSIDE the reading column, not above it.
+
+            It used to be a sibling of the grid at `aspect-[16/9] w-full`: on a
+            1200px shell that is a 675px-tall band, so a reader who came for the
+            text scrolled past three quarters of a screen of image before
+            reaching line one. The priority table puts the cover nowhere — the
+            article's P0 is the title and the body — so it must not outrank
+            them.
+
+            Two changes fix it without deleting the author's artwork: it now
+            shares the body's measure (`max-w-[68ch]`, so ~340px tall instead of
+            675px) and shares the body's left edge, which makes it read as an
+            illustration FOR this text rather than a banner the text sits under.
+            The 16:9 ratio is kept as-is — cropping the author's framing to buy
+            height would be trading their decision for ours.
+          */}
+          {article.coverUrl ? (
+            <img
+              src={article.coverUrl}
+              alt=""
+              className="mb-8 aspect-[16/9] w-full max-w-[68ch] rounded-lg border border-border object-cover"
+            />
+          ) : null}
+
           <div className="max-w-[68ch]">
             <ArticleMarkdownBody body={prepared?.markdown ?? article.body} />
 
@@ -208,13 +270,25 @@ export function ArticleDetailPage() {
         ) : null}
       </div>
 
-      <ArticleInteractions objectType="ARTICLE" objectId={article.id} />
+      {/*
+        The tail shares the body's measure.
 
-      {/* Quiet, secondary entry. `owner` comes from the server, so the author
-          does not see a report link for their own article. */}
-      <ReportLink objectType="ARTICLE" objectId={article.id} hidden={article.owner} />
+        Everything below the body used to span the whole shell (1200px) while
+        the body itself is `max-w-[68ch]` (~605px). Two costs: the page widens
+        abruptly the moment the article ends, and every comment line then runs
+        ~85 CJK glyphs — more than twice a comfortable measure. Holding the tail
+        to the reading column keeps one left edge from the title to the last
+        comment. `gap-8` matches `section-gap`, so the rhythm is unchanged.
+      */}
+      <div className="flex max-w-[68ch] flex-col gap-8">
+        <ArticleInteractions objectType="ARTICLE" objectId={article.id} />
 
-      <CommentSection objectType="ARTICLE" objectId={article.id} />
+        {/* Quiet, secondary entry. `owner` comes from the server, so the author
+            does not see a report link for their own article. */}
+        <ReportLink objectType="ARTICLE" objectId={article.id} hidden={article.owner} />
+
+        <CommentSection objectType="ARTICLE" objectId={article.id} />
+      </div>
     </article>
   );
 }

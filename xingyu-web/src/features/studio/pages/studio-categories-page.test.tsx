@@ -24,9 +24,8 @@ vi.mock("@/api/creation-space/creation-space.api", () => ({
   },
 }));
 
-vi.mock("@/features/auth/auth.store", () => ({
-  useAuth: () => ({ user: { email: "tester@pxczxn.top", username: "tester" } }),
-}));
+// No auth mock: this page no longer reads the signed-in user. It used to, only to
+// build the slug preview's path — which pointed at a route that does not exist.
 
 const mockedApi = vi.mocked(creationSpaceApi);
 
@@ -123,9 +122,11 @@ describe("studio categories page", () => {
 
       fireEvent.change(screen.getByTestId("category-name"), { target: { value: "My Essay" } });
 
-      // The preview must show the real V2 profile path, not a made-up one.
+      // The preview must name the slug that will actually be submitted. It
+      // deliberately shows no path: no route serves a category, so the old
+      // `/u/tester/works/my-essay` expectation was pinning a 404.
       expect(screen.getByTestId("category-slug-preview")).toHaveTextContent(
-        "/u/tester/works/my-essay",
+        "提交后使用别名「my-essay」，用于按分类筛选你的作品。",
       );
 
       fireEvent.click(screen.getByTestId("category-create"));

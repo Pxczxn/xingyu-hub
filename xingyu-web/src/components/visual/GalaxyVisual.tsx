@@ -102,6 +102,11 @@ export function GalaxyVisual({
           <Icon
             className={cn(
               variant === "compact" ? "h-5 w-5" : "h-8 w-8",
+              // Decorative, so it keeps the vivid brand gold. The root of this
+              // component is `aria-hidden` and the OFFICIAL word is printed as
+              // text below — the colour is never the only carrier of the state.
+              // (Text resolves through `--accent-strong` instead; raw gold on
+              // cream measures 2.01:1.)
               official && "text-accent/90",
             )}
             strokeWidth={1.5}

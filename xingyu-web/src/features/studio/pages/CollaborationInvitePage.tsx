@@ -247,7 +247,7 @@ export function CollaborationInvitePage() {
           construction — and Legacy's version pointed at /u/:username/works,
           which is not a V2 route. */}
 
-      <Link to="/studio" className="text-sm text-accent hover:underline">
+      <Link to="/studio" className="text-sm text-accent-strong hover:underline">
         返回创作中心
       </Link>
     </div>

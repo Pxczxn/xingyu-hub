@@ -60,12 +60,20 @@ export function effectiveSlug(name: string, typedSlug: string): string {
   return typed ? typed.toLowerCase() : deriveSlug(name);
 }
 
-/** The slug's public URL fragment on the profile, for the preview line. */
-export function categoryPathHint(username: string | null, slug: string): string {
-  const handle = username?.trim();
-  if (!handle) return `/works/${slug}`;
-  return `/u/${handle}/works/${slug}`;
-}
+/*
+ * There is deliberately no path helper here.
+ *
+ * This file used to export `categoryPathHint`, which built
+ * `/u/{handle}/works/{slug}` for the create form's preview line. No such route has
+ * ever existed — `routes.tsx` has exactly one `/u` route, `/u/:username` — so the
+ * form was advertising a 404. The legacy web had no such route either.
+ *
+ * The slug itself is real and load-bearing: it is what
+ * `GET /users/{handle}/works?category=` takes, and `ProfileWorksFilter` passes it
+ * straight through. But the filtered view is LOCAL STATE on UserProfilePage, not a
+ * URL, so there is no address to show. A category gets a name and a slug; it does
+ * not get a page. Do not reintroduce a path until one of those two facts changes.
+ */
 
 export function statusLabel(status: string): string {
   const normalized = (status ?? "").toUpperCase();

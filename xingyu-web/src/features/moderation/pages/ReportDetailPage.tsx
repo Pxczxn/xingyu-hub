@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { reportsApi } from "@/api/moderation/moderation.api";
 import {
@@ -14,7 +14,10 @@ import {
   type UserReportDetailView,
 } from "@/api/moderation/moderation.types";
 import { PageState } from "@/components/shared/PageState";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { cn } from "@/lib/cn";
+import { staggerDelay } from "@/lib/stagger";
 
 /*
  * Report detail.
@@ -54,6 +57,9 @@ function formatTime(value: string): string {
 export function ReportDetailPage() {
   const { reportId = "" } = useParams<{ reportId: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [supplements, setSupplements] = useState<ReportSupplementView[]>([]);
   const [draft, setDraft] = useState("");
@@ -90,7 +96,7 @@ export function ReportDetailPage() {
     return () => {
       active = false;
     };
-  }, [reportId]);
+  }, [reportId, reloadKey]);
 
   async function submitSupplement() {
     // Guard in the handler, not only on the button: `disabled` only lands after
@@ -130,8 +136,18 @@ export function ReportDetailPage() {
                 : (state.detail ?? "无法读取举报详情，请稍后重试。")
           }
         />
+        {/* Retry only when the read itself failed: a missing report has
+            nothing to re-read, and an expired session needs a fresh login,
+            not another request. */}
+        {!state.notFound && !state.expired ? (
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        ) : null}
         <p className="text-center">
-          <Link to="/reports" className="text-sm text-accent hover:underline">
+          <Link to="/reports" className="text-sm text-accent-strong hover:underline">
             返回举报列表
           </Link>
         </p>
@@ -156,19 +172,45 @@ export function ReportDetailPage() {
       <p>
         <Link
           to="/reports"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-strong"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           返回举报列表
         </Link>
       </p>
 
-      {/* ① 对象 */}
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <ShieldAlert className="h-5 w-5" aria-hidden />
-          举报详情
-        </h1>
+      {/*
+        页头（2026-10-13，批次 08c）—— 去卡片、去图标、改分隔线式。完整判据见
+        MyReportsPage 的注释（方案 §4.6 逐字的「状态与操作必须比装饰优先」+ 全库 15
+        处卡片式页头零处刻意保留 + 带图标的 h1 15/15 全落在卡片页头里），不重复。
+
+        与列表页不同的是，这里的页头**兼作 §一「对象」**。LOCKED SECTION ORDER 把
+        「对象」排在第一位，而这一页的身份恰恰就是「关于这条对象的举报」—— 把对象
+        单独发一张卡，等于在首屏把同一件事说两遍，还叠出第二张白面。对象类型 + 服务
+        端解析出的描述留在 h1 正下方，顺序不变，节数从六个减到五个。
+
+        注意 h1 里那个 ShieldAlert 一并去掉（图标是卡片页头的伴生物，见上）。
+
+        动效：本页的区块栈**刻意不做错峰**。EventDetailPage 的注释逐字写过这条判据
+        ——「The four cards around it deliberately do NOT stagger: AppLayout already
+        plays `animate-page-enter` on every route change, and a second entrance
+        stacked on four fixed blocks would only make the page slower to read.」
+        固定区块由 AppLayout 的 `animate-page-enter` 负责入场；本页只有「补充内容」
+        那个列表长度未知，错峰留给了它的行。
+
+        两处可用性修复（与 /reports/new、/appeals/new 同源）：
+        1) 补充说明的 textarea 补 `.focus-ring` —— 原本 Tab 进去看不出焦点。
+        2) 提交失败从裸 `<p role="alert" className="text-xs text-destructive">` 换成
+           `AuthFormError`（AuthFormError 头部注释点名要消灭的三种漂移形态之一）。
+           这里**不取 focusOnMount**：错误就出现在刚点的按钮正上方，读者视线还在原
+           地，把焦点抢走反而把人从输入框上挪开 —— 与 focusOnMount 的适用条件
+           （表单级失败、错误落在长表单底部）不符。
+        3) 提交按钮原本是手写 class，**没有焦点环**（`buttonVariants` 自带
+           `focus-visible:ring-2`）。换成 `buttonVariants({ variant: "accent" })`，
+           与 /reports/new、/appeals/new 的提交按钮同形。
+      */}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">举报详情</h1>
         <p className="mt-3 text-xs font-medium text-muted-foreground">
           {objectTypeLabel(report.targetType)}
         </p>
@@ -176,7 +218,7 @@ export function ReportDetailPage() {
       </header>
 
       {/* ② 当前状态 */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">当前状态</h2>
         <p className="mt-3">
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
@@ -186,7 +228,7 @@ export function ReportDetailPage() {
       </section>
 
       {/* ③ 举报原因与举报说明 */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">举报原因与说明</h2>
         <dl className="mt-3 flex flex-col gap-4 text-sm">
           <div>
@@ -205,13 +247,18 @@ export function ReportDetailPage() {
       </section>
 
       {/* ④ 补充内容 —— 只是一份补充清单，不是时间线组件 */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">补充内容</h2>
 
         {supplements.length > 0 ? (
+          /* 全页唯一错峰的块：长度由服务端决定，见页头注释里的 EventDetailPage 判据。 */
           <ul aria-label="补充说明列表" className="mt-3 flex flex-col gap-3">
-            {supplements.map((item) => (
-              <li key={item.id} className="rounded-md border border-border p-3">
+            {supplements.map((item, index) => (
+              <li
+                key={item.id}
+                className="animate-rise-in rounded-md border border-border p-3"
+                style={{ animationDelay: staggerDelay(index) }}
+              >
                 <p className="whitespace-pre-wrap text-sm text-foreground">{item.body}</p>
                 <time
                   dateTime={item.createdAt}
@@ -237,20 +284,14 @@ export function ReportDetailPage() {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={3}
-              className="w-full rounded-md border border-border bg-background p-3 text-sm text-foreground"
+              className="focus-ring w-full rounded-md border border-border bg-background p-3 text-sm text-foreground"
             />
-            {supplementError ? (
-              <p role="alert" className="text-xs text-destructive">
-                {supplementError}
-              </p>
-            ) : null}
+            {supplementError ? <AuthFormError>{supplementError}</AuthFormError> : null}
             <button
               type="button"
               onClick={() => void submitSupplement()}
               disabled={submitting || draft.trim().length === 0}
-              className={cn(
-                "self-start rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50",
-              )}
+              className={cn(buttonVariants({ variant: "accent" }), "self-start")}
             >
               {submitting ? "提交中…" : "提交补充说明"}
             </button>
@@ -266,7 +307,7 @@ export function ReportDetailPage() {
           服务端对其他人一律 404（已实测）。给举报人一个必然失败的按钮，就是把系统
           不存在的能力画到界面上。 */}
       {caseExists ? (
-        <section className="rounded-lg border border-border bg-card p-5">
+        <section className="rounded-xl border border-border/70 bg-card p-5">
           <h2 className="section-heading">处理结果</h2>
           <p className="mt-3 text-sm text-muted-foreground">
             {hasMeasure
@@ -277,7 +318,7 @@ export function ReportDetailPage() {
       ) : null}
 
       {/* ⑥ 时间 */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">时间</h2>
         <dl className="mt-3 flex flex-col gap-3 text-sm">
           <div>

@@ -6,6 +6,7 @@ import {
   articleStatusLabel,
   canTrash,
   countByStatus,
+  filterByQuery,
   filterByTab,
   formatArticleTime,
   isReviewing,
@@ -161,6 +162,58 @@ describe("filterByTab", () => {
     const broken = [article({ id: "x", status: undefined as unknown as string })];
     expect(filterByTab(broken, "drafts")).toEqual([]);
     expect(filterByTab(broken, "all")).toHaveLength(1);
+  });
+});
+
+describe("filterByQuery", () => {
+  const items = [
+    article({ id: "1", title: "星空观测笔记" }),
+    article({ id: "2", title: "City Lights" }),
+    article({ id: "3", title: "city lights — part two" }),
+    article({ id: "4", title: null }),
+    article({ id: "5", title: "   " }),
+  ];
+
+  it("returns every row for a blank query so callers can compose it unconditionally", () => {
+    expect(filterByQuery(items, "").map((a) => a.id)).toEqual(["1", "2", "3", "4", "5"]);
+    expect(filterByQuery(items, "   ").map((a) => a.id)).toEqual(["1", "2", "3", "4", "5"]);
+  });
+
+  it("matches a substring of the title, preserving server order", () => {
+    expect(filterByQuery(items, "星空").map((a) => a.id)).toEqual(["1"]);
+    expect(filterByQuery(items, "lights").map((a) => a.id)).toEqual(["2", "3"]);
+  });
+
+  it("is case-insensitive in both directions", () => {
+    // Titles are frequently part-English; Chinese is unaffected by lower-casing.
+    expect(filterByQuery(items, "CITY").map((a) => a.id)).toEqual(["2", "3"]);
+    expect(filterByQuery(items, "city").map((a) => a.id)).toEqual(["2", "3"]);
+  });
+
+  it("ignores surrounding whitespace in the query", () => {
+    expect(filterByQuery(items, "  星空  ").map((a) => a.id)).toEqual(["1"]);
+  });
+
+  it("matches the DISPLAY title, so a null-title shell is findable by its fallback", () => {
+    // Rows with a null or blank title render as 无标题文章 — searching the string
+    // the user can actually see must work, not the raw null.
+    expect(filterByQuery(items, "无标题").map((a) => a.id)).toEqual(["4", "5"]);
+  });
+
+  it("does NOT match on status — that is what the tabs are for", () => {
+    // Folding status into the text match would make 「草稿」 return every draft.
+    const drafts = [article({ id: "d1", status: "DRAFT", title: "普通标题" })];
+    expect(filterByQuery(drafts, "草稿")).toEqual([]);
+  });
+
+  it("returns an empty array when nothing matches", () => {
+    expect(filterByQuery(items, "不存在的关键词")).toEqual([]);
+  });
+
+  it("does not mutate the input list", () => {
+    const snapshot = items.map((a) => a.id);
+    filterByQuery(items, "星空");
+    expect(items.map((a) => a.id)).toEqual(snapshot);
   });
 });
 

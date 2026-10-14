@@ -77,14 +77,15 @@
 }
 
 @layer components {
-  .surface-card {
-    @apply rounded-xl border border-border/70 bg-card;
-  }
-
-  .surface-compact {
-    @apply rounded-lg border border-border/60 bg-card/80;
-  }
-
+  /*
+   * No `.surface-card` / `.surface-compact` here on purpose. The card surface is
+   * written inline (`rounded-xl border border-border/70 bg-card`) at ~106 sites;
+   * naming it would make migrated and un-migrated surfaces indistinguishable to
+   * `grep`, and grepping for the raw classes is how the migration batches find
+   * what is left to do. The compact variant (`rounded-lg … bg-card/80`) had no
+   * matching shape in the codebase at all — its only near-match is an old
+   * `rounded-lg` card still waiting to be raised. See §6.2-C of the Layout plan.
+   */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
   }
@@ -100,13 +101,49 @@
    * not picked up by a running dev server without a restart).
    */
   .content-shell {
-    @apply mx-auto w-[92%] px-4 py-6 sm:w-[90%] md:px-6 md:py-8;
-    max-width: var(--shell-max-width);
+    @apply mx-auto w-[90%] px-4 py-6 md:px-6 md:py-8;
+    max-width: 1400px;
   }
 
   /* Vertical rhythm between page-level blocks. One value, used everywhere. */
   .section-gap {
+    @apply flex flex-col gap-10;
+  }
+
+  /*
+   * The tight variant, for a page whose blocks are all the same kind of thing —
+   * a content feed, a list of settings groups. 32px between unrelated sections
+   * reads as a pause; between two cards of the same list it reads as a hole.
+   *
+   * First users (2026-10-13): PendingAuditPage's conclusion column,
+   * EventDetailPage / EventsPage's main column, EventSubmitPage's numbered
+   * step form. All four separate the same kind of block — cards in one column —
+   * and all four were carrying `flex flex-col gap-6` by hand.
+   */
+  .section-gap-tight {
     @apply flex flex-col gap-8;
+  }
+
+  /*
+   * Feedback for a card that is ITSELF a link.
+   *
+   * Only for whole-card targets. A card that merely contains a link must not
+   * lift: raising it tells the reader the surface is clickable, and when only the
+   * title inside is, the lift is a lie the click then corrects. `hover:` is
+   * deliberately not gated on `group-hover` — this class goes on the anchor.
+   *
+   * The border goes from `/70` to full rather than to a different colour: the
+   * edge sharpens, the palette does not change.
+   *
+   * `background-color` is in the list because several cards also warm their fill
+   * on hover (`bg-card/70` -> `bg-card`). Without it the fill would snap while
+   * the lift eased, which reads as two unrelated events.
+   */
+  .card-lift {
+    @apply transition-[transform,box-shadow,border-color,background-color] duration-200;
+  }
+  .card-lift:hover {
+    @apply -translate-y-1 border-border shadow-md;
   }
 
   /*
@@ -151,21 +188,51 @@
    *
    * Measure is NOT set here — the caller owns the column width (the article page
    * wraps this in `max-w-[68ch]`). Setting it twice would fight.
+   *
+   * 2026-10-13: every size below is now RELATIVE, and that is load-bearing.
+   * The series reader offers an A- / A+ control, and it could not work: this
+   * rule's `text-[15px]` is a declaration on `.article-body` itself, so it beats
+   * the `font-size` inherited from the reader's wrapper. The only thing that
+   * control actually moved was `ch` — which resolves against the wrapper's own
+   * font-size — so pressing A+ widened the column while the glyphs stayed 15px.
+   * A control labelled "font size" that changes everything except the font size.
+   *
+   * Headings were absolute too (`text-xl` / `text-base` / `text-card`), so even
+   * once the body scaled, an enlarged body would have outgrown its own `h2` and
+   * the document outline would invert. Expressing each size as a multiple of the
+   * BODY size keeps the outline intact at every step: `1.3333em` is 20px when the
+   * body is 15px and 32px when the body is 24px, and `h2 > h3 > h4` never flips.
+   * (`em` in `font-size` resolves against the PARENT's size, which is the body —
+   * so these are ratios of the body, not of themselves. Line heights are stated
+   * as ratios of their own size, which multiplies out to the same 32px baseline
+   * the fixed `leading-8` used to give every one of them.)
+   *
+   * At the default 15px body every value below is arithmetically identical to
+   * what it replaced — the article page renders pixel-for-pixel as before.
    */
   .article-body {
-    @apply text-[15px] leading-8 text-foreground;
+    @apply text-[15px] leading-[2.1333] text-foreground;
+  }
+  /*
+   * A reader that offers a font-size control owns the body's type scale.
+   * `.article-body`'s 15px is the default for every other caller (the article
+   * page); inside a reader column the reader's own size is the truth, and the
+   * relative sizes above carry it through the whole scale from one value.
+   */
+  .reader-column .article-body {
+    font-size: inherit;
   }
   .article-body > * + * {
     @apply mt-4;
   }
   .article-body h2 {
-    @apply mt-10 text-xl font-semibold tracking-tight text-primary;
+    @apply mt-10 text-[1.3333em] leading-[1.6] font-semibold tracking-tight text-primary;
   }
   .article-body h3 {
-    @apply mt-8 text-base font-semibold tracking-tight text-primary;
+    @apply mt-8 text-[1.0667em] leading-[2] font-semibold tracking-tight text-primary;
   }
   .article-body h4 {
-    @apply mt-6 text-card font-semibold text-primary;
+    @apply mt-6 text-[1em] leading-[2.1333] font-semibold text-primary;
   }
   /* A heading immediately after another heading should not double the gap. */
   .article-body h2 + *,
@@ -174,7 +241,7 @@
     @apply mt-3;
   }
   .article-body p {
-    @apply leading-8;
+    @apply leading-[2.1333];
   }
   .article-body ul,
   .article-body ol {
@@ -190,13 +257,13 @@
     @apply border-l-2 border-accent-line pl-4 text-muted-foreground;
   }
   .article-body code {
-    @apply rounded bg-surface-sunken px-1.5 py-0.5 font-mono text-[13px];
+    @apply rounded bg-surface-sunken px-1.5 py-0.5 font-mono text-[0.8667em];
   }
   .article-body pre {
     @apply overflow-x-auto rounded-lg border border-border/70 bg-surface-sunken p-4;
   }
   .article-body pre code {
-    @apply bg-transparent p-0 text-[13px];
+    @apply bg-transparent p-0 text-[0.8667em];
   }
   .article-body a {
     @apply text-accent-strong underline underline-offset-2;
@@ -208,7 +275,7 @@
     @apply border-border/70;
   }
   .article-body table {
-    @apply w-full border-collapse text-meta;
+    @apply w-full border-collapse text-[0.8667em];
   }
   .article-body th,
   .article-body td {

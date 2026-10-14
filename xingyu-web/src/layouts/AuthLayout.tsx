@@ -31,6 +31,11 @@ import { cn } from "@/lib/cn";
  *
  * P1-1: same Suspense boundary as AppLayout — every auth page is `lazy()` too,
  * so the shared header stays mounted while the page chunk downloads.
+ *
+ * 分隔线（2026-10-13，批次 08）：品牌条与页面之间的线取 `border-border/70`。
+ * 这是布局 chrome 的房屋值 —— `AppLayout` 的 header、移动端 sheet、footer 三处
+ * 都是 `/70`。此前这里写全量 `border-border`，是 chrome 里唯一的例外，没有理由，
+ * 只是没跟上。内容区的分隔线（`SettingsNav` 的移动端横条等）仍是全量，不动。
  */
 export type AuthLayoutWidth = "narrow" | "wide";
 
@@ -42,7 +47,7 @@ const WIDTH_CLASS: Record<AuthLayoutWidth, string> = {
 export function AuthLayout({ width = "narrow" }: { width?: AuthLayoutWidth }) {
   return (
     <div className="flex min-h-full flex-col bg-background">
-      <header className="border-b border-border">
+      <header className="border-b border-border/70">
         <div className="content-shell flex items-center py-3">
           <Link to="/" className="text-lg font-semibold text-primary">
             星语

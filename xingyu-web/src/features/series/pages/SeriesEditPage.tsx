@@ -79,7 +79,17 @@ export function SeriesEditPage() {
     return (
       <div className="section-gap">
         <PageState kind="error" />
-        <BackLink />
+        {/* Retry reuses `load()` — the same re-read path the conflict-refresh
+            button in the form below already uses — rather than adding a second
+            mechanism. */}
+        <div className="text-center">
+          <Button variant="outline" onClick={() => load(id)}>
+            重新加载
+          </Button>
+        </div>
+        <p className="text-center">
+          <BackLink />
+        </p>
       </div>
     );
   }
@@ -177,7 +187,7 @@ export function SeriesEditPage() {
 
 function BackLink() {
   return (
-    <Link to="/studio/series" className="text-sm text-accent hover:underline">
+    <Link to="/studio/series" className="text-sm text-accent-strong hover:underline">
       返回系列列表
     </Link>
   );

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { EmptyRing } from "./illustrations";
+import { EmptyRing, IllustrationSlot } from "./illustrations";
 
 export type PageStateKind = "loading" | "error" | "empty";
 
@@ -51,7 +51,13 @@ export function PageState({
       data-testid={`page-state-${kind}`}
       className={cn("rounded-lg border border-border bg-card p-6 text-center", className)}
     >
-      {showArt ? <EmptyRing className="mx-auto mb-4 h-20 w-auto" /> : null}
+      {showArt ? (
+        <IllustrationSlot
+          id="empty"
+          fallback={<EmptyRing className="h-full w-full" />}
+          className="mx-auto mb-4"
+        />
+      ) : null}
       <p className="text-sm font-medium text-foreground">{heading}</p>
       {hint ? <p className="mt-1 text-sm text-muted-foreground">{hint}</p> : null}
     </div>

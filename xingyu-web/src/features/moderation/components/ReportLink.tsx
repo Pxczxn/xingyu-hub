@@ -42,7 +42,7 @@ export function ReportLink({
     <Link
       to={href}
       className={cn(
-        "inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-accent",
+        "inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-accent-strong",
         className,
       )}
       // The accessible name is stable regardless of the visible label's size.

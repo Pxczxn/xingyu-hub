@@ -3,6 +3,7 @@ import { seriesApi } from "@/api/series/series.api";
 import type { PublicSeriesSummary } from "@/api/series/series.types";
 import { PageState } from "@/components/shared/PageState";
 import { PageHero } from "@/components/shared/PageHero";
+import { Button } from "@/components/ui/button";
 import { SeriesDirectoryItem } from "../components/SeriesDirectoryItem";
 
 type LoadState = "loading" | "error" | "ready";
@@ -20,9 +21,13 @@ export function PublicSeriesListPage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [items, setItems] = useState<PublicSeriesSummary[]>([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setLoadState("loading");
     seriesApi
       .listPublic(24)
       .then((data) => {
@@ -36,12 +41,23 @@ export function PublicSeriesListPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const visible = items.slice(0, visibleCount);
 
   if (loadState === "loading") return <PageState kind="loading" />;
-  if (loadState === "error") return <PageState kind="error" />;
+  if (loadState === "error") {
+    return (
+      <div className="section-gap">
+        <PageState kind="error" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="section-gap">

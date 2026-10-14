@@ -43,34 +43,34 @@ export function TrendingTopicsPanel({
   return (
     <section
       aria-labelledby="home-trending-topics"
-      className="rounded-xl border border-border/60 bg-surface-sunken/55 p-4"
+      className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
     >
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h2 id="home-trending-topics" className="text-sm font-medium text-foreground-soft">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 id="home-trending-topics" className="text-sm font-semibold text-foreground">
           热门话题
         </h2>
         <Link
           to="/topics"
-          className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-accent-strong"
+          className="shrink-0 text-xs text-accent-strong transition-colors hover:underline"
         >
           全部 ›
         </Link>
       </div>
 
       <SectionState status={status} emptyText="暂无话题" className="border-0 bg-transparent p-0">
-        <ol className="flex flex-col gap-0.5">
+        <ol className="flex flex-col gap-1">
           {ranked.map((topic, index) => (
             <li key={topic.id}>
               <Link
                 to={`/topics/${encodeURIComponent(topic.slug)}`}
-                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-card/70"
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-all duration-200 hover:bg-surface-sunken/70"
               >
                 <span
                   aria-hidden
                   className={cn(
                     "grid h-5 w-5 shrink-0 place-items-center rounded text-xs font-semibold tabular-nums",
                     index < 3
-                      ? "bg-accent/15 text-accent-foreground"
+                      ? "bg-accent/20 text-accent-foreground"
                       : "bg-muted text-muted-foreground",
                   )}
                 >

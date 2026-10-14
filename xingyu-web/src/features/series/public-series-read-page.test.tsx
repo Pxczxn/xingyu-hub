@@ -163,4 +163,84 @@ describe("PublicSeriesReadPage", () => {
     renderReader();
     expect(await screen.findByText("章节正文暂不可读")).toBeInTheDocument();
   });
+
+  /*
+    The three cases below lock wiring that no behavioural test could see, and
+    the first one exists because a real defect hid here for a long time.
+
+    `.article-body` declares `text-[15px]` on itself, so it beats any
+    `font-size` inherited from a wrapper. The A- / A+ control therefore moved
+    nothing but the measure — `ch` resolves against the wrapper's own size — so
+    pressing A+ widened the column while the glyphs stayed 15px. Nothing failed,
+    because every assertion was about behaviour and the control did *something*.
+
+    jsdom applies no stylesheet, so what these lock is the wiring that makes the
+    stylesheet work: the reader's size and the measure must stay on the same
+    element, and that element must carry `reader-column`.
+  */
+  it("gives the reading column the reader's size, the measure and the hook", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    const column = screen.getByTestId("reader-column");
+
+    // `.reader-column .article-body { font-size: inherit }` is what lets the
+    // body follow the reader instead of its own 15px default.
+    expect(column).toHaveClass("reader-column");
+    // Same element on purpose: `ch` is relative to the element's OWN font-size,
+    // so moving the size to a child would silently stop the measure tracking.
+    expect(column).toHaveStyle({ fontSize: "18px", maxWidth: "68ch" });
+    expect(column.querySelector(".article-body")).not.toBeNull();
+  });
+
+  it("moves the font size and the measure from the reader controls", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    const column = screen.getByTestId("reader-column");
+
+    await userEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    expect(column).toHaveStyle({ fontSize: "19px" });
+    await userEvent.click(screen.getByRole("button", { name: "减小字号" }));
+    expect(column).toHaveStyle({ fontSize: "18px" });
+
+    // `ch`, not px. A px measure and a px font size do not compose, which is how
+    // 680/820/960 let the font control change the glyphs per line — the one
+    // thing a measure control exists to hold steady. 960 was also unreachable:
+    // a 1200px shell leaves a 920px article column.
+    await userEvent.click(screen.getByRole("button", { name: "窄" }));
+    expect(column).toHaveStyle({ maxWidth: "58ch" });
+    await userEvent.click(screen.getByRole("button", { name: "宽" }));
+    expect(column).toHaveStyle({ maxWidth: "80ch" });
+  });
+
+  it("marks the current chapter by state, leaving its accessible name alone", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation(async (id: string) =>
+      article(id, id === "art-2" ? "第二章 标题" : "第一章 标题"),
+    );
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    // The ordinal is `aria-hidden`, so the name is the title and nothing else —
+    // which is what a screen reader user needs to hear. The selected state
+    // rides on `aria-current` instead of being folded into the label.
+    expect(screen.getByRole("button", { name: "第一章 标题" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "第二章" })).not.toHaveAttribute("aria-current");
+
+    await userEvent.click(screen.getByRole("button", { name: "第二章" }));
+    await screen.findByRole("heading", { level: 1, name: "第二章 标题" });
+    expect(screen.getByRole("button", { name: "第二章 标题" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "第一章" })).not.toHaveAttribute("aria-current");
+  });
 });

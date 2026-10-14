@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, LoaderCircle, MessageSquareWarning } from "lucide-react";
+import { Check, LoaderCircle } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { recommendationFeedbackApi } from "@/api/recommendation-feedback/recommendation-feedback.api";
 import type { RecommendationFeedback } from "@/api/recommendation-feedback/recommendation-feedback.types";
@@ -61,11 +61,13 @@ function isAuthError(err: unknown): boolean {
 
 export function RecommendationFeedbackPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState<RecommendationFeedback | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [submitFailed, setSubmitFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -88,7 +90,7 @@ export function RecommendationFeedbackPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -106,11 +108,19 @@ export function RecommendationFeedbackPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -119,12 +129,10 @@ export function RecommendationFeedbackPage() {
     const checked = checkFeedbackBody(body);
     if (!checked.ok) {
       setFormError(checked.message);
-      setSubmitFailed(false);
       return;
     }
     setSubmitting(true);
     setFormError(null);
-    setSubmitFailed(false);
     try {
       const entry = await recommendationFeedbackApi.submit(checked.body);
       setState((current) =>
@@ -135,7 +143,6 @@ export function RecommendationFeedbackPage() {
       setJustSubmitted(entry);
       setBody("");
     } catch (err) {
-      setSubmitFailed(true);
       setFormError(
         err instanceof ApiError && err.problem.detail ? err.problem.detail : "提交失败，请稍后重试",
       );
@@ -150,16 +157,18 @@ export function RecommendationFeedbackPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <MessageSquareWarning className="h-5 w-5" aria-hidden />
-          推荐反馈
-        </h1>
+      {/*
+        S7 header (batch 08). The card surface and the icon are gone: the first
+        screen is the form itself, and a bordered panel here would be a second
+        white plane above the two sections that already carry their own.
+      */}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">推荐反馈</h1>
         {/* Scope stated up front — otherwise users think they are rating an article. */}
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">{FEEDBACK_SCOPE_NOTE}</p>
+        <p className="lede mt-2 max-w-2xl">{FEEDBACK_SCOPE_NOTE}</p>
       </header>
 
-      <section aria-label="提交反馈" className="rounded-lg border border-border bg-card p-5">
+      <section aria-label="提交反馈" className="rounded-xl border border-border/70 bg-card p-5">
         <label htmlFor="feedback-body" className="text-sm font-medium text-foreground">
           反馈内容
         </label>
@@ -169,7 +178,6 @@ export function RecommendationFeedbackPage() {
           onChange={(event) => {
             setBody(event.target.value);
             setFormError(null);
-            setSubmitFailed(false);
           }}
           rows={5}
           placeholder="例如：我更喜欢长文，希望少推荐短视频；或者某个领域的内容我不感兴趣。"
@@ -200,10 +208,13 @@ export function RecommendationFeedbackPage() {
           </Button>
         </div>
         {formError ? (
-          <p
-            role={submitFailed ? "alert" : "alert"}
-            className={cn("mt-2 text-sm", submitFailed ? "text-destructive" : "text-destructive")}
-          >
+          /*
+           * `role="alert"` unconditionally. The former `submitFailed` state fed two
+           * ternaries whose branches were byte-for-byte identical, so it never
+           * changed this output — a validation error and a rejected submit read the
+           * same here on purpose.
+           */
+          <p role="alert" className="mt-2 text-sm text-destructive">
             {formError}
           </p>
         ) : null}
@@ -215,7 +226,7 @@ export function RecommendationFeedbackPage() {
         ) : null}
       </section>
 
-      <section aria-label="历史反馈" className="rounded-lg border border-border bg-card">
+      <section aria-label="历史反馈" className="rounded-xl border border-border/70 bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="section-heading">历史反馈</h2>
           <span className="text-xs text-muted-foreground">{state.rows.length} 条</span>
@@ -250,7 +261,7 @@ export function RecommendationFeedbackPage() {
       </section>
 
       <p className="text-center">
-        <Link to="/discover" className="text-sm text-accent hover:underline">
+        <Link to="/discover" className="text-sm text-accent-strong hover:underline">
           去发现内容
         </Link>
       </p>

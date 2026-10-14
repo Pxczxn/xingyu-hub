@@ -49,7 +49,7 @@ export function HomeSidebar({
   if (!hasSidebarContent([topics, creators, events])) return null;
 
   return (
-    <aside aria-label="社区侧栏" className="flex flex-col gap-3">
+    <aside aria-label="社区侧栏" className="flex flex-col gap-4">
       <TrendingTopicsPanel status={topics.status} items={topics.items} />
       <RecommendedCreatorsPanel
         status={creators.status}

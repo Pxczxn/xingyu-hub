@@ -1,20 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { topicsApi } from "@/api/topics/topics.api";
+import { setStoredToken } from "@/lib/storage";
 import { AuthProvider } from "@/features/auth/auth.store";
 import { TopicsPage } from "./pages/TopicsPage";
 
 /*
  * Topics plaza tests.
  *
- * The optimistic follow / rollback click tests were REMOVED after live
- * acceptance: the backend has no working follow endpoint (404), so the follow
- * control is no longer exposed in the UI. Testing a click on a control that
- * must not exist would be wrong.
+ * 2026-10-13 (批次 04) — the "does NOT expose a follow control" test is gone.
+ *
+ * It asserted that no 关注 button may exist, on the stated grounds that the
+ * backend had no working follow endpoint (404). That premise was fixed
+ * backend-side on 2026-10-10 — SocialService hard-coded status=ENABLED while
+ * topics are ACTIVE, so every follow 404'd — and `TopicFollowIntegrationTest`
+ * now pins the whole follow / unfollow / idempotency / disabled-topic loop.
+ * `CommunityAuthInterceptor` also runs optional auth across `/api/v1/topics`, so
+ * the list endpoint carries the viewer's `following` flag.
+ *
+ * The control is therefore back, and it is asserted in both directions below: a
+ * guest gets no button (their list has no state to show), a signed-in reader gets
+ * one that follows, flips, and rolls back when the request fails.
  *
  * The follow contract itself is still verified at the API layer in
- * topics.api.ts (kept for when the backend provides a working endpoint).
+ * topics.api.ts.
  */
 
 vi.mock("@/api/topics/topics.api", () => ({
@@ -135,14 +146,50 @@ describe("topics page", () => {
     expect(screen.getByRole("status")).toHaveTextContent("没有找到匹配的话题");
   });
 
-  it("does NOT expose a follow control (backend endpoint unavailable)", async () => {
+  it("shows no follow control to a guest, who has no follow state to show", async () => {
     renderPage();
     await screen.findByTestId("topic-list");
 
+    /*
+     * Not "the feature is missing" — a guest's list carries no `following` value,
+     * and a button whose first click had to guess the current state would be a
+     * lie the server then corrects. Guests get the plain card and can sign in
+     * from the topic page itself.
+     */
     expect(screen.queryByRole("button", { name: "关注" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "已关注" })).not.toBeInTheDocument();
     expect(mocked.followTopic).not.toHaveBeenCalled();
     expect(mocked.unfollowTopic).not.toHaveBeenCalled();
+  });
+
+  it("follows a topic from its plaza card, with the count moving too", async () => {
+    setStoredToken("tok");
+    mocked.followTopic.mockResolvedValue(undefined);
+
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "关注" });
+    await userEvent.click(button);
+
+    await waitFor(() => expect(mocked.followTopic).toHaveBeenCalledWith("t1"));
+    expect(await screen.findByRole("button", { name: "已关注" })).toBeInTheDocument();
+    // The count is the card's own fact line (设计方案 §3.3: 名称与内容数是重点),
+    // so an optimistic update that moves the button but not the number is a bug.
+    expect(screen.getByText("4 关注")).toBeInTheDocument();
+  });
+
+  it("rolls the plaza follow state back when the request fails", async () => {
+    setStoredToken("tok");
+    mocked.followTopic.mockRejectedValue(new Error("500"));
+
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "关注" });
+    await userEvent.click(button);
+
+    await waitFor(() => expect(mocked.followTopic).toHaveBeenCalledWith("t1"));
+    expect(await screen.findByRole("button", { name: "关注" })).toBeInTheDocument();
+    expect(screen.getByText("3 关注")).toBeInTheDocument();
   });
 
   it("keeps loading, error and empty states", async () => {

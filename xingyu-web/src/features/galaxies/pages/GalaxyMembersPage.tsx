@@ -5,6 +5,7 @@ import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxyMember } from "@/api/galaxies/galaxies.types";
 import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 import { formatJoinedAt, galaxyMemberRoleLabel } from "../galaxy-labels";
 import { GalaxyShell } from "../GalaxyShell";
 
@@ -36,6 +37,9 @@ const MEMBER_LIMIT = 50;
 
 function GalaxyMembers({ slug }: { slug: string }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -52,11 +56,20 @@ function GalaxyMembers({ slug }: { slug: string }) {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "error") {
-    return <PageState kind="error" title="成员加载失败" description="请稍后重试。" />;
+    return (
+      <div className="section-gap">
+        <PageState kind="error" title="成员加载失败" description="请稍后重试。" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const { members } = state;
@@ -69,9 +82,17 @@ function GalaxyMembers({ slug }: { slug: string }) {
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {members.map((member) => (
             <li key={member.userId}>
+              {/*
+                Whole-card target, so it earns `.card-lift` — the lift tells the
+                truth here. `hover:border-accent` is gone: `.card-lift` already
+                carries the hover, and its documented move is to sharpen the edge
+                (`/70` to full) rather than change its hue — the same call
+                `AnnouncementsPage` recorded. `focus-ring` because the whole card
+                is this grid's only keyboard stop and nothing global styles it.
+              */}
               <Link
                 to={`/u/${encodeURIComponent(member.username)}`}
-                className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 hover:border-accent"
+                className="card-lift focus-ring flex items-center gap-4 rounded-xl border border-border/70 bg-card p-4"
               >
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
                   {(member.displayName || member.username).slice(0, 1)}

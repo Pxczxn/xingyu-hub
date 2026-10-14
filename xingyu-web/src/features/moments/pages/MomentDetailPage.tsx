@@ -10,6 +10,8 @@ import {
 import { ApiError } from "@/api/client";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import { ArticleInteractions } from "@/features/article/components/ArticleInteractions";
+import { CommentSection } from "@/features/article/components/CommentSection";
 import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { useAuth } from "@/features/auth/auth.store";
 
@@ -54,6 +56,9 @@ export function MomentDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const pendingRef = useRef(false);
   const generationRef = useRef(0);
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run generation guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     generationRef.current += 1;
@@ -100,7 +105,7 @@ export function MomentDetailPage() {
     return () => {
       generationRef.current += 1;
     };
-  }, [id, isAuthenticated]);
+  }, [id, isAuthenticated, reloadKey]);
 
   async function onSave(event: FormEvent) {
     event.preventDefault();
@@ -153,7 +158,18 @@ export function MomentDetailPage() {
   }
 
   if (state.kind === "loading") return <PageState kind="loading" />;
-  if (state.kind === "error") return <PageState kind="error" />;
+  if (state.kind === "error") {
+    return (
+      <div className="section-gap">
+        <PageState kind="error" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (state.kind === "unavailable") {
     return <PageState kind="empty" title="动态不存在或已不可访问" />;
   }
@@ -164,60 +180,95 @@ export function MomentDetailPage() {
 
   return (
     <article className="section-gap">
-      <Link to="/moments" className="text-sm text-accent hover:underline">
+      <Link to="/moments" className="text-sm text-accent-strong hover:underline">
         返回动态
       </Link>
       {/*
-        Author first, then the body — the same order the feed uses.
-        Without this the author vanished on arrival: you see who wrote a moment in
-        the feed, tap it, and the detail view shows only text and a timestamp.
-        The field only became available on 2026-10-03 (the contract carried just
-        authorId before), and momentAuthorLabel still handles a server that has
-        not shipped it.
+        P0 — the moment itself, as one surface.
 
-        Body moves from text-base to the card step and the timestamp from
-        text-sm to the meta step, matching the feed and the type scale.
+        On the feed every moment is already a card, so the detail view — three
+        loose lines and two stray links — read as the *less* finished of the
+        two. A short body needs a frame more than a long one does: with no
+        boundary between them, the page's own subject looks like the page's
+        preamble.
+
+        No `card-lift`. That class is for whole-card targets; this card holds
+        several separate ones (the interaction bar, the owner controls, the
+        report link), so lifting it on hover would promise a click the surface
+        cannot honour. Static frame: border only.
+
+        Author first, then the body — the same order the feed uses. Without this
+        the author vanished on arrival: you see who wrote a moment in the feed,
+        tap it, and the detail view shows only text and a timestamp. The field
+        only became available on 2026-10-03 (the contract carried just authorId
+        before), and momentAuthorLabel still handles a server that has not
+        shipped it.
+
+        The author is a link only when the server resolved a username. It is
+        optional on the contract, and /u/:username would 404 on an empty
+        segment — the same rule CommentSection applies to its own authors.
       */}
-      <span className="flex flex-wrap items-center gap-x-2 text-meta text-muted-foreground">
-        <span className="font-medium text-foreground-soft">{momentAuthorLabel(moment)}</span>
-        <span aria-hidden>·</span>
-        <time dateTime={moment.createdAt}>{formatMomentTime(moment.createdAt)}</time>
-      </span>
-      <p className="whitespace-pre-wrap text-card leading-6 text-primary">{moment.body}</p>
-
-      {windowHint ? <p className="text-sm text-muted-foreground">已超过可编辑时间</p> : null}
-
-      {/* A non-owner can report this moment. Owner sees edit/delete instead —
-          and you cannot report your own content anyway. */}
-      {!ownerConfirmed ? <ReportLink objectType="MOMENT" objectId={moment.id} /> : null}
-
-      {ownerConfirmed ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {canEdit && !editing ? (
-            <Button
-              type="button"
-              className="w-fit"
-              onClick={() => {
-                setDraft(moment.body);
-                setDraftError(null);
-                setSaveError(null);
-                setEditing(true);
-              }}
-            >
-              编辑动态
-            </Button>
+      <div className="rounded-xl border border-border/70 bg-card">
+        <div className="p-4">
+          <span className="flex flex-wrap items-center gap-x-2 text-meta text-muted-foreground">
+            {moment.authorUsername ? (
+              <Link
+                to={`/u/${moment.authorUsername}`}
+                className="font-medium text-foreground-soft transition-colors hover:text-accent-strong"
+              >
+                {momentAuthorLabel(moment)}
+              </Link>
+            ) : (
+              <span className="font-medium text-foreground-soft">{momentAuthorLabel(moment)}</span>
+            )}
+            <span aria-hidden>·</span>
+            <time dateTime={moment.createdAt}>{formatMomentTime(moment.createdAt)}</time>
+          </span>
+          <p className="mt-2 whitespace-pre-wrap text-card leading-6 text-primary">{moment.body}</p>
+          {windowHint ? (
+            <p className="mt-2 text-meta text-muted-foreground">已超过可编辑时间</p>
           ) : null}
-
-          <Button
-            variant="outline"
-            className="w-fit border-destructive/40 text-destructive hover:border-destructive/60 hover:text-destructive"
-            onClick={() => setConfirmDelete(true)}
-            disabled={pendingRef.current}
-          >
-            删除动态
-          </Button>
         </div>
-      ) : null}
+
+        {/*
+          One action row for the card: interactions on the left, and on the
+          right whichever secondary action this viewer has. Owner controls and
+          the report link are mutually exclusive by construction — you cannot
+          report your own moment — so they share the slot instead of stacking
+          two rows under the body.
+        */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border/60 px-4 py-3">
+          <ArticleInteractions objectType="MOMENT" objectId={moment.id} />
+          {ownerConfirmed ? (
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {canEdit && !editing ? (
+                <Button
+                  type="button"
+                  className="w-fit"
+                  onClick={() => {
+                    setDraft(moment.body);
+                    setDraftError(null);
+                    setSaveError(null);
+                    setEditing(true);
+                  }}
+                >
+                  编辑动态
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                className="w-fit border-destructive/40 text-destructive hover:border-destructive/60 hover:text-destructive"
+                onClick={() => setConfirmDelete(true)}
+                disabled={pendingRef.current}
+              >
+                删除动态
+              </Button>
+            </div>
+          ) : (
+            <ReportLink objectType="MOMENT" objectId={moment.id} className="ml-auto" />
+          )}
+        </div>
+      </div>
 
       {editing ? (
         <form
@@ -270,6 +321,15 @@ export function MomentDetailPage() {
           </div>
         </div>
       ) : null}
+
+      {/*
+        P2 — comments, on the same generic endpoint the article view uses.
+        `MOMENT` is a first-class interaction object type on the server: the
+        comment table is keyed by (objectType, objectId) and the controller
+        upper-cases whatever segment arrives. Listing requires auth, which the
+        component handles itself — sign-in prompt, no doomed request.
+      */}
+      <CommentSection objectType="MOMENT" objectId={moment.id} />
     </article>
   );
 }

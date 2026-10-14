@@ -7,9 +7,11 @@ import { useAuth } from "@/features/auth/auth.store";
 import { ProfileHeader } from "@/features/profile/components/ProfileHeader";
 import { ProfileStats } from "@/features/profile/components/ProfileStats";
 import { ProfileWorks } from "@/features/profile/components/ProfileWorks";
+import { ProfileWorksFilter } from "@/features/profile/components/ProfileWorksFilter";
 import { ProfileBlockControl } from "@/features/blocks/components/ProfileBlockControl";
 import { isBlockedUsername, loadBlockedUsers } from "@/features/blocks/blocked-users.store";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 
 /*
  * Public user profile (Phase 1B) — real implementation.
@@ -20,6 +22,13 @@ import { PageState } from "@/components/shared/PageState";
  * there is no `blocked` field and no status endpoint (contract gap, verified
  * 2026-09-23) — so it is read through the shared store rather than re-downloading
  * the block list on every profile view.
+ *
+ * 批次 06（S4 身份详情）：全宽身份头 → 主栏/侧栏（`lg:grid-cols-[minmax(0,1fr)_300px]`，
+ * 侧栏下移见方案 §五）。方案 §4.3 写的是「作品流 tab（文章 / 系列 / 动态）」，但用户维度
+ * 端点只有 /{username}、/{username}/works、/{username}/works/categories、follow 与
+ * followers/following（CommunityUserController 逐条核对）—— 没有 series，也没有 moments，
+ * 三个 tab 里两个没有数据源。改由真实存在的第二维（创作空间分类）承担筛选，
+ * 理由写在 ProfileWorksFilter 里。
  */
 type LoadState =
   | { kind: "loading" }
@@ -41,11 +50,32 @@ export function UserProfilePage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [works, setWorks] = useState<SpaceWorks | null>(null);
   const [worksError, setWorksError] = useState(false);
+  const [worksPending, setWorksPending] = useState(false);
+  /*
+   * 当前分类筛选，和「它是在谁的主页上选的」存在一起。
+   *
+   * 存成一对而不是一个裸 slug：路由从 /u/A 换到 /u/B 时 React 不会重挂本组件，
+   * 裸 slug 会被带进 B 的页面。用 effect 重置不行 —— effect 在本次提交里跑，而
+   * works 的请求 effect 读的是「本次渲染」的 slug，等重置生效时请求已经带着 A 的
+   * 分类发出去了（一次白请求 + 一帧高亮错位的 chip）。渲染期比对用户名则让 B 的
+   * 第一帧直接拿到 `null`，请求只发一次、且是对的。
+   */
+  const [filter, setFilter] = useState<{ username: string; slug: string | null }>({
+    username,
+    slug: null,
+  });
+  const categorySlug = filter.username === username ? filter.slug : null;
   const [following, setFollowing] = useState(false);
   const [followPending, setFollowPending] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
   const [blockStatus, setBlockStatus] = useState<BlockStatus>("unknown");
+  /* Bumping the key replays the load effects — the retry mechanism for the
+     error branch below. The effects keep their per-run `active` guards. */
+  const [reloadKey, setReloadKey] = useState(0);
 
+  // Identity only. The works list used to be fetched from here as well; it has its
+  // own effect now because the category filter is a request parameter and the two
+  // therefore have different dependencies.
   useEffect(() => {
     if (!username) {
       setState({ kind: "notfound" });
@@ -53,9 +83,12 @@ export function UserProfilePage() {
     }
     let active = true;
     setState({ kind: "loading" });
+    setFollowError(null);
+    // A different profile is a different works list — the previous one is not this
+    // page's data. Cleared here, not in the works effect: that one also re-runs on a
+    // category change, where keeping the old list is exactly the point.
     setWorks(null);
     setWorksError(false);
-    setFollowError(null);
 
     usersApi
       .getProfile(username)
@@ -70,20 +103,49 @@ export function UserProfilePage() {
         setState({ kind: status === 404 ? "notfound" : "error" });
       });
 
+    return () => {
+      active = false;
+    };
+  }, [username, reloadKey]);
+
+  /*
+   * Works: re-fetched when the profile changes AND when the category does.
+   *
+   * `works` is deliberately NOT cleared on a category change — only flagged
+   * `pending`. Two reasons: the grid keeps its height instead of collapsing to a
+   * loading card and back, and the filter chips are rendered from
+   * `works.categories`, so clearing it would delete the only way back to 「全部」
+   * at exactly the moment a failed request makes that way necessary.
+   *
+   * Rendering the chips off the response is safe because the backend builds
+   * `categories` independently of `categorySlug` (CreationSpaceService
+   * .getPublicWorks), so a filtered response still carries the full list and the
+   * chips cannot self-collapse.
+   */
+  useEffect(() => {
+    if (!username) return;
+    let active = true;
+    setWorksError(false);
+    setWorksPending(true);
+
     // Works is non-critical: a failure degrades only that section.
     usersApi
-      .getUserWorks(username)
+      .getUserWorks(username, categorySlug ?? undefined)
       .then((data) => {
-        if (active) setWorks(data);
+        if (!active) return;
+        setWorks(data);
+        setWorksPending(false);
       })
       .catch(() => {
-        if (active) setWorksError(true);
+        if (!active) return;
+        setWorksError(true);
+        setWorksPending(false);
       });
 
     return () => {
       active = false;
     };
-  }, [username]);
+  }, [username, categorySlug, reloadKey]);
 
   const owner = state.kind === "ready" ? state.profile.owner === true : null;
   // Guests and the viewer's own profile get no block control: the backend rejects
@@ -146,11 +208,30 @@ export function UserProfilePage() {
     [username],
   );
 
+  function handleSelectCategory(slug: string | null) {
+    // Re-clicking the active chip is a no-op: `setFilter` would allocate a new object
+    // and re-render for nothing. The request would not re-fire (the effect depends on
+    // the derived slug, not on this object), so it is pure waste.
+    if (slug === categorySlug) return;
+    setFilter({ username, slug });
+  }
+
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "notfound") {
     return <PageState kind="empty" title="用户不存在" description="该用户可能已注销或改名。" />;
   }
-  if (state.kind === "error") return <PageState kind="error" />;
+  if (state.kind === "error") {
+    return (
+      <div className="section-gap">
+        <PageState kind="error" />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const { profile } = state;
 
@@ -174,22 +255,45 @@ export function UserProfilePage() {
         }
       />
 
-      <ProfileStats profile={profile} />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+        {/*
+          The main column is a <section>, NOT a <main>: AppLayout already renders
+          <main id="main">, so a second one is invalid HTML and a duplicate landmark.
+          GalaxyDetailPage / TopicDetailPage both nest one — that is a defect, not a
+          pattern worth copying.
 
-      <section aria-labelledby="works-heading">
-        <h2 id="works-heading" className="section-heading mb-3">
-          公开文章
-        </h2>
-        {worksError ? (
-          <p role="alert" data-testid="works-error" className="text-sm text-destructive">
-            文章加载失败
-          </p>
-        ) : works ? (
-          <ProfileWorks works={works} />
-        ) : (
-          <PageState kind="loading" />
-        )}
-      </section>
+          The 300px rail matches the S4 family (GalaxyDetailPage / TopicDetailPage).
+          `lg:` is 1024px, which is exactly the §五 breakpoint where the rail moves
+          below the main column.
+        */}
+        <section aria-labelledby="works-heading" className="min-w-0">
+          <h2 id="works-heading" className="section-heading mb-3">
+            公开文章
+          </h2>
+
+          {/* Chips come from the works response, so they appear with the first page of
+              results and stay put across filter changes (see the works effect above). */}
+          <ProfileWorksFilter
+            categories={works?.categories ?? []}
+            active={categorySlug}
+            onSelect={handleSelectCategory}
+          />
+
+          {worksError ? (
+            <p role="alert" data-testid="works-error" className="text-sm text-destructive">
+              文章加载失败
+            </p>
+          ) : works ? (
+            <ProfileWorks works={works} filterSlug={categorySlug} pending={worksPending} />
+          ) : (
+            <PageState kind="loading" />
+          )}
+        </section>
+
+        <aside className="space-y-5 lg:sticky lg:top-24">
+          <ProfileStats profile={profile} />
+        </aside>
+      </div>
     </div>
   );
 }

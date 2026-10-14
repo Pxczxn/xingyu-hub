@@ -19,15 +19,24 @@ import {
  *
  * Layout contract
  * ---------------
- *   >= sm   pinned top-right, 384px wide, newest on top, cards slide in from the
- *           right edge and slide back out the same way.
- *   <  sm   full-width strip at the top with page gutters, cards drop in from
- *           above and retreat the same way (the sideways slide would travel off
- *           a 390px viewport before it finished animating).
+ *   >= sm   bottom-right corner, 420px wide. The stack grows UPWARD: the newest
+ *           card sits at the top of the stack and rises in from one card-height
+ *           below. Dismissal slides it out to the right.
+ *   <  sm   edge-to-edge strip under the sticky header (see the `max-sm:` override
+ *           on the viewport below). The stack grows DOWNWARD: the newest card sits
+ *           at the BOTTOM of the stack and drops in from one card-height above.
+ *           Dismissal still slides it out to the right.
  *
- * Both come from the same DOM: only the viewport's direction and the closed-state
- * transform change at the `sm` breakpoint. No second component, no duplicated
- * markup, so a toast can never render in one layout and be missing from the other.
+ * Both come from the same DOM: only the viewport's corner, the stack direction and
+ * the entry transform change at the `sm` breakpoint. No second component, no
+ * duplicated markup, so a toast can never render in one layout and be missing from
+ * the other.
+ *
+ * Why the corner differs: on a phone the bottom of the viewport belongs to the
+ * browser chrome and the thumb, so a bottom-anchored toast would sit under both. On
+ * a desktop neither applies, and the bottom-right corner is the least contested area
+ * of a 1200px shell. The 420px cap starts at `sm`, not `md` — a 640px window should
+ * get a card in the corner, not a banner across the whole page.
  *
  * Stacking
  * --------
@@ -35,6 +44,11 @@ import {
  * depth, so a stack reads as "one thing happened, and these are the ones behind
  * it" rather than as a wall of equal cards. Depth is capped at 2 steps of falloff
  * — a fifth toast is evicted by the provider, not scaled into illegibility.
+ *
+ * The scale half of that falloff is suppressed below `sm` (the `max-sm:!transform-none`
+ * on the depth cards): the mobile stack is edge-to-edge, and shrinking a full-width
+ * card by 2% does not read as depth — it reads as a card that failed to line up with
+ * the gutter. The opacity step still applies, so the stack is still ordered.
  *
  * There is deliberately NO draining progress bar. Radix pauses its dismiss timer
  * on hover, and a CSS-animated bar would keep running while the card stayed —

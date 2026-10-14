@@ -299,11 +299,26 @@ describe("GalaxyContentPage", () => {
       "/galaxies/:slug/content",
     );
     await screen.findByRole("link", { name: "第一篇" });
+    const listBefore = screen.getByRole("link", { name: "第一篇" }).closest("ul");
 
     await userEvent.setup().click(screen.getByRole("button", { name: "系列" }));
 
     expect(screen.getByRole("link", { name: "置顶系列" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "第一篇" })).not.toBeInTheDocument();
+
+    /*
+     * The filter replays the entrance: the <ul> carries a `key` over both
+     * controls, so applying a filter unmounts the old list and the surviving rows
+     * animate in again. A filter that swaps content with no motion reads as a
+     * filter that did nothing (MyEventsPage). Node identity is the assertion that
+     * locks it — the class alone would still pass without the key.
+     */
+    expect(screen.getByRole("link", { name: "置顶系列" }).closest("ul")).not.toBe(listBefore);
+
+    // Inline, because `animate-rise-in` resets `animation-delay` (lib/stagger.ts).
+    const row = screen.getByRole("link", { name: "置顶系列" }).closest("li");
+    expect(row?.className).toContain("animate-rise-in");
+    expect(row?.style.animationDelay).toBe("0ms");
   });
 
   it("narrows to pinned rows only", async () => {
@@ -314,11 +329,19 @@ describe("GalaxyContentPage", () => {
       "/galaxies/:slug/content",
     );
     await screen.findByRole("link", { name: "第一篇" });
+    const listBefore = screen.getByRole("link", { name: "第一篇" }).closest("ul");
 
     await userEvent.setup().click(screen.getByRole("button", { name: "仅看置顶" }));
 
     expect(screen.getByRole("link", { name: "置顶系列" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "第一篇" })).not.toBeInTheDocument();
+
+    /*
+     * 仅看置顶 replays too, because both controls drive ONE key: to the reader the
+     * type chips and the pinned toggle are a single filter, so a key that tracked
+     * only the chips would leave half the switches motionless.
+     */
+    expect(screen.getByRole("link", { name: "置顶系列" }).closest("ul")).not.toBe(listBefore);
   });
 
   it("shows the empty state when the galaxy has no content", async () => {

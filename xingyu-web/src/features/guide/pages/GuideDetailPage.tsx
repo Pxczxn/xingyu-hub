@@ -4,6 +4,7 @@ import { guideApi } from "@/api/guide/guide.api";
 import type { GuidePage } from "@/api/guide/guide.types";
 import { ApiError } from "@/api/client";
 import { PageState } from "@/components/shared/PageState";
+import { Button } from "@/components/ui/button";
 import { GuideBody } from "@/features/guide/components/GuideBody";
 
 type LoadState =
@@ -21,6 +22,9 @@ function isNotFound(err: unknown): boolean {
 export function GuideDetailPage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!slug) {
@@ -41,14 +45,21 @@ export function GuideDetailPage() {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "error") {
     return (
       <div className="section-gap">
         <PageState kind="error" />
-        <BackToGuide />
+        <div className="text-center">
+          <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+            重新加载
+          </Button>
+        </div>
+        <p className="text-center">
+          <BackToGuide />
+        </p>
       </div>
     );
   }
@@ -97,7 +108,7 @@ export function GuideDetailPage() {
 
 function BackToGuide() {
   return (
-    <Link to="/guide" className="text-sm text-accent hover:underline">
+    <Link to="/guide" className="text-sm text-accent-strong hover:underline">
       返回指南目录
     </Link>
   );

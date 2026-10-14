@@ -74,9 +74,9 @@ export function CommentSection({
       </h2>
 
       {!isAuthenticated ? (
-        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           评论需要登录后查看。
-          <Link to="/login" className="ml-1 text-accent hover:underline">
+          <Link to="/login" className="ml-1 font-medium text-accent-strong hover:underline">
             去登录
           </Link>
         </p>
@@ -116,30 +116,37 @@ export function CommentSection({
           ) : null}
 
           {!loading && !error && comments.length === 0 ? (
-            <p
-              data-testid="comments-empty"
-              className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
-            >
+            <p data-testid="comments-empty" className="text-sm text-muted-foreground">
               还没有评论，来抢沙发。
             </p>
           ) : null}
 
           {!loading && !error && comments.length > 0 ? (
-            <ul data-testid="comment-list" className="flex flex-col gap-3">
+            /*
+              Hairlines, not cards. Every row used to be `rounded-lg border
+              bg-card p-4` — the same surface as the empty state and the guest
+              prompt above, so the surface carried no information at all, and a
+              thread of ten comments read as ten boxes. A comment thread is one
+              list with one left edge; the divider between items is the only
+              structure it needs.
+            */
+            <ul data-testid="comment-list" className="flex flex-col divide-y divide-border/60">
               {comments.map((comment) => (
-                <li key={comment.id} className="rounded-lg border border-border bg-card p-4">
-                  <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                <li key={comment.id} className="py-4 first:pt-0 last:pb-0">
+                  <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
                     {comment.authorUsername ? (
                       <Link
                         to={`/u/${comment.authorUsername}`}
-                        className="font-medium text-foreground hover:text-accent"
+                        className="font-medium text-foreground transition-colors hover:text-accent-strong"
                       >
                         {comment.authorUsername}
                       </Link>
                     ) : (
                       <span className="font-medium text-foreground">匿名</span>
                     )}
-                    <span>{new Date(comment.createdAt).toLocaleString("zh-CN")}</span>
+                    <span className="tabular-nums">
+                      {new Date(comment.createdAt).toLocaleString("zh-CN")}
+                    </span>
                     {/* Quiet, secondary entry — not a CTA. Hidden for the
                         comment's own author, who cannot report themselves. */}
                     <ReportLink
@@ -149,7 +156,9 @@ export function CommentSection({
                       className="ml-auto"
                     />
                   </div>
-                  <p className="whitespace-pre-wrap text-sm text-foreground">{comment.body}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+                    {comment.body}
+                  </p>
                 </li>
               ))}
             </ul>

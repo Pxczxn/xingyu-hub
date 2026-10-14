@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Gavel } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { appealsApi } from "@/api/moderation/moderation.api";
 import {
@@ -10,8 +9,9 @@ import {
   type AppealDetailView,
 } from "@/api/moderation/moderation.types";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { staggerDelay } from "@/lib/stagger";
 
 /*
  * My appeals (Phase 2J-2, reworked by the Governance Static Design收敛 pass).
@@ -52,6 +52,9 @@ function formatTime(value: string): string {
 
 export function MyAppealsPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -74,7 +77,7 @@ export function MyAppealsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -92,11 +95,19 @@ export function MyAppealsPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -105,14 +116,18 @@ export function MyAppealsPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <Gavel className="h-5 w-5" aria-hidden />
-          我的申诉
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          你对社区治理措施提交的申诉及裁定结果。
-        </p>
+      {/*
+        页头（2026-10-13，批次 08c）—— 与 /reports 同形：去卡片、去图标、改成分隔
+        线式。完整判据写在 MyReportsPage 的注释里（方案 §4.6 逐字的「状态与操作必须
+        比装饰优先」+ 全库 15 处卡片式页头零处刻意保留 + 带图标的 h1 15/15 全落在
+        卡片页头里），这里不重复。
+
+        这一页必须与 /reports 逐字一致：两页共用同一个切换器，读者是在它们之间来回
+        切的，页头长得不一样就会读成两个不同的东西。
+      */}
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的申诉</h1>
+        <p className="lede mt-2 max-w-2xl">你对社区治理措施提交的申诉及裁定结果。</p>
       </header>
 
       <nav className="flex flex-wrap gap-2" aria-label="举报与申诉">
@@ -122,11 +137,11 @@ export function MyAppealsPage() {
         <span className={cn(buttonVariants({ variant: "accent" }), "text-sm")}>我的申诉</span>
       </nav>
 
-      <section className="rounded-lg border border-border bg-card">
+      <section className="rounded-xl border border-border/70 bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="section-heading">申诉记录</h2>
           {/* No "load more": the endpoint returns a bare array with no cursor. */}
-          <span className="text-xs text-muted-foreground">最多 {APPEAL_LIST_LIMIT} 条</span>
+          <span className="text-meta text-muted-foreground">最多 {APPEAL_LIST_LIMIT} 条</span>
         </div>
 
         {appeals.length === 0 ? (
@@ -139,8 +154,12 @@ export function MyAppealsPage() {
           </div>
         ) : (
           <ul aria-label="我的申诉列表" className="divide-y divide-border">
-            {appeals.map((appeal) => (
-              <li key={appeal.id} className="px-5 py-4">
+            {appeals.map((appeal, index) => (
+              <li
+                key={appeal.id}
+                className="animate-rise-in px-5 py-4"
+                style={{ animationDelay: staggerDelay(index) }}
+              >
                 {/* 针对什么处理 —— 对象描述，绝不渲染 caseId/UUID */}
                 <p className="text-xs text-muted-foreground">针对：{targetDescription(appeal)}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -150,7 +169,7 @@ export function MyAppealsPage() {
                 </div>
                 <Link
                   to={`/appeals/${encodeURIComponent(appeal.id)}`}
-                  className="mt-1 block whitespace-pre-wrap text-sm leading-6 text-foreground hover:text-accent"
+                  className="mt-1 block whitespace-pre-wrap text-sm leading-6 text-foreground hover:text-accent-strong"
                 >
                   {appeal.body?.trim() || "（无内容）"}
                 </Link>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Search } from "lucide-react";
 import { articlesApi } from "@/api/articles/articles.api";
 import type { MyArticleSummary, TrashItem } from "@/api/articles/articles.types";
 import { ApiError } from "@/api/client";
@@ -13,6 +14,7 @@ import {
   articleStatusLabel,
   canTrash,
   countByStatus,
+  filterByQuery,
   filterByTab,
   formatArticleTime,
   splitTrash,
@@ -36,6 +38,13 @@ import {
  *  2. **No "delete forever".** `GET /me/trash` + `restore` exist but there is NO
  *     DELETE-from-trash endpoint, so the trash tab offers restore only. Rendering a
  *     "permanently delete" button would be a control that can only fail.
+ *
+ * Batch 06 (§3.6) filled in the missing half of the toolbar: 「工具栏（搜索 + 筛选 +
+ * 新建）」. Filtering already existed as the status tabs and 新建 as the header button;
+ * the title search is the new part. It searches WITHIN the active tab (see
+ * `filterByQuery`) and is withheld on the trash tab — that tab reads a different
+ * endpoint with a different row shape, so a box that silently searched nothing
+ * would be worse than no box at all.
  */
 
 type LoadPhase = "loading" | "error" | "ready";
@@ -59,6 +68,7 @@ export function ContentListPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [query, setQuery] = useState("");
 
   const loadArticles = useCallback(() => {
     setPhase("loading");
@@ -95,12 +105,28 @@ export function ContentListPage() {
     if (tab === "trash" && trashPhase === "loading") loadTrash();
   }, [tab, trashPhase, loadTrash]);
 
-  const visible = useMemo(() => filterByTab(articles, tab), [articles, tab]);
+  /*
+   * Two stacked filters, in this order: the tab narrows by status, the query then
+   * narrows by title WITHIN it. Searching across tabs instead would contradict the
+   * highlighted tab — the user would be told they are looking at 草稿 while staring
+   * at a published piece.
+   */
+  const tabbed = useMemo(() => filterByTab(articles, tab), [articles, tab]);
+  const visible = useMemo(() => filterByQuery(tabbed, query), [tabbed, query]);
   const counters = useMemo(() => countByStatus(articles), [articles]);
   const { articles: trashArticles, others: trashOthers } = useMemo(
     () => splitTrash(trash),
     [trash],
   );
+
+  /*
+   * The search box is shown only when there is something it could search. It is
+   * withheld on the trash tab (different endpoint, different row shape) and while
+   * the owner list is loading, empty or failed. Keyed off `articles.length`, not
+   * the tab's own count, so switching tabs does not make the box flicker in and out.
+   */
+  const showSearch = phase === "ready" && tab !== "trash" && articles.length > 0;
+  const searching = query.trim().length > 0;
 
   async function moveToTrash(article: MyArticleSummary) {
     setBusyId(article.id);
@@ -165,24 +191,72 @@ export function ContentListPage() {
             docs/studio-static-design-final-fix-2026-10-09.md Product Debt。 */}
       </div>
 
-      <nav aria-label="内容状态筛选" className="flex flex-wrap gap-2">
-        {CONTENT_TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => selectTab(item.id)}
-            aria-current={tab === item.id ? "page" : undefined}
-            className={cn(
-              "rounded-md border border-border px-3 py-1.5 text-sm transition-colors",
-              tab === item.id
-                ? "bg-muted font-medium text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
+      {/*
+        Toolbar (§3.6: 搜索 + 筛选 + 新建). 新建 is the header button above; this
+        block carries the other two, in the order the design names them. Wrapped in
+        one flex column so search and tabs read as a single unit — the outer
+        `.section-gap` keeps them 32px clear of the counters and the list.
+      */}
+      <div className="flex flex-col gap-3">
+        {showSearch ? (
+          <div className="flex w-full min-w-0 items-center gap-2 sm:max-w-md">
+            <label className="relative block w-full min-w-0">
+              <span className="sr-only">搜索文章</span>
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70"
+                aria-hidden
+              />
+              {/*
+                `type="search"` maps to the ARIA `searchbox` role, NOT `textbox`
+                (see the note in TopicsFilterBar, which had to use `type="text"`
+                to keep a `getByRole("textbox")` contract). Nothing on this page
+                queries it as a textbox, so the honest role wins: tests should
+                reach it with `getByRole("searchbox", { name: "搜索文章" })`.
+              */}
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索标题"
+                className="focus-ring h-9 w-full rounded-lg border border-input bg-surface-sunken/60 pl-9 pr-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground/70 focus-visible:border-accent-line focus-visible:bg-card"
+              />
+            </label>
+            {/*
+              A <button>, never a <Link>: this page's contract test asserts that
+              every link on it resolves into /studio/content, and clearing a local
+              input navigates nowhere.
+            */}
+            {searching ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="focus-ring shrink-0 rounded-sm text-xs text-muted-foreground transition-colors hover:text-accent-strong"
+              >
+                清除搜索
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        <nav aria-label="内容状态筛选" className="flex flex-wrap gap-2">
+          {CONTENT_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => selectTab(item.id)}
+              aria-current={tab === item.id ? "page" : undefined}
+              className={cn(
+                "rounded-md border border-border px-3 py-1.5 text-sm transition-colors",
+                tab === item.id
+                  ? "bg-muted font-medium text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       {actionError ? (
         <div
@@ -212,7 +286,22 @@ export function ContentListPage() {
           </Button>
         </div>
       ) : visible.length === 0 ? (
-        <PageState kind="empty" title={emptyTitle(tab)} description={emptyHint(tab)} />
+        /*
+         * Two different empty states, and conflating them would lie:
+         *  - the tab itself is empty, or the query is blank  -> the tab's own copy;
+         *  - the tab HAS rows but the query matches none      -> a search message.
+         * Showing 「还没有文章」 to an author who has twenty and merely typed a
+         * keyword is the kind of falsehood this branch exists to prevent.
+         */
+        searching && tabbed.length > 0 ? (
+          <PageState
+            kind="empty"
+            title="没有匹配的文章"
+            description="换个关键词试试，或清空搜索查看全部内容。"
+          />
+        ) : (
+          <PageState kind="empty" title={emptyTitle(tab)} description={emptyHint(tab)} />
+        )
       ) : (
         <ul className="grid gap-3" data-testid="content-rows">
           {visible.map((article) => (
@@ -233,13 +322,13 @@ export function ContentListPage() {
                 <div className="flex shrink-0 flex-wrap gap-3">
                   <Link
                     to={`/studio/content/${encodeURIComponent(article.id)}`}
-                    className="text-sm text-accent hover:underline"
+                    className="text-sm text-accent-strong hover:underline"
                   >
                     编辑
                   </Link>
                   <Link
                     to={`/studio/content/${encodeURIComponent(article.id)}/versions`}
-                    className="text-sm text-accent hover:underline"
+                    className="text-sm text-accent-strong hover:underline"
                   >
                     版本历史
                   </Link>
@@ -334,7 +423,7 @@ function TrashPanel({
                 type="button"
                 disabled={restoring}
                 onClick={() => onRestore(item.objectId)}
-                className="text-sm text-accent hover:underline disabled:opacity-50"
+                className="text-sm text-accent-strong hover:underline disabled:opacity-50"
               >
                 {restoring ? "恢复中…" : "恢复"}
               </button>

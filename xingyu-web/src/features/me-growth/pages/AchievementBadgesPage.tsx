@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Award, Lock, Sparkles } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { badgesApi } from "@/api/badges/badges.api";
 import type { BadgeView } from "@/api/badges/badges.types";
 import { PageState } from "@/components/shared/PageState";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import {
   badgeDescription,
@@ -53,6 +53,9 @@ function isAuthError(err: unknown): boolean {
 
 export function AchievementBadgesPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  /* Bumping the key replays the load effect — the retry mechanism for the
+     error branch below. The effect keeps its per-run `active` guard. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -75,7 +78,7 @@ export function AchievementBadgesPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   if (state.kind === "loading") return <PageState kind="loading" />;
 
@@ -93,11 +96,19 @@ export function AchievementBadgesPage() {
         />
         {state.expired ? (
           <p className="text-center">
-            <Link to="/login" className="text-sm text-accent hover:underline">
+            <Link to="/login" className="text-sm text-accent-strong hover:underline">
               去登录
             </Link>
           </p>
-        ) : null}
+        ) : (
+          /* Not an auth failure — the load itself failed, so offer the load
+             again instead of leaving the reader at a dead end. */
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+              重新加载
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -110,11 +121,8 @@ export function AchievementBadgesPage() {
     // the difference matters, and the user cannot tell them apart otherwise.
     return (
       <div className="section-gap">
-        <header className="rounded-lg border border-border bg-card p-5">
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-            <Award className="h-5 w-5" aria-hidden />
-            徽章成就
-          </h1>
+        <header className="border-b border-border/70 pb-5">
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">徽章成就</h1>
         </header>
         <PageState
           kind="empty"
@@ -130,17 +138,14 @@ export function AchievementBadgesPage() {
 
   return (
     <div className="section-gap">
-      <header className="rounded-lg border border-border bg-card p-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary">
-          <Award className="h-5 w-5" aria-hidden />
-          徽章成就
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+      <header className="border-b border-border/70 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">徽章成就</h1>
+        <p className="lede mt-2 max-w-2xl">
           徽章由你的社区行为实时判定：创作、关注、完善资料都会改变它们的状态。
         </p>
       </header>
 
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">当前进度</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           当前已点亮 <strong className="text-primary">{earnedCount}</strong> 枚，共{" "}
@@ -151,7 +156,7 @@ export function AchievementBadgesPage() {
             science-fiction denominator. */}
       </section>
 
-      <section className="rounded-lg border border-border bg-card">
+      <section className="rounded-xl border border-border/70 bg-card">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="section-heading">全部徽章</h2>
           <span className="text-xs text-muted-foreground">
@@ -174,7 +179,7 @@ export function AchievementBadgesPage() {
               >
                 <div className="flex items-center justify-between">
                   {earned ? (
-                    <Sparkles aria-label="已点亮" className="h-4 w-4 text-accent" />
+                    <Sparkles aria-label="已点亮" className="h-4 w-4 text-accent-strong" />
                   ) : (
                     <Lock aria-label="未点亮" className="h-4 w-4 text-muted-foreground" />
                   )}
@@ -183,7 +188,7 @@ export function AchievementBadgesPage() {
                     className={cn(
                       "rounded-full border px-2 py-0.5 text-xs",
                       earned
-                        ? "border-accent/50 text-accent"
+                        ? "border-accent/50 text-accent-strong"
                         : "border-border text-muted-foreground",
                     )}
                   >

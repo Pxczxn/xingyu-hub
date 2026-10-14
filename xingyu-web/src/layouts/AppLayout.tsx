@@ -148,13 +148,22 @@ function SearchForm({
   );
 }
 
-/** Compact unread badge shared by the notification and message entries. */
+/**
+ * Compact unread badge shared by the notification and message entries.
+ *
+ * 2026-10-13 (batch 07c): 10px -> 11px. This is the SAME NUMBER as the unread badge
+ * on a mailbox row (ConversationRow), and one number cannot be two sizes in one app —
+ * the 1px difference is invisible on its own and obvious the moment the header badge
+ * and the row badge are on screen together. 11px still fits the 16px disc (`h-4` +
+ * `leading-none` leaves ~2.5px above and below), and this is a count the reader is
+ * meant to catch without reading, which is exactly what 10px stops being.
+ */
 function UnreadBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <span
       aria-hidden
-      className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-accent-foreground ring-2 ring-card"
+      className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[11px] font-semibold leading-none text-accent-foreground ring-2 ring-card"
     >
       {count > 99 ? "99+" : count}
     </span>
@@ -292,6 +301,19 @@ export function AppLayout() {
     });
   }, [isAuthenticated, subscribe, push]);
 
+  /*
+   * The article editor is the ONE stated exception to 「Shell 不动」 (plan §一:
+   * 「唯一例外是编辑器页（§3.6），它使用独立全宽布局」). `.content-shell` caps a page
+   * at 1200px and pads it on all sides; the editor wants the whole viewport for
+   * its outline | body | settings columns, so it gets a bare `<main>` instead.
+   *
+   * Matched by SHAPE — exactly one segment after `/studio/content/` — rather than
+   * by prefix, so the LIST (`/studio/content`) and the version history
+   * (`/studio/content/<id>/versions`) keep the normal shell. The plan's exception
+   * is one page, not a whole section.
+   */
+  const isEditorRoute = /^\/studio\/content\/[^/]+$/.test(location.pathname);
+
   return (
     <div className="flex min-h-full flex-col bg-background">
       {/* First tab stop on every route — the header is ~10 stops long. */}
@@ -327,6 +349,13 @@ export function AppLayout() {
            * switches at `lg:block`, so this is the breakpoint header content
            * already uses. Between 768 and 1023 the hamburger + sheet take over,
            * which is the same navigation a phone gets.
+           *
+           * 2026-10-13: the 813px above counts the nav ICONS (7 × 22px = 154px),
+           * which squeezed the search box to 73px at exactly 1024 — the placeholder
+           * truncated to a single character 「搜」. The icons are aria-hidden
+           * decoration, so below `xl` they drop out of the flex row entirely and
+           * their 154px goes to the search box (224px at 1024, 340px at 1152);
+           * from `xl` (1280) up they return — measured, nothing else moves.
            */}
           <nav aria-label="主导航" className="hidden items-center gap-0.5 lg:flex">
             {NAV_ITEMS.map((item) => {
@@ -344,7 +373,7 @@ export function AppLayout() {
                       : "text-muted-foreground hover:bg-surface-sunken hover:text-foreground",
                   )}
                 >
-                  <Icon className="h-4 w-4" aria-hidden />
+                  <Icon className="hidden h-4 w-4 xl:block" aria-hidden />
                   {item.label}
                 </Link>
               );
@@ -498,7 +527,7 @@ export function AppLayout() {
         ) : null}
       </header>
 
-      <main id="main" className="content-shell flex-1">
+      <main id="main" className={cn("flex-1", !isEditorRoute && "content-shell")}>
         {/* P1-1: the single Suspense boundary for every lazy route page.
             It sits INSIDE the shell so the header (nav, search, unread badges)
             and the footer stay mounted while a route chunk downloads — a
@@ -516,7 +545,23 @@ export function AppLayout() {
         */}
         <PageErrorBoundary resetKey={location.pathname}>
           <Suspense fallback={<PageState kind="loading" />}>
-            <Outlet />
+            {/*
+              Route entrance animation (docs/design-system/前端Layout设计方案.md §6.2).
+
+              `key` is the pathname, not `location.key`: the animation should mark
+              "you are on a different page now", so a search-param change on the
+              same page (?page=2, a filter) must not replay it. Re-mounting is not
+              an extra cost — a pathname change already swaps the component Outlet
+              renders; the key only makes that explicit.
+
+              It sits INSIDE Suspense on purpose. When a route chunk still has to
+              download, React renders the fallback without mounting these children,
+              so the animation lands on the frame the real content appears rather
+              than on the loading placeholder.
+            */}
+            <div key={location.pathname} className="animate-page-enter">
+              <Outlet />
+            </div>
           </Suspense>
         </PageErrorBoundary>
       </main>
