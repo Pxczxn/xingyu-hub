@@ -144,7 +144,7 @@ export function SettingsSessionsPage() {
           <span className="text-meta tabular-nums text-muted-foreground">{sessions.length}</span>
         </div>
         <p className="lede mt-1.5 max-w-2xl">
-          当前账号仍有效的登录会话。发现不认识的设备时，退出该会话并修改密码。
+          当前账号仍有效的登录会话。探索到不认识的设备时，退出该会话并修改密码。
         </p>
       </section>
 

@@ -217,7 +217,7 @@ export function RegisterPage() {
         <header>
           <h1 className="text-2xl font-semibold tracking-tight text-primary">注册星语</h1>
           <p className="mt-1.5 text-meta leading-6 text-muted-foreground">
-            创建账号，开始创作与发现。
+            创建账号，开始创作与探索。
           </p>
         </header>
 

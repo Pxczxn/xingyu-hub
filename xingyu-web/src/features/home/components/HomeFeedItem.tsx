@@ -247,7 +247,16 @@ export function HomeFeedItem({
   }
 
   return (
-    <article className={cn("flex gap-4 py-4 first:pt-4 last:pb-4", className)}>
+    <article
+      className={cn(
+        "group relative",
+        "flex gap-4 p-4",
+        "transition-all duration-200",
+        "hover:-translate-y-1 hover:bg-surface-soft/40",
+        "rounded-xl border border-border/30 hover:border-border hover:border-2",
+        className,
+      )}
+    >
       <div className="min-w-0 flex-1">
         {hasHeader ? (
           <div
@@ -297,7 +306,7 @@ export function HomeFeedItem({
 
         <Link
           to={href}
-          className="focus-ring block line-clamp-2 text-base font-semibold leading-6 text-foreground hover:text-accent-strong md:text-[17px]"
+          className="focus-ring block line-clamp-2 text-base font-semibold leading-6 text-foreground md:text-[17px]"
         >
           {item.title}
         </Link>
@@ -334,7 +343,7 @@ export function HomeFeedItem({
         ) : null}
 
         {hasLikes || hasComments || canBookmark ? (
-          <div className="mt-2.5 flex items-center gap-5 text-xs text-muted-foreground">
+          <div className="mt-3 flex items-center gap-4">
             {canLike ? (
               <button
                 type="button"
@@ -343,41 +352,40 @@ export function HomeFeedItem({
                 aria-pressed={liked === true}
                 aria-label={`${likeCount ?? 0} 次点赞`}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors disabled:opacity-50",
-                  liked ? "hover:bg-muted" : "hover:bg-muted hover:text-foreground",
+                  "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all disabled:opacity-50",
+                  liked
+                    ? "bg-accent/10 text-accent-strong hover:bg-accent/15"
+                    : "text-foreground/70 hover:bg-muted hover:text-foreground",
                 )}
               >
-                {/*
-                 * Semantic colour split, not a blanket token swap.
-                 *
-                 * The heart is a filled mark and is `aria-hidden` — it is
-                 * decoration, so it keeps the vivid brand gold. The count beside it
-                 * is TEXT and resolves through --accent-strong, because raw gold on
-                 * white measures 2.15:1 while accent-strong measures 5.05:1.
-                 */}
                 <Heart
-                  className={cn("h-3.5 w-3.5", liked && "fill-current text-accent")}
+                  className={cn("h-4 w-4 transition-transform", liked && "fill-current scale-110")}
                   aria-hidden
                 />
                 {typeof likeCount === "number" && likeCount > 0 ? (
-                  <span className={cn("tabular-nums", liked && "text-accent-strong")}>
-                    {likeCount}
-                  </span>
+                  <span className="tabular-nums">{likeCount}</span>
                 ) : null}
               </button>
             ) : hasLikes ? (
-              <span className="inline-flex items-center gap-1.5" aria-label={`${likeCount} 次点赞`}>
-                <Heart className="h-3.5 w-3.5" aria-hidden />
-                {likeCount > 0 ? <span className="tabular-nums">{likeCount}</span> : null}
-              </span>
+              <Link
+                to="/login?redirect=/home"
+                className="inline-flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5 text-sm font-medium text-foreground/70 transition-all hover:bg-accent/10 hover:text-accent-strong"
+                aria-label={`${likeCount ?? 0} 次点赞`}
+                title="登录后点赞"
+              >
+                <Heart className="h-4 w-4" aria-hidden />
+                {typeof likeCount === "number" && likeCount > 0 ? (
+                  <span className="tabular-nums">{likeCount}</span>
+                ) : null}
+              </Link>
             ) : null}
 
             {hasComments ? (
               <span
-                className="inline-flex items-center gap-1.5"
+                className="inline-flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5 text-sm font-medium text-foreground/70"
                 aria-label={`${item.commentCount} 条评论`}
               >
-                <MessageSquare className="h-3.5 w-3.5" aria-hidden />
+                <MessageSquare className="h-4 w-4" aria-hidden />
                 {typeof item.commentCount === "number" && item.commentCount > 0 ? (
                   <span className="tabular-nums">{item.commentCount}</span>
                 ) : null}
@@ -391,21 +399,17 @@ export function HomeFeedItem({
                 disabled={bookmarkPending}
                 aria-pressed={bookmarked === true}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors disabled:opacity-50",
-                  bookmarked ? "hover:bg-muted" : "hover:bg-muted hover:text-foreground",
+                  "ml-auto inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all disabled:opacity-50",
+                  bookmarked
+                    ? "bg-accent/10 text-accent-strong hover:bg-accent/15"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                {/*
-                 * Same split as the heart above: the filled mark keeps the vivid
-                 * gold, the label beside it resolves through `--accent-strong`.
-                 * The button also carries `aria-pressed` and swaps 收藏 / 已收藏,
-                 * so colour is never the only carrier of the state.
-                 */}
                 <Bookmark
-                  className={cn("h-3.5 w-3.5", bookmarked && "fill-current text-accent")}
+                  className={cn("h-4 w-4", bookmarked && "fill-current")}
                   aria-hidden
                 />
-                {bookmarked ? <span className="text-accent-strong">已收藏</span> : "收藏"}
+                {bookmarked ? "已收藏" : "收藏"}
               </button>
             ) : null}
           </div>

@@ -2,22 +2,18 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /*
- * Home feed switcher.
+ * Home feed switcher — 推荐 / 关注
  *
- * Two tabs only — 推荐 / 关注. Both are backed by real payload fields of the
- * home composition endpoint:
+ * 设计升级（2026-10-14）：
+ *  - 从简单下划线 → 现代卡片式切换
+ *  - 增加动效：悬浮、点击、切换
+ *  - 增加视觉细节：背景、阴影、滑动指示器
+ *
+ * 两个 tab 对应真实数据：
  *   - 推荐 -> MeHomeView.recommendations   | GuestHomeView.discoveries
  *   - 关注 -> MeHomeView.followUpdates     | GuestHomeView.followingUpdates
  *
- * 最新 is deliberately ABSENT. There is no chronological "latest content"
- * endpoint in this codebase (checked the whole `src/api` surface): /api/v1/discover
- * takes no sort parameter and /api/v1/search?sort=latest requires a keyword.
- * A third tab would therefore be a control that can never return data, so it is
- * not rendered at all rather than mocked.
- *
- * `trailing` is a slot on the right of the same row, used by the home page for
- * 查看更多. It is a slot rather than a hardcoded link because the correct target
- * depends on the active tab, and this component does not know which routes exist.
+ * `trailing` 是右侧插槽，首页用来放"查看更多推荐"
  */
 
 export type HomeFeedTab = "recommend" | "following";
@@ -39,11 +35,26 @@ export function HomeFeedTabs({
   trailing?: ReactNode;
   className?: string;
 }) {
+  const selectedIndex = TABS.findIndex((tab) => tab.id === value);
+
   return (
-    <div
-      className={cn("flex items-center justify-between gap-4 border-b border-border", className)}
-    >
-      <div role="tablist" aria-label="首页内容流" className="flex items-center gap-1">
+    <div className={cn("flex items-center justify-between gap-4", className)}>
+      {/* Tab 列表 - 现代卡片式设计 */}
+      <div
+        role="tablist"
+        aria-label="首页内容流"
+        className="relative inline-flex items-center gap-1 rounded-lg bg-muted/50 p-1"
+      >
+        {/* 滑动背景指示器 */}
+        <div
+          className="absolute left-1 top-1 bottom-1 rounded-md bg-background shadow-sm transition-all duration-200 ease-out"
+          style={{
+            width: `calc(50% - 4px)`,
+            transform: `translateX(${selectedIndex * 100}%)`,
+          }}
+          aria-hidden="true"
+        />
+
         {TABS.map((tab) => {
           const selected = tab.id === value;
           return (
@@ -56,18 +67,27 @@ export function HomeFeedTabs({
               aria-controls={`home-tabpanel-${tab.id}`}
               onClick={() => onChange(tab.id)}
               className={cn(
-                "-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+                "relative z-10 px-4 py-2 text-sm font-medium transition-all duration-200",
+                "rounded-md",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 selected
-                  ? "border-accent text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground active:scale-95",
               )}
             >
-              {tab.label}
+              {/* Tab 文字 */}
+              <span className="relative">{tab.label}</span>
             </button>
           );
         })}
       </div>
-      {trailing ? <div className="shrink-0 pb-1 text-xs">{trailing}</div> : null}
+
+      {/* 右侧插槽 - "查看更多推荐" */}
+      {trailing ? (
+        <div className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          {trailing}
+        </div>
+      ) : null}
     </div>
   );
 }

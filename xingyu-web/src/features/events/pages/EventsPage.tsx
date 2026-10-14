@@ -214,7 +214,7 @@ export function EventsPage({ now = Date.now() }: { now?: number } = {}) {
       <PageHero
         eyebrow="EVENTS"
         title="社区活动"
-        description="发现正在进行的活动，和同好一起参与创作。"
+        description="探索正在进行的活动，和同好一起参与创作。"
         illustration={
           <IllustrationSlot id="hero" fallback={<LostOrbit className="h-full w-full" />} />
         }

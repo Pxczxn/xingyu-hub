@@ -130,8 +130,8 @@ export function DiscoverPage() {
        */}
       <PageMasthead
         eyebrow="EXPLORE"
-        title="发现"
-        description="从话题与内容出发，探索社区里正在发生的事。"
+        title="探索"
+        description="从内容、话题、系列中找到新的兴趣方向。"
       />
 
       {/* P0: the picks. Everything above this line is a caption for them. */}

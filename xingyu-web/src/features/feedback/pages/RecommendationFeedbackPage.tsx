@@ -262,7 +262,7 @@ export function RecommendationFeedbackPage() {
 
       <p className="text-center">
         <Link to="/discover" className="text-sm text-accent-strong hover:underline">
-          去发现内容
+          去探索内容
         </Link>
       </p>
     </div>

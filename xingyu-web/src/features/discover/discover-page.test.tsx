@@ -60,7 +60,7 @@ describe("discover page", () => {
     await waitFor(() => expect(mocked.getDiscover).toHaveBeenCalled());
     expect(await screen.findByText("真实发现内容")).toBeInTheDocument();
     expect(screen.getByTestId("discover-results")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "发现" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "探索" })).toBeInTheDocument();
   });
 
   it("renders real topics as exploration links", async () => {

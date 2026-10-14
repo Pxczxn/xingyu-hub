@@ -37,7 +37,7 @@ const COPY: Record<Direction, { title: string; empty: string; emptyHint: string 
   following: {
     title: "我的关注",
     empty: "还没有关注任何人",
-    emptyHint: "在发现页找到感兴趣的创作者，关注后会出现在这里。",
+    emptyHint: "在探索页找到感兴趣的创作者，关注后会出现在这里。",
   },
   followers: {
     title: "我的粉丝",

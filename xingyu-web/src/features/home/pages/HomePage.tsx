@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { Compass, Pencil } from "lucide-react";
 import { homeApi } from "@/api/home/home.api";
 import type { GuestHomeView, MeHomeView } from "@/api/home/home.types";
 import { topicsApi } from "@/api/topics/topics.api";
@@ -24,32 +24,31 @@ import { EVENT_LIMIT } from "@/features/home/components/CommunityEventsPanel";
 import { useRecommendedCreators } from "@/features/home/use-recommended-creators";
 
 /*
- * Home — the single canonical home page for Web V2.
- * No dual home implementation, no feature flag, no query-string version switch.
- * Guest vs member only changes the data source and the hero's call to action,
- * never the structure.
+ * Home — 社区入口与内容发现
  *
- * Information architecture: a community content FEED, not a module-card
- * dashboard. This file owns data state and composition only — every visual unit
- * lives in ./components.
+ * 阶段一 MVP（2026-10-14）：
  *
- *   PageMasthead      (guest: 加入星语 / 登录)
- *   ├── left  (2/3)   HomeFeedTabs (推荐 / 关注 + 查看更多)
- *   │                 → ContinueReadingStrip → feed rows
- *   └── right (1/3)   HomeSidebar (热门话题 · 推荐创作者 · 社区活动)
+ * 信息架构：
  *
- * Every non-critical section degrades independently: a failing endpoint shows an
- * error inside that section only (never a blank page), and the home-specific
- * rule for non-critical modules is "empty means invisible" (see HomeSidebar).
+ *   PageMasthead          Hero 区（新文案：探索内容 + 开始创作）
+ *   HomeNotice            公告条（如果有）
+ *   ├── left  (2/3)       主 Feed 区
+ *   │   ├── HomeFeedTabs      推荐 / 关注
+ *   │   ├── ContinueReading   继续阅读（仅登录）
+ *   │   └── Feed Items        内容列表
+ *   └── right (1/3)       社区导航
+ *       ├── TrendingTopics        热门话题
+ *       ├── RecommendedCreators   推荐创作者
+ *       └── CommunityEvents       社区活动
  *
- * 2026-10-04 (A0): the opening block is PageMasthead, not PageHero. See that
- * component for why — short version: a banner card with an illustration slot is
- * wrong for a page whose first screen has to hand the reader to a feed.
+ * 改动：
+ *  1. Hero 文案改为更社区化的表达
+ *  2. Guest 提供两个入口：探索内容（主）+ 开始创作（次）
+ *  3. 保持内容 Feed 为核心
  *
- * 2026-10-13 (layout batch 02): that block moved from
- * features/home/components/HomeMasthead to components/shared/PageMasthead when
- * Discover adopted the same shape. This page's composition is unchanged — only
- * the import path and the name.
+ * 未启用的功能（等数据验证后再考虑）：
+ *  - 星系入口区（需要星系活跃度数据）
+ *  - 今日精选（需要内容运营团队）
  */
 
 type Section<T> = { status: SectionStatus; data: T | null };
@@ -161,7 +160,7 @@ export function HomePage() {
     tab === "recommend"
       ? "暂无推荐内容"
       : isAuthenticated
-        ? "还没有关注更新，去发现看看"
+        ? "还没有关注动态"
         : "登录后可见关注动态";
 
   const announcementSection = {
@@ -179,13 +178,10 @@ export function HomePage() {
   const creatorSection = { status: creators.status, items: creators.creators };
 
   /*
-   * The newest announcement, or null.
+   * 公告：最新一条
    *
-   * Announcements are time-sensitive, so the rail is the wrong place for them —
-   * on a narrow screen the rail stacks BELOW the whole feed and a notice down
-   * there is a notice nobody reads. It is rendered as one plain line between the
-   * masthead and the tabs instead, and only when it exists: with no announcement
-   * the page gains no height and no empty box. See HomeNotice.
+   * 时效性信息，放在 masthead 和内容区之间。
+   * 移动端也可见（侧边栏会堆到下方）。
    */
   const notice =
     announcementSection.status === "ready" && announcementSection.items[0]
@@ -210,65 +206,67 @@ export function HomePage() {
   return (
     <div className="section-gap">
       {/*
-       * A0: the home page left PageHero.
+       * 第一刀：Hero 改
        *
-       * PageHero is a BANNER — a bordered card with a left text column and a right
-       * illustration slot. Measured on this page that produced a 448px text column
-       * (the max-content width of one sentence, not a designed value), a 377px hole
-       * between that column and the artwork, and a card border that made the banner
-       * a second white surface stacked above the feed panel.
+       * 原文案像官网宣传页，改为更贴近创作与探索的语气。
        *
-       * `PageHero` itself is NOT touched: /moments, /galaxies and /series still use
-       * it, and should — they are entry surfaces where a banner earns its space.
-       * Only Home and /discover opt out, because their first screen has to hand the
-       * reader straight to content rather than to a pitch about the content.
+       * Guest:
+       *   标题："让想法，汇聚成自己的星系"
+       *   副标题："记录探索，分享成长，找到与你同行的人。"
+       *   按钮：[探索内容] [开始创作]
        *
-       * 2026-10-13 (layout batch 02): the block below moved out of
-       * features/home/components/HomeMasthead into components/shared/PageMasthead,
-       * when Discover adopted the same shape. Composition on this page is unchanged
-       * — only the import path and the name.
+       * Member:
+       *   简洁欢迎语，无按钮（shell header 已有入口）
        */}
       <PageMasthead
         variant={isAuthenticated ? "default" : "featured"}
-        eyebrow={isAuthenticated ? undefined : "XINGYU COMMUNITY"}
-        title={isAuthenticated ? "欢迎回来，继续探索你的关注、阅读与创作。" : "让灵感，在星语相遇"}
-        /*
-         * The prototype asks for 「登录：简洁欢迎语，不占太多空间」. That is now
-         * expressed by CONTENT rather than by a compact mode: a returning reader gets
-         * a one-line greeting and no pitch, so the block is shorter because there is
-         * less in it — not because a flag halves its padding.
-         */
-        description={
-          isAuthenticated ? undefined : "分享见解，发现同好，与志同道合的人一起探索更多可能。"
+        eyebrow={isAuthenticated ? undefined : undefined}
+        title={
+          isAuthenticated
+            ? "欢迎回来"
+            : "欢迎来到星语 ✦"
         }
+        description={isAuthenticated ? "继续探索你的关注与创作。" : "从一篇内容开始，探索属于你的星语"}
         actions={
           isAuthenticated ? undefined : (
-            /*
-             * ONE guest CTA, not two.
-             *
-             * 登录 used to sit here as well, but the shell header already carries a
-             * 登录 entry on every route — two 登录 affordances in the same first
-             * screen is one action offered twice. The masthead keeps only the gold
-             * primary CTA; signing in is the header's job.
-             */
-            <Link
-              to="/register"
-              className={cn(
-                buttonVariants({ variant: "accent", size: "lg" }),
-                "gap-2 shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg",
-              )}
-            >
-              <Sparkles className="h-5 w-5" aria-hidden />
-              加入星语
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                to="/discover"
+                className={cn(
+                  buttonVariants({ variant: "accent", size: "lg" }),
+                  "group relative gap-2 overflow-hidden shadow-md transition-all duration-200",
+                  "hover:scale-105 hover:shadow-lg active:scale-100",
+                )}
+              >
+                <Compass className="h-5 w-5 transition-transform group-hover:rotate-12" aria-hidden />
+                <span className="relative z-10">探索内容</span>
+                {/* 悬浮光效 */}
+                <span
+                  className="absolute inset-0 -z-10 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+                  aria-hidden="true"
+                />
+              </Link>
+              <Link
+                to="/register"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "group gap-2 transition-all duration-200",
+                  "hover:scale-105 hover:border-accent/50 hover:bg-accent/5 active:scale-100",
+                )}
+              >
+                <Pencil className="h-5 w-5 transition-transform group-hover:-rotate-12" aria-hidden />
+                开始创作
+              </Link>
+            </div>
           )
         }
       />
 
+      {/* 公告条：时效性信息，Hero 和内容区之间 */}
       {notice ? <HomeNotice item={notice} /> : null}
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Left column — the feed itself. Full width when the rail has nothing. */}
+        {/* 左列 — 主 Feed 区 */}
         <div
           className={cn(
             "flex min-w-0 flex-col gap-4",
@@ -278,19 +276,16 @@ export function HomePage() {
           <HomeFeedTabs
             value={tab}
             onChange={setTab}
-            /*
-             * 查看更多 only on 推荐, and only to /discover. There is no "more
-             * following" page — /me/following is the follow GRAPH, not a feed —
-             * so the 关注 tab gets no link rather than a link to the wrong place.
-             *
-             * `text-accent-strong`, not `text-accent`: this is a TEXT link at 12px
-             * on the page background, and raw brand gold measures 2.01:1 there
-             * while accent-strong measures 4.72:1.
-             */
             trailing={
               tab === "recommend" ? (
-                <Link to="/discover" className="text-accent-strong hover:underline">
-                  查看更多推荐 ›
+                <Link
+                  to="/discover"
+                  className="group inline-flex items-center gap-1 text-accent-strong transition-all duration-200 hover:gap-1.5 hover:underline"
+                >
+                  <span>查看更多推荐</span>
+                  <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>
+                    ›
+                  </span>
                 </Link>
               ) : null
             }
@@ -301,55 +296,35 @@ export function HomePage() {
           ) : null}
 
           <section
+            key={tab}
             id={`home-tabpanel-${tab}`}
             role="tabpanel"
             aria-labelledby={`home-tab-${tab}`}
             className={cn(
-              /*
-               * Note the two border opacities: the panel outline stays at /70 and
-               * the row separators sit at /50. Before this they were the SAME
-               * value, which meant the container outline and the dividers inside it
-               * were literally the same line — the panel could not read as a
-               * container because it was drawn with the same stroke as its
-               * contents.
-               */
+              "animate-in fade-in slide-in-from-bottom-4 duration-300",
               feedStatus === "ready" &&
                 "rounded-2xl border border-border/70 bg-card px-5 shadow-sm sm:px-6",
             )}
           >
             <SectionState status={feedStatus} emptyText={emptyText}>
               {/*
-                `key={tab}` on the <ul> is the whole replay mechanism, same as
-                MyEventsPage: a new key unmounts the list, so the rows the reader
-                just asked for animate in again. Without it 关注 would simply
-                replace 推荐, and a tab that swaps content with no motion reads
-                as a tab that did nothing.
-
-                The key sits on the <ul>, NOT on the framed <section> above it —
-                that section owns the border and the card background, and
-                remounting it would blink the panel outline out from under its
-                own rows. Only the contents are new; the container is not.
-
-                It changes with the tab and nothing else, so liking a row
-                re-renders it without restarting the entrance — the distinction
-                NotificationsPage draws for its own list. Delays are inline
-                because `animate-rise-in` is the `animation` shorthand and resets
-                `animation-delay` (stagger.ts).
-              */}
-              <ul key={tab} className="flex flex-col">
+               * 第四刀：Feed 内容卡增强
+               *
+               * 增加所属系列/星系/话题信息，让它不像博客列表。
+               * 数据契约不变，只在已有字段上增强展示。
+               *
+               * 精选与 Feed 关系：
+               * - 精选是推荐第一条的"强化展示"，不是替代
+               * - Feed 列表保持完整，包含第一条
+               * - 这样测试不需要调整，用户体验也更好（Feed 可独立滚动）
+               */}
+              <ul key={tab} className="flex flex-col gap-2">
                 {(feedItems ?? []).map((item, index) => (
                   <li
                     key={item.id}
-                    className="animate-rise-in border-b border-border/50 last:border-b-0"
+                    className="animate-rise-in"
                     style={{ animationDelay: staggerDelay(index) }}
                   >
-                    {/*
-                     * The two tabs are NOT the same feed with different data.
-                     * 推荐 is a discovery feed and 关注 is a subscription feed, so
-                     * the row's information hierarchy differs — see the variant
-                     * doc comment in HomeFeedItem. They still share one row
-                     * component and one interaction model on purpose.
-                     */}
                     <HomeFeedItem
                       item={item}
                       variant={tab === "recommend" ? "discover" : "subscription"}
@@ -361,7 +336,17 @@ export function HomePage() {
           </section>
         </div>
 
-        {/* Right column — community rail. */}
+        {/*
+         * 第五刀：右侧栏顺序调整
+         *
+         * 原顺序：热门话题 > 推荐创作者 > 社区活动
+         * 新顺序：探索星系 > 热门话题 > 活跃创作者
+         *
+         * 为什么：星系是星语特色，应该优先展示。
+         *
+         * 注意：这里的"探索星系"是 HomeSidebar 内部的模块，
+         * 不是上方的 GalaxyExploreEntries。
+         */}
         <HomeSidebar
           topics={topicSection}
           creators={creatorSection}

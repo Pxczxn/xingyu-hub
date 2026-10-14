@@ -140,9 +140,9 @@ export function CreatorsPage() {
     <div className="section-gap">
       <header className="border-b border-border/70 pb-5">
         <p className="eyebrow mb-2.5">CREATORS</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">发现创作者</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary">探索创作者</h1>
         <p className="mt-2.5 max-w-xl text-sm leading-6 text-muted-foreground">
-          从社区专题中发现持续创作的人。
+          从社区专题中探索持续创作的人。
         </p>
       </header>
 
@@ -168,7 +168,7 @@ export function CreatorsPage() {
       ) : null}
 
       {!loading && !failed && !hasAnyTopic ? (
-        <PageState kind="empty" title="暂无专题" description="社区还没有可用于发现创作者的专题。" />
+        <PageState kind="empty" title="暂无专题" description="社区还没有可用于探索创作者的专题。" />
       ) : null}
 
       {!loading && !failed && hasAnyTopic ? (
@@ -223,7 +223,7 @@ export function CreatorsPage() {
               <PageState
                 kind="empty"
                 title="暂无可推荐的作者"
-                description="已收录的专题下暂时还没有已发布的内容，因此无法据此发现作者。"
+                description="已收录的专题下暂时还没有已发布的内容，因此无法据此探索作者。"
               />
             ) : (
               <PageState kind="empty" title="暂无匹配作者" description="调整专题或关键词后再试。" />

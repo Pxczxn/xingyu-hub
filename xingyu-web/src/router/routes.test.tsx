@@ -150,7 +150,7 @@ describe("router", () => {
     // Every mocked payload is empty: the feed degrades to its empty state and the
     // non-critical rail renders nothing at all (no placeholder boxes).
     await waitFor(() => expect(screen.getByTestId("section-empty")).toBeInTheDocument());
-    expect(screen.queryByRole("heading", { name: "社区公告" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "星语公告" })).not.toBeInTheDocument();
   });
 
   it("renders the login page at /login", async () => {
@@ -238,7 +238,7 @@ describe("legacy redirect table", () => {
 describe("phase 1A routes", () => {
   it("renders the discover page at /discover", async () => {
     renderAt("/discover");
-    expect(await screen.findByRole("heading", { name: "发现" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "探索" })).toBeInTheDocument();
     // Wait for the (mocked, empty) feed so no state update lands after the test.
     await waitFor(() => expect(screen.getByTestId("page-state-empty")).toBeInTheDocument());
   });

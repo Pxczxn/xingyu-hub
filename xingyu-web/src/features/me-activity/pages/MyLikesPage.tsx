@@ -167,7 +167,7 @@ export function MyLikesPage() {
 
       <p className="text-center">
         <Link to="/discover" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>
-          去发现更多内容
+          去探索更多内容
         </Link>
       </p>
     </div>

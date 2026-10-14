@@ -180,7 +180,7 @@ export function MyReportsPage() {
             <PageState
               kind="empty"
               title="暂无举报记录"
-              description="发现不当内容时，可以通过举报帮助维护社区。"
+              description="探索不当内容时，可以通过举报帮助维护社区。"
             />
           </div>
         ) : (

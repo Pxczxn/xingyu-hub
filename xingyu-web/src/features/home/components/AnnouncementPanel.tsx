@@ -34,7 +34,7 @@ export function AnnouncementPanel({
     >
       <div className="mb-2.5 flex items-center justify-between gap-2">
         <h2 id="home-announcements" className="text-sm font-semibold text-primary">
-          社区公告
+          星语公告
         </h2>
         <Link to="/announcements" className="shrink-0 text-xs text-accent-strong hover:underline">
           全部 ›

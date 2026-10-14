@@ -48,7 +48,7 @@ export function DiscoverFocusGrid({ items }: { items: ContentSummary[] }) {
           id="discover-content"
           className="mb-3 text-lg font-semibold tracking-tight text-primary"
         >
-          发现内容
+          为你发现
         </h2>
         <div
           className={cn(

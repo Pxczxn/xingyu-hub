@@ -88,7 +88,7 @@ import { cn } from "@/lib/cn";
  */
 const NAV_ITEMS = [
   { label: "首页", to: "/", icon: Home },
-  { label: "发现", to: "/discover", icon: Compass },
+  { label: "探索", to: "/discover", icon: Compass },
   { label: "话题", to: "/topics", icon: Hash },
   { label: "系列", to: "/series", icon: BookOpen },
   { label: "星系", to: "/galaxies", icon: Orbit },
@@ -587,7 +587,7 @@ export function AppLayout() {
                 is public), so it shares the footer slot with /events rather than
                 taking a main-nav item. */}
             <Link to="/creators" className="transition-colors hover:text-accent-strong">
-              发现创作者
+              探索创作者
             </Link>
             <Link to="/guide" className="transition-colors hover:text-accent-strong">
               指南

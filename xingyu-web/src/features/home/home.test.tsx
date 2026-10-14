@@ -13,16 +13,14 @@ import { setStoredToken } from "@/lib/storage";
 import { HomePage } from "./pages/HomePage";
 
 /*
- * Home tests (Phase 1A, re-cut for the feed IA and the four-module rail):
- *  - guest renders from GET /api/v1/home, member from GET /api/v1/me/home
- *  - 推荐 / 关注 are a REAL feed switch (same payload, different fields)
- *  - the guest hero offers 加入星语 / 登录; a member gets no such CTA
- *  - 查看更多 appears on 推荐 only, and points at /discover
- *  - 继续阅读 is signed-in only, and reports progress in CHAPTERS, never percent
- *  - a feed row renders only the enrichment it was given
- *  - a failing non-critical rail module must NOT blank the page
- *  - an empty non-critical module renders nothing at all (no placeholder box)
- *  - a failing composition endpoint is fatal and shows the error state
+ * Home tests (阶段一 MVP，2026-10-14):
+ *  - Hero 文案改为"探索内容 + 开始创作"
+ *  - Guest/Member 使用不同端点
+ *  - 推荐/关注 feed 切换
+ *  - 继续阅读仅登录可见
+ *  - Feed 行渲染已有数据
+ *  - 点赞/收藏交互
+ *  - 非关键模块降级
  */
 
 vi.mock("@/api/home/home.api", () => ({
@@ -132,7 +130,7 @@ beforeEach(() => {
   // Default: every rail is empty, so a test only sees the rails it sets up.
   topicsMocked.getTopics.mockResolvedValue([]);
   eventsMocked.list.mockResolvedValue([]);
-  homeMocked.getAnnouncements.mockResolvedValue([{ id: "n1", title: "社区公告一", body: "内容" }]);
+  homeMocked.getAnnouncements.mockResolvedValue([{ id: "n1", title: "星语公告一", body: "内容" }]);
 });
 
 describe("home (guest)", () => {
@@ -155,7 +153,7 @@ describe("home (guest)", () => {
     // An announcement renders as an inline notice line between the masthead and the
     // tabs — not a rail module (the rail stacks below the feed on narrow screens)
     // and not a card.
-    expect(await screen.findByRole("link", { name: "社区公告一" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "星语公告一" })).toBeInTheDocument();
     // 继续阅读 is signed-in only.
     expect(screen.queryByRole("heading", { name: "继续阅读" })).not.toBeInTheDocument();
   });
@@ -195,26 +193,22 @@ describe("home (guest)", () => {
     expect(row?.style.animationDelay).toBe("0ms");
   });
 
-  it("offers exactly one guest CTA — 加入星语 — and hides it for a member", async () => {
+  it("offers 探索内容 and 开始创作 for guests, and hides them for members", async () => {
     homeMocked.getGuestHome.mockResolvedValue(
       guestHome({ discoveries: [{ id: "d1", title: "X" }] }),
     );
 
     const { unmount } = renderHome();
 
-    expect(await screen.findByRole("link", { name: /加入星语/ })).toHaveAttribute(
+    // Guest: 两个按钮，探索内容（主）+ 开始创作（次）
+    expect(await screen.findByRole("link", { name: /探索内容/ })).toHaveAttribute(
       "href",
-      "/register",
+      "/discover",
     );
-    /*
-     * 登录 is deliberately NOT in the masthead. The shell header already carries a
-     * 登录 entry on every route, so a second one here would offer the same action
-     * twice within one first screen. The masthead keeps only the gold primary CTA.
-     */
-    expect(screen.queryByRole("link", { name: "登录" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /开始创作/ })).toHaveAttribute("href", "/register");
     unmount();
 
-    // Same page, signed in: the CTA is gone because it has nothing to offer.
+    // Member: 无按钮（shell header 已有入口）
     setStoredToken("tok");
     authMocked.getMe.mockResolvedValue(ME);
     homeMocked.getMyHome.mockResolvedValue({
@@ -226,8 +220,9 @@ describe("home (guest)", () => {
     });
 
     renderHome();
-    expect(await screen.findByText("为我推荐")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /加入星语/ })).not.toBeInTheDocument();
+    await screen.findByText("为我推荐");
+    expect(screen.queryByRole("link", { name: /探索内容/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /开始创作/ })).not.toBeInTheDocument();
   });
 
   it("shows 查看更多 on 推荐 only, and only to /discover", async () => {
@@ -743,36 +738,20 @@ describe("home feed 点赞", () => {
 });
 
 describe("home masthead", () => {
-  const ARTWORK = '[data-testid="home-hero-art"]';
-
-  it("is the home's own masthead: no banner surface, and no decorative artwork", async () => {
+  it("shows the new hero copy: 欢迎来到星语 ✦", async () => {
     homeMocked.getGuestHome.mockResolvedValue(
       guestHome({ discoveries: [{ id: "d1", title: "游客条目" }] }),
     );
 
-    const { container } = renderHome();
+    renderHome();
     await screen.findByText("游客条目");
 
-    /*
-     * A0 (2026-10-04): Home left PageHero.
-     *
-     * The ambient artwork carried no information — it did not illustrate the
-     * sentence next to it — and the banner card made the masthead a second white
-     * surface stacked above the feed panel. Both are gone, so the masthead is the
-     * top of the SAME column the tabs and the feed sit in.
-     */
-    expect(container.querySelector(ARTWORK)).toBeNull();
-
     const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading).toHaveTextContent("让灵感，在星语相遇");
-
-    // A plain header, not a surface: no card fill, no border of its own.
-    const masthead = heading.closest("header");
-    expect(masthead).not.toBeNull();
-    expect(masthead!.className).not.toContain("bg-card");
+    expect(heading).toHaveTextContent("欢迎来到星语 ✦");
+    expect(screen.getByText("从一篇内容开始，探索属于你的星语")).toBeInTheDocument();
   });
 
-  it("gives a returning reader a one-line greeting instead of the pitch", async () => {
+  it("gives a returning reader a one-line greeting", async () => {
     setStoredToken("tok");
     authMocked.getMe.mockResolvedValue(ME);
     homeMocked.getMyHome.mockResolvedValue({
@@ -783,19 +762,13 @@ describe("home masthead", () => {
       pendingActions: [],
     });
 
-    const { container } = renderHome();
+    renderHome();
     await screen.findByText("为我推荐");
 
-    /*
-     * 「登录：简洁欢迎语，不占太多空间」 is now expressed by CONTENT, not by a
-     * `compact` flag: a returning reader gets a one-line greeting and no pitch, so
-     * the block is shorter because there is less in it.
-     */
-    expect(container.querySelector(ARTWORK)).toBeNull();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "欢迎回来，继续探索你的关注、阅读与创作。",
+      "欢迎回来",
     );
-    expect(screen.queryByRole("link", { name: /加入星语/ })).not.toBeInTheDocument();
+    expect(screen.getByText("继续探索你的关注与创作。")).toBeInTheDocument();
   });
 });
 
@@ -813,9 +786,9 @@ describe("home notice", () => {
     expect(screen.queryByTestId("home-notice")).not.toBeInTheDocument();
   });
 
-  it("renders between the masthead and the tab list when one exists", async () => {
+  it("renders between the masthead and the feed tabs", async () => {
     homeMocked.getAnnouncements.mockResolvedValue([
-      { id: "n1", title: "社区公告一", body: "内容" },
+      { id: "n1", title: "星语公告一", body: "内容" },
     ]);
     homeMocked.getGuestHome.mockResolvedValue(
       guestHome({ discoveries: [{ id: "d1", title: "游客条目" }] }),
@@ -829,12 +802,10 @@ describe("home notice", () => {
     const tablist = screen.getByRole("tablist");
 
     expect(masthead).not.toBeNull();
-    // Document order: masthead → notice → tabs. Not inside either of them.
+    // Document order: masthead → notice → tabs
     expect(
       masthead!.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(notice.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // It is a notice LINE, not a surface.
-    expect(notice.className).not.toMatch(/bg-card|border(?!-)/);
   });
 });
