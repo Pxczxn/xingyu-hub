@@ -318,7 +318,7 @@ export function HomePage() {
                * - Feed 列表保持完整，包含第一条
                * - 这样测试不需要调整，用户体验也更好（Feed 可独立滚动）
                */}
-              <ul key={tab} className="flex flex-col gap-2">
+              <ul key={tab} className="flex flex-col divide-y divide-border/40">
                 {(feedItems ?? []).map((item, index) => (
                   <li
                     key={item.id}

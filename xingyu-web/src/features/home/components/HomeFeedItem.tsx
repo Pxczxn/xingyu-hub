@@ -76,8 +76,10 @@ function HomeFeedVisual({
     );
 
   return (
-    <Link to={href} tabIndex={-1} aria-hidden className="hidden shrink-0 sm:block">
-      {visual}
+    <Link to={href} tabIndex={-1} aria-hidden className="hidden shrink-0 overflow-hidden rounded-lg sm:block">
+      <div className="transition-transform duration-300 group-hover:scale-[1.03]">
+        {visual}
+      </div>
     </Link>
   );
 }
@@ -250,10 +252,9 @@ export function HomeFeedItem({
     <article
       className={cn(
         "group relative",
-        "flex gap-4 p-4",
-        "transition-all duration-200",
-        "hover:-translate-y-1 hover:bg-surface-soft/40",
-        "rounded-xl border border-border/30 hover:border-border hover:border-2",
+        "flex gap-6 py-5",
+        "transition-colors duration-200",
+        "hover:bg-muted/30",
         className,
       )}
     >
@@ -261,7 +262,7 @@ export function HomeFeedItem({
         {hasHeader ? (
           <div
             data-testid="feed-byline"
-            className="mb-2 flex items-center gap-2 text-xs text-muted-foreground"
+            className="mb-2.5 flex items-center gap-2 text-xs text-muted-foreground"
           >
             {/*
              * Avatar — DISCOVERY ONLY.
@@ -306,12 +307,12 @@ export function HomeFeedItem({
 
         <Link
           to={href}
-          className="focus-ring block line-clamp-2 text-base font-semibold leading-6 text-foreground md:text-[17px]"
+          className="focus-ring mb-2 block line-clamp-2 text-lg font-bold leading-7 text-foreground transition-colors hover:text-accent-strong md:text-xl md:leading-8"
         >
           {item.title}
         </Link>
         {item.summary ? (
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+          <p className="mb-3 line-clamp-2 text-sm leading-6 text-muted-foreground">
             {item.summary}
           </p>
         ) : null}
@@ -343,7 +344,7 @@ export function HomeFeedItem({
         ) : null}
 
         {hasLikes || hasComments || canBookmark ? (
-          <div className="mt-3 flex items-center gap-4">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
             {canLike ? (
               <button
                 type="button"
@@ -352,10 +353,8 @@ export function HomeFeedItem({
                 aria-pressed={liked === true}
                 aria-label={`${likeCount ?? 0} 次点赞`}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all disabled:opacity-50",
-                  liked
-                    ? "bg-accent/10 text-accent-strong hover:bg-accent/15"
-                    : "text-foreground/70 hover:bg-muted hover:text-foreground",
+                  "inline-flex items-center gap-1.5 transition-colors disabled:opacity-50",
+                  liked ? "text-accent-strong" : "hover:text-foreground",
                 )}
               >
                 <Heart
@@ -369,7 +368,7 @@ export function HomeFeedItem({
             ) : hasLikes ? (
               <Link
                 to="/login?redirect=/home"
-                className="inline-flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5 text-sm font-medium text-foreground/70 transition-all hover:bg-accent/10 hover:text-accent-strong"
+                className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
                 aria-label={`${likeCount ?? 0} 次点赞`}
                 title="登录后点赞"
               >
@@ -382,7 +381,7 @@ export function HomeFeedItem({
 
             {hasComments ? (
               <span
-                className="inline-flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5 text-sm font-medium text-foreground/70"
+                className="inline-flex items-center gap-1.5"
                 aria-label={`${item.commentCount} 条评论`}
               >
                 <MessageSquare className="h-4 w-4" aria-hidden />
@@ -399,17 +398,15 @@ export function HomeFeedItem({
                 disabled={bookmarkPending}
                 aria-pressed={bookmarked === true}
                 className={cn(
-                  "ml-auto inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all disabled:opacity-50",
-                  bookmarked
-                    ? "bg-accent/10 text-accent-strong hover:bg-accent/15"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "ml-auto inline-flex items-center gap-1.5 transition-colors disabled:opacity-50",
+                  bookmarked ? "text-accent-strong" : "hover:text-foreground",
                 )}
               >
                 <Bookmark
                   className={cn("h-4 w-4", bookmarked && "fill-current")}
                   aria-hidden
                 />
-                {bookmarked ? "已收藏" : "收藏"}
+                <span className="text-xs">{bookmarked ? "已收藏" : "收藏"}</span>
               </button>
             ) : null}
           </div>
