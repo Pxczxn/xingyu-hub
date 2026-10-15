@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Compass, Pencil } from "lucide-react";
 import { homeApi } from "@/api/home/home.api";
 import type { GuestHomeView, MeHomeView } from "@/api/home/home.types";
 import { topicsApi } from "@/api/topics/topics.api";
@@ -9,10 +8,9 @@ import { eventsApi } from "@/api/events/events.api";
 import type { EventView } from "@/api/events/events.types";
 import type { AnnouncementSummary, ContentSummary } from "@/api/common.types";
 import { useAuth } from "@/features/auth/auth.store";
-import { SectionState, type SectionStatus } from "@/components/shared/SectionState";
+import { type SectionStatus } from "@/components/shared/SectionState";
 import { PageState } from "@/components/shared/PageState";
-import { PageMasthead } from "@/components/shared/PageMasthead";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { staggerDelay } from "@/lib/stagger";
 import { HomeFeedTabs, type HomeFeedTab } from "@/features/home/components/HomeFeedTabs";
@@ -22,6 +20,9 @@ import { HomeSidebar, hasSidebarContent } from "@/features/home/components/HomeS
 import { HomeNotice } from "@/features/home/components/HomeNotice";
 import { EVENT_LIMIT } from "@/features/home/components/CommunityEventsPanel";
 import { useRecommendedCreators } from "@/features/home/use-recommended-creators";
+import { HomeFeedSkeleton, HomeSidebarSkeleton, ContinueReadingSkeleton } from "@/features/home/components/HomeFeedSkeleton";
+import { EmptyFeedState } from "@/features/home/components/EmptyFeedState";
+import { EnhancedHero } from "@/features/home/components/EnhancedHero";
 
 /*
  * Home — 社区入口与内容发现
@@ -156,12 +157,13 @@ export function HomePage() {
   const feedStatus: SectionStatus =
     homeStatus === "ready" ? (feedItems && feedItems.length > 0 ? "ready" : "empty") : homeStatus;
 
-  const emptyText =
+  // 空状态变体：根据 tab 和登录状态决定
+  const emptyVariant =
     tab === "recommend"
-      ? "暂无推荐内容"
+      ? "recommend"
       : isAuthenticated
-        ? "还没有关注动态"
-        : "登录后可见关注动态";
+        ? "following-empty"
+        : "following-guest";
 
   const announcementSection = {
     status: contentStatus(announcements, announcements.data ?? undefined),
@@ -205,62 +207,8 @@ export function HomePage() {
 
   return (
     <div className="section-gap">
-      {/*
-       * 第一刀：Hero 改
-       *
-       * 原文案像官网宣传页，改为更贴近创作与探索的语气。
-       *
-       * Guest:
-       *   标题："让想法，汇聚成自己的星系"
-       *   副标题："记录探索，分享成长，找到与你同行的人。"
-       *   按钮：[探索内容] [开始创作]
-       *
-       * Member:
-       *   简洁欢迎语，无按钮（shell header 已有入口）
-       */}
-      <PageMasthead
-        variant={isAuthenticated ? "default" : "featured"}
-        eyebrow={isAuthenticated ? undefined : undefined}
-        title={
-          isAuthenticated
-            ? "欢迎回来"
-            : "欢迎来到星语 ✦"
-        }
-        description={isAuthenticated ? "继续探索你的关注与创作。" : "从一篇内容开始，探索属于你的星语"}
-        actions={
-          isAuthenticated ? undefined : (
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                to="/discover"
-                className={cn(
-                  buttonVariants({ variant: "accent", size: "lg" }),
-                  "group relative gap-2 overflow-hidden shadow-md transition-all duration-200",
-                  "hover:scale-105 hover:shadow-lg active:scale-100",
-                )}
-              >
-                <Compass className="h-5 w-5 transition-transform group-hover:rotate-12" aria-hidden />
-                <span className="relative z-10">探索内容</span>
-                {/* 悬浮光效 */}
-                <span
-                  className="absolute inset-0 -z-10 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"
-                  aria-hidden="true"
-                />
-              </Link>
-              <Link
-                to="/register"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "group gap-2 transition-all duration-200",
-                  "hover:scale-105 hover:border-accent/50 hover:bg-accent/5 active:scale-100",
-                )}
-              >
-                <Pencil className="h-5 w-5 transition-transform group-hover:-rotate-12" aria-hidden />
-                开始创作
-              </Link>
-            </div>
-          )
-        }
-      />
+      {/* 增强版 Hero 区 */}
+      <EnhancedHero isAuthenticated={isAuthenticated} />
 
       {/* 公告条：时效性信息，Hero 和内容区之间 */}
       {notice ? <HomeNotice item={notice} /> : null}
@@ -280,59 +228,90 @@ export function HomePage() {
               tab === "recommend" ? (
                 <Link
                   to="/discover"
-                  className="group inline-flex items-center gap-1 text-accent-strong transition-all duration-200 hover:gap-1.5 hover:underline"
+                  className="group/more inline-flex items-center gap-1 text-accent-strong transition-all duration-200 hover:gap-1.5"
                 >
                   <span>查看更多推荐</span>
-                  <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>
-                    ›
-                  </span>
+                  <svg
+                    className="h-3.5 w-3.5 transition-transform group-hover/more:translate-x-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </Link>
               ) : null
             }
           />
 
-          {continueReading && continueReading.length > 0 ? (
+          {/* 继续阅读 - 显示骨架屏或实际内容 */}
+          {homeStatus === "loading" && isAuthenticated ? (
+            <ContinueReadingSkeleton />
+          ) : continueReading && continueReading.length > 0 ? (
             <ContinueReadingStrip items={continueReading} />
           ) : null}
 
+          {/* Feed 内容区 - 加载态/空状态/实际内容 */}
           <section
             key={tab}
             id={`home-tabpanel-${tab}`}
             role="tabpanel"
             aria-labelledby={`home-tab-${tab}`}
-            className={cn(
-              "animate-in fade-in slide-in-from-bottom-4 duration-300",
-              feedStatus === "ready" &&
-                "rounded-2xl border border-border/70 bg-card px-5 shadow-sm sm:px-6",
-            )}
+            className="animate-in fade-in slide-in-from-bottom-2 duration-300"
           >
-            <SectionState status={feedStatus} emptyText={emptyText}>
-              {/*
-               * 第四刀：Feed 内容卡增强
-               *
-               * 增加所属系列/星系/话题信息，让它不像博客列表。
-               * 数据契约不变，只在已有字段上增强展示。
-               *
-               * 精选与 Feed 关系：
-               * - 精选是推荐第一条的"强化展示"，不是替代
-               * - Feed 列表保持完整，包含第一条
-               * - 这样测试不需要调整，用户体验也更好（Feed 可独立滚动）
-               */}
-              <ul key={tab} className="flex flex-col divide-y divide-border/40">
-                {(feedItems ?? []).map((item, index) => (
-                  <li
-                    key={item.id}
-                    className="animate-rise-in"
-                    style={{ animationDelay: staggerDelay(index) }}
-                  >
-                    <HomeFeedItem
-                      item={item}
-                      variant={tab === "recommend" ? "discover" : "subscription"}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </SectionState>
+            {feedStatus === "loading" ? (
+              <HomeFeedSkeleton count={3} />
+            ) : feedStatus === "empty" ? (
+              <div className="animate-in fade-in zoom-in-95 duration-300 delay-75">
+                <EmptyFeedState variant={emptyVariant} />
+              </div>
+            ) : feedStatus === "error" ? (
+              <div className="animate-in fade-in zoom-in-95 duration-300 delay-75">
+                <div className="rounded-2xl border border-border/80 bg-card p-6 text-center shadow-sm">
+                  <p className="text-sm font-medium text-destructive">加载失败</p>
+                  <p className="mt-1 text-sm text-muted-foreground">请稍后重试</p>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  "animate-in fade-in slide-in-from-bottom-4 duration-300",
+                  "rounded-2xl border border-border/80 bg-card shadow-sm overflow-hidden",
+                )}
+              >
+                {/*
+                 * 第四刀：Feed 内容卡增强
+                 *
+                 * 增加所属系列/星系/话题信息，让它不像博客列表。
+                 * 数据契约不变，只在已有字段上增强展示。
+                 *
+                 * 精选与 Feed 关系：
+                 * - 精选是推荐第一条的"强化展示"，不是替代
+                 * - Feed 列表保持完整，包含第一条
+                 * - 这样测试不需要调整，用户体验也更好（Feed 可独立滚动）
+                 */}
+                <ul key={tab} className="flex flex-col">
+                  {(feedItems ?? []).map((item, index) => (
+                    <li
+                      key={item.id}
+                      className={cn(
+                        "animate-rise-in",
+                        index > 0 && "border-t border-border/40",
+                        index === 0 && "rounded-t-2xl overflow-hidden",
+                        index === (feedItems?.length ?? 0) - 1 && "rounded-b-2xl overflow-hidden",
+                      )}
+                      style={{ animationDelay: staggerDelay(index) }}
+                    >
+                      <HomeFeedItem
+                        item={item}
+                        variant={tab === "recommend" ? "discover" : "subscription"}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
         </div>
 
@@ -347,15 +326,19 @@ export function HomePage() {
          * 注意：这里的"探索星系"是 HomeSidebar 内部的模块，
          * 不是上方的 GalaxyExploreEntries。
          */}
-        <HomeSidebar
-          topics={topicSection}
-          creators={creatorSection}
-          events={eventSection}
-          signedIn={isAuthenticated}
-          followError={creators.followError}
-          pendingUsername={creators.pendingUsername}
-          onToggleFollow={(creator) => void creators.toggleFollow(creator)}
-        />
+        {homeStatus === "loading" ? (
+          <HomeSidebarSkeleton />
+        ) : (
+          <HomeSidebar
+            topics={topicSection}
+            creators={creatorSection}
+            events={eventSection}
+            signedIn={isAuthenticated}
+            followError={creators.followError}
+            pendingUsername={creators.pendingUsername}
+            onToggleFollow={(creator) => void creators.toggleFollow(creator)}
+          />
+        )}
       </div>
     </div>
   );

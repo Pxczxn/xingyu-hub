@@ -1,93 +1,91 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ApiError } from "@/api/client";
 import { discoverApi } from "@/api/discover/discover.api";
+import type { DiscoverInput } from "@/api/discover/discover.types";
 import type { ContentSummary } from "@/api/common.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { topicsApi } from "@/api/topics/topics.api";
 import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
-import type { SectionStatus } from "@/components/shared/SectionState";
-import { ExploreTopics } from "@/features/discover/components/ExploreTopics";
-import { DiscoverFocusGrid } from "@/features/discover/components/DiscoverFocusGrid";
+import { DiscoverSidebar } from "@/features/discover/components/DiscoverSidebar";
+import { DiscoverListItem } from "@/features/discover/components/DiscoverListItem";
 import { cn } from "@/lib/cn";
 
-/*
- * Discover (Phase 1A, revised after live acceptance).
- *
- * Uses GET /api/v1/discover (verified 200, PageResult<ContentSummary>).
- * The previous /api/v1/explore/feed call returns 500 INTERNAL_ERROR on the
- * current backend, so it is not used.
- *
- * The discover nav endpoint exposes domain/sort tabs, but they are deliberately
- * not rendered: the current discover endpoint does not honour those filters.
- *
- * 2026-10-13 (layout batch 02): the reading order is now 说明行 → 精选 → 探索入口.
- * Two things changed and one deliberately did not:
- *
- *   - The opening block left the banner. `DiscoverHero` was a `PageHero compact`
- *     wrapper, so the page opened with a bordered card that carried an eyebrow, a
- *     24px title and a description — and the content the page exists to show began
- *     below it. It is now `PageMasthead`, the same no-surface opening Home adopted
- *     in A0, for the same reason: this page's first screen has to hand the reader
- *     to content, not to a framed statement about the content.
- *   - The topic block moved from above the content to below it. It is an exit, not
- *     an entrance — a reader who came to browse should not have to scroll past a
- *     navigation block to reach the thing they came for.
- *   - `DiscoverFocusGrid` was NOT rewritten. It already splits by the server's
- *     `featured` flag, already weights primary 1.5fr against a 1fr secondary stack,
- *     and already degrades honestly at 0/1/2/3+ picks. Re-expressing that as a
- *     different grid template would have been a rewrite with no reader-visible gain.
- */
+const itemKey = (item: ContentSummary) => `${item.objectType ?? ""}:${item.id}`;
+
 export function DiscoverPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const topic = searchParams.get("topic") ?? "";
+  const rawType = searchParams.get("type");
+  const type: DiscoverInput["type"] = rawType === "ARTICLE" || rawType === "SERIES" ? rawType : undefined;
   const [topics, setTopics] = useState<TopicSummary[]>([]);
-  const [topicsStatus, setTopicsStatus] = useState<SectionStatus>("loading");
+  const [topicsError, setTopicsError] = useState(false);
   const [items, setItems] = useState<ContentSummary[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  /*
-   * Retry is "run the first-page effect again". That effect already owns the
-   * loading/error transitions, so bumping this key replays the exact request
-   * path — no second copy of the fetch in an onClick that could drift.
-   */
   const [reloadKey, setReloadKey] = useState(0);
+  // Only one row may be open at a time; the list reads as a single reading surface.
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const requestVersion = useRef(0);
+  const rowRefs = useRef(new Map<string, HTMLLIElement>());
 
   useEffect(() => {
     let active = true;
-    topicsApi
-      .getTopics()
-      .then((data) => {
-        if (!active) return;
-        setTopics(data);
-        setTopicsStatus(data.length > 0 ? "ready" : "empty");
-      })
-      .catch(() => {
-        if (active) setTopicsStatus("error");
-      });
-    return () => {
-      active = false;
-    };
+    topicsApi.getTopics().then((data) => {
+      if (active) setTopics(data);
+    }).catch(() => {
+      if (active) setTopicsError(true);
+    });
+    return () => { active = false; };
   }, []);
+
+  const changeFilter = (key: "topic" | "type", value: string) => {
+    const current = key === "topic" ? topic : type ?? "";
+    if (current === value) return;
+    // Invalidate pending pagination immediately, before the next effect runs.
+    requestVersion.current += 1;
+    setLoading(true);
+    setItems([]);
+    setNextCursor(null);
+    setLoadingMore(false);
+    setLoadMoreError(null);
+    setExpandedKey(null);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      return next;
+    });
+  };
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !nextCursor) return;
+    const version = requestVersion.current;
     setLoadingMore(true);
     setLoadMoreError(null);
     try {
-      const page = await discoverApi.getDiscover({ cursor: nextCursor, limit: 20 });
-      // 去重键 = objectType + id（同一 objectId 可同时存在 ARTICLE 与 SERIES 文档）
-      const seen = new Set(items.map((item) => `${item.objectType ?? ""}:${item.id}`));
-      const fresh = (page.items ?? []).filter(
-        (item) => !seen.has(`${item.objectType ?? ""}:${item.id}`),
-      );
-      setItems((prev) => [...prev, ...fresh]);
+      const page = await discoverApi.getDiscover({
+        limit: 20, cursor: nextCursor, ...(topic ? { topic } : {}), ...(type ? { type } : {}),
+      });
+      if (version !== requestVersion.current) return;
+      setItems((previous) => {
+        const seen = new Set(previous.map((item) => `${item.objectType ?? ""}:${item.id}`));
+        const fresh = (page.items ?? []).filter((item) => {
+          const key = `${item.objectType ?? ""}:${item.id}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        return [...previous, ...fresh];
+      });
       setNextCursor(page.nextCursor ?? null);
     } catch (err) {
-      // 保留已有内容；游标失效（400）时关闭翻页入口，其余失败保留按钮可重试
+      if (version !== requestVersion.current) return;
       if (err instanceof ApiError && err.problem.status === 400) {
         setNextCursor(null);
         setLoadMoreError("分页链接无效，请刷新页面从第一页重新浏览。");
@@ -95,127 +93,128 @@ export function DiscoverPage() {
         setLoadMoreError("加载更多失败，请重试。");
       }
     } finally {
-      setLoadingMore(false);
+      if (version === requestVersion.current) setLoadingMore(false);
     }
-  }, [loadingMore, nextCursor, items]);
+  }, [loadingMore, nextCursor, topic, type]);
 
   useEffect(() => {
     let active = true;
+    const version = ++requestVersion.current;
     setLoading(true);
     setError(false);
-    discoverApi
-      .getDiscover({ limit: 20 })
+    setItems([]);
+    setNextCursor(null);
+    setLoadingMore(false);
+    setLoadMoreError(null);
+    discoverApi.getDiscover({ limit: 20, ...(topic ? { topic } : {}), ...(type ? { type } : {}) })
       .then((page) => {
-        if (!active) return;
+        if (!active || version !== requestVersion.current) return;
         setItems(page.items ?? []);
         setNextCursor(page.nextCursor ?? null);
         setLoading(false);
-      })
-      .catch(() => {
-        if (!active) return;
+      }).catch(() => {
+        if (!active || version !== requestVersion.current) return;
         setError(true);
         setLoading(false);
       });
     return () => {
       active = false;
+      requestVersion.current += 1;
     };
-  }, [reloadKey]);
+  }, [reloadKey, topic, type]);
+
+  const isFiltered = Boolean(topic || type);
+
+  /*
+   * Bring the opened row to the reading position.
+   *
+   * Two passes are needed, not one. The panel opens with a height transition, so
+   * when the first pass asks the browser to scroll, the document is still short:
+   * for a row near the end of the list the requested position is clamped by the
+   * height the page has AT THAT MOMENT, and the row stays half-way down the
+   * window with nothing left to correct it. The row's own `max-height`
+   * transition ending is the moment the document is finally at its full height.
+   */
+  useEffect(() => {
+    const target = expandedKey ? rowRefs.current.get(expandedKey) : null;
+    if (!target) return;
+    const align = () => target.scrollIntoView({ behavior: "smooth", block: "start" });
+    const frame = requestAnimationFrame(align);
+    const onExpandSettled = (event: TransitionEvent) => {
+      if (event.propertyName === "max-height") align();
+    };
+    target.addEventListener("transitionend", onExpandSettled);
+    return () => {
+      cancelAnimationFrame(frame);
+      target.removeEventListener("transitionend", onExpandSettled);
+    };
+  }, [expandedKey]);
 
   return (
-    <div className="section-gap gap-5">
-      {/*
-       * P3 说明行. Deliberately not a section of the feed: it shares the column's
-       * left edge with the content below (no card, no border), so 陈述 → 选择 → 内容
-       * reads as one column rather than three stacked bands.
-       */}
-      <PageMasthead
-        eyebrow="EXPLORE"
-        title="探索"
-        description="从内容、话题、系列中找到新的兴趣方向。"
-      />
-
-      {/* P0: the picks. Everything above this line is a caption for them. */}
-      {loading ? <PageState kind="loading" /> : null}
-      {!loading && error ? (
-        /*
-         * Error carries its own retry — the same PageState + 重新加载 pair
-         * GalaxyShell:276 renders around `useGalaxy().retry`. The button
-         * bumps `reloadKey`, which replays the first-page effect; without it
-         * a failed first load left a manual page refresh as the only way out.
-         */
-        <div className="section-gap-tight">
-          <PageState kind="error" />
-          <div className="text-center">
-            <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
-              重新加载
-            </Button>
-          </div>
+    <div className="section-gap">
+      <PageMasthead variant="featured" title="探索发现" description="优质内容，每天更新" />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]">
+        <DiscoverSidebar
+          activeTopic={topic}
+          onTopicChange={(value) => changeFilter("topic", value)}
+          contentType={type ?? "ALL"}
+          onContentTypeChange={(value) => changeFilter("type", value === "ALL" ? "" : value)}
+          topics={topics}
+          topicsError={topicsError}
+        />
+        <div className="min-w-0" aria-label="探索内容" aria-busy={loading || loadingMore}>
+          {loading && <PageState kind="loading" />}
+          {!loading && error && (
+            <div className="section-gap-tight">
+              <PageState kind="error" />
+              <div className="text-center">
+                <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>重新加载</Button>
+              </div>
+            </div>
+          )}
+          {!loading && !error && items.length === 0 && (
+            <div className="section-gap-tight">
+              <PageState
+                kind="empty"
+                title={isFiltered ? "暂无符合筛选条件的内容" : "社区还在生长中"}
+                description={isFiltered ? "试试其他话题或内容类型。" : "还没有内容可以浏览。成为第一个分享的人吧。"}
+              />
+              {!isFiltered && <p className="text-center"><Link to="/studio" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>去创作</Link></p>}
+            </div>
+          )}
+          {!loading && !error && items.length > 0 && (
+            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+              <ul className="flex flex-col divide-y divide-border/40">
+                {items.map((item) => {
+                  const key = itemKey(item);
+                  return (
+                    <li
+                      key={key}
+                      className="scroll-mt-24"
+                      ref={(node) => {
+                        if (node) rowRefs.current.set(key, node);
+                        else rowRefs.current.delete(key);
+                      }}
+                    >
+                      <DiscoverListItem
+                        item={item}
+                        expanded={expandedKey === key}
+                        onToggleExpand={() => setExpandedKey((current) => (current === key ? null : key))}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          {!loading && !error && loadMoreError && <p role="alert" className="pt-2 text-center text-sm text-destructive">{loadMoreError}</p>}
+          {!loading && !error && nextCursor && (
+            <div className="mt-8 text-center">
+              <Button variant="outline" size="lg" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "正在加载…" : "加载更多"}</Button>
+            </div>
+          )}
         </div>
-      ) : null}
-      {!loading && !error && items.length === 0 ? (
-        /*
-         * The empty state carries its OWN exit, and that is not redundancy with
-         * the 探索话题 row below: `ExploreTopics` renders nothing when no topic
-         * has content (`:44`, `:65`), and an empty feed means every topic count
-         * is 0 — so on this state the page would otherwise be 暂无内容 + artwork
-         * and nothing else. The copy reframes the state (生长中, not 失败) and
-         * the button is the one action that makes the page stop being empty; it
-         * points where the header's 创作 button already does.
-         *
-         * Shape (`section-gap-tight` + centred `buttonVariants` link) follows
-         * NewReportPage:126 and GalaxyShell:288, the two existing 空状态+出口
-         * pairs. Tighter than their `section-gap` because this button is an
-         * attachment to the state above it, not a second block.
-         */
-        <div className="section-gap-tight">
-          <PageState
-            kind="empty"
-            title="社区还在生长中"
-            description="还没有内容可以浏览。成为第一个分享的人吧。"
-          />
-          <p className="text-center">
-            <Link to="/studio" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>
-              去创作
-            </Link>
-          </p>
-        </div>
-      ) : null}
-
-      {!loading && !error && items.length > 0 ? <DiscoverFocusGrid items={items} /> : null}
-
-      {!loading && !error && loadMoreError ? (
-        <p role="alert" className="pt-2 text-center text-sm text-destructive">
-          {loadMoreError}
-        </p>
-      ) : null}
-
-      {!loading && !error && nextCursor ? (
-        <div className="pt-2 text-center">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={loadingMore}
-            onClick={() => void loadMore()}
-          >
-            {loadingMore ? "正在加载…" : "加载更多"}
-          </Button>
-        </div>
-      ) : null}
-
-      {/*
-       * P2 探索入口, and last on purpose.
-       *
-       * It sits AFTER the feed's own continuation control rather than between the
-       * picks and that control: a reader still working through the feed should meet
-       * 「加载更多」, not a way out of the page. A reader who has scrolled past it has
-       * signalled they are done here, and that is the moment to offer topics.
-       *
-       * It is also the only thing on the page when the feed is EMPTY — the empty
-       * state plus this block gives a reader somewhere to go instead of a dead end.
-       * That is the reason the section stays mounted through the loading/error/empty
-       * branches instead of being nested under the success branch.
-       */}
-      <ExploreTopics status={topicsStatus} topics={topics} />
+      </div>
     </div>
   );
 }

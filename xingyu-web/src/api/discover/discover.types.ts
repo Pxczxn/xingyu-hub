@@ -5,6 +5,11 @@
 
 import type { CursorInput, PageResult, ContentSummary, SearchHit } from "@/api/common.types";
 
+export type DiscoverInput = CursorInput & {
+  topic?: string;
+  type?: "ARTICLE" | "SERIES";
+};
+
 export type DiscoverNavTab = { key: string; label: string; defaultSelected?: boolean };
 
 /**

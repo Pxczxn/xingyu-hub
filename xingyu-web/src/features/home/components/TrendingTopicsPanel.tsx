@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Hash } from "lucide-react";
 import { SectionState, type SectionStatus } from "@/components/shared/SectionState";
 import { cn } from "@/lib/cn";
 import type { TopicSummary } from "@/api/topics/topics.types";
@@ -43,17 +44,29 @@ export function TrendingTopicsPanel({
   return (
     <section
       aria-labelledby="home-trending-topics"
-      className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
+      className="sidebar-card group rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/50 p-5 shadow-sm transition-all duration-200 hover:border-border hover:shadow-md"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 id="home-trending-topics" className="text-sm font-semibold text-foreground">
+        <h2 id="home-trending-topics" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/10 text-accent">
+            <Hash className="h-3.5 w-3.5" aria-hidden />
+          </span>
           热门话题
         </h2>
         <Link
           to="/topics"
-          className="shrink-0 text-xs text-accent-strong transition-colors hover:underline"
+          className="group/link shrink-0 inline-flex items-center gap-1 text-xs text-accent-strong transition-all hover:gap-1.5 hover:text-accent-strong/80"
         >
-          全部 ›
+          <span>查看全部</span>
+          <svg
+            className="h-3 w-3 transition-transform group-hover/link:translate-x-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
         </Link>
       </div>
 

@@ -118,6 +118,13 @@ public class CommunitySocialController {
         return socialService.listComments(objectType.toUpperCase(), objectId);
     }
 
+    @GetMapping("/comments/preview/{objectType}/{objectId}")
+    public List<CommentView> previewComments(
+            @PathVariable String objectType,
+            @PathVariable String objectId) {
+        return socialService.listCommentPreview(objectType.toUpperCase(java.util.Locale.ROOT), objectId);
+    }
+
     @GetMapping("/comments/lookup/{commentId}")
     public CommentDetailView getComment(@PathVariable String commentId) {
         return socialService.getComment(commentId);

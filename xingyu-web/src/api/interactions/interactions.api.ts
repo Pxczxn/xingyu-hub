@@ -64,6 +64,12 @@ export const interactionsApi = {
       `/api/v1/comments/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}`,
     ),
 
+  // Public preview returns at most three visible comments for a publicly readable article or series.
+  getCommentPreview: (objectType: string, objectId: string): Promise<CommentItem[]> =>
+    apiRequest<CommentItem[]>(
+      `/api/v1/comments/preview/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}`,
+    ),
+
   createComment: (payload: CreateCommentPayload): Promise<CommentItem> =>
     apiRequest<CommentItem>("/api/v1/comments", { method: "POST", body: payload }),
 

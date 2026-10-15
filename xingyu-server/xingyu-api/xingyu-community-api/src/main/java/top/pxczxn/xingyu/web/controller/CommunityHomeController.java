@@ -45,8 +45,10 @@ public class CommunityHomeController {
     @GetMapping("/discover")
     public PageResultView<ContentCardView> discover(
             @RequestParam(value = "limit", defaultValue = "20") int limit,
-            @RequestParam(value = "cursor", required = false) String cursor) {
-        return homeService.discover(limit, cursor);
+            @RequestParam(value = "cursor", required = false) String cursor,
+            @RequestParam(value = "topic", required = false) String topic,
+            @RequestParam(value = "type", required = false) String type) {
+        return homeService.discover(limit, cursor, topic, type);
     }
 
     private CommunityUser resolveViewer(String token) {

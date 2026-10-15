@@ -49,6 +49,8 @@ public class SocialService {
     private final SearchDocumentMapper searchDocumentMapper;
     private final CommunityProperties communityProperties;
     private final NotificationService notificationService;
+    private final ArticleService articleService;
+    private final SeriesService seriesService;
 
     @Transactional
     public void like(CommunityUser user, String objectType, String objectId) {
@@ -168,6 +170,18 @@ public class SocialService {
     public List<CommentView> listComments(String objectType, String objectId) {
         validateObjectType(objectType);
         return commentMapper.listVisibleByObject(objectType, objectId).stream()
+                .map(this::toView)
+                .toList();
+    }
+
+    public List<CommentView> listCommentPreview(String objectType, String objectId) {
+        // Preview is always evaluated as a guest, including requests from content owners.
+        switch (objectType) {
+            case "ARTICLE" -> articleService.getPublicArticle(objectId, null);
+            case "SERIES" -> seriesService.getPublicById(objectId);
+            default -> throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        return commentMapper.listPreviewByObject(objectType, objectId).stream()
                 .map(this::toView)
                 .toList();
     }

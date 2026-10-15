@@ -175,6 +175,42 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
             @Param("cursorId") String cursorId,
             @Param("limit") int limit);
 
+    /** Discover filters are applied before the keyset boundary and page limit. */
+    @Select("""
+            <script>
+            SELECT sd.* FROM search_document sd
+            WHERE sd.removed_at IS NULL
+            <if test="type != null">
+              AND sd.object_type = #{type}
+            </if>
+            <if test="topicId != null">
+              AND sd.object_type = 'ARTICLE'
+              AND EXISTS (
+                SELECT 1 FROM article_topic at
+                INNER JOIN article a ON a.id = at.article_id
+                WHERE at.article_id = sd.object_id AND at.topic_id = #{topicId}
+                  AND a.status = 'PUBLISHED'
+              )
+            </if>
+            <if test="cursorIndexedAt != null">
+              AND (sd.indexed_at &lt; #{cursorIndexedAt}
+                   OR (sd.indexed_at = #{cursorIndexedAt}
+                       AND (sd.object_type &gt; #{cursorObjectType}
+                            OR (sd.object_type = #{cursorObjectType}
+                                AND sd.object_id &lt; #{cursorId}))))
+            </if>
+            ORDER BY sd.indexed_at DESC, sd.object_type ASC, sd.object_id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    List<SearchDocument> listDiscoverFiltered(
+            @Param("topicId") String topicId,
+            @Param("type") String type,
+            @Param("cursorIndexedAt") Instant cursorIndexedAt,
+            @Param("cursorObjectType") String cursorObjectType,
+            @Param("cursorId") String cursorId,
+            @Param("limit") int limit);
+
     /**
      * 关注流批量取数（Phase 6.1，2026-10-11）：关注作者集合的 ARTICLE 活文档。
      * 发布/生命周期规则在 SQL 内保持与逐条路径一致

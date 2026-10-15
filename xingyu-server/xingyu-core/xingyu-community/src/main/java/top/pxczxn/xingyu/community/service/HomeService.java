@@ -55,6 +55,7 @@ public class HomeService {
     private final RecommendationService recommendationService;
     private final ContentCoverService contentCoverService;
     private final HomeFeedEnrichmentService enrichmentService;
+    private final TopicService topicService;
 
     public HomeCompositionView compose(CommunityUser user) {
         long unread = user == null ? 0L : notificationMapper.countUnread(user.getId());
@@ -172,10 +173,15 @@ public class HomeService {
     }
 
     public PageResultView<ContentCardView> discover(int limit, String cursor) {
+        return discover(limit, cursor, null, null);
+    }
+
+    public PageResultView<ContentCardView> discover(int limit, String cursor, String topic, String type) {
+        String topicId = topic == null || topic.isBlank() ? null : topicService.requireEnabledBySlug(topic).getId();
         // Phase 5（2026-10-11）：keyset 翻页实现（此前 nextCursor 恒 null、
         // 超过单页的内容不可达）。同样做一轮批量富化，保持与首页 rails 一致
         // 的作者/计数描述；/discover 为公开端点，富化不带 viewer。
-        PageResultView<ContentCardView> page = recommendationService.discoverPage(limit, cursor);
+        PageResultView<ContentCardView> page = recommendationService.discoverPage(limit, cursor, topicId, type);
         List<ContentCardView> items = page.getItems();
         List<ContentCardView> enriched = enrichmentService.applyCards(
                 items, enrichmentService.enrich(HomeFeedEnrichmentService.refsOfCards(items), null));

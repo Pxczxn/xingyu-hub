@@ -405,8 +405,20 @@ describe("home feed rows", () => {
     renderHome();
 
     expect(await screen.findByText("真实封面")).toBeInTheDocument();
-    expect(document.querySelector('img[src="/article-cover.jpg"]')).toBeInTheDocument();
-    expect(screen.getAllByTestId("content-visual")).toHaveLength(3);
+    /*
+     * 封面走 `ContentCoverImage`/`OptimizedImage`，它在 useEffect 里先探测 WebP
+     * 再设置 img 的 src —— jsdom 下是两拍之后才渲染 img，必须等待而不是同步查。
+     * jsdom 的 Image 探针不会触发 onload，WebP 检测返回 false，src 保持原样。
+     */
+    await waitFor(() =>
+      expect(document.querySelector('img[src="/article-cover.jpg"]')).toBeInTheDocument(),
+    );
+    /*
+     * 契约（新 HomeFeedVisual）：只有真实封面渲染 <img>；无封面的非系列内容
+     * 降级为渐变占位块（无 img）；无封面 SERIES 用确定性生成封面
+     * （generated-series-cover，仍然恰好 1 个）。
+     */
+    expect(document.querySelectorAll("img")).toHaveLength(1);
     expect(screen.getAllByTestId("generated-series-cover")).toHaveLength(1);
   });
 
@@ -480,13 +492,14 @@ describe("home feed byline", () => {
     /*
      * The type left the pill. `rounded-full bg-muted` is the shape the TOPIC tags
      * use, so a type chip said "what kind of thing is this" and "what is this
-     * about" in the same visual language. Asserted on the class contract rather
-     * than on computed style, because tests run without the stylesheet.
+     * about" in the same visual language. Now the type uses a subtle rounded badge
+     * (rounded-md bg-muted/80) to differentiate from topic tags (rounded-full).
      */
     const type = screen.getByText("系列");
     expect(type.className).not.toContain("rounded-full");
-    expect(type.className).not.toContain("bg-muted");
-    // The topic tag keeps it.
+    expect(type.className).toContain("rounded-md");
+    expect(type.className).toContain("bg-muted");
+    // The topic tag keeps the full pill shape.
     expect(screen.getByText("#设计系统").className).toContain("rounded-full");
   });
 
@@ -747,7 +760,9 @@ describe("home masthead", () => {
     await screen.findByText("游客条目");
 
     const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading).toHaveTextContent("欢迎来到星语 ✦");
+    // ✦ 是独立于标题文本的装饰 span（ml-2），textContent 中无空格，分开断言。
+    expect(heading).toHaveTextContent("欢迎来到星语");
+    expect(heading).toHaveTextContent("✦");
     expect(screen.getByText("从一篇内容开始，探索属于你的星语")).toBeInTheDocument();
   });
 
@@ -798,13 +813,13 @@ describe("home notice", () => {
     await screen.findByText("游客条目");
 
     const notice = await screen.findByTestId("home-notice");
-    const masthead = screen.getByRole("heading", { level: 1 }).closest("header");
+    // EnhancedHero 的英雄区是 div 而非 header，h1 即其锚点。
+    const heroHeading = screen.getByRole("heading", { level: 1 });
     const tablist = screen.getByRole("tablist");
 
-    expect(masthead).not.toBeNull();
-    // Document order: masthead → notice → tabs
+    // Document order: hero → notice → tabs
     expect(
-      masthead!.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
+      heroHeading.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(notice.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

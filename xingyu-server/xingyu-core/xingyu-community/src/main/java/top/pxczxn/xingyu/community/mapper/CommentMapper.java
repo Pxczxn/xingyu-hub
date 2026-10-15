@@ -21,6 +21,14 @@ public interface CommentMapper extends BaseMapper<Comment> {
 
     @Select("""
             SELECT * FROM comment
+            WHERE object_type = #{objectType} AND object_id = #{objectId} AND status = 'VISIBLE'
+            ORDER BY created_at ASC, id ASC
+            LIMIT 3
+            """)
+    List<Comment> listPreviewByObject(String objectType, String objectId);
+
+    @Select("""
+            SELECT * FROM comment
             WHERE author_id = #{authorId} AND status = 'VISIBLE'
             ORDER BY created_at DESC
             LIMIT #{limit}

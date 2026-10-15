@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -88,6 +97,117 @@
    */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  /*
+   * Shimmer effect for image placeholders.
+   * Creates a subtle left-to-right shimmer animation while images load.
+   */
+  .shimmer-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .shimmer-effect::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.2) 20%,
+      rgba(255, 255, 255, 0.5) 60%,
+      rgba(255, 255, 255, 0)
+    );
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /*
+   * Sparkle animation for decorative elements.
+   * Creates a gentle pulsing glow effect for stars and highlights.
+   */
+  .sparkle {
+    animation: sparkle 3s ease-in-out infinite;
+  }
+
+  @keyframes sparkle {
+    0%, 100% {
+      opacity: 0.2;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+  }
+
+  .sparkle-icon {
+    animation: sparkle-rotate 4s ease-in-out infinite;
+  }
+
+  @keyframes sparkle-rotate {
+    0%, 100% {
+      opacity: 0.6;
+      transform: rotate(0deg) scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: rotate(90deg) scale(1.1);
+    }
+  }
+
+  /*
+   * Sidebar card magnetic effect.
+   * Subtle 3D tilt on hover for sidebar panels.
+   */
+  .sidebar-card {
+    transform-style: preserve-3d;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+
+  .sidebar-card:hover {
+    transform: translateY(-2px);
+  }
+
+  /*
+   * Glow border effect for interactive elements.
+   * Creates a subtle accent-colored glow on hover.
+   */
+  .glow-border {
+    position: relative;
+    transition: all 0.3s ease;
+  }
+
+  .glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, 
+      hsl(var(--accent)) 0%, 
+      transparent 50%, 
+      hsl(var(--accent)) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .glow-border:hover::before {
+    opacity: 0.5;
   }
 
   /*

@@ -120,6 +120,13 @@ public class RecommendationService {
      * <p>非法/伪造 cursor 回退首页（游标是透明的续读标记，不是权限边界）。
      */
     public PageResultView<ContentCardView> discoverPage(int limit, String cursor) {
+        return discoverPage(limit, cursor, null, null);
+    }
+
+    public PageResultView<ContentCardView> discoverPage(int limit, String cursor, String topicId, String type) {
+        if (type != null && !List.of("ARTICLE", "SERIES").contains(type)) {
+            throw new FieldContractException("type", "不支持的内容类型");
+        }
         if (limit <= 0) {
             limit = 20;
         }
@@ -135,10 +142,14 @@ public class RecommendationService {
                 // 静默重置会让用户在不知情中重复看到第一页。
                 throw new FieldContractException("cursor", "分页游标无效");
             }
-            documents = searchDocumentMapper.listActiveByRecencyAfter(
-                    Instant.ofEpochMilli(Long.parseLong(parts[1])), parts[0], parts[2], probeLimit);
+            Instant boundary = Instant.ofEpochMilli(Long.parseLong(parts[1]));
+            documents = topicId != null || type != null
+                    ? searchDocumentMapper.listDiscoverFiltered(topicId, type, boundary, parts[0], parts[2], probeLimit)
+                    : searchDocumentMapper.listActiveByRecencyAfter(boundary, parts[0], parts[2], probeLimit);
         } else {
-            documents = searchDocumentMapper.listActiveByRecency(probeLimit);
+            documents = topicId != null || type != null
+                    ? searchDocumentMapper.listDiscoverFiltered(topicId, type, null, null, null, probeLimit)
+                    : searchDocumentMapper.listActiveByRecency(probeLimit);
         }
         boolean hasMore = documents.size() > limit;
         List<SearchDocument> page = hasMore ? documents.subList(0, limit) : documents;

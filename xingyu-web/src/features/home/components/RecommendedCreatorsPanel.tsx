@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Users } from "lucide-react";
 import { SectionState, type SectionStatus } from "@/components/shared/SectionState";
 import { cn } from "@/lib/cn";
 import type { RecommendedCreator } from "../use-recommended-creators";
@@ -36,17 +37,29 @@ export function RecommendedCreatorsPanel({
   return (
     <section
       aria-labelledby="home-recommended-creators"
-      className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
+      className="sidebar-card group rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/50 p-5 shadow-sm transition-all duration-200 hover:border-border hover:shadow-md"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 id="home-recommended-creators" className="text-sm font-semibold text-foreground">
+        <h2 id="home-recommended-creators" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/10 text-accent">
+            <Users className="h-3.5 w-3.5" aria-hidden />
+          </span>
           推荐创作者
         </h2>
         <Link
           to="/creators"
-          className="shrink-0 text-xs text-accent-strong transition-colors hover:underline"
+          className="group/link shrink-0 inline-flex items-center gap-1 text-xs text-accent-strong transition-all hover:gap-1.5 hover:text-accent-strong/80"
         >
-          全部 ›
+          <span>查看全部</span>
+          <svg
+            className="h-3 w-3 transition-transform group-hover/link:translate-x-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
         </Link>
       </div>
 
@@ -63,7 +76,7 @@ export function RecommendedCreatorsPanel({
           ) : null}
           <ul className="flex flex-col gap-3">
             {creators.map((creator) => (
-              <li key={creator.username} className="flex items-center gap-3">
+              <li key={creator.username} className="flex items-start gap-3">
                 {creator.avatar ? (
                   <img
                     src={creator.avatar}
@@ -87,9 +100,18 @@ export function RecommendedCreatorsPanel({
                   >
                     {creator.displayName}
                   </Link>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {creator.contentCount} 篇内容
-                  </p>
+                  {creator.bio ? (
+                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                      {creator.bio}
+                    </p>
+                  ) : null}
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    {typeof creator.followerCount === "number" ? (
+                      <span>{creator.followerCount} 关注者</span>
+                    ) : null}
+                    <span>·</span>
+                    <span>{creator.contentCount} 篇内容</span>
+                  </div>
                 </div>
 
                 {signedIn ? (

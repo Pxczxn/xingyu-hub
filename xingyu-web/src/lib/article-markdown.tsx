@@ -21,13 +21,13 @@ export type ArticleOutlineItem = {
   level: 2 | 3 | 4;
 };
 
-export function extractArticleOutline(body: string): ArticleOutlineItem[] {
+export function extractArticleOutline(body: string, headingIdPrefix = ARTICLE_HEADING_ID_PREFIX): ArticleOutlineItem[] {
   const tree = parseArticleMarkdownAst(body);
   const items: ArticleOutlineItem[] = [];
   let headingIndex = 0;
 
   visit(tree, "heading", (node: Heading) => {
-    const id = `${ARTICLE_HEADING_ID_PREFIX}${headingIndex}`;
+    const id = `${headingIdPrefix}${headingIndex}`;
     headingIndex += 1;
     if (node.depth < 2 || node.depth > 4) return;
     items.push({
@@ -43,15 +43,18 @@ export function extractArticleOutline(body: string): ArticleOutlineItem[] {
 export function ArticleMarkdownBody({
   body,
   authenticatePrivateMedia = false,
+  headingIdPrefix = ARTICLE_HEADING_ID_PREFIX,
 }: {
   body: string;
+  /** Distinct targets when several articles are rendered on the same page. */
+  headingIdPrefix?: string;
   /** 仅编辑器草稿预览：私有图片走认证 fetch，阅读页必须保持 false。 */
   authenticatePrivateMedia?: boolean;
 }) {
   const content = useMemo(() => {
     if (!body.trim()) return null;
-    return renderArticleMarkdown(body);
-  }, [body]);
+    return renderArticleMarkdown(body, headingIdPrefix);
+  }, [body, headingIdPrefix]);
 
   if (!content) {
     return (

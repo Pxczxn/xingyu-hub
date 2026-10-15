@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 import { Bookmark, Heart, MessageSquare } from "lucide-react";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import { contentHref } from "@/components/shared/ContentCard";
-import { ContentVisual } from "@/components/visual/ContentVisual";
 import { SeriesCover } from "@/components/visual/SeriesCover";
+import { ContentCoverImage } from "@/components/shared/OptimizedImage";
 import { cn } from "@/lib/cn";
 import type { ContentSummary } from "@/api/common.types";
 
@@ -62,23 +62,26 @@ function HomeFeedVisual({
   href: string;
   type: string;
 }) {
-  const visual =
-    type === "SERIES" && !item.cover ? (
-      <SeriesCover stableKey={`${item.id}:${item.title}`} title={item.title} variant="thumbnail" />
-    ) : (
-      <ContentVisual
-        stableKey={item.id || item.title}
-        objectType={type}
-        cover={item.cover}
-        variant="compact"
-        className="h-20 w-[120px] aspect-auto rounded-md"
-      />
+  // 系列无封面时使用生成的封面
+  if (type === "SERIES" && !item.cover) {
+    return (
+      <Link to={href} tabIndex={-1} aria-hidden className="hidden shrink-0 overflow-hidden rounded-lg sm:block">
+        <div className="transition-transform duration-300 group-hover:scale-[1.03]">
+          <SeriesCover stableKey={`${item.id}:${item.title}`} title={item.title} variant="thumbnail" />
+        </div>
+      </Link>
     );
+  }
 
+  // 使用优化的图片组件
   return (
     <Link to={href} tabIndex={-1} aria-hidden className="hidden shrink-0 overflow-hidden rounded-lg sm:block">
-      <div className="transition-transform duration-300 group-hover:scale-[1.03]">
-        {visual}
+      <div className="h-20 w-[120px] transition-transform duration-300 group-hover:scale-[1.03]">
+        <ContentCoverImage
+          src={item.cover}
+          alt=""
+          className="h-20 w-[120px] rounded-md"
+        />
       </div>
     </Link>
   );
@@ -89,7 +92,6 @@ export type HomeFeedItemVariant = "discover" | "subscription";
 export function HomeFeedItem({
   item,
   variant,
-  className,
 }: {
   item: ContentSummary;
   /*
@@ -113,7 +115,6 @@ export function HomeFeedItem({
    * row would be the "为了差异化做成两套" failure mode.
    */
   variant?: HomeFeedItemVariant;
-  className?: string;
 }) {
   const isSubscription = variant === "subscription";
   const isDiscover = variant === "discover";
@@ -168,7 +169,12 @@ export function HomeFeedItem({
     byline.push(
       <span
         key="author"
-        className={cn("truncate text-foreground", isSubscription ? "font-semibold" : "font-medium")}
+        className={cn(
+          "truncate rounded-md px-2 py-0.5",
+          isSubscription 
+            ? "bg-accent/10 font-semibold text-accent-strong" 
+            : "font-medium text-foreground"
+        )}
       >
         {author}
       </span>,
@@ -176,7 +182,7 @@ export function HomeFeedItem({
   }
   if (typeLabel) {
     byline.push(
-      <span key="type" className="shrink-0">
+      <span key="type" className="shrink-0 rounded-md bg-muted/80 px-2 py-0.5 text-muted-foreground">
         {typeLabel}
       </span>,
     );
@@ -189,6 +195,7 @@ export function HomeFeedItem({
   const [liked, setLiked] = useState<boolean | null>(item.liked ?? null);
   const [likeCount, setLikeCount] = useState(item.likeCount);
   const [likePending, setLikePending] = useState(false);
+  const [likeAnimating, setLikeAnimating] = useState(false);
   const [bookmarked, setBookmarked] = useState<boolean | null>(item.bookmarked ?? null);
   const [bookmarkPending, setBookmarkPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -211,19 +218,31 @@ export function HomeFeedItem({
     if (typeof liked !== "boolean" || likePending) return;
     setError(null);
     setLikePending(true);
+    
+    // 乐观更新：先更新 UI
+    const wasLiked = liked;
+    const previousCount = likeCount;
+    setLiked(!liked);
+    setLikeCount((current) =>
+      typeof current === "number" ? current + (liked ? -1 : 1) : current,
+    );
+    
+    // 触发动画
+    if (!liked) {
+      setLikeAnimating(true);
+      setTimeout(() => setLikeAnimating(false), 600);
+    }
+    
     try {
-      if (liked) {
+      if (wasLiked) {
         await interactionsApi.unlike(type, item.id);
       } else {
         await interactionsApi.like(type, item.id);
       }
-      // Only now flip. The count moves by exactly one because the request that
-      // changed it has already been accepted.
-      setLiked(!liked);
-      setLikeCount((current) =>
-        typeof current === "number" ? current + (liked ? -1 : 1) : current,
-      );
     } catch {
+      // 失败时回滚
+      setLiked(wasLiked);
+      setLikeCount(previousCount);
       setError("点赞未完成，请稍后重试。");
     } finally {
       setLikePending(false);
@@ -234,14 +253,20 @@ export function HomeFeedItem({
     if (typeof bookmarked !== "boolean" || bookmarkPending) return;
     setError(null);
     setBookmarkPending(true);
+    
+    // 乐观更新
+    const wasBookmarked = bookmarked;
+    setBookmarked(!bookmarked);
+    
     try {
-      if (bookmarked) {
+      if (wasBookmarked) {
         await interactionsApi.removeBookmark(type, item.id);
       } else {
         await interactionsApi.addBookmark(type, item.id);
       }
-      setBookmarked(!bookmarked);
     } catch {
+      // 失败时回滚
+      setBookmarked(wasBookmarked);
       setError("收藏操作未完成，请稍后重试。");
     } finally {
       setBookmarkPending(false);
@@ -252,10 +277,9 @@ export function HomeFeedItem({
     <article
       className={cn(
         "group relative",
-        "flex gap-6 py-5",
-        "transition-colors duration-200",
-        "hover:bg-muted/30",
-        className,
+        "flex gap-6 py-6 px-5 sm:px-6",
+        "transition-all duration-200 ease-out",
+        "hover:bg-muted/40 hover:shadow-sm",
       )}
     >
       <div className="min-w-0 flex-1">
@@ -307,7 +331,7 @@ export function HomeFeedItem({
 
         <Link
           to={href}
-          className="focus-ring mb-2 block line-clamp-2 text-lg font-bold leading-7 text-foreground transition-colors hover:text-accent-strong md:text-xl md:leading-8"
+          className="focus-ring mb-2 block line-clamp-2 text-lg font-bold leading-7 text-foreground md:text-xl md:leading-8"
         >
           {item.title}
         </Link>
@@ -358,11 +382,20 @@ export function HomeFeedItem({
                 )}
               >
                 <Heart
-                  className={cn("h-4 w-4 transition-transform", liked && "fill-current scale-110")}
+                  className={cn(
+                    "h-4 w-4 transition-all duration-300",
+                    liked && "fill-current",
+                    likeAnimating && "animate-heart-pop",
+                  )}
                   aria-hidden
                 />
                 {typeof likeCount === "number" && likeCount > 0 ? (
-                  <span className="tabular-nums">{likeCount}</span>
+                  <span className={cn(
+                    "tabular-nums transition-all duration-200",
+                    likeAnimating && "animate-count-bounce",
+                  )}>
+                    {likeCount}
+                  </span>
                 ) : null}
               </button>
             ) : hasLikes ? (

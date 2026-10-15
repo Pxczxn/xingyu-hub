@@ -43,6 +43,8 @@ export type RecommendedCreator = {
   avatar?: string;
   /** False for guests, who cannot follow. */
   following: boolean;
+  bio?: string;
+  followerCount?: number;
 };
 
 export type RecommendedCreatorsState = {
@@ -96,15 +98,17 @@ export function useRecommendedCreators(
 
         const withProfile = await Promise.all(
           merged.map(async (creator): Promise<RecommendedCreator> => {
-            const profile = signedIn
-              ? await usersApi.getProfile(creator.username).catch(() => null)
-              : null;
+            // Always fetch profile for bio and followerCount (public data)
+            // Only the `following` field requires authentication
+            const profile = await usersApi.getProfile(creator.username).catch(() => null);
             return {
               username: creator.username,
               displayName: creator.displayName || profile?.displayName || creator.username,
               contentCount: creator.contentCount,
               avatar: profile?.avatar ?? undefined,
-              following: profile?.following === true,
+              following: signedIn ? profile?.following === true : false,
+              bio: profile?.bio ?? undefined,
+              followerCount: profile?.followerCount ?? undefined,
             };
           }),
         );

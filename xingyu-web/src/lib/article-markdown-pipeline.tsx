@@ -20,13 +20,14 @@ import { ArticleMarkdownImg } from "@/lib/article-markdown-media-context";
 
 export const ARTICLE_HEADING_ID_PREFIX = "article-h-";
 
-function rehypeArticleHeadingIds() {
+function rehypeArticleHeadingIds(options: { prefix?: string } = {}) {
+  const prefix = options.prefix ?? ARTICLE_HEADING_ID_PREFIX;
   return (tree: HastRoot) => {
     let headingIndex = 0;
     visit(tree, "element", (node) => {
       if (!/^h[1-6]$/.test(node.tagName)) return;
       node.properties = node.properties ?? {};
-      node.properties.id = `${ARTICLE_HEADING_ID_PREFIX}${headingIndex}`;
+      node.properties.id = `${prefix}${headingIndex}`;
       headingIndex += 1;
     });
   };
@@ -57,6 +58,8 @@ const articleMarkdownProcessor = unified()
     components: articleMarkdownComponents,
   });
 
-export function renderArticleMarkdown(body: string) {
-  return articleMarkdownProcessor.processSync(body).result;
+export function renderArticleMarkdown(body: string, headingIdPrefix = ARTICLE_HEADING_ID_PREFIX) {
+  return articleMarkdownProcessor()
+    .use(rehypeArticleHeadingIds, { prefix: headingIdPrefix })
+    .processSync(body).result;
 }

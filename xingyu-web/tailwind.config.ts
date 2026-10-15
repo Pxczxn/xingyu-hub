@@ -213,7 +213,9 @@ export default {
   			'accordion-up': 'accordion-up 0.2s ease-out',
   			'fade-in': 'fade-in 220ms ease-out backwards',
   			'rise-in': 'rise-in 260ms ease-out backwards',
-  			'page-enter': 'page-enter 280ms ease-out backwards'
+  			'page-enter': 'page-enter 280ms ease-out backwards',
+  			'heart-pop': 'heart-pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+  			'count-bounce': 'count-bounce 400ms cubic-bezier(0.34, 1.56, 0.64, 1)'
   		}
   	}
   },
