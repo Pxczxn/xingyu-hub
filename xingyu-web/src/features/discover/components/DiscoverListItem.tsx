@@ -13,6 +13,7 @@ import type { ArticleDetail } from "@/api/articles/articles.types";
 import type { PublicSeriesDetail } from "@/api/series/series.types";
 import type { CommentItem } from "@/api/interactions/interactions.types";
 import { useAuth } from "@/features/auth/auth.store";
+import { smoothDamp } from "../smooth-damp";
 import { DiscoverReadingPanel } from "./DiscoverReadingPanel";
 
 /*
@@ -164,13 +165,9 @@ export function DiscoverListItem({ item, variant = "normal", onToggleExpand, cla
       target = targetOf();
       const dt = Math.min(64, Math.max(0, now - last)) / 1000;
       last = now;
-      const omega = 2 / smoothTime;
-      const x = omega * dt;
-      const decay = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
-      const change = heightRef.current - target;
-      const temp = (velocity + omega * change) * dt;
-      velocity = (velocity - omega * temp) * decay;
-      const next = target + (change + temp) * decay;
+      const damped = smoothDamp(heightRef.current, target, velocity, smoothTime, dt);
+      velocity = damped.velocity;
+      const next = damped.value;
       heightRef.current = next;
       clip.style.height = `${next}px`;
       if (Math.abs(target - next) < 0.5) {

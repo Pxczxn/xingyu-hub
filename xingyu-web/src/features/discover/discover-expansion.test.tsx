@@ -136,17 +136,64 @@ function geometry(row: HTMLElement, y: number) {
   vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue(new DOMRect(0, y, 800, 100));
 }
 
-it("leaves a sufficiently visible article in place and ignores descendant transitions", async () => {
-  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+/** A window scroll that actually moves the viewport, so alignment can converge. */
+function scrollViewport() {
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+  return vi.spyOn(window, "scrollTo").mockImplementation((options: ScrollToOptions | number) => {
+    const top = Math.max(0, typeof options === "number" ? options : options.top ?? 0);
+    Object.defineProperty(window, "scrollY", { configurable: true, value: top });
+  });
+}
+
+/** Geometry that follows the window scroll, like a real document row. */
+function followViewport(row: HTMLElement, documentTop: number) {
+  vi.spyOn(row, "getBoundingClientRect").mockImplementation(
+    () => new DOMRect(0, documentTop - window.scrollY, 800, 800),
+  );
+  const trigger = row.querySelector<HTMLElement>("[data-discover-trigger]")!;
+  vi.spyOn(trigger, "getBoundingClientRect").mockImplementation(
+    () => new DOMRect(0, documentTop - window.scrollY, 800, 100),
+  );
+}
+
+it("aligns a newly opened article under the sticky inset", async () => {
+  const scroll = scrollViewport();
   renderPage();
   await screen.findByText("第一篇");
-  const row = screen.getByText("第一篇").closest("li")!;
-  geometry(row, 100);
+  followViewport(screen.getByText("第一篇").closest("li")!, 300);
   fireEvent.click(screen.getByText("第一篇"));
   await screen.findByText("正文 a");
+  // A descendant transition must not be mistaken for the end of the layout.
   fireEvent.transitionEnd(screen.getByText("正文 a"), { propertyName: "max-height" });
-  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
-  expect(scroll).not.toHaveBeenCalled();
+  await waitFor(() => expect(Math.abs(window.scrollY - 300)).toBeLessThan(1.5));
+  expect(scroll).toHaveBeenCalled();
+});
+
+it("aligns the switched-to article under the sticky inset", async () => {
+  scrollViewport();
+  renderPage();
+  await screen.findByText("第一篇");
+  followViewport(screen.getByText("第一篇").closest("li")!, 200);
+  followViewport(screen.getByText("第二篇").closest("li")!, 600);
+  fireEvent.click(screen.getByText("第一篇"));
+  await waitFor(() => expect(Math.abs(window.scrollY - 200)).toBeLessThan(1.5));
+  fireEvent.click(screen.getByText("第二篇"));
+  await waitFor(() => expect(Math.abs(window.scrollY - 600)).toBeLessThan(1.5));
+  expect(variants()).toEqual(["compact", "expanded"]);
+});
+
+it("places the opened article in one step when reduced motion is requested", async () => {
+  const media = window.matchMedia("all");
+  vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+    ...media,
+    matches: query.includes("prefers-reduced-motion"),
+  }));
+  const scroll = scrollViewport();
+  renderPage();
+  await screen.findByText("第一篇");
+  followViewport(screen.getByText("第一篇").closest("li")!, 400);
+  fireEvent.click(screen.getByText("第一篇"));
+  await waitFor(() => expect(scroll).toHaveBeenCalledWith({ top: 400, behavior: "instant" }));
 });
 
 it("follows a header that slides under the sticky inset instead of correcting after the animation", async () => {
@@ -313,11 +360,11 @@ it("measures the sticky header and row inset instead of using a fixed page offse
   } finally { header.remove(); }
 });
 
-it("keeps a visible article where the user opened it even when its reading box passes the fold", async () => {
-  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+it("aligns the header even when the reading box extends past the fold", async () => {
+  scrollViewport();
   renderPage();
   await screen.findByText("第一篇");
-  geometry(screen.getByText("第一篇").closest("li")!, 100);
+  followViewport(screen.getByText("第一篇").closest("li")!, 150);
   const originalRect = HTMLElement.prototype.getBoundingClientRect;
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
     return this.hasAttribute("data-reading-viewport") || this.classList.contains("discover-reading-placeholder")
@@ -326,8 +373,7 @@ it("keeps a visible article where the user opened it even when its reading box p
   });
   fireEvent.click(screen.getByText("第一篇"));
   await screen.findByText("正文 a");
-  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
-  expect(scroll).not.toHaveBeenCalled();
+  await waitFor(() => expect(Math.abs(window.scrollY - 150)).toBeLessThan(1.5));
 });
 
 it("sizes the open panel from the measured content instead of a one-shot height", async () => {

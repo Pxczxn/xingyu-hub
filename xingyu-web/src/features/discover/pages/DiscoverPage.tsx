@@ -179,7 +179,8 @@ export function DiscoverPage() {
                         item={item}
                         variant={expandedKey === key ? "expanded" : expandedKey ? "compact" : "normal"}
                         onToggleExpand={() => {
-                          preparePosition(key, expandedKey === key);
+                          const intent = expandedKey === key ? "close" : expandedKey ? "switch" : "open";
+                          preparePosition(key, intent);
                           setExpandedKey((current) => (current === key ? null : key));
                         }}
                       />
