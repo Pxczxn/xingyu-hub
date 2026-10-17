@@ -34,7 +34,7 @@ export function DiscoverPage() {
   // Only one row may be open at a time; the list reads as a single reading surface.
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const requestVersion = useRef(0);
-  const { layoutRef, rowRefs, preparePosition } = useDiscoverPosition(expandedKey);
+  const { rowRefs, preparePosition } = useDiscoverPosition(expandedKey);
 
   useEffect(() => {
     let active = true;
@@ -131,7 +131,7 @@ export function DiscoverPage() {
   return (
     <div className="section-gap">
       <PageMasthead variant="featured" title="探索发现" description="优质内容，每天更新" />
-      <div ref={layoutRef} className="discover-layout grid gap-6" data-focused={expandedKey !== null}>
+      <div className="discover-layout grid gap-6" data-focused={expandedKey !== null}>
         <DiscoverSidebar
           focused={expandedKey !== null}
           activeTopic={topic}

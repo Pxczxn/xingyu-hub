@@ -31,6 +31,9 @@ interface DiscoverListItemProps {
 export function DiscoverListItem({ item, variant = "normal", onToggleExpand, className }: DiscoverListItemProps) {
   const panelId = useId();
   const triggerRef = useRef<HTMLDivElement>(null);
+  const panelClipRef = useRef<HTMLDivElement>(null);
+  const panelContentRef = useRef<HTMLDivElement>(null);
+  const heightRef = useRef(0);
   const [retryKey, setRetryKey] = useState(0);
   const { isAuthenticated } = useAuth();
   const [commentsError, setCommentsError] = useState(false);
@@ -109,6 +112,94 @@ export function DiscoverListItem({ item, variant = "normal", onToggleExpand, cla
       row.style.removeProperty("--discover-reading-top");
     };
   }, [isExpanded, loading, error, detailContent]);
+
+  /*
+   * The accordion animates the panel's block height, and the panel's content is
+   * replaced twice: the loading placeholder returns, then the body and comments
+   * arrive. Radix measures the open height exactly once, so animating toward that
+   * measurement ends with a hard snap when the real content is shorter. Track the
+   * live content height instead and animate towards it; an asynchronous body or
+   * comment retargets the same motion instead of replacing it.
+   */
+  useLayoutEffect(() => {
+    const clip = panelClipRef.current;
+    const content = panelContentRef.current;
+    if (!clip || !content) return;
+    // Narrow layouts keep the natural height (discover.css): animating a document
+    // that can be tens of thousands of pixels tall repeatedly clamps the scroll.
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      clip.style.removeProperty("height");
+      return;
+    }
+    const targetOf = () => (isExpanded ? content.getBoundingClientRect().height : 0);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      // Reduced motion: no height animation at all, only the live size.
+      const apply = () => {
+        const height = targetOf();
+        heightRef.current = height;
+        clip.style.height = `${height}px`;
+      };
+      apply();
+      const observer = new ResizeObserver(apply);
+      observer.observe(content);
+      return () => observer.disconnect();
+    }
+    let target = targetOf();
+    let frame = 0;
+    let last = performance.now();
+    // Critically damped, like the surrounding transitions but retargetable: a
+    // content height that moves mid-flight bends the same motion instead of
+    // restarting it. Starting from rest also keeps the first frame from dropping a
+    // few hundred pixels at the very bottom of the page, where the browser has to
+    // follow the shrinking document.
+    let velocity = 0;
+    const smoothTime = 0.11;
+    if (isExpanded) {
+      heightRef.current = 0;
+      clip.style.height = "0px";
+    }
+    const tick = (now: number) => {
+      // Read the live height every frame: React swaps the placeholder for the real
+      // body/comments between frames, and a stale target would overshoot.
+      target = targetOf();
+      const dt = Math.min(64, Math.max(0, now - last)) / 1000;
+      last = now;
+      const omega = 2 / smoothTime;
+      const x = omega * dt;
+      const decay = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+      const change = heightRef.current - target;
+      const temp = (velocity + omega * change) * dt;
+      velocity = (velocity - omega * temp) * decay;
+      const next = target + (change + temp) * decay;
+      heightRef.current = next;
+      clip.style.height = `${next}px`;
+      if (Math.abs(target - next) < 0.5) {
+        heightRef.current = target;
+        velocity = 0;
+        clip.style.height = `${target}px`;
+        frame = 0;
+        return;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    const kick = () => {
+      if (frame) return;
+      last = performance.now();
+      frame = requestAnimationFrame(tick);
+    };
+    kick();
+    const observer = new ResizeObserver(() => {
+      if (!isExpanded) return;
+      target = targetOf();
+      kick();
+    });
+    observer.observe(content);
+    return () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
+      observer.disconnect();
+    };
+  }, [isExpanded]);
 
   const handleClick = (e: React.MouseEvent) => {
     // 切换展开/收起状态
@@ -284,7 +375,8 @@ export function DiscoverListItem({ item, variant = "normal", onToggleExpand, cla
       </div>
 
       <Accordion.Content id={panelId} aria-labelledby={`${panelId}-trigger`} aria-hidden={!isExpanded} inert={!isExpanded} className="discover-panel">
-        <div className="discover-panel-content space-y-3 rounded-xl border border-border/60 bg-gradient-to-br from-muted/40 to-muted/20 p-2 shadow-sm">
+        <div ref={panelClipRef} className="discover-panel-clip">
+        <div ref={panelContentRef} className="discover-panel-content space-y-3 rounded-xl border border-border/60 bg-gradient-to-br from-muted/40 to-muted/20 p-2 shadow-sm">
           <div className="discover-reader min-w-0">
             {loading || (!detailContent && !error) ? (
               <div role="status" className="discover-reading-body discover-reading-placeholder flex items-center justify-center">
@@ -326,6 +418,7 @@ export function DiscoverListItem({ item, variant = "normal", onToggleExpand, cla
                 <Link to="/login" className="focus-ring mt-2 inline-flex min-h-11 items-center rounded text-sm text-accent-strong">登录查看全部评论</Link>
               )}
             </section>
+        </div>
         </div>
       </Accordion.Content>
     </div>

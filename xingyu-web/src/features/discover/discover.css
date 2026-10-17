@@ -29,22 +29,26 @@
 .discover-panel {
   overflow: clip;
 }
+/*
+ * The panel's block height is driven from DiscoverListItem, which tracks the live
+ * content height. The reading body and the comments arrive asynchronously, so the
+ * target moves while the panel is opening; a retargetable animation absorbs that,
+ * while the previous one-shot keyframe animated to the placeholder height
+ * measured on open and snapped to the real content height when it ended.
+ */
+.discover-panel-clip {
+  overflow: clip;
+}
 .discover-panel[data-state="open"] {
-  animation: discover-expand 260ms var(--discover-ease, ease-out);
+  animation: discover-reveal 260ms var(--discover-ease, ease-out);
 }
+/* Doubles as the mount hold: Radix's Presence unmounts when this fade ends. */
 .discover-panel[data-state="closed"] {
-  animation: discover-collapse 260ms var(--discover-ease, ease-out);
+  animation: discover-fade 260ms var(--discover-ease, ease-out);
 }
-@keyframes discover-expand {
-  from { height: 0; opacity: 0; }
-  to { height: var(--radix-accordion-content-height); opacity: 1; }
-}
-@keyframes discover-collapse {
-  from { height: var(--radix-accordion-content-height); opacity: 1; }
-  to { height: 0; opacity: 0; }
-}
-.discover-layout[data-positioning="true"] {
-  overflow-anchor: none;
+@keyframes discover-fade {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 .discover-row[data-discover-variant="expanded"] .discover-item-header {
   display: grid;
@@ -133,8 +137,9 @@
 /* Natural-height mobile articles can be tens of thousands of pixels tall.
  * A height animation there repeatedly clamps document scrolling; only fade in. */
 @media (max-width: 1023px) {
-  .discover-panel[data-state="open"] {
-    animation-name: discover-reveal;
+  .discover-panel-clip {
+    height: auto !important;
+    transition: none;
   }
   .discover-panel[data-state="closed"] {
     animation: none;
