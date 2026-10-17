@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { discoverApi } from "@/api/discover/discover.api";
 import { topicsApi } from "@/api/topics/topics.api";
 import { articlesApi } from "@/api/articles/articles.api";
@@ -35,7 +35,7 @@ const rows = [
 ];
 
 function expandableRows() {
-  return screen.getAllByRole("button").filter((element) => element.hasAttribute("aria-expanded"));
+  return screen.getAllByRole("button").filter((element) => element.hasAttribute("data-discover-trigger"));
 }
 
 function renderPage() {
@@ -73,6 +73,39 @@ beforeEach(() => {
   getPreview.mockResolvedValue([]);
 });
 
+function variants() {
+  return expandableRows().map((row) => row.closest("[data-discover-variant]")?.getAttribute("data-discover-variant"));
+}
+
+it("derives normal, compact and expanded variants from the single expanded row without reloading the feed", async () => {
+  renderPage();
+  await screen.findByText("第一篇");
+  expect(variants()).toEqual(["normal", "normal"]);
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  expect(variants()).toEqual(["expanded", "compact"]);
+  fireEvent.click(screen.getByText("第二篇"));
+  await screen.findByText("正文 b");
+  expect(variants()).toEqual(["compact", "expanded"]);
+  fireEvent.click(screen.getByText("第二篇"));
+  expect(variants()).toEqual(["normal", "normal"]);
+  expect(discover).toHaveBeenCalledTimes(1);
+});
+
+it("connects the keyboard trigger to its reading panel", async () => {
+  renderPage();
+  await screen.findByText("第一篇");
+  const trigger = expandableRows()[0];
+  fireEvent.keyDown(trigger, { key: "Enter" });
+  await screen.findByText("正文 a");
+  const panel = document.getElementById(trigger.getAttribute("aria-controls")!);
+  expect(panel).toBeVisible();
+  fireEvent.keyDown(trigger, { key: " " });
+  expect(trigger).toHaveAttribute("aria-expanded", "false");
+  expect(panel).toHaveAttribute("aria-hidden", "true");
+  expect(panel).toHaveAttribute("inert");
+});
+
 it("keeps a single row expanded at a time", async () => {
   renderPage();
   await screen.findByText("第一篇");
@@ -92,52 +125,187 @@ it("keeps a single row expanded at a time", async () => {
   expect(screen.queryByText("正文 b")).not.toBeInTheDocument();
 });
 
-it("scrolls the newly opened row into view", async () => {
-  renderPage();
-  await screen.findByText("第一篇");
-  const secondRow = screen.getByText("第二篇").closest("li")!;
-  const scroll = vi.spyOn(secondRow, "scrollIntoView");
-  fireEvent.click(screen.getByText("第二篇"));
-  await waitFor(() => expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "start" }));
+afterEach(() => {
+  vi.restoreAllMocks();
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
 });
 
-it("keeps aligning the newly opened row when another row is still closing", async () => {
+function geometry(row: HTMLElement, y: number) {
+  vi.spyOn(row, "getBoundingClientRect").mockReturnValue(new DOMRect(0, y, 800, 800));
+  const trigger = row.querySelector<HTMLElement>("[data-discover-trigger]")!;
+  vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue(new DOMRect(0, y, 800, 100));
+}
+
+it("leaves a sufficiently visible article in place and ignores descendant transitions", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  renderPage();
+  await screen.findByText("第一篇");
+  const row = screen.getByText("第一篇").closest("li")!;
+  geometry(row, 100);
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  fireEvent.transitionEnd(screen.getByText("正文 a"), { propertyName: "max-height" });
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
+  expect(scroll).not.toHaveBeenCalled();
+});
+
+it("corrects an obscured target only once after layout settles", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  renderPage();
+  await screen.findByText("第一篇");
+  const row = screen.getByText("第二篇").closest("li")!;
+  geometry(row, 900);
+  fireEvent.click(screen.getByText("第二篇"));
+  await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+  expect(scroll).toHaveBeenCalledWith({ top: 900, behavior: "instant" });
+  fireEvent.transitionEnd(row, { propertyName: "max-height" });
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 80)); });
+  expect(scroll).toHaveBeenCalledTimes(1);
+});
+
+it("cancels obsolete positioning when rapidly switching or collapsing", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  renderPage();
+  await screen.findByText("第一篇");
+  geometry(screen.getByText("第一篇").closest("li")!, 900);
+  geometry(screen.getByText("第二篇").closest("li")!, 1200);
+  fireEvent.click(screen.getByText("第一篇"));
+  fireEvent.click(screen.getByText("第二篇"));
+  await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+  expect(scroll).toHaveBeenLastCalledWith({ top: 1200, behavior: "instant" });
+  scroll.mockClear();
+  fireEvent.click(screen.getByText("第一篇"));
+  fireEvent.click(screen.getByText("第一篇"));
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 150)); });
+  expect(scroll).not.toHaveBeenCalled();
+});
+
+it("preserves a collapse anchor when rows above it regain their normal height", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  renderPage();
+  await screen.findByText("第一篇");
+  const row = screen.getByText("第二篇").closest("li")!;
+  geometry(row, 120);
+  fireEvent.click(screen.getByText("第二篇"));
+  await screen.findByText("正文 b");
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
+  scroll.mockClear();
+  fireEvent.click(screen.getByText("第二篇"));
+  vi.mocked(row.getBoundingClientRect).mockReturnValue(new DOMRect(0, 200, 800, 160));
+  await waitFor(() => expect(scroll).toHaveBeenCalledWith({ top: 80, behavior: "instant" }));
+});
+
+it("restores the collapsed article context when its body was far above the viewport", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  renderPage();
+  await screen.findByText("第一篇");
+  const row = screen.getByText("第一篇").closest("li")!;
+  geometry(row, 100);
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 1000 });
+  vi.mocked(row.getBoundingClientRect).mockReturnValue(new DOMRect(0, -900, 800, 1500));
+  fireEvent.click(screen.getByRole("button", { name: "收起阅读" }));
+  await waitFor(() => expect(scroll).toHaveBeenCalledWith({ top: 100, behavior: "instant" }));
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+});
+
+it("restores deep mobile collapse context before the next paint", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  const media = window.matchMedia("all");
+  vi.spyOn(window, "matchMedia").mockImplementation((query) => ({ ...media, matches: query.includes("max-width: 1023px") }));
+  renderPage();
+  await screen.findByText("第一篇");
+  const row = screen.getByText("第一篇").closest("li")!;
+  geometry(row, 100);
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
+  scroll.mockClear();
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 1000 });
+  vi.mocked(row.getBoundingClientRect).mockReturnValue(new DOMRect(0, -900, 800, 1500));
+  fireEvent.click(screen.getByRole("button", { name: "收起阅读" }));
+  expect(scroll).toHaveBeenCalledWith({ top: 100, behavior: "instant" });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+});
+
+it("lets deliberate user scrolling cancel pending automatic positioning", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  renderPage();
+  await screen.findByText("第一篇");
+  geometry(screen.getByText("第二篇").closest("li")!, 900);
+  fireEvent.click(screen.getByText("第二篇"));
+  fireEvent.wheel(window, { deltaY: 200 });
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
+  expect(scroll).not.toHaveBeenCalled();
+});
+
+it("keeps native anchoring disabled for the newest layout task and clears it on cancellation", async () => {
   renderPage();
   await screen.findByText("第一篇");
   fireEvent.click(screen.getByText("第一篇"));
-  expect(await screen.findByText("正文 a")).toBeInTheDocument();
-  const firstRow = screen.getByText("第一篇").closest("li")!;
-  const secondRow = screen.getByText("第二篇").closest("li")!;
-  const firstScroll = vi.spyOn(firstRow, "scrollIntoView");
-  const secondScroll = vi.spyOn(secondRow, "scrollIntoView");
+  const layout = document.querySelector(".discover-layout")!;
+  expect(layout).toHaveAttribute("data-positioning", "true");
   fireEvent.click(screen.getByText("第二篇"));
-  await waitFor(() => expect(secondScroll).toHaveBeenCalledTimes(1));
-  const expandEnded = new Event("transitionend", { bubbles: true });
-  Object.defineProperty(expandEnded, "propertyName", { value: "max-height" });
-  secondRow.dispatchEvent(expandEnded);
-  await waitFor(() => expect(secondScroll).toHaveBeenCalledTimes(2));
-  // Only the row that opened is realigned; the row closing above it must not
-  // pull the reader back to where they were. Its spy is installed after it was
-  // opened, so any call here would be a re-align caused by the switch.
-  expect(firstScroll).not.toHaveBeenCalled();
+  expect(layout).toHaveAttribute("data-positioning", "true");
+  fireEvent.wheel(window);
+  expect(layout).not.toHaveAttribute("data-positioning");
+  await screen.findByText("正文 b");
 });
 
-it("re-aligns the opened row once its own expand animation has grown the page", async () => {
+it("measures the sticky header and row inset instead of using a fixed page offset", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  const header = document.createElement("header");
+  header.className = "sticky";
+  document.body.append(header);
+  vi.spyOn(header, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 1000, 64));
+  try {
+    renderPage();
+    await screen.findByText("第一篇");
+    const row = screen.getByText("第二篇").closest("li")!;
+    row.querySelector<HTMLElement>("[data-discover-variant]")!.style.paddingTop = "20px";
+    geometry(row, 900);
+    fireEvent.click(screen.getByText("第二篇"));
+    await waitFor(() => expect(scroll).toHaveBeenCalledWith({ top: 816, behavior: "instant" }));
+  } finally { header.remove(); }
+});
+
+it("corrects a visible title when the body has insufficient visible reading space", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   renderPage();
   await screen.findByText("第一篇");
-  const secondRow = screen.getByText("第二篇").closest("li")!;
-  const scroll = vi.spyOn(secondRow, "scrollIntoView");
-  fireEvent.click(screen.getByText("第二篇"));
-  await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
-  // A row near the end of the page grows the document while it opens, so the
-  // scroll position requested on the first pass is clamped by the height the
-  // document still had. Only the row's own max-height transition says the page
-  // is finally tall enough to pin it.
-  const expandEnded = new Event("transitionend", { bubbles: true });
-  Object.defineProperty(expandEnded, "propertyName", { value: "max-height" });
-  secondRow.dispatchEvent(expandEnded);
-  await waitFor(() => expect(scroll).toHaveBeenCalledTimes(2));
-  expect(scroll).toHaveBeenLastCalledWith({ behavior: "smooth", block: "start" });
+  geometry(screen.getByText("第一篇").closest("li")!, 100);
+  const originalRect = HTMLElement.prototype.getBoundingClientRect;
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    return this.hasAttribute("data-reading-viewport") || this.classList.contains("discover-reading-placeholder")
+      ? new DOMRect(0, 740, 600, 400)
+      : originalRect.call(this);
+  });
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  await waitFor(() => expect(scroll).toHaveBeenCalledWith({ top: 100, behavior: "instant" }));
+});
+
+it("cancels pending positioning when the page unmounts", async () => {
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  const view = renderPage();
+  await screen.findByText("第一篇");
+  geometry(screen.getByText("第一篇").closest("li")!, 900);
+  fireEvent.click(screen.getByText("第一篇"));
+  view.unmount();
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
+  expect(scroll).not.toHaveBeenCalled();
+});
+
+it("collapses the open row when content type changes", async () => {
+  renderPage();
+  await screen.findByText("第一篇");
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  fireEvent.click(screen.getByRole("button", { name: "文章" }));
+  await waitFor(() => expect(variants()).toEqual(["normal", "normal"]));
+  expect(document.querySelector(".discover-layout")).toHaveAttribute("data-focused", "false");
 });
 
 it("collapses the open row when the filter changes", async () => {

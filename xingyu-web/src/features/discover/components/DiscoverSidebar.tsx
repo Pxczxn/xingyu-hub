@@ -12,6 +12,7 @@ interface DiscoverSidebarProps {
   onContentTypeChange: (type: ContentType) => void;
   topics: TopicSummary[];
   topicsError?: boolean;
+  focused?: boolean;
   className?: string;
 }
 
@@ -28,18 +29,20 @@ export function DiscoverSidebar({
   onContentTypeChange,
   topics,
   topicsError,
+  focused = false,
   className,
 }: DiscoverSidebarProps) {
   const filterClass = (active: boolean) => cn(
-    "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-ring",
+    "flex min-h-11 min-w-0 w-full items-center rounded-lg py-2 text-left text-sm transition-colors focus-ring",
+    focused ? "gap-2 px-2" : "gap-2.5 px-3",
     active ? "bg-accent/15 font-medium text-accent-strong" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
   );
 
   return (
-    <aside className={cn("flex h-fit flex-col gap-6 lg:sticky lg:top-20", className)} aria-label="探索筛选">
+    <aside className={cn("flex h-fit min-w-0 flex-col gap-6 lg:sticky lg:top-20", className)} aria-label="探索筛选">
       <section aria-labelledby="discover-topic-filter">
         <h2 id="discover-topic-filter" className="mb-3 text-sm font-semibold text-foreground">按话题筛选</h2>
-        <ul className="grid max-h-80 grid-cols-2 gap-1 overflow-y-auto scrollbar-none lg:flex lg:flex-col">
+        <ul className="grid grid-cols-2 gap-1 lg:flex lg:flex-col">
           <li>
             <button type="button" onClick={() => onTopicChange("")} aria-pressed={!activeTopic} className={filterClass(!activeTopic)}>
               <Hash className="h-3.5 w-3.5 shrink-0" aria-hidden />全部话题
@@ -50,7 +53,7 @@ export function DiscoverSidebar({
               <button type="button" onClick={() => onTopicChange(topic.slug)} aria-pressed={activeTopic === topic.slug} className={filterClass(activeTopic === topic.slug)}>
                 <Hash className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span className="min-w-0 flex-1 truncate">{topic.name}</span>
-                {topic.contentCount !== undefined && <span className="text-xs tabular-nums">{topic.contentCount}</span>}
+                {topic.contentCount !== undefined && !focused && <span className="shrink-0 text-xs tabular-nums">{topic.contentCount}</span>}
               </button>
             </li>
           ))}

@@ -12,6 +12,8 @@ import { PageState } from "@/components/shared/PageState";
 import { DiscoverSidebar } from "@/features/discover/components/DiscoverSidebar";
 import { DiscoverListItem } from "@/features/discover/components/DiscoverListItem";
 import { cn } from "@/lib/cn";
+import { useDiscoverPosition } from "../useDiscoverPosition";
+import "../discover.css";
 
 const itemKey = (item: ContentSummary) => `${item.objectType ?? ""}:${item.id}`;
 
@@ -32,7 +34,7 @@ export function DiscoverPage() {
   // Only one row may be open at a time; the list reads as a single reading surface.
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const requestVersion = useRef(0);
-  const rowRefs = useRef(new Map<string, HTMLLIElement>());
+  const { layoutRef, rowRefs, preparePosition } = useDiscoverPosition(expandedKey);
 
   useEffect(() => {
     let active = true;
@@ -51,10 +53,10 @@ export function DiscoverPage() {
     requestVersion.current += 1;
     setLoading(true);
     setItems([]);
+    setExpandedKey(null);
     setNextCursor(null);
     setLoadingMore(false);
     setLoadMoreError(null);
-    setExpandedKey(null);
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       if (value) next.set(key, value);
@@ -103,6 +105,7 @@ export function DiscoverPage() {
     setLoading(true);
     setError(false);
     setItems([]);
+    setExpandedKey(null);
     setNextCursor(null);
     setLoadingMore(false);
     setLoadMoreError(null);
@@ -125,36 +128,12 @@ export function DiscoverPage() {
 
   const isFiltered = Boolean(topic || type);
 
-  /*
-   * Bring the opened row to the reading position.
-   *
-   * Two passes are needed, not one. The panel opens with a height transition, so
-   * when the first pass asks the browser to scroll, the document is still short:
-   * for a row near the end of the list the requested position is clamped by the
-   * height the page has AT THAT MOMENT, and the row stays half-way down the
-   * window with nothing left to correct it. The row's own `max-height`
-   * transition ending is the moment the document is finally at its full height.
-   */
-  useEffect(() => {
-    const target = expandedKey ? rowRefs.current.get(expandedKey) : null;
-    if (!target) return;
-    const align = () => target.scrollIntoView({ behavior: "smooth", block: "start" });
-    const frame = requestAnimationFrame(align);
-    const onExpandSettled = (event: TransitionEvent) => {
-      if (event.propertyName === "max-height") align();
-    };
-    target.addEventListener("transitionend", onExpandSettled);
-    return () => {
-      cancelAnimationFrame(frame);
-      target.removeEventListener("transitionend", onExpandSettled);
-    };
-  }, [expandedKey]);
-
   return (
     <div className="section-gap">
       <PageMasthead variant="featured" title="探索发现" description="优质内容，每天更新" />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]">
+      <div ref={layoutRef} className="discover-layout grid gap-6" data-focused={expandedKey !== null}>
         <DiscoverSidebar
+          focused={expandedKey !== null}
           activeTopic={topic}
           onTopicChange={(value) => changeFilter("topic", value)}
           contentType={type ?? "ALL"}
@@ -183,7 +162,7 @@ export function DiscoverPage() {
             </div>
           )}
           {!loading && !error && items.length > 0 && (
-            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+            <div className="rounded-2xl border border-border/80 bg-card shadow-sm">
               <ul className="flex flex-col divide-y divide-border/40">
                 {items.map((item) => {
                   const key = itemKey(item);
@@ -198,8 +177,11 @@ export function DiscoverPage() {
                     >
                       <DiscoverListItem
                         item={item}
-                        expanded={expandedKey === key}
-                        onToggleExpand={() => setExpandedKey((current) => (current === key ? null : key))}
+                        variant={expandedKey === key ? "expanded" : expandedKey ? "compact" : "normal"}
+                        onToggleExpand={() => {
+                          preparePosition(key, expandedKey === key);
+                          setExpandedKey((current) => (current === key ? null : key));
+                        }}
                       />
                     </li>
                   );

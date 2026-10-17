@@ -1,0 +1,159 @@
+/* Discover-only layout; the shared shell and navigation keep their own geometry. */
+.discover-layout {
+  --discover-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: grid-template-columns 260ms var(--discover-ease);
+}
+.discover-row {
+  transition: padding 220ms var(--discover-ease, ease-out), background-color 180ms ease-out;
+}
+.discover-cover {
+  width: 160px;
+  height: 120px;
+  transition: width 220ms var(--discover-ease, ease-out), height 220ms var(--discover-ease, ease-out);
+}
+.discover-row[data-discover-variant="compact"] .discover-cover,
+.discover-row[data-discover-variant="expanded"] .discover-cover {
+  width: 64px;
+  height: 64px;
+}
+.discover-summary {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows 220ms var(--discover-ease, ease-out), opacity 180ms var(--discover-ease, ease-out);
+}
+.discover-summary[aria-hidden="true"] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.discover-panel {
+  overflow: clip;
+}
+.discover-panel[data-state="open"] {
+  animation: discover-expand 260ms var(--discover-ease, ease-out);
+}
+.discover-panel[data-state="closed"] {
+  animation: discover-collapse 260ms var(--discover-ease, ease-out);
+}
+@keyframes discover-expand {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+@keyframes discover-collapse {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+.discover-layout[data-positioning="true"] {
+  overflow-anchor: none;
+}
+.discover-row[data-discover-variant="expanded"] .discover-item-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
+}
+.discover-reading-toolbar {
+  position: sticky;
+  top: var(--toast-top-offset);
+  z-index: 10;
+}
+.discover-reader {
+  display: grid;
+  gap: 1rem;
+}
+.discover-directory-content[data-open="false"] {
+  display: none;
+}
+.discover-reading-viewport {
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+.discover-reading-viewport .article-body h2 {
+  margin-top: 1.5rem;
+}
+.discover-reading-viewport .article-body h3 {
+  margin-top: 1.25rem;
+}
+.discover-reading-viewport .article-body h4 {
+  margin-top: 1rem;
+}
+.discover-reading-viewport .article-body :is(h2, h3, h4) + :is(h2, h3, h4) {
+  margin-top: 0.75rem;
+}
+.discover-reading-viewport .article-body > :first-child {
+  margin-top: 0;
+}
+@media (min-width: 1024px) {
+  .discover-layout {
+    grid-template-columns: minmax(0, calc((100% - 1.5rem) / 5)) minmax(0, 1fr);
+  }
+  .discover-layout[data-focused="true"] {
+    grid-template-columns: minmax(0, 156px) minmax(0, 1fr);
+  }
+  .discover-reading-toolbar {
+    position: static;
+  }
+  .discover-reader {
+    grid-template-columns: minmax(0, 1fr) 176px;
+    align-items: start;
+  }
+  .discover-directory {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .discover-reader > section {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .discover-directory-content[data-open] {
+    display: block;
+  }
+  .discover-reading-viewport,
+  .discover-reading-placeholder {
+    max-height: clamp(12rem, calc(100dvh - var(--discover-reading-top, 12rem)), 48rem);
+  }
+  .discover-reading-placeholder {
+    height: clamp(12rem, calc(100dvh - var(--discover-reading-top, 12rem)), 48rem);
+  }
+  .discover-reading-viewport {
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.45) transparent;
+    scrollbar-gutter: stable;
+  }
+}
+/* Natural-height mobile articles can be tens of thousands of pixels tall.
+ * A height animation there repeatedly clamps document scrolling; only fade in. */
+@media (max-width: 1023px) {
+  .discover-panel[data-state="open"] {
+    animation-name: discover-reveal;
+  }
+  .discover-panel[data-state="closed"] {
+    animation: none;
+  }
+  .discover-row {
+    transition-property: background-color;
+  }
+  .discover-cover {
+    transition: none;
+  }
+  .discover-summary {
+    transition-property: opacity;
+  }
+}
+@keyframes discover-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (max-width: 639px) {
+  .discover-cover {
+    width: 80px;
+    height: 72px;
+  }
+  .discover-row[data-discover-variant="compact"] .discover-cover,
+  .discover-row[data-discover-variant="expanded"] .discover-cover {
+    width: 48px;
+    height: 48px;
+  }
+}
