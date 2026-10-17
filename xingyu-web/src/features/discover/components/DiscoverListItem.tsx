@@ -285,17 +285,22 @@ export function DiscoverListItem({ item, variant = "normal", onToggleExpand, cla
 
       <Accordion.Content id={panelId} aria-labelledby={`${panelId}-trigger`} aria-hidden={!isExpanded} inert={!isExpanded} className="discover-panel">
         <div className="discover-panel-content space-y-3 rounded-xl border border-border/60 bg-gradient-to-br from-muted/40 to-muted/20 p-2 shadow-sm">
+          <div className="discover-reader min-w-0">
             {loading || (!detailContent && !error) ? (
-              <div role="status" className="discover-reading-placeholder flex items-center justify-center">
+              <div role="status" className="discover-reading-body discover-reading-placeholder flex items-center justify-center">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
                 <span className="text-sm text-muted-foreground">加载中...</span>
               </div>
             ) : error ? (
-              <div className="discover-reading-placeholder space-y-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+              <div className="discover-reading-body discover-reading-placeholder space-y-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4">
                 <p role="alert" className="text-sm text-destructive">{error}</p>
                 <button type="button" onClick={() => setRetryKey((key) => key + 1)} className="focus-ring min-h-11 rounded px-2 text-sm text-accent-strong">重新加载正文</button>
               </div>
             ) : detailContent && <DiscoverReadingPanel content={detailContent} />}
+            <div className="discover-reading-actions flex justify-end">
+              <Link to={href} className="focus-ring inline-flex min-h-11 items-center rounded-lg bg-accent px-5 py-2 text-sm font-medium text-accent-foreground">查看详情</Link>
+            </div>
+          </div>
 
             <section aria-label="评论预览" className="rounded-lg border border-border/60 bg-card p-3">
               <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -321,9 +326,6 @@ export function DiscoverListItem({ item, variant = "normal", onToggleExpand, cla
                 <Link to="/login" className="focus-ring mt-2 inline-flex min-h-11 items-center rounded text-sm text-accent-strong">登录查看全部评论</Link>
               )}
             </section>
-            <div className="flex justify-end border-t border-border/40 pt-3">
-              <Link to={href} className="focus-ring inline-flex min-h-11 items-center rounded-lg bg-accent px-5 py-2 text-sm font-medium text-accent-foreground">查看详情</Link>
-            </div>
         </div>
       </Accordion.Content>
     </div>

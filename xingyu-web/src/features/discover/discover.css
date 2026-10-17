@@ -95,15 +95,22 @@
   }
   .discover-reader {
     grid-template-columns: minmax(0, 1fr) 176px;
-    align-items: start;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: stretch;
   }
   .discover-directory {
     grid-column: 2;
     grid-row: 1;
+    align-self: start;
   }
-  .discover-reader > section {
+  .discover-reader .discover-reading-body {
     grid-column: 1;
-    grid-row: 1;
+    grid-row: 1 / span 2;
+  }
+  .discover-reading-actions {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: end;
   }
   .discover-directory-content[data-open] {
     display: block;

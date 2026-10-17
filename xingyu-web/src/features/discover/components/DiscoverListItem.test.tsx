@@ -91,15 +91,46 @@ it("articles render their full Markdown body with working heading links and comm
   const comments = screen.getByText("真实评论 1");
   expect(directory.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
+it("renders one unchanged detail link after the reading body and before comments in the reader grid", async () => {
+  render(<MemoryRouter><Row item={{ id: "article", title: "详情位置", objectType: "ARTICLE" }} /></MemoryRouter>);
+  fireEvent.click(screen.getByText("详情位置"));
+  await screen.findByText("正文 article");
+  const links = screen.getAllByRole("link", { name: "查看详情" });
+  expect(links).toHaveLength(1);
+  const detail = links[0];
+  expect(detail).toHaveAttribute("href", "/articles/article");
+  expect(document.querySelector(".discover-reader")).toContainElement(detail);
+  const body = screen.getByRole("region", { name: "正文预览" });
+  const commentsRegion = screen.getByRole("region", { name: "评论预览" });
+  expect(body.compareDocumentPosition(detail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(detail.compareDocumentPosition(commentsRegion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it("keeps the same focused detail link while the article body finishes loading", async () => {
+  let resolveArticle!: (value: unknown) => void;
+  mocks.article.mockReturnValueOnce(new Promise((resolve) => { resolveArticle = resolve; }));
+  render(<MemoryRouter><Row item={{ id: "article", title: "加载时的详情入口", objectType: "ARTICLE" }} /></MemoryRouter>);
+  fireEvent.click(screen.getByText("加载时的详情入口"));
+  const detail = screen.getByRole("link", { name: "查看详情" });
+  expect(detail).toHaveAttribute("href", "/articles/article");
+  detail.focus();
+  await act(async () => { resolveArticle({ id: "article", body: "异步正文", seriesContexts: [] }); });
+  expect(await screen.findByText("异步正文")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "查看详情" })).toBe(detail);
+  expect(detail).toHaveFocus();
+});
+
 it("retries article failures without hiding comments or the detail link", async () => {
   mocks.article.mockRejectedValueOnce(new Error("offline"));
   render(<MemoryRouter><Row item={{ id: "article", title: "重试文章", objectType: "ARTICLE" }} /></MemoryRouter>);
   fireEvent.click(screen.getByText("重试文章"));
   expect(await screen.findByText("加载内容失败")).toBeInTheDocument();
   expect(await screen.findByText("真实评论 1")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "查看详情" })).toBeInTheDocument();
+  const detail = screen.getByRole("link", { name: "查看详情" });
+  expect(detail).toHaveAttribute("href", "/articles/article");
   fireEvent.click(screen.getByRole("button", { name: "重新加载正文" }));
   expect(await screen.findByText("正文 article")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "查看详情" })).toBe(detail);
 });
 
 it("keeps a collapse control available beside long mobile content and returns focus to the trigger", async () => {

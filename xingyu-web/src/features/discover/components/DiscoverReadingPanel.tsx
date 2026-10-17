@@ -66,7 +66,7 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
   };
 
   return (
-    <div className="discover-reader min-w-0">
+    <div className="contents">
       <nav aria-label={chapters ? "章节目录" : "文章目录"} className="discover-directory min-w-0 rounded-lg border border-border/60 bg-background/80 px-2 lg:p-2">
         <button type="button" aria-expanded={directoryOpen} aria-controls={directoryId}
           onClick={() => setDirectoryOpen((open) => !open)}
@@ -103,7 +103,7 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
           </> : <p className="px-2 text-xs text-muted-foreground">暂无小节标题</p>}
         </div>
       </nav>
-      <section aria-label="正文预览" className="min-w-0 rounded-lg border border-border/60 bg-card">
+      <section aria-label="正文预览" className="discover-reading-body min-w-0 rounded-lg border border-border/60 bg-card">
         {/* A native scroll viewport needs a tab stop so keyboard readers can scroll its full body. */}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard access to the native scroll region. */}
         <div ref={readingViewport} data-reading-viewport role="region" tabIndex={0} aria-label="阅读正文"
