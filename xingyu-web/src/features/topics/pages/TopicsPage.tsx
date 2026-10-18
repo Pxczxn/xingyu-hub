@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Search, Star } from "lucide-react";
 import { topicsApi } from "@/api/topics/topics.api";
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { PageMasthead } from "@/components/shared/PageMasthead";
@@ -8,15 +7,12 @@ import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth.store";
 import { staggerDelay } from "@/lib/stagger";
-import { FeaturedTopics } from "@/features/topics/components/FeaturedTopics";
+import {
+  DISCOVERY_LIMIT,
+  TopicDiscoverySection,
+} from "@/features/topics/components/TopicDiscoverySection";
 import { TopicCard } from "@/features/topics/components/TopicCard";
-import { TopicsFilterBar } from "@/features/topics/components/TopicsFilterBar";
-
-/** 页尾引导（P3）：两个动作，不承诺任何本页无法验证的后续效果。 */
-const TOPIC_STEPS = [
-  { title: "浏览话题", icon: Search },
-  { title: "关注感兴趣的方向", icon: Star },
-] as const;
+import { SearchField } from "@/components/shared/SearchField";
 
 type FollowEntry = {
   following: boolean;
@@ -29,27 +25,30 @@ type FollowEntry = {
  * Topics plaza.
  * Real endpoint: GET /api/v1/topics.
  *
- * 2026-10-13 (批次 04) — 按设计方案 §3.3 重排为四层：
- * 页头(P3) → 筛选条(P1, sticky) → 话题网格(P0) → 引导说明(P3)。
+ * 当前信息层级（2026-10-17）：
+ *   第一层 页头（P3，无横幅）
+ *   第二层 发现区：热门话题（contentCount 降序）｜ 最近活跃（lastPublishedAt 降序）
+ *   第三层 全部话题：标题 + 数量 + 搜索框，卡片网格（P0）
  *
- * 三处与旧版不同：
+ * 历史（保留原因，不保留已删除的结构）：
+ *   2026-10-13 — 搜索离开页头横幅卡成为独立筛选条；卡片从分隔线列表改成网格；
+ *                 关注按钮回到卡片右下角（关注端点 404 已于 2026-10-10 后端修复）。
+ *   2026-10-17 — 发现区拆成「热门话题 + 最近活跃」双模块；搜索搬到「全部话题」标题行。
  *
- *   1. 搜索从页头里搬出来，成为独立的 P1 筛选条并 sticky 在 shell header 之下。
- *      它原本和标题共用一张横幅卡，于是「过滤整个列表」这个动作读起来像标题的
- *      附属说明；移出后它有了自己的宽度，滚动时也一直可用（方案点名 sticky）。
- *      筛选条本体是 components/TopicsFilterBar.tsx，理由写在那里。
- *   2. 卡片网格从「分隔线列表行」改成真正的卡片网格（见 TopicCard），间距也从
- *      分隔线布局的 `gap-y-1` 换成卡片网格的 `gap-3`。入场用 staggerDelay 错峰。
- *   3. 关注按钮回到卡片右下角。旧注释记的「关注端点 404」已于 2026-10-10 修复
- *      （SocialService 曾硬编码 status=ENABLED，而话题状态是 ACTIVE），后端有
- *      TopicFollowIntegrationTest 钉死闭环，CommunityAuthInterceptor 也对
- *      `/api/v1/topics` 整段走可选认证，因此列表端点会带上 viewer 的 following。
- *      关注状态集中在本页持有，卡片只负责渲染。
- *   4. 页尾补回一行「如何开始？」引导（P3），与星系广场同构。它不在搜索态出现。
+ * 两处改动值得记下来：
+ *
+ *   1. 发现区不再复用 `TopicCard`。卡片网格是这页的主体，发现区如果长得一样，读者
+ *      分不清哪块是目录、哪块是入口。现在它是紧凑列表：一行一个话题，名称 + 一条
+ *      有依据的辅助信息（内容数 / 真实发布时间）。
+ *   2. 搜索从独立的 sticky 筛选条搬到它真正作用的那一节的标题行。原先那条「筛选带」
+ *      在页面顶部独立成块，离开列表很远；现在它在「全部话题」标题旁边，过滤结果数也
+ *      就在同一行。搜索语义没变（名称 / 简介 / slug 客户端匹配）。
+ *
+ * 页尾的「如何开始？」引导已移除：那是指南（/guide → 快速上手）的内容，而广场读者是
+ * 来找话题的。它留在页尾既读不到，又和发现区重复了同一句「从这里开始」。
  *
  * 页头本身没有数据要展示，也没有本页独有的动作——「关注」分散在每张卡片上——
- * 所以它保持最轻：只有 eyebrow、标题和一句话。方案 §3.3 把页头定级为 P3，
- * 这里不额外加东西就是执行这个定级。
+ * 所以它保持最轻：只有 eyebrow、标题和一句话。
  */
 export function TopicsPage() {
   const { isAuthenticated } = useAuth();
@@ -157,18 +156,55 @@ export function TopicsPage() {
     );
   }, [topics, keyword]);
 
-  const featuredTopics = useMemo(
-    () =>
-      topics
-        .filter((topic) => (topic.contentCount ?? 0) > 0)
-        .map((topic, index) => ({ topic, index }))
-        .sort(
-          (a, b) => (b.topic.contentCount ?? 0) - (a.topic.contentCount ?? 0) || a.index - b.index,
-        )
-        .slice(0, 6)
-        .map(({ topic }) => topic),
-    [topics],
-  );
+  const featured = useMemo(() => {
+    /*
+     * 热门话题：按公开内容数降序。名次/顺序是这一组的真实属性，所以并列时用服务端
+     * 返回顺序（slug 升序）做 tie-break —— 结果稳定，刷新不会跳动。
+     */
+    const ranked = topics
+      .map((topic, index) => ({ topic, index }))
+      .filter(({ topic }) => (topic.contentCount ?? 0) > 0)
+      .sort(
+        (a, b) => (b.topic.contentCount ?? 0) - (a.topic.contentCount ?? 0) || a.index - b.index,
+      );
+    const hot = ranked.slice(0, DISCOVERY_LIMIT).map(({ topic }) => topic);
+
+    /*
+     * 最近活跃：按 `lastPublishedAt`（published_revision.published_at）降序。
+     * 字段缺失或不可解析的话题直接排除 —— 宁可不展示，也不拿索引时间或创建时间冒充。
+     */
+    const timed = topics
+      .map((topic, index) => ({ topic, index, at: Date.parse(topic.lastPublishedAt ?? "") }))
+      .filter(({ at }) => Number.isFinite(at))
+      .sort((a, b) => b.at - a.at || a.index - b.index);
+
+    /*
+     * 先按时间取全部候选，再去掉已经出现在热门里的话题，最后截前 4。
+     *
+     * 顺序不能反：先截 4 再去重，热门占掉的那几条会白白吃掉名额，于是一个内容不少的
+     * 社区可能只剩 1 条「最近活跃」——这不是数据不足，是取数顺序浪费了候选。
+     *
+     * 去重之后不足 4 条时，用「比已选最后一条更旧的热门话题」补齐。这样既尽量不和热门
+     * 重复，又始终保持严格的时间倒序——补进来的那条本来就比前面的更旧，所以它出现在
+     * 末尾是排序的事实，不是为了让列表变长而挪位置。
+     */
+    const timedTopics = timed.map(({ topic }) => topic);
+    const hotIds = new Set(hot.map((topic) => topic.id));
+    const lastTime = (topic: TopicSummary) => Date.parse(topic.lastPublishedAt ?? "");
+    const recent: TopicSummary[] = timedTopics
+      .filter((topic) => !hotIds.has(topic.id))
+      .slice(0, DISCOVERY_LIMIT);
+
+    if (recent.length < DISCOVERY_LIMIT) {
+      const oldestSelected = recent.length > 0 ? lastTime(recent[recent.length - 1]) : Infinity;
+      const fillers = timedTopics.filter(
+        (topic) => hotIds.has(topic.id) && lastTime(topic) <= oldestSelected,
+      );
+      recent.push(...fillers.slice(0, DISCOVERY_LIMIT - recent.length));
+    }
+
+    return { hot, recent };
+  }, [topics]);
 
   const searching = keyword.trim().length > 0;
 
@@ -185,8 +221,13 @@ export function TopicsPage() {
         description="从感兴趣的话题出发，找到正在发生的讨论，并持续关注它们。"
       />
 
-      {/* P1 筛选：全页过滤器，作用于下面的热门入口与话题网格。 */}
-      <TopicsFilterBar keyword={keyword} onKeywordChange={setKeyword} />
+      {/*
+        话题发现区（第二层）：热门话题 + 最近活跃，1:1 两列。
+        搜索时整块让位，让过滤结果成为唯一焦点。
+      */}
+      {!searching && !loading && !error ? (
+        <TopicDiscoverySection hot={featured.hot} recent={featured.recent} />
+      ) : null}
 
       {loading ? <PageState kind="loading" /> : null}
       {!loading && error ? (
@@ -203,16 +244,27 @@ export function TopicsPage() {
 
       {!loading && !error && topics.length > 0 ? (
         <>
-          {!searching ? <FeaturedTopics topics={featuredTopics} /> : null}
-
           <PageSection
             id="all-topics"
             title={searching ? "搜索结果" : "全部话题"}
             count={visible.length}
+            action={
+              <SearchField
+                value={keyword}
+                onChange={setKeyword}
+                ariaLabel="搜索话题"
+                placeholder="搜索话题名称或简介"
+              />
+            }
+            /*
+              `w-full` on a phone so the field wraps onto its own line under the
+              title; `sm:w-auto` lets it sit at the trailing edge on desktop.
+            */
+            actionClassName="w-full sm:w-auto"
           >
             {visible.length > 0 ? (
               <ul
-                className="grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3"
+                className="grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3"
                 data-testid="topic-list"
               >
                 {visible.map((topic, index) => {
@@ -254,39 +306,6 @@ export function TopicsPage() {
               </div>
             )}
           </PageSection>
-
-          {/*
-            页尾引导（P3）。和星系广场同一个结构、同一个位置：读者是来找话题的，
-            这段只给还没找到方向的人一句话。搜索时它整块让位——已经会搜的人不需要
-            再被教一遍「怎么开始」，而且搜索结果是短页面，页尾多一块反而抢眼。
-          */}
-          {!searching ? (
-            <section aria-labelledby="about-topics" className="border-t border-border/70 pt-6">
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-                <h2 id="about-topics" className="text-card font-semibold text-primary">
-                  如何开始？
-                </h2>
-                <ol className="flex list-none flex-wrap items-center gap-x-2 gap-y-1.5 p-0 text-meta text-muted-foreground">
-                  {TOPIC_STEPS.map(({ title, icon: Icon }, index) => (
-                    <li key={title} className="flex items-center gap-2">
-                      {index > 0 ? (
-                        <ArrowRight className="h-3 w-3 text-muted-foreground/40" aria-hidden />
-                      ) : null}
-                      <Icon
-                        className="h-3.5 w-3.5 text-muted-foreground/70"
-                        strokeWidth={1.7}
-                        aria-hidden
-                      />
-                      <span>{title}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-              <p className="mt-2.5 text-meta text-muted-foreground">
-                话题按讨论方向聚合内容；星系则围绕长期参与其中的人与内容。
-              </p>
-            </section>
-          ) : null}
         </>
       ) : null}
     </div>

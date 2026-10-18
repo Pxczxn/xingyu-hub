@@ -44,6 +44,7 @@ export function PageSection({
   description,
   count,
   action,
+  actionClassName,
   className,
   contentClassName,
   children,
@@ -57,6 +58,16 @@ export function PageSection({
   count?: number;
   /** A single trailing control (usually a router <Link>), baseline-aligned. */
   action?: ReactNode;
+  /**
+   * Extra classes on the action's wrapper.
+   *
+   * Needed when the control has to take its OWN line on a phone: a `w-full` child
+   * inside the default `shrink-0` wrapper resolves its percentage against a
+   * content-sized flex item, so it stays as narrow as its content instead of
+   * wrapping. Widening the wrapper (`w-full sm:w-auto`) is what lets the header's
+   * `flex-wrap` push it onto the next line.
+   */
+  actionClassName?: string;
   className?: string;
   contentClassName?: string;
   children: ReactNode;
@@ -75,7 +86,7 @@ export function PageSection({
           </div>
           {description ? <p className="lede mt-1.5 max-w-2xl">{description}</p> : null}
         </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
+        {action ? <div className={cn("shrink-0", actionClassName)}>{action}</div> : null}
       </header>
       <div className={contentClassName}>{children}</div>
     </section>

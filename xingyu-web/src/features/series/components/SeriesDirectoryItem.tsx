@@ -3,17 +3,19 @@ import { Link } from "react-router-dom";
 import type { PublicSeriesSummary } from "@/api/series/series.types";
 import { SeriesCover } from "@/components/visual/SeriesCover";
 
-export function SeriesDirectoryItem({ item, index }: { item: PublicSeriesSummary; index: number }) {
+/*
+ * One row of the series table of contents. The service orders the list by
+ * recent update, so the row carries facts about the work itself — cover,
+ * title, description, author, chapter count — and no ordinal: a number that
+ * only says "position in a recently-updated list" is noise in a directory.
+ */
+export function SeriesDirectoryItem({ item }: { item: PublicSeriesSummary }) {
   return (
     <li className="border-b border-border/60 last:border-0">
       <Link
         to={`/series/${encodeURIComponent(item.id)}`}
-        className="group focus-ring grid grid-cols-[2.5rem_72px_minmax(0,1fr)_auto] items-center gap-4 py-4 transition-colors hover:bg-muted/35"
+        className="group focus-ring grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 py-4 transition-colors hover:bg-muted/35"
       >
-        <span className="self-start pt-0.5 font-mono text-sm tabular-nums text-muted-foreground/70">
-          {String(index + 1).padStart(2, "0")}
-        </span>
-
         <SeriesCover stableKey={`${item.id}:${item.slug}`} title={item.title} variant="cover" />
 
         <span className="min-w-0">

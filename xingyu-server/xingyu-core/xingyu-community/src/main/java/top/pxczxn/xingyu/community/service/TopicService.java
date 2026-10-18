@@ -7,6 +7,7 @@ import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.dto.ContentCardView;
 import top.pxczxn.xingyu.community.dto.TopicAdminView;
+import top.pxczxn.xingyu.community.dto.TopicActivityStat;
 import top.pxczxn.xingyu.community.dto.TopicCreatorView;
 import top.pxczxn.xingyu.community.dto.TopicOwnerStat;
 import top.pxczxn.xingyu.community.dto.TopicPublicView;
@@ -33,8 +34,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -179,15 +182,31 @@ public class TopicService {
 
     public List<TopicPublicView> listPublicViews(String keyword) {
         CommunityUser viewer = CommunityAuthContext.currentUser().orElse(null);
+        /*
+         * 一次聚合查询拿到全部话题的最近发布时间，再按 topic 取用。
+         * 逐个话题查会是 N+1 —— 广场列表随话题数量增长，这条路径不能按话题发查询。
+         */
+        Map<String, Instant> lastPublished = lastPublishedByTopic();
         return listPublic(keyword).stream()
-                .map(topic -> toPublicView(topic, viewer))
+                .map(topic -> toPublicView(topic, viewer, lastPublished.get(topic.getId())))
                 .toList();
     }
 
     public TopicPublicView getPublicView(String rawSlug) {
         Topic topic = requireEnabledBySlug(rawSlug);
         CommunityUser viewer = CommunityAuthContext.currentUser().orElse(null);
-        return toPublicView(topic, viewer);
+        return toPublicView(topic, viewer, articleTopicMapper.findLastPublishedAt(topic.getId()));
+    }
+
+    /** 话题 id → 该话题最新一篇公开文章的发布时间。没有公开活动的话题不出现在结果里。 */
+    private Map<String, Instant> lastPublishedByTopic() {
+        Map<String, Instant> lastPublished = new HashMap<>();
+        for (TopicActivityStat stat : articleTopicMapper.listTopicActivity()) {
+            if (stat.getTopicId() != null && stat.getLastPublishedAt() != null) {
+                lastPublished.put(stat.getTopicId(), stat.getLastPublishedAt());
+            }
+        }
+        return lastPublished;
     }
 
     public List<ContentCardView> listContent(String rawSlug, String sort, int limit) {
@@ -246,14 +265,14 @@ public class TopicService {
         return topicMapper.selectById(alias.getTopicId());
     }
 
-    private TopicPublicView toPublicView(Topic topic, CommunityUser viewer) {
+    private TopicPublicView toPublicView(Topic topic, CommunityUser viewer, Instant lastPublishedAt) {
         long followerCount = topicFollowMapper.countByTopicId(topic.getId());
         long contentCount = articleTopicMapper.countPublicContent(topic.getId());
         Boolean following = null;
         if (viewer != null) {
             following = topicFollowMapper.findByUserAndTopic(viewer.getId(), topic.getId()) != null;
         }
-        return TopicPublicView.from(topic, followerCount, contentCount, following);
+        return TopicPublicView.from(topic, followerCount, contentCount, following, lastPublishedAt);
     }
 
     private ContentCardView toContentCard(SearchDocument document) {

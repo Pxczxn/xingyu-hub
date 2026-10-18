@@ -83,8 +83,8 @@ describe("DiscoverFocusItem pressure fixtures", () => {
           ))}
         </ul>
         <ul>
-          {seriesPressureItems.map((item, index) => (
-            <SeriesDirectoryItem key={item.id} item={item} index={index} />
+          {seriesPressureItems.map((item) => (
+            <SeriesDirectoryItem key={item.id} item={item} />
           ))}
         </ul>
       </MemoryRouter>,

@@ -208,7 +208,7 @@ export function ContentListPage() {
               />
               {/*
                 `type="search"` maps to the ARIA `searchbox` role, NOT `textbox`
-                (see the note in TopicsFilterBar, which had to use `type="text"`
+                (see the note in the shared SearchField, which uses `type="text"`
                 to keep a `getByRole("textbox")` contract). Nothing on this page
                 queries it as a textbox, so the honest role wins: tests should
                 reach it with `getByRole("searchbox", { name: "搜索文章" })`.

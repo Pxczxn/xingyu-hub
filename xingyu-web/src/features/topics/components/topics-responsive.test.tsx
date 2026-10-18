@@ -1,119 +1,105 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { TopicsFilterBar } from "./TopicsFilterBar";
-import { FeaturedTopics } from "./FeaturedTopics";
+import { TopicDiscoverySection } from "./TopicDiscoverySection";
+import { SearchField } from "@/components/shared/SearchField";
 import type { TopicSummary } from "@/api/topics/topics.types";
 
 /*
- * Responsive contracts for the topics page.
+ * Responsive contracts for the topics plaza discovery area.
  *
  * Why classes rather than layout: happy-dom does not compute layout, so a test
  * cannot assert "the page does not scroll sideways". What it CAN pin is the
- * contract that makes it not scroll sideways.
- *
- * That distinction matters for this project — a test asserting `className` is
- * usually pinning a bug's footprint. Here it is the opposite: each assertion
- * below states the INTENT ("this must be able to shrink on a phone"), and each
- * one corresponds to a real horizontal-overflow defect found on 2026-10-03 that
- * shipped precisely because the class was NOT there.
- *
- * 2026-10-13 (批次 04): the search box moved out of `TopicsHero` into its own
- * `TopicsFilterBar`, and 热门话题 changed from a six-column grid of cards into a
- * wrapping chip row. Both describe blocks were rewritten against the new
- * structure — the defects they guard against are the same ones.
+ * contract that makes it not scroll sideways — each assertion below states the
+ * INTENT, not a pixel value.
  */
 
-/** Everything here renders a <Link>, so every render needs a Router around it. */
 function renderInRouter(ui: React.ReactElement) {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 }
 
-const TOPICS: TopicSummary[] = [
-  { id: "t1", name: "技术", slug: "tech", contentCount: 1 },
-  { id: "t2", name: "设计", slug: "design", contentCount: 2 },
+const HOT: TopicSummary[] = [
+  { id: "t1", name: "技术", slug: "tech", contentCount: 9 },
+  { id: "t2", name: "设计", slug: "design", contentCount: 4 },
 ];
 
-describe("TopicsFilterBar — the search box must fit a phone", () => {
-  it("goes full-width when the row wraps, instead of a fixed 320px", () => {
-    renderInRouter(<TopicsFilterBar keyword="" onKeywordChange={() => {}} />);
-    const box = screen.getByLabelText("搜索话题").parentElement!;
+const RECENT: TopicSummary[] = [
+  {
+    id: "t3",
+    name: "一个非常非常长的话题名称，长到足以把整行撑破",
+    slug: "long",
+    contentCount: 2,
+    lastPublishedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+  },
+];
 
-    // The defect: `w-80 shrink-0` = a fixed 320px that cannot shrink. Next to the
-    // title block that needs ~470px, so at 390px the page scrolled 52px sideways.
-    expect(box.className).not.toContain("w-80 shrink-0");
-    expect(box.className).toContain("w-full");
+describe("TopicDiscoverySection — two modules must fit a phone", () => {
+  it("is two equal columns on desktop and one column on phones", () => {
+    renderInRouter(<TopicDiscoverySection hot={HOT} recent={RECENT} />);
+    const grid = screen.getByTestId("topic-discovery");
+
+    // 1:1 on md+, single column below it. Both modules are peers, so they share one
+    // grid track definition instead of two hand-tuned widths.
+    expect(grid.className).toContain("grid");
+    expect(grid.className).toContain("md:grid-cols-2");
   });
 
-  it("wraps, so the clear control never squeezes the field", () => {
-    renderInRouter(<TopicsFilterBar keyword="设计" onKeywordChange={() => {}} />);
-    const bar = screen.getByLabelText("搜索话题").closest("div")!;
+  it("truncates a long topic name instead of widening the row", () => {
+    renderInRouter(<TopicDiscoverySection hot={[]} recent={RECENT} />);
 
-    // The row holds a field and a clear button. Without `flex-wrap` the button
-    // takes its width out of the field at 390px, which is the same class of
-    // defect as the fixed 320px — just with a different victim.
-    expect(bar.className).toContain("flex-wrap");
+    const link = screen.getByRole("link", { name: /一个非常非常长的话题名称/ });
+    const name = link.querySelector("span.truncate");
+    expect(name).not.toBeNull();
+    // `min-w-0` on the flex item is what lets `truncate` actually clamp: without it
+    // the item refuses to shrink below its content and the row overflows.
+    expect(name!.className).toContain("truncate");
   });
 
-  it("is only sticky from `lg` up, under the shell header", () => {
-    renderInRouter(<TopicsFilterBar keyword="" onKeywordChange={() => {}} />);
-    const bar = screen.getByLabelText("搜索话题").closest("div")!;
+  it("renders only the module it has data for, without leaving an empty column", () => {
+    renderInRouter(<TopicDiscoverySection hot={HOT} recent={[]} />);
 
-    /*
-     * `lg:top-24` (96px) is the offset for the shell header, which itself only
-     * shows its desktop layout from `lg`. Below `lg` the bar is already at the top
-     * of the scroll, so stickiness there would only cost height. Same value as
-     * TopicHeader / ArticleDetailPage / RulesPage.
-     */
-    expect(bar.className).toContain("lg:sticky");
-    expect(bar.className).toContain("lg:top-24");
+    expect(screen.getByRole("heading", { name: "热门话题" })).toBeInTheDocument();
+    // No placeholder column, no empty heading for the module without data.
+    expect(screen.queryByRole("heading", { name: "最近活跃" })).not.toBeInTheDocument();
+    // A lone module takes the full row instead of sitting beside a blank column.
+    expect(screen.getByTestId("topic-discovery").className).toContain("md:grid-cols-1");
   });
 
-  it("renders no clear control until there is something to clear", () => {
-    const { unmount } = renderInRouter(<TopicsFilterBar keyword="" onKeywordChange={() => {}} />);
-    expect(screen.queryByRole("button", { name: "清除搜索" })).not.toBeInTheDocument();
-    unmount();
+  it("renders nothing when neither module has data", () => {
+    const { container } = renderInRouter(<TopicDiscoverySection hot={[]} recent={[]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
 
-    renderInRouter(<TopicsFilterBar keyword="设计" onKeywordChange={() => {}} />);
-    expect(screen.getByRole("button", { name: "清除搜索" })).toBeInTheDocument();
+  it("shows the real evidence, not a generic label", () => {
+    renderInRouter(<TopicDiscoverySection hot={HOT} recent={RECENT} />);
+
+    // 热门 → 公开内容数；最近活跃 → 真实发布时间（3 小时前），不是「刚刚更新」。
+    expect(screen.getByText("9 篇内容")).toBeInTheDocument();
+    expect(screen.getByText("3 小时前")).toBeInTheDocument();
   });
 });
 
-describe("FeaturedTopics — the chip row must scale down on a phone", () => {
-  it("wraps instead of pushing the page sideways", () => {
-    renderInRouter(<FeaturedTopics topics={TOPICS} />);
-    const row = screen.getByTestId("featured-topics");
+describe("SearchField — the field must fit the section header", () => {
+  it("is full width on a phone and bounded on desktop", () => {
+    renderInRouter(<SearchField value="" onChange={() => {}} ariaLabel="搜索话题" placeholder="" />);
+    const field = screen.getByRole("textbox", { name: "搜索话题" }).parentElement!;
 
-    // The defect (2026-10-03): `grid grid-cols-6 gap-3` with no breakpoint. At
-    // 390px each cell was 44px — narrower than the card's own icon plus label — so
-    // the content pushed the page sideways. Chips cannot fail that way, but they
-    // do overflow if they are not allowed to wrap.
-    expect(row.className).toContain("flex-wrap");
+    // Not a fixed 320px that cannot shrink next to the section title.
+    expect(field.className).toContain("w-full");
+    expect(field.className).toContain("sm:w-64");
+    expect(field.className).not.toContain("w-80");
   });
 
-  it("caps each chip at the row width, so a long name truncates instead of overflowing", () => {
-    renderInRouter(
-      <FeaturedTopics
-        topics={[
-          {
-            id: "t1",
-            slug: "long",
-            name: "一个非常非常长的话题名称，长到足以把整行撑破",
-            contentCount: 9,
-          },
-        ]}
-      />,
+  it("offers a clear control only when there is something to clear", () => {
+    const onChange = vi.fn();
+    const { unmount } = renderInRouter(
+      <SearchField value="" onChange={onChange} ariaLabel="搜索话题" placeholder="" />,
     );
+    expect(screen.queryByRole("button", { name: "清除搜索" })).not.toBeInTheDocument();
+    unmount();
 
-    const link = screen.getByRole("link");
-    expect(link.className).toContain("max-w-full");
-    // The name is the only flexible part of a chip — the visual and the padding are
-    // fixed — so an un-truncated label is exactly what widens it past the row.
-    expect(within(link).getByText(/一个非常非常长的话题名称/).className).toContain("truncate");
-  });
-
-  it("renders nothing when there are no topics", () => {
-    const { container } = renderInRouter(<FeaturedTopics topics={[]} />);
-    expect(container).toBeEmptyDOMElement();
+    renderInRouter(<SearchField value="设计" onChange={onChange} ariaLabel="搜索话题" placeholder="" />);
+    fireEvent.click(screen.getByRole("button", { name: "清除搜索" }));
+    expect(onChange).toHaveBeenCalledWith("");
   });
 });

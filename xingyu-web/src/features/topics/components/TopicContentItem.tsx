@@ -68,7 +68,7 @@ export function TopicContentItem({
         ) : null}
         <Link
           to={contentHref(item)}
-          className={`focus-ring block text-[17px] font-semibold leading-6 text-primary hover:text-accent-strong ${
+          className={`focus-ring block text-lg font-semibold leading-7 text-primary hover:text-accent-strong ${
             hasMeta ? "mt-2" : ""
           }`}
         >

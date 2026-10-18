@@ -222,7 +222,12 @@ describe("topic detail", () => {
 
     renderAt("spring");
 
-    const latest = await screen.findByRole("button", { name: "最新" });
+    /*
+     * 「最近更新」, not 「最新」: the underlying sort is `indexed_at DESC`, an
+     * index-write time that moves whenever an article is re-indexed. A tab
+     * labelled 「最新」 would assert a publication order the data does not carry.
+     */
+    const latest = await screen.findByRole("button", { name: "最近更新" });
     expect(latest).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "热门" })).toHaveAttribute("aria-pressed", "false");
 
@@ -230,6 +235,66 @@ describe("topic detail", () => {
 
     await waitFor(() => expect(latest).toHaveAttribute("aria-pressed", "false"));
     expect(screen.getByRole("button", { name: "热门" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("pages the content list instead of capping a topic at one page", async () => {
+    mocked.getTopic.mockResolvedValue({
+      id: "t1",
+      slug: "spring",
+      name: "Spring 话题",
+      contentCount: 20,
+    });
+    /*
+     * The endpoint takes `limit` and nothing else — there is no offset — so every
+     * page is a re-fetch at a larger limit. Serving by limit keeps the mock honest
+     * about that shape, and keeps the assertion independent of how many times the
+     * effect re-runs while the topic header resolves.
+     */
+    mocked.getTopicContent.mockImplementation(async (_slug, _sort, limit = 12) =>
+      Array.from({ length: Math.min(limit, 20) }, (_, index) => ({
+        id: `c${index}`,
+        title: `第 ${index + 1} 篇`,
+        objectType: "ARTICLE",
+      })),
+    );
+
+    renderAt("spring");
+
+    await screen.findByText("第 1 篇");
+    expect(mocked.getTopicContent).toHaveBeenCalledWith("spring", "latest", 12);
+    // 20 篇里有 8 篇还没到手，按钮把差额说清楚。
+    expect(screen.getByRole("button", { name: "加载更多（还有 8 篇）" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /加载更多/ }));
+
+    await waitFor(() =>
+      expect(mocked.getTopicContent).toHaveBeenCalledWith("spring", "latest", 24),
+    );
+    expect(await screen.findByText("第 20 篇")).toBeInTheDocument();
+    // 全部到齐，出口消失 —— 不能留一个点了没有新内容的按钮。
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /加载更多/ })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("offers no load-more control when the first page holds the whole topic", async () => {
+    mocked.getTopic.mockResolvedValue({
+      id: "t1",
+      slug: "spring",
+      name: "Spring 话题",
+      contentCount: 3,
+    });
+    mocked.getTopicContent.mockResolvedValue([
+      { id: "c1", title: "第一篇", objectType: "ARTICLE" },
+      { id: "c2", title: "第二篇", objectType: "ARTICLE" },
+      { id: "c3", title: "第三篇", objectType: "ARTICLE" },
+    ]);
+
+    renderAt("spring");
+
+    await screen.findByText("第一篇");
+    // contentCount 就是总数，所以这里不必猜「取满了可能还有」。
+    expect(screen.queryByRole("button", { name: /加载更多/ })).not.toBeInTheDocument();
   });
 
   it("stages the content rows in and keeps the list off a card surface", async () => {

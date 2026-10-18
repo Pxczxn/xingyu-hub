@@ -2,6 +2,7 @@ package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.dto.ArticleTopicNameRow;
+import top.pxczxn.xingyu.community.dto.TopicActivityStat;
 import top.pxczxn.xingyu.community.dto.TopicOwnerStat;
 import top.pxczxn.xingyu.community.entity.ArticleTopic;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
@@ -12,6 +13,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.util.Collection;
 import java.util.List;
+import java.time.Instant;
 
 @Mapper
 public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
@@ -107,4 +109,43 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
             LIMIT #{limit}
             """)
     List<TopicOwnerStat> listTopOwners(String topicId, int limit);
+
+    /**
+     * 每个话题最近一次公开文章发布时间，一次查询返回全部话题（不做 per-topic 查询，
+     * 广场列表因此不会因为话题数量增长变成 N+1）。
+     *
+     * <p>{@code published_revision} 在 {@code article_id} 上有唯一键，一篇文章只保留
+     * 当前已发布修订，所以 {@code MAX(published_at)} 就是「这个话题下最新一篇公开文章
+     * 是什么时候发的」。
+     *
+     * <p>可见性判据与 {@link #countPublicContent} / {@link #listLatestContent} 保持一致：
+     * 只统计 PUBLISHED 且索引行未被移除（removed_at IS NULL）的文章。草稿、下架、治理隐藏
+     * 的内容不计入 —— 否则「最近活跃」会指向读者点进去看不到的东西。
+     */
+    @Select("""
+            SELECT at.topic_id AS topicId, MAX(pr.published_at) AS lastPublishedAt
+            FROM article_topic at
+            INNER JOIN article a ON a.id = at.article_id
+            INNER JOIN published_revision pr ON pr.article_id = a.id
+            INNER JOIN search_document sd ON sd.object_type = 'ARTICLE'
+              AND sd.object_id = a.id
+              AND sd.removed_at IS NULL
+            WHERE a.status = 'PUBLISHED'
+            GROUP BY at.topic_id
+            """)
+    List<TopicActivityStat> listTopicActivity();
+
+    /** 单个话题的最近一次公开文章发布时间；没有公开文章时为 null。 */
+    @Select("""
+            SELECT MAX(pr.published_at)
+            FROM article_topic at
+            INNER JOIN article a ON a.id = at.article_id
+            INNER JOIN published_revision pr ON pr.article_id = a.id
+            INNER JOIN search_document sd ON sd.object_type = 'ARTICLE'
+              AND sd.object_id = a.id
+              AND sd.removed_at IS NULL
+            WHERE a.status = 'PUBLISHED'
+              AND at.topic_id = #{topicId}
+            """)
+    Instant findLastPublishedAt(String topicId);
 }

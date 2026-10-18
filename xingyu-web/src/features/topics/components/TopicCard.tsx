@@ -55,25 +55,29 @@ export function TopicCard({
   return (
     <li className={cn("min-w-0", className)} style={style}>
       {/*
-        NOT `.card-lift`, and no `hover:` on the surface itself.
+        A LIGHT card, not a lifted one.
 
         The package here was inherited from `GalaxyTile`'s community variant —
         where it is correct, because there the whole tile IS a `<Link>`. Here
         the follow button forced the container down to `<article>` (point 3
         above), so raising the surface would promise a click the card cannot
         honour; globals.css is explicit about that failure — "the lift is a lie
-        the click then corrects". The terminal value follows the three settled
-        precedents for this shape (`FollowUserRow` / `EventCard` /
-        `BookshelfPage`): `rounded-xl border border-border/70 bg-card p-4`.
+        the click then corrects".
 
-        `group` moves down to the visual's own row, so the `TopicVisual`
-        warm-up still fires on the one thing that IS a target — the name.
+        2026-10-17 — 与首页 Feed 统一语言：去掉阴影、降一档边框浓度、内边距从
+        `p-5` 收到 `p-4`，悬浮只做「描边加深 + 极淡底色」，不做位移。首页现在是
+        轻量内容流，话题广场再停留在「卡片 + 阴影」会显得像另一个产品。网格里
+        卡片仍需要一个边界（它们是并列关系，不是上下相邻的行），所以保留边框，
+        只把重量压下来。
+
+        `group` moves down to the visual's own row, so the `TopicVisual` warm-up
+        still fires on the one thing that IS a target — the name.
       */}
-      <article className="flex h-full flex-col rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition-all duration-200 hover:border-border hover:shadow-md">
+      <article className="flex h-full flex-col rounded-xl border border-border/50 bg-card p-4 transition-colors duration-200 hover:border-border hover:bg-muted/20">
         <div className="group flex items-start gap-3">
           <TopicVisual name={topic.name} stableKey={topic.slug || topic.id} />
           <div className="min-w-0 flex-1">
-            <h3 className="text-card font-semibold leading-6">
+            <h3 className="text-title font-semibold leading-6">
               <Link
                 to={`/topics/${encodeURIComponent(topic.slug)}`}
                 className="focus-ring text-primary transition-colors hover:text-accent-strong"
