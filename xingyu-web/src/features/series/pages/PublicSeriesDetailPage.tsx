@@ -3,9 +3,10 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { seriesApi } from "@/api/series/series.api";
-import type { PublicSeriesDetail } from "@/api/series/series.types";
+import type { PublicSeriesDetail, SeriesReadingProgress } from "@/api/series/series.types";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import { SeriesCover } from "@/components/visual/SeriesCover";
 import { useAuth } from "@/features/auth/auth.store";
 
 type LoadState =
@@ -14,25 +15,44 @@ type LoadState =
   | { kind: "error" }
   | { kind: "ready"; series: PublicSeriesDetail };
 
+/*
+ * The private progress read has its own lifecycle, separate from the public
+ * series: a failure here must never stop a guest or a signed-in reader from
+ * opening the work, and "no record" is not an error.
+ */
+type ProgressState = "idle" | "loading" | "ready" | "error";
+
 function isNotFound(err: unknown): boolean {
   return (
     err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
   );
 }
 
-/*
- * Public series detail (Phase 2G + Series Subscription Closure, 2026-10-10).
+/**
+ * Public series detail — the WORK page (Phase 2G; work layout + resume, Phase 3).
  *
- * Backend: GET /api/v1/series/{id} -> SeriesDetail, 404 for a missing or
- * non-ACTIVE series. Chapters come back ordered by `position`; each links to
- * the underlying article.
+ * Backend: GET /api/v1/series/{id} -> PublicSeriesDetail, 404 for a missing or
+ * non-ACTIVE series. Chapters come back ordered by `position`.
  *
- * Subscription: the payload now carries viewer-scoped `hasSubscribed`
- * (true/false for signed-in viewers, null for guests), so the control starts
- * in the right state after a refresh — no parallel bookshelf probing. Toggle
- * uses the same optimistic/guard/rollback discipline as the interaction bar;
- * the backend unsubscribe is idempotent and (unlike subscribe) has no ACTIVE
- * status gate, so existing subscribers can always cancel.
+ * Information order is the reader's: breadcrumb → work introduction (cover,
+ * title, author, length, blurb) → the primary reading action → the chapter
+ * catalogue. Reading is the P1 action; subscribing is secondary and independent
+ * of progress — a reader who never subscribes can still resume.
+ *
+ * The resume position comes from `GET /me/series/{id}/reading-progress` only
+ * for a signed-in viewer. It is a chapter reference, never a percentage: the
+ * backend stores the last-read article and nothing about how far into it the
+ * reader got. When the recorded chapter no longer exists or is unreadable the
+ * endpoint omits it, and this page falls back to "开始阅读" without inventing a
+ * chapter number.
+ *
+ * Chapter rows open the series reader at that chapter
+ * (`/series/:id/read?chapter=<articleId>`), not the standalone article page, so
+ * the reader stays inside the work.
+ *
+ * Subscription: `hasSubscribed` is viewer-scoped (true/false signed in, null for
+ * guests), so the control starts in the right state after a refresh. Toggle uses
+ * optimistic update + duplicate-click guard + snapshot rollback.
  */
 export function PublicSeriesDetailPage() {
   const { seriesId = "" } = useParams<{ seriesId: string }>();
@@ -41,8 +61,10 @@ export function PublicSeriesDetailPage() {
   const [subscribed, setSubscribed] = useState<boolean | null>(null);
   const [subscribePending, setSubscribePending] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
-  /* Bumping the key replays the load effect — the retry mechanism for the
-     error branch below. The effect keeps its per-run `active` guard. */
+  const [progress, setProgress] = useState<SeriesReadingProgress | null>(null);
+  const [progressState, setProgressState] = useState<ProgressState>("idle");
+  /* Bumping the key replays the load effects — the retry mechanism for the
+     error branch below. The effects keep their per-run `active` guard. */
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -69,6 +91,33 @@ export function PublicSeriesDetailPage() {
       active = false;
     };
   }, [seriesId, reloadKey]);
+
+  useEffect(() => {
+    if (!seriesId || !isAuthenticated) {
+      /* Guests have no private progress and must not ask for it. */
+      setProgress(null);
+      setProgressState("idle");
+      return;
+    }
+    let active = true;
+    setProgressState("loading");
+    seriesApi
+      .getReadingProgress(seriesId)
+      .then((data) => {
+        if (!active) return;
+        setProgress(data);
+        setProgressState("ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        /* A failed read degrades to "no resume" — never blocks the work. */
+        setProgress(null);
+        setProgressState("error");
+      });
+    return () => {
+      active = false;
+    };
+  }, [seriesId, isAuthenticated, reloadKey]);
 
   async function onToggleSubscribe() {
     if (subscribePending || subscribed === null) return; // duplicate-click guard
@@ -112,6 +161,14 @@ export function PublicSeriesDetailPage() {
   const { series } = state;
   const chapters = [...(series.chapters ?? [])].sort((a, b) => a.position - b.position);
 
+  const resumeArticleId = progress?.readingHistoryEnabled === false
+    ? null
+    : (progress?.chapterArticleId ?? null);
+  const resumeIndex = resumeArticleId ? (progress?.chapterIndex ?? null) : null;
+  const readHref = resumeArticleId
+    ? `/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(resumeArticleId)}`
+    : `/series/${encodeURIComponent(series.id)}/read`;
+
   return (
     <article className="section-gap">
       <nav aria-label="面包屑" className="text-meta text-muted-foreground">
@@ -128,93 +185,105 @@ export function PublicSeriesDetailPage() {
       </nav>
 
       {/*
-        Opening block, not a card.
+        The work introduction: cover + facts, no framed panel.
         ============================================================
-        This was `rounded-lg border border-border bg-card p-6` — a framed panel
-        holding a title, an author, a paragraph and two controls. On a series
-        page that is the wrong first object: §六③ says the series should show
-        the WORKS before it explains them, and a `p-6` frame with a 1px border
-        and its own surface announces "here is a summary, the content starts
-        below" to a reader whose actual goal is the chapter list 60px further
-        down.
+        A `p-6` card here would announce "here is a summary, the content starts
+        below" and stack a second white rectangle on a page whose real structure
+        is one work. The cover carries the identity (same `SeriesCover` and the
+        same stable key as the plaza card, so a series looks like itself in both
+        places), and the text column reads as the jacket.
 
-        Dropping the surface costs nothing that the content needs — the title is
-        already the largest thing on the page. It also removes a second
-        rectangle from a page whose real structure is one list.
+        On a phone the cover scales to 112px and sits above the text; from `sm`
+        it moves beside it. The blurb keeps a 68ch measure on desktop rather than
+        running the full shell width.
       */}
-      <header className="flex flex-col gap-4">
-        <h1 className="text-display font-semibold tracking-tight text-primary">{series.title}</h1>
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+        <SeriesCover
+          stableKey={`${series.id}:${series.slug}`}
+          title={series.title}
+          variant="poster"
+          className="w-[112px] shrink-0 sm:w-[144px] lg:w-[168px]"
+        />
 
-        {/* Author and chapter count are the same kind of fact — who and how
-            much — so they share one `text-meta` line instead of the two
-            separate blocks the card had. The count moves up here from below the
-            description: a reader deciding whether to start needs the length
-            next to the name, not after a paragraph. */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted-foreground">
-          <Link
-            to={`/u/${encodeURIComponent(series.author.username)}`}
-            className="focus-ring rounded-sm font-medium text-foreground transition-colors hover:text-accent-strong"
-          >
-            {series.author.displayName?.trim() || `@${series.author.username}`}
-          </Link>
-          <span aria-hidden className="text-border">
-            ·
-          </span>
-          <span className="tabular-nums">{`${chapters.length} 章`}</span>
-        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-display font-semibold tracking-tight text-primary">
+            {series.title}
+          </h1>
 
-        <p className="max-w-[68ch] text-[15px] leading-7 text-muted-foreground">
-          {series.description || "该系列暂未提供简介。"}
-        </p>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {/* P1, and the reason most readers opened this page — so it is a real
-              button now. It used to be a 13px `text-accent` link, the same
-              weight as the breadcrumb above it, which made "start reading"
-              quieter than the thing it starts. */}
-          {chapters.length > 0 ? (
-            <Button asChild>
-              <Link to={`/series/${encodeURIComponent(series.id)}/read`}>开始阅读</Link>
-            </Button>
-          ) : null}
-
-          {!isAuthenticated ? (
+          {/* Who wrote it and how long it is are the same kind of fact — one
+              line, one weight, both true. No lifecycle status is shown: ACTIVE
+              is not "连载中" and ARCHIVED is not "完结". */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted-foreground">
             <Link
-              to={`/login?returnTo=${encodeURIComponent(`/series/${series.id}`)}`}
-              className="focus-ring rounded-sm text-meta font-medium text-accent-strong hover:underline"
+              to={`/u/${encodeURIComponent(series.author.username)}`}
+              className="focus-ring rounded-sm font-medium text-foreground transition-colors hover:text-accent-strong"
             >
-              登录后订阅
+              {series.author.displayName?.trim() || `@${series.author.username}`}
             </Link>
-          ) : subscribed !== null ? (
-            <Button
-              type="button"
-              variant={subscribed ? "secondary" : "outline"}
-              disabled={subscribePending}
-              aria-pressed={subscribed}
-              onClick={() => void onToggleSubscribe()}
-            >
-              {subscribed ? "已订阅" : "订阅系列"}
-            </Button>
-          ) : (
-            <span className="text-meta text-muted-foreground">订阅状态不可用</span>
-          )}
-          {subscribeError ? (
-            <span role="alert" className="text-meta text-destructive">
-              {subscribeError}
+            <span aria-hidden className="text-border">
+              ·
             </span>
+            <span className="tabular-nums">{`${chapters.length} 章`}</span>
+          </div>
+
+          <p className="mt-4 max-w-[68ch] text-[15px] leading-7 text-muted-foreground">
+            {series.description || "该系列暂未提供简介。"}
+          </p>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            {chapters.length > 0 ? (
+              <Button asChild>
+                <Link to={readHref}>{resumeArticleId ? "继续阅读" : "开始阅读"}</Link>
+              </Button>
+            ) : null}
+
+            {!isAuthenticated ? (
+              <Link
+                to={`/login?returnTo=${encodeURIComponent(`/series/${series.id}`)}`}
+                className="focus-ring rounded-sm text-meta font-medium text-accent-strong hover:underline"
+              >
+                登录后订阅
+              </Link>
+            ) : subscribed !== null ? (
+              <Button
+                type="button"
+                variant={subscribed ? "secondary" : "outline"}
+                disabled={subscribePending}
+                aria-pressed={subscribed}
+                onClick={() => void onToggleSubscribe()}
+              >
+                {subscribed ? "已订阅" : "订阅系列"}
+              </Button>
+            ) : (
+              <span className="text-meta text-muted-foreground">订阅状态不可用</span>
+            )}
+            {subscribeError ? (
+              <span role="alert" className="text-meta text-destructive">
+                {subscribeError}
+              </span>
+            ) : null}
+          </div>
+
+          {/* The chapter, not a percentage: `series_reader_state` knows the last
+              chapter opened and nothing about the position inside it. */}
+          {resumeArticleId && resumeIndex !== null ? (
+            <p className="mt-2 text-meta tabular-nums text-muted-foreground">
+              {`上次读到第 ${resumeIndex} / ${progress?.chapterCount ?? chapters.length} 章`}
+            </p>
+          ) : null}
+          {/* A failed progress read never blocks the work, but it is not the
+              same fact as "no progress" — say so quietly instead of pretending. */}
+          {progressState === "error" ? (
+            <p className="mt-2 text-meta text-muted-foreground">阅读进度暂时无法读取</p>
           ) : null}
         </div>
       </header>
 
       {/*
         The chapter list is this page's P0, so it builds its own structure
-        instead of using `PageSection`. That component's own header says so:
-        "a reader with a table of contents … should build its own structure from
-        the tokens instead" — its anatomy (18px heading + 13px count +
-        description + one trailing action) is built for sibling sections, and a
-        catalogue is not a section of anything. The tokens it would have
-        supplied are used directly: `text-title` heading, `text-meta
-        tabular-nums` count.
+        instead of using `PageSection`: a catalogue is not a section of another
+        page's content, and the tokens it needs (title step, meta count,
+        hairline rows) are used directly.
       */}
       <section
         id="series-chapters"
@@ -232,19 +301,12 @@ export function PublicSeriesDetailPage() {
           <PageState kind="empty" title="暂无章节" description="章节发布后会显示在这里。" />
         ) : (
           /*
-            Each row is ONE link, not a link inside a row.
-
-            The row was `li.flex items-center gap-4 px-4 py-3` with the title
-            wrapped in an `<a>` — so the 32px of horizontal padding and the
-            ordinal were dead space, and only the few characters of a title were
-            clickable. The number is `aria-hidden` because it is a visual
-            ordinal the title already states ("第一章"), which keeps the link's
-            accessible name exactly the title.
-
-            The destination stays the article, deliberately. `/series/:id/read`
-            takes only `seriesId`, so a specific chapter cannot be addressed
-            there; and a catalogue entry answers "show me this one", not
-            "continue from here" — `开始阅读` above is the continuous path.
+            Each row is ONE link. The destination is the series reader at that
+            chapter (`?chapter=<articleId>`), so a catalogue entry keeps the
+            reader inside the work and the reader can highlight, refresh and
+            share the exact chapter. The ordinal is `aria-hidden` because the
+            title already states it ("第一章"); the link's accessible name stays
+            the chapter title.
           */
           <ol className="divide-y divide-border/60 rounded-xl border border-border/70 bg-card">
             {chapters.map((chapter, index) => (
@@ -253,7 +315,7 @@ export function PublicSeriesDetailPage() {
                 className="transition-colors first:rounded-t-[11px] last:rounded-b-[11px] hover:bg-muted/35"
               >
                 <Link
-                  to={`/articles/${encodeURIComponent(chapter.articleId)}`}
+                  to={`/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(chapter.articleId)}`}
                   className="group focus-ring flex items-center gap-4 px-4 py-3.5"
                 >
                   <span
@@ -262,8 +324,6 @@ export function PublicSeriesDetailPage() {
                   >
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  {/* Prefer the API title and retain a positional fallback for
-                      legacy or unavailable search documents. */}
                   <span className="min-w-0 flex-1 text-[15px] font-medium text-foreground transition-colors group-hover:text-accent-strong">
                     {chapter.title?.trim() || `第 ${chapter.position} 章`}
                   </span>

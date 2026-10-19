@@ -17,6 +17,7 @@ vi.mock("@/api/series/series.api", () => ({
     listPublic: vi.fn(),
     getPublicById: vi.fn(),
     getPublicBySlug: vi.fn(),
+    getReadingProgress: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
     recordReadingProgress: vi.fn(),
@@ -55,6 +56,8 @@ function renderDetail() {
 beforeEach(() => {
   vi.clearAllMocks();
   authState.isAuthenticated = false;
+  /* A signed-in page asks for private progress; no record is the neutral case. */
+  mocked.getReadingProgress.mockResolvedValue({ readingHistoryEnabled: true, chapterCount: 2 });
 });
 
 describe("PublicSeriesDetailPage", () => {
@@ -84,8 +87,8 @@ describe("PublicSeriesDetailPage", () => {
 
     const first = screen.getByRole("link", { name: "第一章" });
     const second = screen.getByRole("link", { name: "第二章" });
-    expect(first).toHaveAttribute("href", "/articles/art-1");
-    expect(second).toHaveAttribute("href", "/articles/art-2");
+    expect(first).toHaveAttribute("href", "/series/ser-1/read?chapter=art-1");
+    expect(second).toHaveAttribute("href", "/series/ser-1/read?chapter=art-2");
     // position ordering: 第一章 (position 1) renders before 第二章 (position 2)
     expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -99,7 +102,7 @@ describe("PublicSeriesDetailPage", () => {
 
     expect(await screen.findByRole("link", { name: "第 1 章" })).toHaveAttribute(
       "href",
-      "/articles/art-1",
+      "/series/ser-1/read?chapter=art-1",
     );
     expect(screen.queryByText("无标题文章")).not.toBeInTheDocument();
   });
@@ -177,5 +180,79 @@ describe("PublicSeriesDetailPage", () => {
     renderDetail();
     expect(await screen.findByText("暂无章节")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "开始阅读" })).not.toBeInTheDocument();
+  });
+
+  it("gives the work a cover with the same identity as the plaza card", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    renderDetail();
+
+    const cover = await screen.findByTestId("generated-series-cover");
+    /* Same key as the plaza: the tone follows the series, not the title. */
+    expect(cover).toHaveAttribute("data-cover-key", "ser-1:xing-yu-kai-fa-ri-zhi");
+    expect(cover.className).toContain("aspect-[3/4]");
+  });
+
+  it("never asks for private progress as a guest", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    renderDetail();
+
+    await screen.findByRole("link", { name: "开始阅读" });
+    expect(mocked.getReadingProgress).not.toHaveBeenCalled();
+  });
+
+  it("starts at the first chapter when a signed-in reader has no progress", async () => {
+    authState.isAuthenticated = true;
+    mocked.getPublicById.mockResolvedValue({ ...SERIES, hasSubscribed: false });
+    renderDetail();
+
+    expect(await screen.findByRole("link", { name: "开始阅读" })).toHaveAttribute(
+      "href",
+      "/series/ser-1/read",
+    );
+    expect(mocked.getReadingProgress).toHaveBeenCalledWith("ser-1");
+    expect(screen.queryByText(/上次读到/)).not.toBeInTheDocument();
+  });
+
+  it("resumes the recorded chapter and names it in chapters, not percent", async () => {
+    authState.isAuthenticated = true;
+    mocked.getPublicById.mockResolvedValue({ ...SERIES, hasSubscribed: false });
+    mocked.getReadingProgress.mockResolvedValue({
+      readingHistoryEnabled: true,
+      chapterArticleId: "art-2",
+      chapterIndex: 2,
+      chapterCount: 2,
+      lastReadAt: "2026-10-18T10:00:00Z",
+    });
+    renderDetail();
+
+    expect(await screen.findByRole("link", { name: "继续阅读" })).toHaveAttribute(
+      "href",
+      "/series/ser-1/read?chapter=art-2",
+    );
+    expect(screen.getByText("上次读到第 2 / 2 章")).toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+  });
+
+  it("treats a disabled reading history as no progress", async () => {
+    authState.isAuthenticated = true;
+    mocked.getPublicById.mockResolvedValue({ ...SERIES, hasSubscribed: false });
+    mocked.getReadingProgress.mockResolvedValue({
+      readingHistoryEnabled: false,
+      chapterCount: 2,
+    });
+    renderDetail();
+
+    expect(await screen.findByRole("link", { name: "开始阅读" })).toBeInTheDocument();
+    expect(screen.queryByText(/上次读到/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to start reading when progress itself cannot be read", async () => {
+    authState.isAuthenticated = true;
+    mocked.getPublicById.mockResolvedValue({ ...SERIES, hasSubscribed: false });
+    mocked.getReadingProgress.mockRejectedValue(new Error("500"));
+    renderDetail();
+
+    expect(await screen.findByRole("link", { name: "开始阅读" })).toBeInTheDocument();
+    expect(await screen.findByText("阅读进度暂时无法读取")).toBeInTheDocument();
   });
 });

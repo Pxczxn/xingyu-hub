@@ -5,6 +5,7 @@ import type {
   PublicSeriesPage,
   PublicSeriesSummary,
   SeriesDetail,
+  SeriesReadingProgress,
   SeriesSummary,
   UpdateSeriesPayload,
 } from "./series.types";
@@ -57,6 +58,18 @@ export const seriesApi = {
     ),
 
   /* Reader actions. Both need a session; guests get 401. */
+
+  /**
+   * The signed-in reader's position in one series (Phase 3C).
+   *
+   * A dedicated single-series read instead of downloading `/me/reading-history`
+   * and searching it client-side: the history endpoint is a bounded feed and
+   * would turn a private, per-work question into "page through everything".
+   */
+  getReadingProgress: (seriesId: string): Promise<SeriesReadingProgress> =>
+    apiRequest<SeriesReadingProgress>(
+      `/api/v1/me/series/${encodeURIComponent(seriesId)}/reading-progress`,
+    ),
 
   subscribe: (id: string): Promise<void> =>
     apiRequest<void>(`/api/v1/me/series/${encodeURIComponent(id)}/subscribe`, { method: "POST" }),

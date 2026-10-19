@@ -170,6 +170,19 @@ describe("seriesApi", () => {
     expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series/ser-1");
   });
 
+  it("reads the signed-in reader's progress for one series", async () => {
+    mockedRequest.mockResolvedValue({
+      readingHistoryEnabled: true,
+      chapterArticleId: "art-2",
+      chapterIndex: 2,
+      chapterCount: 5,
+    });
+
+    await seriesApi.getReadingProgress("ser-1");
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/series/ser-1/reading-progress");
+  });
+
   it("reads a public series by username and slug", async () => {
     mockedRequest.mockResolvedValue({});
 

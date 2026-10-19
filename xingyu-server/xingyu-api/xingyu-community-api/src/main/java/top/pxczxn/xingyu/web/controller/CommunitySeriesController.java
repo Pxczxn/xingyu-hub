@@ -4,6 +4,7 @@ import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.PublicSeriesSummaryView;
 import top.pxczxn.xingyu.community.dto.PublicSeriesView;
+import top.pxczxn.xingyu.community.dto.SeriesReadingProgressView;
 import top.pxczxn.xingyu.community.dto.SeriesSummaryView;
 import top.pxczxn.xingyu.community.dto.SeriesView;
 import top.pxczxn.xingyu.community.service.ReadingService;
@@ -83,6 +84,17 @@ public class CommunitySeriesController {
     public ResponseEntity<Void> subscribe(@PathVariable String seriesId) {
         readingService.subscribeSeries(CommunityAuthContext.requireUser(), seriesId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 单个系列的阅读进度（Phase 3C，2026-10-19）。
+     *
+     * <p>放在 {@code /me/**} 下：进度是当前会话用户自己的记录，必须带会话；
+     * 游客没有可读取的私人进度。响应只描述"上次读到哪一章"，不含百分比。
+     */
+    @GetMapping("/me/series/{seriesId}/reading-progress")
+    public SeriesReadingProgressView readingProgress(@PathVariable String seriesId) {
+        return readingService.readingProgress(CommunityAuthContext.requireUser(), seriesId);
     }
 
     @DeleteMapping("/me/series/{seriesId}/subscribe")

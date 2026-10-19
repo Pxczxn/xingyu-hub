@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { articlesApi } from "@/api/articles/articles.api";
@@ -71,12 +71,17 @@ function isNotFound(err: unknown): boolean {
 }
 
 /**
- * Series reader (Phase 2G).
+ * Series reader (Phase 2G; deep links + progress Phase 3, 2026-10-19).
  *
  * Loads the public series, sorts chapters by `position`, and renders the
  * selected chapter's article through the migrated Legacy reading pipeline
  * (ArticleMarkdownBody + prepareArticleBodyForRead) — the same renderer the
  * article detail page uses.
+ *
+ * The selected chapter lives in the URL (`?chapter=<articleId>`), so a link
+ * can point at chapter 4, refresh keeps it, and back/forward retraces the
+ * reading path. An unknown id degrades to the first chapter with a notice and
+ * can never select an article that is not a chapter of this series.
  *
  * "A chapter reads identically to the article" was the old claim here, and it
  * was half true: the renderer and the measure match (both default to 68ch), but
@@ -86,21 +91,38 @@ function isNotFound(err: unknown): boolean {
  * to move it. Same typesetting, one step larger by default — stated rather than
  * assumed, since the difference is deliberate.
  *
- * Reading progress is reported to POST /api/v1/me/reading-progress for signed-in
- * users; the backend decides what to persist, so a failure here is swallowed.
+ * Reading progress is written to POST /api/v1/me/reading-progress once a
+ * chapter has actually loaded (not when a button is pressed), for signed-in
+ * readers only. The backend owns validation and the history toggle; a failed
+ * write is swallowed because it must never interrupt reading.
  */
 export function PublicSeriesReadPage() {
   const { seriesId = "" } = useParams<{ seriesId: string }>();
+  /*
+   * The chapter is URL state, not component state.
+   *
+   * `?chapter=<articleId>` is the deep-link contract: it survives refresh,
+   * sharing, and browser back/forward. The article id is used instead of the
+   * positional index because positions are editorial order — reordering the
+   * catalogue must not silently retarget an old shared link.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [fontSize, setFontSize] = useState(18);
   const [layout, setLayout] = useState<LayoutKey>("medium");
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [articleState, setArticleState] = useState<"idle" | "loading" | "error">("idle");
-  /* Bumping the key replays the load effect — the retry mechanism for the
-     error branch below. The effect keeps its per-run `active` guard. */
+  /* Bumping either key replays its load effect — the retry mechanism for the
+     two error branches below. Both effects keep their per-run `active` guard. */
   const [reloadKey, setReloadKey] = useState(0);
+  const [articleReloadKey, setArticleReloadKey] = useState(0);
+  /* Which chapter's progress has already been written in this mount. Keyed by
+     series + article: the same article can belong to more than one series, so
+     an article id alone would suppress a legitimate write in the next series. */
+  const recordedRef = useRef<string | null>(null);
+  /* Previous chapter key, used to scroll to the top ONLY on a real switch. */
+  const previousChapterRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!seriesId) {
@@ -109,7 +131,6 @@ export function PublicSeriesReadPage() {
     }
     let active = true;
     setState({ kind: "loading" });
-    setCurrentIndex(0);
     seriesApi
       .getPublicById(seriesId)
       .then((series) => {
@@ -124,22 +145,43 @@ export function PublicSeriesReadPage() {
     };
   }, [seriesId, reloadKey]);
 
-  const chapters =
-    state.kind === "ready"
-      ? [...(state.series.chapters ?? [])].sort((a, b) => a.position - b.position)
-      : [];
+  const chapters = useMemo(
+    () =>
+      state.kind === "ready"
+        ? [...(state.series.chapters ?? [])].sort((a, b) => a.position - b.position)
+        : [],
+    [state],
+  );
+
+  const requestedArticleId = searchParams.get("chapter")?.trim() || null;
+  const requestedIndex = requestedArticleId
+    ? chapters.findIndex((chapter) => chapter.articleId === requestedArticleId)
+    : -1;
+  /* Until the series has loaded, `chapters` is empty for every URL — claiming
+     "this chapter does not exist" before then would fire on every deep link. */
+  const chapterNotFound =
+    state.kind === "ready" && chapters.length > 0 && requestedArticleId !== null && requestedIndex < 0;
+  /* An unknown/removed chapter degrades to the first chapter. It is never
+     treated as a valid index, so a forged `?chapter=` cannot select an article
+     from another series (or anything outside `chapters` at all). */
+  const currentIndex = requestedIndex >= 0 ? requestedIndex : 0;
   const current = chapters[currentIndex] ?? chapters[0];
+  /* The effect identity. Depending on the object would re-run every render. */
+  const currentArticleId = current?.articleId ?? null;
 
   useEffect(() => {
-    if (!current) {
+    if (!currentArticleId) {
       setArticle(null);
       setArticleState("idle");
       return;
     }
     let active = true;
+    /* Drop the previous chapter IMMEDIATELY. Keeping it on screen while the new
+       article loads would show the old body and heading under the new counter. */
+    setArticle(null);
     setArticleState("loading");
     articlesApi
-      .getArticle(current.articleId)
+      .getArticle(currentArticleId)
       .then((data) => {
         if (!active) return;
         setArticle(data);
@@ -147,23 +189,52 @@ export function PublicSeriesReadPage() {
       })
       .catch(() => {
         if (!active) return;
+        setArticle(null);
         setArticleState("error");
       });
     return () => {
       active = false;
     };
-  }, [current?.articleId]);
+  }, [currentArticleId, articleReloadKey]);
 
-  async function openChapter(index: number) {
-    const chapter = chapters[index];
-    if (!chapter) return;
-    setCurrentIndex(index);
-    if (!isAuthenticated) return;
-    try {
-      await seriesApi.recordReadingProgress(seriesId, chapter.articleId);
-    } catch {
-      /* Progress is best-effort; the backend owns the persisted state. */
+  /* A chapter switch starts at the top of the new chapter. The first render is
+     skipped: opening a link should honour the browser's own scroll position. */
+  useEffect(() => {
+    if (!currentArticleId) return;
+    const key = `${seriesId}:${currentArticleId}`;
+    const previous = previousChapterRef.current;
+    previousChapterRef.current = key;
+    if (previous !== null && previous !== key) {
+      window.scrollTo(0, 0);
     }
+  }, [seriesId, currentArticleId]);
+
+  /*
+   * Progress is written when a chapter has ACTUALLY loaded, not when a button
+   * is pressed. That covers every entry path (first chapter, deep link, sidebar,
+   * previous/next, bookmarks) with one rule, and it never records an article the
+   * reader could not read.
+   *
+   * The write is deliberately best-effort: a failure must not interrupt reading.
+   * If it fails, the marker is cleared so a later successful load of the same
+   * chapter can retry; a successful write is not repeated for the same mount,
+   * so re-renders cannot multiply requests.
+   */
+  useEffect(() => {
+    if (!isAuthenticated || articleState !== "idle" || !article || !currentArticleId) return;
+    if (article.id !== currentArticleId) return;
+    const key = `${seriesId}:${article.id}`;
+    if (recordedRef.current === key) return;
+    recordedRef.current = key;
+    void seriesApi.recordReadingProgress(seriesId, article.id).catch(() => {
+      if (recordedRef.current === key) recordedRef.current = null;
+    });
+  }, [article, articleState, currentArticleId, isAuthenticated, seriesId]);
+
+  function selectChapter(index: number) {
+    const chapter = chapters[index];
+    if (!chapter || index === currentIndex) return;
+    setSearchParams({ chapter: chapter.articleId });
   }
 
   if (state.kind === "loading") return <PageState kind="loading" />;
@@ -184,7 +255,13 @@ export function PublicSeriesReadPage() {
   }
 
   const { series } = state;
-  const prepared = article ? prepareArticleBodyForRead(article.body) : null;
+  /*
+   * The article that is allowed on screen right now. A loaded article only
+   * counts when it belongs to the selected chapter — the request for the
+   * previous chapter can resolve after the reader has already moved on.
+   */
+  const visibleArticle = article && current && article.id === current.articleId ? article : null;
+  const prepared = visibleArticle ? prepareArticleBodyForRead(visibleArticle.body) : null;
   const measure = LAYOUTS.find(([key]) => key === layout)?.[2] ?? "68ch";
 
   return (
@@ -241,7 +318,7 @@ export function PublicSeriesReadPage() {
                   <button
                     type="button"
                     aria-current={isCurrent ? "true" : undefined}
-                    onClick={() => void openChapter(index)}
+                    onClick={() => selectChapter(index)}
                     className={cn(
                       "focus-ring relative flex w-full items-center gap-2 rounded-md py-2 pl-4 pr-3 text-left text-sm transition-colors",
                       isCurrent
@@ -264,8 +341,8 @@ export function PublicSeriesReadPage() {
                     {/* Prefer the loaded article title, then the chapter title
                         from the series contract, with a positional fallback. */}
                     <span className="min-w-0 flex-1 truncate">
-                      {index === currentIndex && article?.title
-                        ? article.title
+                      {index === currentIndex && visibleArticle?.title
+                        ? visibleArticle.title
                         : chapter.title?.trim() || `第 ${chapter.position} 章`}
                     </span>
                   </button>
@@ -285,6 +362,15 @@ export function PublicSeriesReadPage() {
           />
         ) : (
           <>
+            {chapterNotFound ? (
+              <p
+                role="status"
+                className="mb-4 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-meta text-muted-foreground"
+              >
+                该章节不存在或已从系列中移除，已从第一章开始。
+              </p>
+            ) : null}
+
             {/*
               Reading controls: one quiet strip, two jobs, split by a hairline.
 
@@ -381,10 +467,10 @@ export function PublicSeriesReadPage() {
               style={{ fontSize, maxWidth: measure }}
             >
               <h1 className="text-display font-semibold tracking-tight text-primary">
-                {/* Prefer the chapter title when the article is unavailable; the
-                    API may omit it when the search document has no title. */}
-                {article?.title
-                  ? article.title
+                {/* Prefer the loaded chapter title; fall back to the series
+                    contract's title (the API may omit it) or the position. */}
+                {visibleArticle?.title
+                  ? visibleArticle.title
                   : articleState === "loading"
                     ? "正在加载章节…"
                     : current.title?.trim() || `第 ${current.position} 章`}
@@ -392,21 +478,36 @@ export function PublicSeriesReadPage() {
               {/* The lede scales with the body but stays subordinate to it: no
                   size of its own, so it inherits the reader's choice, and a
                   tighter leading than the body so it reads as one block. */}
-              {article?.summary ? (
-                <p className="mt-3 leading-7 text-muted-foreground">{article.summary}</p>
+              {visibleArticle?.summary ? (
+                <p className="mt-3 leading-7 text-muted-foreground">{visibleArticle.summary}</p>
               ) : null}
 
               {articleState === "loading" ? (
                 <PageState kind="loading" />
               ) : articleState === "error" ? (
-                <PageState
-                  kind="empty"
-                  title="章节正文暂不可读"
-                  description="该文章可能尚未公开。"
-                />
+                <div>
+                  <PageState
+                    kind="empty"
+                    title="章节正文暂不可读"
+                    description="该文章可能尚未公开，或已经从系列中移除。"
+                  />
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setArticleReloadKey((key) => key + 1)}
+                    >
+                      重试本章
+                    </Button>
+                    {currentIndex > 0 ? (
+                      <Button variant="outline" onClick={() => selectChapter(0)}>
+                        从第一章开始
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
               ) : (
                 <div className="mt-4">
-                  <ArticleMarkdownBody body={prepared?.markdown ?? article?.body ?? ""} />
+                  <ArticleMarkdownBody body={prepared?.markdown ?? visibleArticle?.body ?? ""} />
                 </div>
               )}
 
@@ -428,14 +529,14 @@ export function PublicSeriesReadPage() {
                 <Button
                   variant="outline"
                   disabled={currentIndex <= 0}
-                  onClick={() => void openChapter(currentIndex - 1)}
+                  onClick={() => selectChapter(currentIndex - 1)}
                 >
                   上一篇
                 </Button>
                 <Button
                   variant="outline"
                   disabled={currentIndex >= chapters.length - 1}
-                  onClick={() => void openChapter(currentIndex + 1)}
+                  onClick={() => selectChapter(currentIndex + 1)}
                 >
                   下一篇
                 </Button>

@@ -7,6 +7,7 @@
  *   GET  /api/v1/me/series/{id}
  *   PUT  /api/v1/me/series/{id}
  *   POST|DELETE /api/v1/me/series/{id}/subscribe
+ *   GET  /api/v1/me/series/{id}/reading-progress -> SeriesReadingProgress
  *   POST /api/v1/me/reading-progress
  *
  * Public (Phase 2G live probe 2026-09-27):
@@ -112,4 +113,27 @@ export type PublicSeriesDetail = {
    * Series Subscription Closure，2026-10-10。
    */
   hasSubscribed?: boolean | null;
+};
+
+/**
+ * The signed-in reader's own position in ONE series (`GET /me/series/{id}/reading-progress`).
+ *
+ * Progress is measured in CHAPTERS, never in a percentage: `series_reader_state`
+ * stores the last-read article and a timestamp, and nothing records how far into
+ * that chapter the reader got. `chapterIndex` is 1-based and only present when
+ * the recorded chapter is still part of the series AND still readable — when it
+ * is absent, fall back to "start reading" rather than assuming chapter 1 or 0.
+ *
+ * `readingHistoryEnabled: false` means the reader turned history off: there is
+ * no progress to resume, and this is a choice, not a read failure.
+ *
+ * The fields are optional in the transport shape because the server omits nulls;
+ * `chapterArticleId == null` is the "nothing to resume" signal.
+ */
+export type SeriesReadingProgress = {
+  readingHistoryEnabled: boolean;
+  chapterArticleId?: string | null;
+  chapterIndex?: number | null;
+  chapterCount: number;
+  lastReadAt?: string | null;
 };

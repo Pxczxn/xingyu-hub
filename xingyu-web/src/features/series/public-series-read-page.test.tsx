@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { seriesApi } from "@/api/series/series.api";
 import { articlesApi } from "@/api/articles/articles.api";
 import { ApiError } from "@/api/client";
@@ -63,9 +63,10 @@ function article(id: string, title: string) {
   };
 }
 
-function renderReader() {
+function renderReader(entry = "/series/ser-1/read") {
   return render(
-    <MemoryRouter initialEntries={["/series/ser-1/read"]}>
+    <MemoryRouter initialEntries={[entry]}>
+      <LocationProbe />
       <Routes>
         <Route path="/series/:seriesId/read" element={<PublicSeriesReadPage />} />
       </Routes>
@@ -73,9 +74,25 @@ function renderReader() {
   );
 }
 
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="reader-location">{`${location.pathname}${location.search}`}</div>;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   authState.isAuthenticated = false;
+  mockedSeries.recordReadingProgress.mockResolvedValue(undefined);
 });
 
 describe("PublicSeriesReadPage", () => {
@@ -127,6 +144,157 @@ describe("PublicSeriesReadPage", () => {
     expect(screen.getByText("第 2 / 2 章")).toBeInTheDocument();
   });
 
+  it("opens the chapter named by the URL", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation(async (id: string) =>
+      article(id, id === "art-2" ? "第二章 标题" : "第一章 标题"),
+    );
+    renderReader("/series/ser-1/read?chapter=art-2");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "第二章 标题" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("第 2 / 2 章")).toBeInTheDocument();
+    // The chapter list is the allow-list: only its article was requested.
+    expect(mockedArticles.getArticle.mock.calls.map(([id]) => id)).toEqual(["art-2"]);
+  });
+
+  it("falls back to the first chapter for an unknown chapter id", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation(async (id: string) =>
+      article(id, id === "art-2" ? "第二章 标题" : "第一章 标题"),
+    );
+    renderReader("/series/ser-1/read?chapter=not-a-chapter");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "第一章 标题" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("该章节不存在或已从系列中移除，已从第一章开始。"),
+    ).toBeInTheDocument();
+    expect(mockedArticles.getArticle.mock.calls.map(([id]) => id)).toEqual(["art-1"]);
+  });
+
+  it("keeps the legacy URL working and mirrors switches into the URL", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation(async (id: string) =>
+      article(id, id === "art-2" ? "第二章 标题" : "第一章 标题"),
+    );
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    expect(screen.getByTestId("reader-location")).toHaveTextContent("/series/ser-1/read");
+
+    await userEvent.click(screen.getByRole("button", { name: /第二章/ }));
+    await screen.findByRole("heading", { level: 1, name: "第二章 标题" });
+    expect(screen.getByTestId("reader-location")).toHaveTextContent(
+      "/series/ser-1/read?chapter=art-2",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "上一篇" }));
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    expect(screen.getByTestId("reader-location")).toHaveTextContent(
+      "/series/ser-1/read?chapter=art-1",
+    );
+  });
+
+  it("never shows the previous chapter while the next one is loading", async () => {
+    const next = deferred<ReturnType<typeof article>>();
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation((id: string) =>
+      id === "art-1" ? Promise.resolve(article("art-1", "第一章 标题")) : next.promise,
+    );
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    await userEvent.click(screen.getByRole("button", { name: /第二章/ }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { level: 1, name: "第一章 标题" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "正在加载章节…" })).toBeInTheDocument();
+
+    await act(async () => {
+      next.resolve(article("art-2", "第二章 标题"));
+      await next.promise;
+    });
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "第二章 标题" }),
+    ).toBeInTheDocument();
+  });
+
+  it("ignores a late response from the previous chapter", async () => {
+    const first = deferred<ReturnType<typeof article>>();
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation((id: string) =>
+      id === "art-1" ? first.promise : Promise.resolve(article("art-2", "第二章 标题")),
+    );
+    renderReader();
+
+    await screen.findByRole("button", { name: /第二章/ });
+    await userEvent.click(screen.getByRole("button", { name: /第二章/ }));
+    await screen.findByRole("heading", { level: 1, name: "第二章 标题" });
+
+    await act(async () => {
+      first.resolve(article("art-1", "第一章 标题"));
+      await first.promise;
+    });
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "第二章 标题" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { level: 1, name: "第一章 标题" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("recovers from an unreadable chapter with an explicit retry", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle
+      .mockRejectedValueOnce(new Error("404"))
+      .mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+
+    expect(await screen.findByText("章节正文暂不可读")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "重试本章" }));
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "第一章 标题" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers a route back to the first chapter when a later chapter fails", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation((id: string) =>
+      id === "art-1"
+        ? Promise.resolve(article("art-1", "第一章 标题"))
+        : Promise.reject(new Error("404")),
+    );
+    renderReader("/series/ser-1/read?chapter=art-2");
+
+    expect(await screen.findByText("章节正文暂不可读")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "从第一章开始" }));
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "第一章 标题" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("reader-location")).toHaveTextContent(
+      "/series/ser-1/read?chapter=art-1",
+    );
+  });
+
+  it("does not record a chapter that failed to load", async () => {
+    authState.isAuthenticated = true;
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockRejectedValue(new Error("404"));
+    renderReader();
+
+    expect(await screen.findByText("章节正文暂不可读")).toBeInTheDocument();
+    expect(mockedSeries.recordReadingProgress).not.toHaveBeenCalled();
+  });
+
   it("does not post reading progress for guests", async () => {
     mockedSeries.getPublicById.mockResolvedValue(SERIES);
     mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
@@ -138,17 +306,46 @@ describe("PublicSeriesReadPage", () => {
     expect(mockedSeries.recordReadingProgress).not.toHaveBeenCalled();
   });
 
-  it("posts reading progress for signed-in readers", async () => {
+  it("records progress only after a chapter has actually loaded", async () => {
     authState.isAuthenticated = true;
     mockedSeries.getPublicById.mockResolvedValue(SERIES);
     mockedSeries.recordReadingProgress.mockResolvedValue(undefined);
-    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    const pending = deferred<ReturnType<typeof article>>();
+    mockedArticles.getArticle.mockReturnValueOnce(pending.promise);
+
+    renderReader();
+
+    // Nothing is written while the article is still in flight.
+    await waitFor(() => expect(mockedSeries.getPublicById).toHaveBeenCalled());
+    expect(mockedSeries.recordReadingProgress).not.toHaveBeenCalled();
+
+    pending.resolve(article("art-1", "第一章 标题"));
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+
+    await waitFor(() =>
+      expect(mockedSeries.recordReadingProgress).toHaveBeenCalledWith("ser-1", "art-1"),
+    );
+    // A re-render must not write the same chapter twice.
+    expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it("records the new chapter after switching", async () => {
+    authState.isAuthenticated = true;
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedSeries.recordReadingProgress.mockResolvedValue(undefined);
+    mockedArticles.getArticle.mockImplementation(async (id: string) =>
+      article(id, id === "art-2" ? "第二章 标题" : "第一章 标题"),
+    );
+
     renderReader();
 
     await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
     await userEvent.click(screen.getByRole("button", { name: /第二章/ }));
 
-    expect(mockedSeries.recordReadingProgress).toHaveBeenCalledWith("ser-1", "art-2");
+    await screen.findByRole("heading", { level: 1, name: "第二章 标题" });
+    await waitFor(() =>
+      expect(mockedSeries.recordReadingProgress).toHaveBeenCalledWith("ser-1", "art-2"),
+    );
   });
 
   it("shows the empty state when the series has no chapters", async () => {
