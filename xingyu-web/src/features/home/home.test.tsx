@@ -780,9 +780,7 @@ describe("home masthead", () => {
     renderHome();
     await screen.findByText("为我推荐");
 
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "欢迎回来",
-    );
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("欢迎回来");
     expect(screen.getByText("继续探索你的关注与创作。")).toBeInTheDocument();
   });
 });

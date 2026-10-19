@@ -13,11 +13,7 @@ import { cn } from "@/lib/cn";
  * 4. 响应式优化
  */
 
-export function EnhancedHero({
-  isAuthenticated,
-}: {
-  isAuthenticated: boolean;
-}) {
+export function EnhancedHero({ isAuthenticated }: { isAuthenticated: boolean }) {
   if (isAuthenticated) {
     // 登录用户：简洁欢迎
     return (
@@ -30,12 +26,8 @@ export function EnhancedHero({
         </div>
 
         <div className="relative">
-          <h1 className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">
-            欢迎回来
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            继续探索你的关注与创作。
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">欢迎回来</h1>
+          <p className="mt-2 text-base text-muted-foreground">继续探索你的关注与创作。</p>
         </div>
       </div>
     );
@@ -49,20 +41,34 @@ export function EnhancedHero({
         {/* 渐变光晕 */}
         <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-accent/5 blur-3xl" />
         <div className="absolute bottom-0 left-0 h-36 w-36 rounded-full bg-accent/3 blur-3xl" />
-        
+
         {/* 星星点缀 */}
         <div className="sparkle absolute left-[15%] top-[20%] h-1 w-1 rounded-full bg-accent/40" />
-        <div className="sparkle absolute left-[25%] top-[60%] h-1.5 w-1.5 rounded-full bg-accent/30" style={{ animationDelay: '1s' }} />
-        <div className="sparkle absolute right-[20%] top-[40%] h-1 w-1 rounded-full bg-accent/40" style={{ animationDelay: '2s' }} />
-        <div className="sparkle absolute right-[30%] top-[70%] h-1.5 w-1.5 rounded-full bg-accent/30" style={{ animationDelay: '0.5s' }} />
-        <div className="sparkle absolute left-[60%] top-[15%] h-1 w-1 rounded-full bg-accent/35" style={{ animationDelay: '1.5s' }} />
+        <div
+          className="sparkle absolute left-[25%] top-[60%] h-1.5 w-1.5 rounded-full bg-accent/30"
+          style={{ animationDelay: "1s" }}
+        />
+        <div
+          className="sparkle absolute right-[20%] top-[40%] h-1 w-1 rounded-full bg-accent/40"
+          style={{ animationDelay: "2s" }}
+        />
+        <div
+          className="sparkle absolute right-[30%] top-[70%] h-1.5 w-1.5 rounded-full bg-accent/30"
+          style={{ animationDelay: "0.5s" }}
+        />
+        <div
+          className="sparkle absolute left-[60%] top-[15%] h-1 w-1 rounded-full bg-accent/35"
+          style={{ animationDelay: "1.5s" }}
+        />
       </div>
 
       {/* 内容 */}
       <div className="relative text-center">
         <h1 className="text-3xl font-extrabold tracking-tight text-primary sm:text-4xl">
           欢迎来到星语
-          <span className="sparkle-icon ml-2 inline-block text-accent" aria-hidden>✦</span>
+          <span className="sparkle-icon ml-2 inline-block text-accent" aria-hidden>
+            ✦
+          </span>
         </h1>
         <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
           从一篇内容开始，探索属于你的星语
@@ -101,7 +107,10 @@ export function EnhancedHero({
       </div>
 
       {/* 底部装饰线 */}
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" aria-hidden />
+      <div
+        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent"
+        aria-hidden
+      />
     </div>
   );
 }

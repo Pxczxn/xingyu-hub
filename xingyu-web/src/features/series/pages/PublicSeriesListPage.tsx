@@ -49,7 +49,11 @@ export function PublicSeriesListPage() {
   /* "No public series at all" is a page-level state: there is nothing to search
      yet, so the section (and its search field) would be an empty promise. */
   const catalogEmpty =
-    !searching && !browse.loading && !browse.error && browse.items.length === 0 && browse.total === 0;
+    !searching &&
+    !browse.loading &&
+    !browse.error &&
+    browse.items.length === 0 &&
+    browse.total === 0;
 
   return (
     <div className="section-gap">

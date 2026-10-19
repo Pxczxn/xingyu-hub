@@ -257,9 +257,7 @@ describe("topics page", () => {
 
     // 搜索属于这一节，和标题同处一个 header，而不是页面顶部的一条独立筛选带。
     expect(section).toContainElement(field);
-    expect(
-      heading.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(heading.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // 计数是这一节的事实，和标题同一行（默认数据里只有 1 个话题）。
     expect(within(section).getByText("1")).toBeInTheDocument();
   });

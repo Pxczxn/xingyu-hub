@@ -16,12 +16,7 @@ import { cn } from "@/lib/cn";
  */
 function HomeFeedItemSkeleton({ className }: { className?: string }) {
   return (
-    <div
-      className={cn(
-        "flex gap-6 py-6 px-5 sm:px-6",
-        className,
-      )}
-    >
+    <div className={cn("flex gap-6 py-6 px-5 sm:px-6", className)}>
       <div className="min-w-0 flex-1 space-y-3">
         {/* 作者信息行 */}
         <div className="flex items-center gap-2">
@@ -71,12 +66,7 @@ export function HomeFeedSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="rounded-2xl border border-border/80 bg-card shadow-sm overflow-hidden">
       {Array.from({ length: count }).map((_, index) => (
-        <div
-          key={index}
-          className={cn(
-            index > 0 && "border-t border-border/40",
-          )}
-        >
+        <div key={index} className={cn(index > 0 && "border-t border-border/40")}>
           <HomeFeedItemSkeleton />
         </div>
       ))}

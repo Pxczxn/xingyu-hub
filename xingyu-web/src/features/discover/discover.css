@@ -4,12 +4,16 @@
   transition: grid-template-columns 260ms var(--discover-ease);
 }
 .discover-row {
-  transition: padding 220ms var(--discover-ease, ease-out), background-color 180ms ease-out;
+  transition:
+    padding 220ms var(--discover-ease, ease-out),
+    background-color 180ms ease-out;
 }
 .discover-cover {
   width: 160px;
   height: 120px;
-  transition: width 220ms var(--discover-ease, ease-out), height 220ms var(--discover-ease, ease-out);
+  transition:
+    width 220ms var(--discover-ease, ease-out),
+    height 220ms var(--discover-ease, ease-out);
 }
 .discover-row[data-discover-variant="compact"] .discover-cover,
 .discover-row[data-discover-variant="expanded"] .discover-cover {
@@ -20,7 +24,9 @@
   display: grid;
   grid-template-rows: 1fr;
   opacity: 1;
-  transition: grid-template-rows 220ms var(--discover-ease, ease-out), opacity 180ms var(--discover-ease, ease-out);
+  transition:
+    grid-template-rows 220ms var(--discover-ease, ease-out),
+    opacity 180ms var(--discover-ease, ease-out);
 }
 .discover-summary[aria-hidden="true"] {
   grid-template-rows: 0fr;
@@ -47,8 +53,12 @@
   animation: discover-fade 260ms var(--discover-ease, ease-out);
 }
 @keyframes discover-fade {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 .discover-row[data-discover-variant="expanded"] .discover-item-header {
   display: grid;
@@ -155,8 +165,12 @@
   }
 }
 @keyframes discover-reveal {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @media (max-width: 639px) {
   .discover-cover {

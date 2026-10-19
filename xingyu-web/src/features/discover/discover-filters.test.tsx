@@ -13,10 +13,22 @@ const topics = vi.mocked(topicsApi.getTopics);
 const article = (id: string) => ({ id, title: id, objectType: "ARTICLE" as const });
 function Location() {
   const location = useLocation();
-  return <output data-testid="location">{location.pathname}{location.search}</output>;
+  return (
+    <output data-testid="location">
+      {location.pathname}
+      {location.search}
+    </output>
+  );
 }
 function renderPage(url = "/discover") {
-  return render(<MemoryRouter initialEntries={[url]}><AuthProvider><DiscoverPage /><Location /></AuthProvider></MemoryRouter>);
+  return render(
+    <MemoryRouter initialEntries={[url]}>
+      <AuthProvider>
+        <DiscoverPage />
+        <Location />
+      </AuthProvider>
+    </MemoryRouter>,
+  );
 }
 beforeEach(() => {
   vi.resetAllMocks();
@@ -46,7 +58,9 @@ it("combines topic and content type, and all topics clears only the topic", asyn
   renderPage("/discover?topic=design");
   await screen.findByText("全部内容第一篇");
   fireEvent.click(screen.getByRole("button", { name: "文章" }));
-  await waitFor(() => expect(discover).toHaveBeenLastCalledWith({ limit: 20, topic: "design", type: "ARTICLE" }));
+  await waitFor(() =>
+    expect(discover).toHaveBeenLastCalledWith({ limit: 20, topic: "design", type: "ARTICLE" }),
+  );
   fireEvent.click(screen.getByRole("button", { name: "全部话题" }));
   await waitFor(() => expect(discover).toHaveBeenLastCalledWith({ limit: 20, type: "ARTICLE" }));
   expect(screen.getByTestId("location")).toHaveTextContent("/discover?type=ARTICLE");
@@ -55,12 +69,18 @@ it("ignores an old load-more response after the topic changes", async () => {
   let resolveMore!: (value: Awaited<ReturnType<typeof discover>>) => void;
   renderPage();
   await screen.findByText("全部内容第一篇");
-  discover.mockReturnValueOnce(new Promise((resolve) => { resolveMore = resolve; }));
+  discover.mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveMore = resolve;
+    }),
+  );
   fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
   discover.mockResolvedValueOnce({ items: [article("AI内容")], nextCursor: null });
   fireEvent.click(screen.getByRole("button", { name: /^AI/ }));
   await screen.findByText("AI内容");
-  await act(async () => { resolveMore({ items: [article("旧筛选结果")], nextCursor: "stale" }); });
+  await act(async () => {
+    resolveMore({ items: [article("旧筛选结果")], nextCursor: "stale" });
+  });
   expect(screen.queryByText("旧筛选结果")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "加载更多" })).not.toBeInTheDocument();
 });
@@ -77,9 +97,13 @@ it("keeps content visible and reports topic loading failure", async () => {
   expect(screen.getByText("话题暂时无法加载。")).toBeInTheDocument();
 });
 it("shows every topic as a filter, without the decorative prompt or inactive hot filter", async () => {
-  topics.mockResolvedValue(Array.from({ length: 10 }, (_, i) => ({ id: `t${i}`, slug: `topic-${i}`, name: `话题${i}` })));
+  topics.mockResolvedValue(
+    Array.from({ length: 10 }, (_, i) => ({ id: `t${i}`, slug: `topic-${i}`, name: `话题${i}` })),
+  );
   renderPage();
   expect(await screen.findByRole("button", { name: "话题9" })).toBeInTheDocument();
   expect(screen.queryByText("热门推荐")).not.toBeInTheDocument();
-  expect(screen.queryByText("探索更多优质内容，发现你感兴趣的话题和创作者。")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("探索更多优质内容，发现你感兴趣的话题和创作者。"),
+  ).not.toBeInTheDocument();
 });

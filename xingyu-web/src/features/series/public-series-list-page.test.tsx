@@ -237,15 +237,17 @@ describe("PublicSeriesListPage — paging beyond the first page", () => {
   });
 
   it("stops paging with an explicit message when the cursor is rejected", async () => {
-    mocked.searchPublic.mockResolvedValueOnce(page([series(1)], "stale-cursor", 2)).mockRejectedValueOnce(
-      new ApiError({
-        type: "about:blank",
-        title: "请求无效",
-        status: 400,
-        detail: "分页游标无效",
-        code: "FIELD_INVALID",
-      }),
-    );
+    mocked.searchPublic
+      .mockResolvedValueOnce(page([series(1)], "stale-cursor", 2))
+      .mockRejectedValueOnce(
+        new ApiError({
+          type: "about:blank",
+          title: "请求无效",
+          status: 400,
+          detail: "分页游标无效",
+          code: "FIELD_INVALID",
+        }),
+      );
 
     renderList();
     fireEvent.click(await screen.findByRole("button", { name: "加载更多系列" }));
@@ -279,7 +281,8 @@ describe("PublicSeriesListPage — paging beyond the first page", () => {
     mocked.searchPublic.mockImplementation(async (input = {}) => {
       const keyword = input.q ?? "";
       if (!keyword) return page([series(1)], null, 30);
-      if (keyword === "深" && !input.cursor) return page([series(50, { title: "深度" })], "search-cursor", 20);
+      if (keyword === "深" && !input.cursor)
+        return page([series(50, { title: "深度" })], "search-cursor", 20);
       if (keyword === "深") return stale.promise;
       /* The second keyword's results only exist on the server: they are not part
          of the first window, which is what makes this a real global-search test. */

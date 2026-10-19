@@ -81,7 +81,9 @@ describe("TopicDiscoverySection — two modules must fit a phone", () => {
 
 describe("SearchField — the field must fit the section header", () => {
   it("is full width on a phone and bounded on desktop", () => {
-    renderInRouter(<SearchField value="" onChange={() => {}} ariaLabel="搜索话题" placeholder="" />);
+    renderInRouter(
+      <SearchField value="" onChange={() => {}} ariaLabel="搜索话题" placeholder="" />,
+    );
     const field = screen.getByRole("textbox", { name: "搜索话题" }).parentElement!;
 
     // Not a fixed 320px that cannot shrink next to the section title.
@@ -98,7 +100,9 @@ describe("SearchField — the field must fit the section header", () => {
     expect(screen.queryByRole("button", { name: "清除搜索" })).not.toBeInTheDocument();
     unmount();
 
-    renderInRouter(<SearchField value="设计" onChange={onChange} ariaLabel="搜索话题" placeholder="" />);
+    renderInRouter(
+      <SearchField value="设计" onChange={onChange} ariaLabel="搜索话题" placeholder="" />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "清除搜索" }));
     expect(onChange).toHaveBeenCalledWith("");
   });

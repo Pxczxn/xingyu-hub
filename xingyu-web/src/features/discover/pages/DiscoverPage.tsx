@@ -21,7 +21,8 @@ export function DiscoverPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const topic = searchParams.get("topic") ?? "";
   const rawType = searchParams.get("type");
-  const type: DiscoverInput["type"] = rawType === "ARTICLE" || rawType === "SERIES" ? rawType : undefined;
+  const type: DiscoverInput["type"] =
+    rawType === "ARTICLE" || rawType === "SERIES" ? rawType : undefined;
   const [topics, setTopics] = useState<TopicSummary[]>([]);
   const [topicsError, setTopicsError] = useState(false);
   const [items, setItems] = useState<ContentSummary[]>([]);
@@ -38,16 +39,21 @@ export function DiscoverPage() {
 
   useEffect(() => {
     let active = true;
-    topicsApi.getTopics().then((data) => {
-      if (active) setTopics(data);
-    }).catch(() => {
-      if (active) setTopicsError(true);
-    });
-    return () => { active = false; };
+    topicsApi
+      .getTopics()
+      .then((data) => {
+        if (active) setTopics(data);
+      })
+      .catch(() => {
+        if (active) setTopicsError(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const changeFilter = (key: "topic" | "type", value: string) => {
-    const current = key === "topic" ? topic : type ?? "";
+    const current = key === "topic" ? topic : (type ?? "");
     if (current === value) return;
     // Invalidate pending pagination immediately, before the next effect runs.
     requestVersion.current += 1;
@@ -72,7 +78,10 @@ export function DiscoverPage() {
     setLoadMoreError(null);
     try {
       const page = await discoverApi.getDiscover({
-        limit: 20, cursor: nextCursor, ...(topic ? { topic } : {}), ...(type ? { type } : {}),
+        limit: 20,
+        cursor: nextCursor,
+        ...(topic ? { topic } : {}),
+        ...(type ? { type } : {}),
       });
       if (version !== requestVersion.current) return;
       setItems((previous) => {
@@ -109,13 +118,15 @@ export function DiscoverPage() {
     setNextCursor(null);
     setLoadingMore(false);
     setLoadMoreError(null);
-    discoverApi.getDiscover({ limit: 20, ...(topic ? { topic } : {}), ...(type ? { type } : {}) })
+    discoverApi
+      .getDiscover({ limit: 20, ...(topic ? { topic } : {}), ...(type ? { type } : {}) })
       .then((page) => {
         if (!active || version !== requestVersion.current) return;
         setItems(page.items ?? []);
         setNextCursor(page.nextCursor ?? null);
         setLoading(false);
-      }).catch(() => {
+      })
+      .catch(() => {
         if (!active || version !== requestVersion.current) return;
         setError(true);
         setLoading(false);
@@ -147,7 +158,9 @@ export function DiscoverPage() {
             <div className="section-gap-tight">
               <PageState kind="error" />
               <div className="text-center">
-                <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>重新加载</Button>
+                <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+                  重新加载
+                </Button>
               </div>
             </div>
           )}
@@ -156,9 +169,22 @@ export function DiscoverPage() {
               <PageState
                 kind="empty"
                 title={isFiltered ? "暂无符合筛选条件的内容" : "社区还在生长中"}
-                description={isFiltered ? "试试其他话题或内容类型。" : "还没有内容可以浏览。成为第一个分享的人吧。"}
+                description={
+                  isFiltered
+                    ? "试试其他话题或内容类型。"
+                    : "还没有内容可以浏览。成为第一个分享的人吧。"
+                }
               />
-              {!isFiltered && <p className="text-center"><Link to="/studio" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>去创作</Link></p>}
+              {!isFiltered && (
+                <p className="text-center">
+                  <Link
+                    to="/studio"
+                    className={cn(buttonVariants({ variant: "outline" }), "text-sm")}
+                  >
+                    去创作
+                  </Link>
+                </p>
+              )}
             </div>
           )}
           {!loading && !error && items.length > 0 && (
@@ -177,9 +203,12 @@ export function DiscoverPage() {
                     >
                       <DiscoverListItem
                         item={item}
-                        variant={expandedKey === key ? "expanded" : expandedKey ? "compact" : "normal"}
+                        variant={
+                          expandedKey === key ? "expanded" : expandedKey ? "compact" : "normal"
+                        }
                         onToggleExpand={() => {
-                          const intent = expandedKey === key ? "close" : expandedKey ? "switch" : "open";
+                          const intent =
+                            expandedKey === key ? "close" : expandedKey ? "switch" : "open";
                           preparePosition(key, intent);
                           setExpandedKey((current) => (current === key ? null : key));
                         }}
@@ -190,10 +219,21 @@ export function DiscoverPage() {
               </ul>
             </div>
           )}
-          {!loading && !error && loadMoreError && <p role="alert" className="pt-2 text-center text-sm text-destructive">{loadMoreError}</p>}
+          {!loading && !error && loadMoreError && (
+            <p role="alert" className="pt-2 text-center text-sm text-destructive">
+              {loadMoreError}
+            </p>
+          )}
           {!loading && !error && nextCursor && (
             <div className="mt-8 text-center">
-              <Button variant="outline" size="lg" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "正在加载…" : "加载更多"}</Button>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={loadingMore}
+                onClick={() => void loadMore()}
+              >
+                {loadingMore ? "正在加载…" : "加载更多"}
+              </Button>
             </div>
           )}
         </div>

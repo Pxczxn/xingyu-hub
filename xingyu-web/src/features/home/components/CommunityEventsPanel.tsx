@@ -57,7 +57,10 @@ export function CommunityEventsPanel({
       className="sidebar-card group rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/50 p-5 shadow-sm transition-all duration-200 hover:border-border hover:shadow-md"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 id="home-events" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <h2
+          id="home-events"
+          className="flex items-center gap-2 text-sm font-semibold text-foreground"
+        >
           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/10 text-accent">
             <Calendar className="h-3.5 w-3.5" aria-hidden />
           </span>

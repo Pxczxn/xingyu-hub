@@ -96,9 +96,7 @@ describe("discover page", () => {
     discover.mockResolvedValue(feed(article("c2", "空话题内容")));
     fireEvent.click(emptyTopic);
 
-    await waitFor(() =>
-      expect(discover).toHaveBeenLastCalledWith({ limit: 20, topic: "zero" }),
-    );
+    await waitFor(() => expect(discover).toHaveBeenLastCalledWith({ limit: 20, topic: "zero" }));
     expect(emptyTopic).toHaveAttribute("aria-pressed", "true");
     expect(await screen.findByText("空话题内容")).toBeInTheDocument();
   });
@@ -128,8 +126,7 @@ describe("discover page", () => {
     ];
     for (let index = 0; index < titles.length - 1; index += 1) {
       expect(
-        titles[index].compareDocumentPosition(titles[index + 1]) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
+        titles[index].compareDocumentPosition(titles[index + 1]) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
     expect(screen.queryByRole("heading", { name: "更多内容" })).not.toBeInTheDocument();

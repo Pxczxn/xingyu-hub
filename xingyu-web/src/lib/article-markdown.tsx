@@ -21,7 +21,10 @@ export type ArticleOutlineItem = {
   level: 2 | 3 | 4;
 };
 
-export function extractArticleOutline(body: string, headingIdPrefix = ARTICLE_HEADING_ID_PREFIX): ArticleOutlineItem[] {
+export function extractArticleOutline(
+  body: string,
+  headingIdPrefix = ARTICLE_HEADING_ID_PREFIX,
+): ArticleOutlineItem[] {
   const tree = parseArticleMarkdownAst(body);
   const items: ArticleOutlineItem[] = [];
   let headingIndex = 0;

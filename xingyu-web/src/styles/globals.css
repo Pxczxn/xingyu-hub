@@ -107,7 +107,7 @@
     position: relative;
     overflow: hidden;
   }
-  
+
   .shimmer-effect::after {
     content: "";
     position: absolute;
@@ -125,7 +125,7 @@
     );
     animation: shimmer 2s infinite;
   }
-  
+
   @keyframes shimmer {
     100% {
       transform: translateX(100%);
@@ -141,7 +141,8 @@
   }
 
   @keyframes sparkle {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.2;
       transform: scale(1);
     }
@@ -156,7 +157,8 @@
   }
 
   @keyframes sparkle-rotate {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.6;
       transform: rotate(0deg) scale(1);
     }
@@ -172,7 +174,9 @@
    */
   .sidebar-card {
     transform-style: preserve-3d;
-    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+    transition:
+      transform 0.2s ease-out,
+      box-shadow 0.2s ease-out;
   }
 
   .sidebar-card:hover {
@@ -189,17 +193,20 @@
   }
 
   .glow-border::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: -1px;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, 
-      hsl(var(--accent)) 0%, 
-      transparent 50%, 
+    background: linear-gradient(
+      135deg,
+      hsl(var(--accent)) 0%,
+      transparent 50%,
       hsl(var(--accent)) 100%
     );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     opacity: 0;
@@ -341,6 +348,58 @@
    */
   .reader-column .article-body {
     font-size: inherit;
+    /*
+     * Long unbroken URLs and mixed CJK/Latin runs must wrap inside the reader
+     * column. Without this a single URL sets the column's min-content width and
+     * the page scrolls sideways.
+     */
+    overflow-wrap: break-word;
+  }
+  /*
+   * Reader-only long-form rhythm (Phase 4.1B).
+   *
+   * The shared `.article-body` uses a 2.1333 line height, which is deliberate on
+   * the article page (15px body) but becomes ~51px at the reader's 24px ceiling.
+   * Inside the reader column — and ONLY here — paragraphs, lists, table cells and
+   * quotes settle at 1.85, headings tighten to 1.35–1.45 so the document outline
+   * stays legible at every size, and code keeps its own 1.6 rhythm. The values are
+   * unitless, so they scale with the reader's chosen font size rather than
+   * freezing one size's pixel rhythm.
+   *
+   * The font-size/measure relationship is untouched: `font-size: inherit` above
+   * still hands the reader's size to `.article-body`, and `ch` still resolves on
+   * the element that carries it.
+   */
+  .reader-column .article-body,
+  .reader-column .article-body p,
+  .reader-column .article-body li,
+  .reader-column .article-body td,
+  .reader-column .article-body th,
+  .reader-column .article-body blockquote {
+    line-height: 1.85;
+  }
+  .reader-column .article-body h2 {
+    line-height: 1.35;
+  }
+  .reader-column .article-body h3 {
+    line-height: 1.4;
+  }
+  .reader-column .article-body h4 {
+    line-height: 1.45;
+  }
+  .reader-column .article-body pre,
+  .reader-column .article-body pre code {
+    line-height: 1.6;
+  }
+
+  /* Inline code is the one place where breaking inside a token is preferable
+     to overflowing the column; fenced blocks already scroll (`.article-body pre`). */
+  .reader-column .article-body :not(pre) > code {
+    overflow-wrap: anywhere;
+  }
+  .reader-column .article-body img {
+    max-width: 100%;
+    height: auto;
   }
   .article-body > * + * {
     @apply mt-4;
@@ -396,6 +455,46 @@
   }
   .article-body table {
     @apply w-full border-collapse text-[0.8667em];
+  }
+  /*
+   * A wide table gets its own horizontal scroll box instead of pushing the
+   * whole document sideways. The wrapper is emitted by the Markdown pipeline
+   * (`articleMarkdownComponents.table`), so the article page benefits too.
+   *
+   * The fade/chip only render while the table actually overflows and the reader
+   * is not at the end; they are absolutely positioned so showing them never
+   * shifts the table or the content below.
+   */
+  .article-table-block {
+    position: relative;
+    max-width: 100%;
+  }
+  .article-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .article-table-fade {
+    pointer-events: none;
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    width: 2.5rem;
+    background: linear-gradient(to left, hsl(var(--foreground) / 0.08), transparent 75%);
+  }
+  .article-table-fade-chip {
+    position: absolute;
+    top: 50%;
+    right: 0.375rem;
+    display: grid;
+    height: 1.5rem;
+    width: 1.5rem;
+    place-items: center;
+    transform: translateY(-50%);
+    border: 1px solid hsl(var(--border) / 0.7);
+    border-radius: 9999px;
+    background: hsl(var(--card) / 0.92);
+    color: hsl(var(--muted-foreground));
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.06);
   }
   .article-body th,
   .article-body td {

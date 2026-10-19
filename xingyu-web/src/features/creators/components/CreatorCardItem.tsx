@@ -29,7 +29,10 @@ export function CreatorCardItem({
   const work = creator.latestWork;
 
   return (
-    <Card className="h-full transition-all duration-200 hover:shadow-md" data-testid={`creator-card-${creator.username}`}>
+    <Card
+      className="h-full transition-all duration-200 hover:shadow-md"
+      data-testid={`creator-card-${creator.username}`}
+    >
       <CardContent className="flex flex-col gap-4 p-6">
         <div className="flex items-start gap-3">
           <span
@@ -66,7 +69,8 @@ export function CreatorCardItem({
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            专题收录 <span className="font-semibold text-foreground">{creator.contentCount}</span> 篇
+            专题收录 <span className="font-semibold text-foreground">{creator.contentCount}</span>{" "}
+            篇
           </p>
         )}
 

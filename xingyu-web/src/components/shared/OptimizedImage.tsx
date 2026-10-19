@@ -12,7 +12,10 @@ import { cn } from "@/lib/cn";
  * 5. 响应式图片（可选）
  */
 
-interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'onLoad' | 'onError'> {
+interface OptimizedImageProps extends Omit<
+  ImgHTMLAttributes<HTMLImageElement>,
+  "src" | "onLoad" | "onError"
+> {
   src: string;
   alt: string;
   /** 是否支持 WebP，默认 true */
@@ -32,15 +35,15 @@ interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 
  */
 function toWebP(url: string): string {
   // 如果已经是 WebP，直接返回
-  if (url.endsWith('.webp')) return url;
-  
+  if (url.endsWith(".webp")) return url;
+
   // 如果有查询参数，添加 format=webp
-  if (url.includes('?')) {
+  if (url.includes("?")) {
     return `${url}&format=webp`;
   }
-  
+
   // 简单替换扩展名（实际应该由服务端处理）
-  return url.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+  return url.replace(/\.(jpg|jpeg|png)$/i, ".webp");
 }
 
 /**
@@ -48,7 +51,7 @@ function toWebP(url: string): string {
  */
 function checkWebPSupport(): Promise<boolean> {
   return new Promise((resolve) => {
-    const webP = 'data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==';
+    const webP = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
     const img = new Image();
     img.onload = () => resolve(img.width > 0 && img.height > 0);
     img.onerror = () => resolve(false);
@@ -100,9 +103,9 @@ export function OptimizedImage({
   const handleError = () => {
     setIsLoading(false);
     setHasError(true);
-    
+
     // 如果 WebP 加载失败，尝试回退到原始格式
-    if (webp && supportsWebP && imageSrc.includes('webp')) {
+    if (webp && supportsWebP && imageSrc.includes("webp")) {
       setImageSrc(src);
     }
   };
@@ -115,10 +118,7 @@ export function OptimizedImage({
   if (hasError) {
     return (
       <div
-        className={cn(
-          "flex items-center justify-center bg-muted text-muted-foreground",
-          className,
-        )}
+        className={cn("flex items-center justify-center bg-muted text-muted-foreground", className)}
         aria-label="图片加载失败"
       >
         <svg
@@ -144,16 +144,11 @@ export function OptimizedImage({
       {/* 占位符 */}
       {isLoading && placeholder !== "none" && (
         <div
-          className={cn(
-            "absolute inset-0",
-            placeholder === "shimmer" && "animate-pulse",
-          )}
+          className={cn("absolute inset-0", placeholder === "shimmer" && "animate-pulse")}
           style={{ backgroundColor: placeholderColor }}
           aria-hidden
         >
-          {placeholder === "shimmer" && (
-            <div className="shimmer-effect h-full w-full" />
-          )}
+          {placeholder === "shimmer" && <div className="shimmer-effect h-full w-full" />}
         </div>
       )}
 
@@ -223,10 +218,7 @@ export function ContentCoverImage({
       placeholder="shimmer"
       fallback={
         <div
-          className={cn(
-            "flex items-center justify-center bg-muted",
-            className,
-          )}
+          className={cn("flex items-center justify-center bg-muted", className)}
           aria-label="封面图片"
         />
       }

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { seriesApi } from "@/api/series/series.api";
 import { articlesApi } from "@/api/articles/articles.api";
 import { ApiError } from "@/api/client";
+import { READER_PREFERENCES_KEY } from "./reader-preferences";
 import { PublicSeriesReadPage } from "./pages/PublicSeriesReadPage";
 
 const authState = { isAuthenticated: false };
@@ -49,10 +50,17 @@ const SERIES = {
 
 const THREE_CHAPTERS = {
   ...SERIES,
-  chapters: [
-    ...SERIES.chapters,
-    { id: "ch-3", articleId: "art-3", title: "第三章", position: 3 },
-  ],
+  chapters: [...SERIES.chapters, { id: "ch-3", articleId: "art-3", title: "第三章", position: 3 }],
+};
+
+const MANY_CHAPTERS = {
+  ...SERIES,
+  chapters: Array.from({ length: 45 }, (_, index) => ({
+    id: `many-ch-${index + 1}`,
+    articleId: `many-art-${index + 1}`,
+    title: `第 ${index + 1} 章 · 大目录`,
+    position: index + 1,
+  })),
 };
 
 function article(id: string, title: string) {
@@ -132,7 +140,7 @@ describe("PublicSeriesReadPage", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "第一章 标题" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("第 1 / 2 章")).toBeInTheDocument();
+    expect(screen.getByTestId("reader-position")).toHaveTextContent("第 1 / 2 章");
     expect(mockedArticles.getArticle).toHaveBeenCalledWith("art-1");
   });
 
@@ -149,7 +157,7 @@ describe("PublicSeriesReadPage", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "第二章 标题" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("第 2 / 2 章")).toBeInTheDocument();
+    expect(screen.getByTestId("reader-position")).toHaveTextContent("第 2 / 2 章");
   });
 
   it("opens the chapter named by the URL", async () => {
@@ -162,7 +170,7 @@ describe("PublicSeriesReadPage", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "第二章 标题" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("第 2 / 2 章")).toBeInTheDocument();
+    expect(screen.getByTestId("reader-position")).toHaveTextContent("第 2 / 2 章");
     // The chapter list is the allow-list: only its article was requested.
     expect(mockedArticles.getArticle.mock.calls.map(([id]) => id)).toEqual(["art-2"]);
   });
@@ -177,9 +185,7 @@ describe("PublicSeriesReadPage", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "第一章 标题" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("该章节不存在或已从系列中移除，已从第一章开始。"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("该章节不存在或已从系列中移除，已从第一章开始。")).toBeInTheDocument();
     expect(mockedArticles.getArticle.mock.calls.map(([id]) => id)).toEqual(["art-1"]);
   });
 
@@ -250,9 +256,7 @@ describe("PublicSeriesReadPage", () => {
       await first.promise;
     });
 
-    expect(
-      screen.getByRole("heading", { level: 1, name: "第二章 标题" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "第二章 标题" })).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { level: 1, name: "第一章 标题" }),
     ).not.toBeInTheDocument();
@@ -448,6 +452,323 @@ describe("PublicSeriesReadPage", () => {
     mockedArticles.getArticle.mockRejectedValue(new Error("403"));
     renderReader();
     expect(await screen.findByText("章节正文暂不可读")).toBeInTheDocument();
+  });
+
+  it("keeps typography across chapters, remounts and another series", async () => {
+    mockedSeries.getPublicById.mockImplementation(async (id: string) => ({ ...SERIES, id }));
+    mockedArticles.getArticle.mockImplementation(async (id: string) => article(id, `${id} 标题`));
+    const first = renderReader();
+
+    const column = await screen.findByTestId("reader-column");
+    expect(column).toHaveStyle({ fontSize: "18px", maxWidth: "68ch" });
+
+    await userEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    await userEvent.click(screen.getByRole("button", { name: "窄" }));
+    expect(screen.getByTestId("reader-column")).toHaveStyle({
+      fontSize: "19px",
+      maxWidth: "58ch",
+    });
+
+    // A chapter switch must not reset the reader's typography.
+    await userEvent.click(screen.getByRole("button", { name: "第二章" }));
+    await screen.findByRole("heading", { level: 1, name: "art-2 标题" });
+    expect(screen.getByTestId("reader-column")).toHaveStyle({
+      fontSize: "19px",
+      maxWidth: "58ch",
+    });
+
+    expect(JSON.parse(localStorage.getItem(READER_PREFERENCES_KEY) ?? "{}")).toEqual({
+      fontSize: 19,
+      layout: "narrow",
+    });
+
+    // Leaving and opening a DIFFERENT series must restore the same choice.
+    first.unmount();
+    renderReader("/series/another-series/read");
+    const restored = await screen.findByTestId("reader-column");
+    expect(restored).toHaveStyle({ fontSize: "19px", maxWidth: "58ch" });
+  });
+
+  it("falls back to default typography when the stored data is corrupt", async () => {
+    localStorage.setItem(READER_PREFERENCES_KEY, "{not-json");
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+
+    renderReader();
+
+    const column = await screen.findByTestId("reader-column");
+    expect(column).toHaveStyle({ fontSize: "18px", maxWidth: "68ch" });
+  });
+
+  it("rejects out-of-range stored typography", async () => {
+    localStorage.setItem(READER_PREFERENCES_KEY, JSON.stringify({ fontSize: 99, layout: "huge" }));
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+
+    renderReader();
+
+    const column = await screen.findByTestId("reader-column");
+    expect(column).toHaveStyle({ fontSize: "18px", maxWidth: "68ch" });
+  });
+
+  it("restores the default typography from the toolbar", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+
+    await screen.findByTestId("reader-column");
+    await userEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    await userEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    await userEvent.click(screen.getByRole("button", { name: "宽" }));
+    expect(screen.getByTestId("reader-column")).toHaveStyle({
+      fontSize: "20px",
+      maxWidth: "80ch",
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "恢复默认" }));
+    expect(screen.getByTestId("reader-column")).toHaveStyle({
+      fontSize: "18px",
+      maxWidth: "68ch",
+    });
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem(READER_PREFERENCES_KEY) ?? "{}")).toEqual({
+        fontSize: 18,
+        layout: "medium",
+      }),
+    );
+  });
+
+  it("renders the desktop chapter rail and leaves the mobile drawer unmounted", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    expect(screen.getByTestId("chapter-nav-sidebar")).toBeInTheDocument();
+    expect(screen.getByTestId("reader-position-mobile")).toHaveTextContent("第 1 / 2 章");
+    expect(screen.queryByTestId("chapter-nav-drawer")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("opens the mobile chapter drawer, highlights the current chapter and switches on select", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation(async (id: string) =>
+      article(id, id === "art-2" ? "第二章 标题" : "第一章 标题"),
+    );
+    renderReader("/series/ser-1/read?chapter=art-2");
+    await screen.findByRole("heading", { level: 1, name: "第二章 标题" });
+
+    const trigger = screen.getByRole("button", { name: "目录" });
+    await userEvent.click(trigger);
+    const drawer = await screen.findByRole("dialog");
+    expect(within(drawer).getByText(SERIES.title)).toBeInTheDocument();
+    expect(within(drawer).getByText("第 2 / 2 章")).toBeInTheDocument();
+    expect(within(drawer).getByRole("button", { name: "第二章 标题" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+
+    await userEvent.click(within(drawer).getByRole("button", { name: "第一章" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByTestId("reader-location")).toHaveTextContent("?chapter=art-1");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "第一章 标题" }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("closes the chapter drawer with Escape and returns focus to the trigger", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+
+    const trigger = screen.getByRole("button", { name: "目录" });
+    await userEvent.click(trigger);
+    await screen.findByRole("dialog");
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("reveals the current chapter when the chapter drawer opens", async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockImplementation(async (id: string) =>
+      article(id, id === "art-2" ? "第二章 标题" : "第一章 标题"),
+    );
+    renderReader("/series/ser-1/read?chapter=art-2");
+    await screen.findByRole("heading", { level: 1, name: "第二章 标题" });
+
+    await userEvent.click(screen.getByRole("button", { name: "目录" }));
+    const drawer = await screen.findByRole("dialog");
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    const target = scrollIntoView.mock.instances.at(-1) as unknown as HTMLElement;
+    expect(target).toHaveAttribute("aria-current", "true");
+    expect(drawer.contains(target)).toBe(true);
+    scrollIntoView.mockRestore();
+  });
+
+  it("applies typography from the mobile settings sheet", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+
+    await userEvent.click(screen.getByRole("button", { name: "阅读设置" }));
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByRole("heading", { name: "阅读设置" })).toBeInTheDocument();
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "增大字号" }));
+    expect(screen.getByTestId("reader-column")).toHaveStyle({
+      fontSize: "19px",
+      maxWidth: "68ch",
+    });
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "宽" }));
+    expect(screen.getByTestId("reader-column")).toHaveStyle({
+      fontSize: "19px",
+      maxWidth: "80ch",
+    });
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "恢复默认" }));
+    expect(screen.getByTestId("reader-column")).toHaveStyle({
+      fontSize: "18px",
+      maxWidth: "68ch",
+    });
+  });
+
+  it("does not write progress just by opening the chapter drawer", async () => {
+    authState.isAuthenticated = true;
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedSeries.recordReadingProgress.mockResolvedValue(undefined);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    await waitFor(() => expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(1));
+
+    await userEvent.click(screen.getByRole("button", { name: "目录" }));
+    await screen.findByRole("dialog");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives wide tables their own scroll container inside the reader", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue({
+      ...article("art-1", "第一章 标题"),
+      body: "| 列一 | 列二 |\n| --- | --- |\n| 内容一 | 内容二 |",
+    });
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    const table = document.querySelector(".article-body table");
+    expect(table).not.toBeNull();
+    expect(table?.parentElement).toHaveClass("article-table-scroll");
+  });
+
+  it("keeps the mobile reading toolbar sticky below the shell header", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+
+    const bar = screen.getByTestId("reader-position-mobile").parentElement;
+    if (!bar) throw new Error("mobile reading toolbar not found");
+    expect(bar).toHaveClass("sticky");
+    expect(bar.className).toContain("top-[var(--shell-header-height)]");
+    expect(bar).toHaveClass("lg:hidden");
+
+    // The desktop toolbar is a separate row, not a second copy of the mobile bar.
+    const desktop = screen.getByTestId("reader-position").parentElement?.parentElement;
+    if (!desktop) throw new Error("desktop reading toolbar not found");
+    expect(desktop).toHaveClass("hidden");
+    expect(desktop).toHaveClass("lg:flex");
+  });
+
+  it("clamps the font size at 15px and 24px", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    renderReader();
+    await screen.findByTestId("reader-column");
+
+    const minus = screen.getByRole("button", { name: "减小字号" });
+    for (let index = 0; index < 3; index++) await userEvent.click(minus);
+    expect(screen.getByTestId("reader-column")).toHaveStyle({ fontSize: "15px" });
+    expect(minus).toBeDisabled();
+
+    const plus = screen.getByRole("button", { name: "增大字号" });
+    for (let index = 0; index < 9; index++) await userEvent.click(plus);
+    expect(screen.getByTestId("reader-column")).toHaveStyle({ fontSize: "24px" });
+    expect(plus).toBeDisabled();
+  });
+
+  it("renders a 45-chapter directory and selects the deep-linked chapter", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(MANY_CHAPTERS);
+    mockedArticles.getArticle.mockImplementation(async (id: string) => article(id, `${id} 标题`));
+    renderReader("/series/ser-1/read?chapter=many-art-40");
+
+    await screen.findByRole("heading", { level: 1, name: "many-art-40 标题" });
+    const sidebar = screen.getByTestId("chapter-nav-sidebar");
+    expect(within(sidebar).getAllByRole("button")).toHaveLength(45);
+    expect(within(sidebar).getByRole("button", { name: "many-art-40 标题" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "目录" }));
+    const drawer = await screen.findByRole("dialog");
+    const drawerNav = within(drawer).getByRole("navigation", { name: "章节目录" });
+    expect(within(drawerNav).getAllByRole("button")).toHaveLength(45);
+    expect(within(drawerNav).getByRole("button", { name: "many-art-40 标题" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+
+  it("reveals the selected chapter in the rail without re-centering on unrelated updates", async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    mockedSeries.getPublicById.mockResolvedValue(MANY_CHAPTERS);
+    mockedArticles.getArticle.mockImplementation(async (id: string) => article(id, `${id} 标题`));
+    renderReader("/series/ser-1/read?chapter=many-art-40");
+    await screen.findByRole("heading", { level: 1, name: "many-art-40 标题" });
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    const targets = scrollIntoView.mock.instances as unknown as HTMLElement[];
+    expect(
+      targets.some(
+        (element) =>
+          element.getAttribute("aria-current") === "true" &&
+          element.closest('[data-testid="chapter-nav-sidebar"]') !== null,
+      ),
+    ).toBe(true);
+
+    const callsAfterReveal = scrollIntoView.mock.instances.length;
+    // Changing typography re-renders the page but not the selected chapter.
+    await userEvent.click(screen.getByRole("button", { name: "恢复默认" }));
+    expect(scrollIntoView.mock.instances.length).toBe(callsAfterReveal);
+    scrollIntoView.mockRestore();
+  });
+
+  it("gives wide tables their own scroll container inside the reader", async () => {
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue({
+      ...article("art-1", "第一章 标题"),
+      body: "| 列一 | 列二 |\n| --- | --- |\n| 内容一 | 内容二 |",
+    });
+    renderReader();
+
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    const table = document.querySelector(".article-body table");
+    expect(table).not.toBeNull();
+    expect(table?.parentElement).toHaveClass("article-table-scroll");
+    expect(table?.parentElement?.parentElement).toHaveClass("article-table-block");
   });
 
   /*

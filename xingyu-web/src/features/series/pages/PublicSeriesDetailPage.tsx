@@ -161,9 +161,8 @@ export function PublicSeriesDetailPage() {
   const { series } = state;
   const chapters = [...(series.chapters ?? [])].sort((a, b) => a.position - b.position);
 
-  const resumeArticleId = progress?.readingHistoryEnabled === false
-    ? null
-    : (progress?.chapterArticleId ?? null);
+  const resumeArticleId =
+    progress?.readingHistoryEnabled === false ? null : (progress?.chapterArticleId ?? null);
   const resumeIndex = resumeArticleId ? (progress?.chapterIndex ?? null) : null;
   const readHref = resumeArticleId
     ? `/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(resumeArticleId)}`
@@ -206,9 +205,7 @@ export function PublicSeriesDetailPage() {
         />
 
         <div className="min-w-0 flex-1">
-          <h1 className="text-display font-semibold tracking-tight text-primary">
-            {series.title}
-          </h1>
+          <h1 className="text-display font-semibold tracking-tight text-primary">{series.title}</h1>
 
           {/* Who wrote it and how long it is are the same kind of fact — one
               line, one weight, both true. No lifecycle status is shown: ACTIVE

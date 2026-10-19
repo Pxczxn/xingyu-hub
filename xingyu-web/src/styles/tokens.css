@@ -119,11 +119,23 @@
    * Vertical offset for the floating notification stack.
    *
    * The shell header is `sticky top-0`, so anything pinned to `top-0` lands on
-   * top of it — the first toast covered 创作/登录/注册. Measured header height:
-   * 57px at >=640px, 61px below it. 4.75rem (76px) clears the taller of the two
-   * with a 15px gap, and both the token and the header are edited together.
+   * top of it — the first toast covered 创作/登录/注册. The tallest header is the
+   * mobile one (~61px: h-10 actions + py-2.5 + border); 4.75rem (76px) clears it
+   * with a ~15px gap and a slightly larger gap on the shorter desktop header.
+   * Both the token and the header are edited together.
    */
   --toast-top-offset: 4.75rem;
+
+  /*
+   * Height of the shell header on the breakpoints that show the mobile reader
+   * toolbar: the hamburger and h-10 action buttons make the row ~60.8px, so 61
+   * is the ceiling. (A desktop guest header without those h-10 controls is
+   * ~57px, but the sticky reader bar only exists below `lg`.)
+   *
+   * The reader toolbar uses this token instead of re-deriving the offset in a
+   * component. If the shell header's mobile height changes, edit this token.
+   */
+  --shell-header-height: 3.8125rem; /* 61px */
 
   /*
    * Type scale. The old UI had a 24px h1 and an 18px section heading and an

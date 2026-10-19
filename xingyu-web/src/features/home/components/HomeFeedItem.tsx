@@ -65,9 +65,18 @@ function HomeFeedVisual({
   // 系列无封面时使用生成的封面
   if (type === "SERIES" && !item.cover) {
     return (
-      <Link to={href} tabIndex={-1} aria-hidden className="hidden shrink-0 overflow-hidden rounded-lg sm:block">
+      <Link
+        to={href}
+        tabIndex={-1}
+        aria-hidden
+        className="hidden shrink-0 overflow-hidden rounded-lg sm:block"
+      >
         <div className="transition-transform duration-300 group-hover:scale-[1.03]">
-          <SeriesCover stableKey={`${item.id}:${item.title}`} title={item.title} variant="thumbnail" />
+          <SeriesCover
+            stableKey={`${item.id}:${item.title}`}
+            title={item.title}
+            variant="thumbnail"
+          />
         </div>
       </Link>
     );
@@ -75,13 +84,14 @@ function HomeFeedVisual({
 
   // 使用优化的图片组件
   return (
-    <Link to={href} tabIndex={-1} aria-hidden className="hidden shrink-0 overflow-hidden rounded-lg sm:block">
+    <Link
+      to={href}
+      tabIndex={-1}
+      aria-hidden
+      className="hidden shrink-0 overflow-hidden rounded-lg sm:block"
+    >
       <div className="h-20 w-[120px] transition-transform duration-300 group-hover:scale-[1.03]">
-        <ContentCoverImage
-          src={item.cover}
-          alt=""
-          className="h-20 w-[120px] rounded-md"
-        />
+        <ContentCoverImage src={item.cover} alt="" className="h-20 w-[120px] rounded-md" />
       </div>
     </Link>
   );
@@ -171,9 +181,9 @@ export function HomeFeedItem({
         key="author"
         className={cn(
           "truncate rounded-md px-2 py-0.5",
-          isSubscription 
-            ? "bg-accent/10 font-semibold text-accent-strong" 
-            : "font-medium text-foreground"
+          isSubscription
+            ? "bg-accent/10 font-semibold text-accent-strong"
+            : "font-medium text-foreground",
         )}
       >
         {author}
@@ -182,7 +192,10 @@ export function HomeFeedItem({
   }
   if (typeLabel) {
     byline.push(
-      <span key="type" className="shrink-0 rounded-md bg-muted/80 px-2 py-0.5 text-muted-foreground">
+      <span
+        key="type"
+        className="shrink-0 rounded-md bg-muted/80 px-2 py-0.5 text-muted-foreground"
+      >
         {typeLabel}
       </span>,
     );
@@ -218,21 +231,19 @@ export function HomeFeedItem({
     if (typeof liked !== "boolean" || likePending) return;
     setError(null);
     setLikePending(true);
-    
+
     // 乐观更新：先更新 UI
     const wasLiked = liked;
     const previousCount = likeCount;
     setLiked(!liked);
-    setLikeCount((current) =>
-      typeof current === "number" ? current + (liked ? -1 : 1) : current,
-    );
-    
+    setLikeCount((current) => (typeof current === "number" ? current + (liked ? -1 : 1) : current));
+
     // 触发动画
     if (!liked) {
       setLikeAnimating(true);
       setTimeout(() => setLikeAnimating(false), 600);
     }
-    
+
     try {
       if (wasLiked) {
         await interactionsApi.unlike(type, item.id);
@@ -253,11 +264,11 @@ export function HomeFeedItem({
     if (typeof bookmarked !== "boolean" || bookmarkPending) return;
     setError(null);
     setBookmarkPending(true);
-    
+
     // 乐观更新
     const wasBookmarked = bookmarked;
     setBookmarked(!bookmarked);
-    
+
     try {
       if (wasBookmarked) {
         await interactionsApi.removeBookmark(type, item.id);
@@ -390,10 +401,12 @@ export function HomeFeedItem({
                   aria-hidden
                 />
                 {typeof likeCount === "number" && likeCount > 0 ? (
-                  <span className={cn(
-                    "tabular-nums transition-all duration-200",
-                    likeAnimating && "animate-count-bounce",
-                  )}>
+                  <span
+                    className={cn(
+                      "tabular-nums transition-all duration-200",
+                      likeAnimating && "animate-count-bounce",
+                    )}
+                  >
                     {likeCount}
                   </span>
                 ) : null}
@@ -435,10 +448,7 @@ export function HomeFeedItem({
                   bookmarked ? "text-accent-strong" : "hover:text-foreground",
                 )}
               >
-                <Bookmark
-                  className={cn("h-4 w-4", bookmarked && "fill-current")}
-                  aria-hidden
-                />
+                <Bookmark className={cn("h-4 w-4", bookmarked && "fill-current")} aria-hidden />
                 <span className="text-xs">{bookmarked ? "已收藏" : "收藏"}</span>
               </button>
             ) : null}

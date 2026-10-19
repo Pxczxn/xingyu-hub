@@ -20,12 +20,20 @@ interface EmptyFeedStateProps {
   className?: string;
 }
 
-const CONTENT: Record<EmptyStateVariant, {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-  actions: Array<{ label: string; to: string; variant: "primary" | "secondary"; icon?: React.ComponentType<{ className?: string }> }>;
-}> = {
+const CONTENT: Record<
+  EmptyStateVariant,
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    title: string;
+    description: string;
+    actions: Array<{
+      label: string;
+      to: string;
+      variant: "primary" | "secondary";
+      icon?: React.ComponentType<{ className?: string }>;
+    }>;
+  }
+> = {
   recommend: {
     icon: Sparkles,
     title: "暂无推荐内容",
@@ -74,9 +82,7 @@ export function EmptyFeedState({ variant, className }: EmptyFeedStateProps) {
       </div>
 
       {/* 标题 */}
-      <h3 className="mb-2 text-lg font-semibold text-foreground">
-        {content.title}
-      </h3>
+      <h3 className="mb-2 text-lg font-semibold text-foreground">{content.title}</h3>
 
       {/* 描述 */}
       <p className="mb-6 max-w-md text-sm leading-relaxed text-muted-foreground">

@@ -37,7 +37,10 @@ const STABLE_FRAMES = 4;
 const BLOCKED_FRAMES = 4;
 
 function readingInsets(row: HTMLElement) {
-  const headerBottom = Math.max(0, document.querySelector("header.sticky")?.getBoundingClientRect().bottom ?? 0);
+  const headerBottom = Math.max(
+    0,
+    document.querySelector("header.sticky")?.getBoundingClientRect().bottom ?? 0,
+  );
   const inset = parseFloat(getComputedStyle(row).paddingTop) || 0;
   return { top: headerBottom + inset, headerBottom };
 }
@@ -93,20 +96,34 @@ export function useDiscoverPosition(expandedKey: string | null) {
         // sits above the new row, that is exactly the height that will disappear
         // from the document above it; using it as the target keeps the alignment
         // from easing downwards first and then chasing the collapse back upwards.
-        const previous = document.querySelector<HTMLElement>('[data-discover-variant="expanded"]')?.closest("li");
+        const previous = document
+          .querySelector<HTMLElement>('[data-discover-variant="expanded"]')
+          ?.closest("li");
         const previousVariant = previous?.querySelector<HTMLElement>("[data-discover-variant]");
         let removedAbove = 0;
         if (previous && previous !== row && previous.getBoundingClientRect().top < rect.top) {
-          removedAbove = previous.querySelector<HTMLElement>(".discover-panel")?.getBoundingClientRect().height ?? 0;
+          removedAbove =
+            previous.querySelector<HTMLElement>(".discover-panel")?.getBoundingClientRect()
+              .height ?? 0;
         }
         // The expanded state's own padding is the same the new row is about to get.
-        const expandedInset = narrow ? headerBottom
-          : headerBottom + (previousVariant ? parseFloat(getComputedStyle(previousVariant).paddingTop) || 0 : top - headerBottom);
+        const expandedInset = narrow
+          ? headerBottom
+          : headerBottom +
+            (previousVariant
+              ? parseFloat(getComputedStyle(previousVariant).paddingTop) || 0
+              : top - headerBottom);
         alignTarget = Math.max(0, anchorDocTop - removedAbove - expandedInset);
       }
       pending.current = {
-        key, intent, anchor, anchorTop: anchor.getBoundingClientRect().top,
-        mode: "align", alignToRow: narrow, initialSync: false, alignTarget,
+        key,
+        intent,
+        anchor,
+        anchorTop: anchor.getBoundingClientRect().top,
+        mode: "align",
+        alignToRow: narrow,
+        initialSync: false,
+        alignTarget,
       };
     } else if (rect.bottom <= top) {
       // The reader is entirely above the viewport (sticky collapse control on
@@ -116,21 +133,37 @@ export function useDiscoverPosition(expandedKey: string | null) {
       );
       const anchor = following ?? row;
       pending.current = {
-        key, intent, anchor,
+        key,
+        intent,
+        anchor,
         anchorTop: anchor === row ? top : anchor.getBoundingClientRect().top,
-        alignToRow: false, mode: "pin", initialSync: narrow,
+        alignToRow: false,
+        mode: "pin",
+        initialSync: narrow,
       };
     } else if (triggerTop < headerBottom - 1) {
       // The reader's own header is already behind the sticky navigation: bring it
       // back, then keep it there while the rows above regain their normal height.
       pending.current = {
-        key, intent, anchor: row, anchorTop: top, alignToRow: false, mode: "pin", initialSync: true,
+        key,
+        intent,
+        anchor: row,
+        anchorTop: top,
+        alignToRow: false,
+        mode: "pin",
+        initialSync: true,
       };
     } else {
       // A visible article collapses in place: the page keeps the user's position,
       // unless the restored rows above would push its header off the screen.
       pending.current = {
-        key, intent, anchor: trigger, anchorTop: triggerTop, alignToRow: false, mode: "keep", initialSync: false,
+        key,
+        intent,
+        anchor: trigger,
+        anchorTop: triggerTop,
+        alignToRow: false,
+        mode: "keep",
+        initialSync: false,
       };
     }
     suspendPageAnchoring(true);
@@ -145,9 +178,15 @@ export function useDiscoverPosition(expandedKey: string | null) {
       pending.current = null;
       suspendPageAnchoring(false);
     };
-    if (!active) { finish(); return; }
+    if (!active) {
+      finish();
+      return;
+    }
     const row = rowRefs.current.get(request.key);
-    if (!row) { finish(); return; }
+    if (!row) {
+      finish();
+      return;
+    }
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const scrollBy = (delta: number) => {
@@ -187,7 +226,10 @@ export function useDiscoverPosition(expandedKey: string | null) {
 
     const measure = (now = performance.now()) => {
       if (stopped) return;
-      if (!row.isConnected || !request.anchor.isConnected) { stop(); return; }
+      if (!row.isConnected || !request.anchor.isConnected) {
+        stop();
+        return;
+      }
       const dt = Math.min(64, Math.max(0, now - last)) / 1000;
       last = now;
       const variant = row.querySelector<HTMLElement>("[data-discover-variant]") ?? row;
@@ -212,9 +254,10 @@ export function useDiscoverPosition(expandedKey: string | null) {
           // A switch knows how much document the collapsing panel above will remove:
           // aim there while the layout runs, then finish on the measured error so a
           // slightly off estimate becomes a short ease instead of a snap.
-          const target = request.alignTarget !== undefined && stableFrames < STABLE_FRAMES
-            ? request.alignTarget
-            : window.scrollY + alignError;
+          const target =
+            request.alignTarget !== undefined && stableFrames < STABLE_FRAMES
+              ? request.alignTarget
+              : window.scrollY + alignError;
           const damped = smoothDamp(alignPosition, target, alignVelocity, ALIGN_SMOOTH_TIME, dt);
           alignPosition = damped.value;
           alignVelocity = damped.velocity;
@@ -233,18 +276,29 @@ export function useDiscoverPosition(expandedKey: string | null) {
       // focused row still clamps the window, and that clamp must be corrected while
       // the loop is alive instead of surfacing as a late drift.
       const geometry = [
-        rect.top + window.scrollY, rect.width, rect.height, top,
+        rect.top + window.scrollY,
+        rect.width,
+        rect.height,
+        top,
         document.documentElement.scrollHeight,
       ];
-      stableFrames = geometry.every((value, index) => Math.abs(value - previous[index]) < 0.5) ? stableFrames + 1 : 0;
+      stableFrames = geometry.every((value, index) => Math.abs(value - previous[index]) < 0.5)
+        ? stableFrames + 1
+        : 0;
       previous = geometry;
-      if (stableFrames < STABLE_FRAMES) { frame = requestAnimationFrame(measure); return; }
+      if (stableFrames < STABLE_FRAMES) {
+        frame = requestAnimationFrame(measure);
+        return;
+      }
 
       if (request.mode === "align" && !reducedMotion && Math.abs(alignError) > ALIGN_TOLERANCE) {
         // The layout has settled but the easing has not reached the inset yet.
         // Keep going unless the document itself cannot scroll any further.
         blockedFrames = outcome === "blocked" ? blockedFrames + 1 : 0;
-        if (blockedFrames < BLOCKED_FRAMES) { frame = requestAnimationFrame(measure); return; }
+        if (blockedFrames < BLOCKED_FRAMES) {
+          frame = requestAnimationFrame(measure);
+          return;
+        }
       }
       stop();
     };

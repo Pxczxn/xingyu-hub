@@ -9,6 +9,7 @@ import { unified } from "unified";
 import { visit } from "unist-util-visit";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import { ArticleMarkdownImg } from "@/lib/article-markdown-media-context";
+import { ArticleTableScroll } from "@/lib/article-table-scroll";
 
 /*
  * Article Markdown READING pipeline — migrated from Legacy
@@ -44,6 +45,13 @@ const articleMarkdownComponents: Components = {
     </a>
   ),
   img: ({ src, alt }) => <ArticleMarkdownImg src={src} alt={alt} />,
+  /*
+   * A wide table must scroll inside the reading column, not stretch the page.
+   * `table { width: 100% }` still lays the table out; the wrapper is what gives
+   * it an overflow box, and `ArticleTableScroll` adds the overflow affordance
+   * only when the table genuinely does not fit.
+   */
+  table: ({ children }) => <ArticleTableScroll>{children}</ArticleTableScroll>,
 };
 
 const articleMarkdownProcessor = unified()

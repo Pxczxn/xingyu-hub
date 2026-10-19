@@ -20,7 +20,11 @@ import { HomeSidebar, hasSidebarContent } from "@/features/home/components/HomeS
 import { HomeNotice } from "@/features/home/components/HomeNotice";
 import { EVENT_LIMIT } from "@/features/home/components/CommunityEventsPanel";
 import { useRecommendedCreators } from "@/features/home/use-recommended-creators";
-import { HomeFeedSkeleton, HomeSidebarSkeleton, ContinueReadingSkeleton } from "@/features/home/components/HomeFeedSkeleton";
+import {
+  HomeFeedSkeleton,
+  HomeSidebarSkeleton,
+  ContinueReadingSkeleton,
+} from "@/features/home/components/HomeFeedSkeleton";
 import { EmptyFeedState } from "@/features/home/components/EmptyFeedState";
 import { EnhancedHero } from "@/features/home/components/EnhancedHero";
 
@@ -159,11 +163,7 @@ export function HomePage() {
 
   // 空状态变体：根据 tab 和登录状态决定
   const emptyVariant =
-    tab === "recommend"
-      ? "recommend"
-      : isAuthenticated
-        ? "following-empty"
-        : "following-guest";
+    tab === "recommend" ? "recommend" : isAuthenticated ? "following-empty" : "following-guest";
 
   const announcementSection = {
     status: contentStatus(announcements, announcements.data ?? undefined),
@@ -238,7 +238,12 @@ export function HomePage() {
                     viewBox="0 0 24 24"
                     aria-hidden
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </Link>
               ) : null
