@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { ContentSummary } from "@/api/common.types";
 import type { PublicSeriesSummary } from "@/api/series/series.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
-import { SeriesDirectoryItem } from "@/features/series/components/SeriesDirectoryItem";
+import { SeriesWorkCard } from "@/features/series/components/SeriesWorkCard";
 import { TopicCard } from "@/features/topics/components/TopicCard";
 import { DiscoverFocusItem } from "./DiscoverFocusItem";
 
@@ -84,7 +84,7 @@ describe("DiscoverFocusItem pressure fixtures", () => {
         </ul>
         <ul>
           {seriesPressureItems.map((item) => (
-            <SeriesDirectoryItem key={item.id} item={item} />
+            <SeriesWorkCard key={item.id} item={item} />
           ))}
         </ul>
       </MemoryRouter>,

@@ -1,6 +1,7 @@
 package top.pxczxn.xingyu.web.controller;
 
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
+import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.PublicSeriesSummaryView;
 import top.pxczxn.xingyu.community.dto.PublicSeriesView;
 import top.pxczxn.xingyu.community.dto.SeriesSummaryView;
@@ -31,6 +32,21 @@ public class CommunitySeriesController {
     @GetMapping("/series")
     public List<PublicSeriesSummaryView> listPublic(@RequestParam(value = "limit", defaultValue = "20") int limit) {
         return seriesService.listPublic(limit);
+    }
+
+    /**
+     * 系列广场目录（2026-10-18）：keyset 分页 + 全集合搜索。
+     *
+     * <p>与上面的 {@code GET /series} 并存：旧端点保持裸数组响应，避免打断既有调用方；
+     * 广场页需要 nextCursor 与真实总数，因此走这一条。字面量路径优先于
+     * {@code /series/{seriesId}} 的模板匹配，不会被当作系列 id。
+     */
+    @GetMapping("/series/search")
+    public PageResultView<PublicSeriesSummaryView> searchPublic(
+            @RequestParam(value = "q", required = false) String query,
+            @RequestParam(value = "limit", defaultValue = "20") int limit,
+            @RequestParam(value = "cursor", required = false) String cursor) {
+        return seriesService.searchPublic(query, limit, cursor);
     }
 
     @GetMapping("/series/{seriesId}")

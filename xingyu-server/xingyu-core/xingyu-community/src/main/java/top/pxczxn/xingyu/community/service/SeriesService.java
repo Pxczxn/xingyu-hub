@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
+import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.SeriesChapterView;
 import top.pxczxn.xingyu.community.dto.PublicIdentityView;
 import top.pxczxn.xingyu.community.dto.PublicSeriesSummaryView;
@@ -25,6 +26,7 @@ import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesSubscriptionMapper;
 import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
 import top.pxczxn.xingyu.community.support.CommunityEventSupport;
+import top.pxczxn.xingyu.community.support.CursorCodec;
 import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
@@ -77,6 +79,71 @@ public class SeriesService {
                 .filter(item -> profiles.containsKey(item.getOwnerId()))
                 .map(item -> toPublicSummary(item, profiles.get(item.getOwnerId())))
                 .toList();
+    }
+
+    /**
+     * 公开系列目录：keyset 分页 + 全集合关键字搜索（2026-10-18）。
+     *
+     * <p>为什么不是在 {@link #listPublic(int)} 上加参数：那个方法的响应是一个裸数组，
+     * 而分页必须回报"还有没有下一页"（{@code nextCursor}）和真实匹配总数。改响应形状
+     * 会直接打断既有调用方，所以保留旧端点并在旁边提供这一条。
+     *
+     * <p>语义：
+     * <ul>
+     *   <li>{@code q} 为空 → 按最近更新浏览整个公开集合；非空 → 在<b>整个</b>公开集合里
+     *       匹配标题 / 简介 / 作者用户名 / 作者显示名，而不是匹配某一页已经取到的数据；</li>
+     *   <li>排序 {@code (updated_at DESC, id DESC)} 是全序，翻页不重不漏；</li>
+     *   <li>{@code nextCursor == null} 是"没有下一页"的唯一证据；</li>
+     *   <li>{@code total} 是当前过滤条件下的真实总数（COUNT），不是本页条数。</li>
+     * </ul>
+     *
+     * <p>cursor 是透明的续读标记，不是权限边界；但它必须是本服务签发过的形状，
+     * 伪造/别的域的 cursor 一律 400，避免静默回到第一页让读者重复浏览。
+     */
+    public PageResultView<PublicSeriesSummaryView> searchPublic(String query, int limit, String cursor) {
+        int pageSize = limit <= 0 ? 20 : Math.min(limit, 50);
+        String keyword = query == null || query.isBlank() ? null : escapeLikeLiteral(query.trim());
+
+        Instant cursorUpdatedAt = null;
+        String cursorId = null;
+        if (cursor != null && !cursor.isBlank()) {
+            String[] parts = CursorCodec.decode(cursor);
+            if (parts == null || !"SERIES".equals(parts[0])) {
+                throw new FieldContractException("cursor", "分页游标无效");
+            }
+            cursorUpdatedAt = Instant.ofEpochMilli(Long.parseLong(parts[1]));
+            cursorId = parts[2];
+        }
+
+        /* 多取一条只用于探测"还有没有下一页"：items.size() == limit 无法区分
+           "正好穷尽"与"还有更多"，旧实现因此会在整页倍数处提前收起加载入口。 */
+        List<Series> rows = seriesMapper.searchPublic(keyword, cursorUpdatedAt, cursorId, pageSize + 1);
+        boolean hasMore = rows.size() > pageSize;
+        List<Series> page = hasMore ? rows.subList(0, pageSize) : rows;
+
+        Map<String, CommunityProfile> profiles = page.isEmpty()
+                ? Map.of()
+                : profileMapper.findByUserIds(
+                                page.stream().map(Series::getOwnerId).collect(Collectors.toSet()))
+                        .stream()
+                        .collect(Collectors.toMap(CommunityProfile::getUserId, Function.identity()));
+        List<PublicSeriesSummaryView> items = page.stream()
+                .filter(item -> profiles.containsKey(item.getOwnerId()))
+                .map(item -> toPublicSummary(item, profiles.get(item.getOwnerId())))
+                .toList();
+
+        String nextCursor = hasMore
+                ? CursorCodec.encode(
+                        "SERIES",
+                        page.get(page.size() - 1).getUpdatedAt(),
+                        page.get(page.size() - 1).getId())
+                : null;
+
+        return PageResultView.<PublicSeriesSummaryView>builder()
+                .items(items)
+                .nextCursor(nextCursor)
+                .total(seriesMapper.countPublic(keyword))
+                .build();
     }
 
     @Transactional
@@ -365,6 +432,14 @@ public class SeriesService {
 
     private static String normalizeSlug(Object raw) {
         return String.valueOf(raw).trim().toLowerCase(Locale.ROOT).replace(' ', '-');
+    }
+
+    /**
+     * Escape LIKE metacharacters so a literal `%` / `_` in a search term is a character,
+     * not a wildcard. Matches SearchService; the mapper uses {@code ESCAPE '!'}.
+     */
+    private static String escapeLikeLiteral(String query) {
+        return query.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     private static String trimToNull(Object raw) {

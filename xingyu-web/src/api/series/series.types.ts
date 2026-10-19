@@ -10,9 +10,16 @@
  *   POST /api/v1/me/reading-progress
  *
  * Public (Phase 2G live probe 2026-09-27):
- *   GET  /api/v1/series?limit=N               -> PublicSeriesSummary[]
+ *   GET  /api/v1/series?limit=N               -> PublicSeriesSummary[]      (legacy, no cursor)
+ *   GET  /api/v1/series/search?q=&limit=&cursor= -> PublicSeriesPage        (plaza, 2026-10-18)
  *   GET  /api/v1/series/{seriesId}            -> PublicSeriesDetail
  *   GET  /api/v1/series/{username}/{slug}     -> PublicSeriesDetail
+ *
+ * `/series/search` is the plaza contract: keyset cursor over
+ * (updated_at DESC, id DESC), `q` matches title / description / author over the
+ * WHOLE public collection, and `total` is the real match count. `nextCursor`
+ * null is the only evidence that the end is reached. The legacy bare-array
+ * endpoint is kept for callers that only need a bounded overview.
  *
  * Both public detail routes return the same PublicSeriesDetail shape and 404
  * (ProblemDetails code NOT_FOUND) for a missing or non-ACTIVE series.
@@ -77,6 +84,20 @@ export type PublicSeriesSummary = {
   description: string | null;
   chapterCount: number;
   author: PublicIdentity;
+};
+
+/**
+ * One page of the public series catalogue (`GET /series/search`).
+ *
+ * `nextCursor` null means there is no next page — that is the only signal a
+ * caller may use to conclude the list ended. `total` is the server's real
+ * COUNT for the current keyword, not the number of items in this page; it is
+ * optional so a page still renders if an older payload omits it.
+ */
+export type PublicSeriesPage = {
+  items: PublicSeriesSummary[];
+  nextCursor?: string | null;
+  total?: number;
 };
 
 export type PublicSeriesDetail = {

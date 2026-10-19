@@ -133,6 +133,35 @@ describe("seriesApi", () => {
     expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series?limit=20");
   });
 
+  it("pages the plaza catalogue through GET /api/v1/series/search", async () => {
+    mockedRequest.mockResolvedValue({ items: [], nextCursor: null, total: 0 });
+
+    await seriesApi.searchPublic({ limit: 8 });
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series/search?limit=8");
+  });
+
+  it("sends the keyword and cursor as query parameters", async () => {
+    mockedRequest.mockResolvedValue({ items: [], nextCursor: null, total: 0 });
+
+    await seriesApi.searchPublic({ q: "  星语 日志 ", limit: 8, cursor: "abc+/=" });
+
+    const url = mockedRequest.mock.calls[0][0] as string;
+    expect(url.startsWith("/api/v1/series/search?")).toBe(true);
+    const params = new URLSearchParams(url.split("?")[1]);
+    expect(params.get("q")).toBe("星语 日志");
+    expect(params.get("limit")).toBe("8");
+    expect(params.get("cursor")).toBe("abc+/=");
+  });
+
+  it("omits q and cursor on the first page", async () => {
+    mockedRequest.mockResolvedValue({ items: [], nextCursor: null, total: 0 });
+
+    await seriesApi.searchPublic({ q: "   ", limit: 8 });
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series/search?limit=8");
+  });
+
   it("reads a public series by id", async () => {
     mockedRequest.mockResolvedValue({});
 

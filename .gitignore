@@ -208,3 +208,6 @@ page-summaries.txt
 
 # ---------- 项目专属生成目录 ----------
 xingyu-uniapp/unpackage/
+
+# 个人交接文档
+/docs/交接文档/

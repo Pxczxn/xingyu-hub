@@ -63,8 +63,6 @@ Use shadcn-style primitives from `components/ui/`:
 ## Page specs
 
 - [Home](./pages/home.md)
-- [Creation Space](./pages/creation-space.md)
-- [Editor](./pages/editor.md)
 
 ## Accessibility
 

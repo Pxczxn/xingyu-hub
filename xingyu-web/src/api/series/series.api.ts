@@ -2,6 +2,7 @@ import { apiRequest } from "@/api/client";
 import type {
   CreateSeriesPayload,
   PublicSeriesDetail,
+  PublicSeriesPage,
   PublicSeriesSummary,
   SeriesDetail,
   SeriesSummary,
@@ -27,6 +28,25 @@ export const seriesApi = {
 
   listPublic: (limit = 20): Promise<PublicSeriesSummary[]> =>
     apiRequest<PublicSeriesSummary[]>(`/api/v1/series?limit=${encodeURIComponent(limit)}`),
+
+  /**
+   * The plaza's paged + searchable catalogue (2026-10-18).
+   *
+   * `q` is matched by the SERVER across the whole public collection (title,
+   * description, author), so a keyword can find a series that is past the first
+   * page. Paging is keyset: pass the previous page's `nextCursor` back as
+   * `cursor`; a null/absent cursor starts from the first page.
+   */
+  searchPublic: (
+    input: { q?: string; limit?: number; cursor?: string } = {},
+  ): Promise<PublicSeriesPage> => {
+    const params = new URLSearchParams();
+    params.set("limit", String(input.limit ?? 20));
+    const keyword = input.q?.trim();
+    if (keyword) params.set("q", keyword);
+    if (input.cursor) params.set("cursor", input.cursor);
+    return apiRequest<PublicSeriesPage>(`/api/v1/series/search?${params.toString()}`);
+  },
 
   getPublicById: (id: string): Promise<PublicSeriesDetail> =>
     apiRequest<PublicSeriesDetail>(`/api/v1/series/${encodeURIComponent(id)}`),
