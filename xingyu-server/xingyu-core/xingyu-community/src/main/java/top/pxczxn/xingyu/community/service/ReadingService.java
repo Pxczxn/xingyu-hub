@@ -3,21 +3,17 @@ package top.pxczxn.xingyu.community.service;
 import top.pxczxn.xingyu.community.dto.ContentCardView;
 import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.SeriesReadingProgressView;
-import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
 import top.pxczxn.xingyu.community.entity.Series;
 import top.pxczxn.xingyu.community.entity.SeriesChapter;
 import top.pxczxn.xingyu.community.entity.SeriesReaderState;
 import top.pxczxn.xingyu.community.entity.SeriesSubscription;
-import top.pxczxn.xingyu.community.mapper.ArticleMapper;
-import top.pxczxn.xingyu.community.mapper.PublishedRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesChapterMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesReaderStateMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesSubscriptionMapper;
-import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.community.support.TokenSupport;
@@ -38,8 +34,7 @@ public class ReadingService {
     private final SeriesMapper seriesMapper;
     private final SeriesChapterMapper seriesChapterMapper;
     private final SearchDocumentMapper searchDocumentMapper;
-    private final ArticleMapper articleMapper;
-    private final PublishedRevisionMapper publishedRevisionMapper;
+    private final ArticleAccessService articleAccessService;
     private final ClientSettingsService clientSettingsService;
     private final ContentCoverService contentCoverService;
 
@@ -135,8 +130,9 @@ public class ReadingService {
      * <ol>
      *   <li>系列存在且 ACTIVE（公开可读的同一判据）；</li>
      *   <li>articleId 确实是该系列的章节（宁可不记录，也不制造一个指向系列外的进度）；</li>
-     *   <li>该文章当前对这次请求的用户可读：生命周期 ACTIVE、有已发布版本；
-     *       被治理隐藏的文章只有作者本人仍可读（与 {@code getPublicArticle} 一致）。</li>
+     *   <li>该文章当前对这次请求的用户可读。判定与 {@code GET /articles/{id}} 完全
+     *       一致（{@link ArticleAccessService}）：PRIVATE / 审核中只有作者可读，
+     *       治理隐藏同理；UNLISTED 仍是直接链接可读。</li>
      * </ol>
      *
      * <p>阅读历史开关关闭时：先完成上述校验（请求本身是否有效仍然是确定的），
@@ -156,7 +152,7 @@ public class ReadingService {
         }
         boolean isChapter = seriesChapterMapper.listBySeriesId(seriesId).stream()
                 .anyMatch(chapter -> articleId.equals(chapter.getArticleId()));
-        if (!isChapter || !isReadableBy(articleId, user.getId())) {
+        if (!isChapter || !articleAccessService.isReadable(articleId, user)) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
         if (!clientSettingsService.isReadingHistoryEnabled(user)) {
@@ -209,7 +205,7 @@ public class ReadingService {
                 break;
             }
         }
-        boolean resumable = index > 0 && isReadableBy(lastArticleId, user.getId());
+        boolean resumable = index > 0 && articleAccessService.isReadable(lastArticleId, user);
         return SeriesReadingProgressView.builder()
                 .readingHistoryEnabled(true)
                 .chapterArticleId(resumable ? lastArticleId : null)
@@ -217,25 +213,6 @@ public class ReadingService {
                 .chapterCount(chapterCount)
                 .lastReadAt(state.getLastReadAt())
                 .build();
-    }
-
-    /**
-     * 与公开阅读路径一致的可读性判断：活跃生命周期 + 已发布版本；被治理隐藏的文章
-     * 只对作者本人放行。可见性（PUBLIC/UNLISTED/PRIVATE）由文章详情接口的访问策略
-     * 裁决，这里不重复实现——系列进度只描述"这本书读到哪里"，不承担内容授权。
-     */
-    private boolean isReadableBy(String articleId, String viewerId) {
-        Article article = articleMapper.selectById(articleId);
-        if (article == null || !ArticleStateSupport.isActiveLifecycle(article)) {
-            return false;
-        }
-        boolean owner = viewerId != null && viewerId.equals(article.getOwnerId());
-        boolean hidden = ArticleStateSupport.MODERATION_HIDDEN.equals(
-                ArticleStateSupport.normalizeModeration(article.getModerationStatus()));
-        if (hidden && !owner) {
-            return false;
-        }
-        return publishedRevisionMapper.findByArticleId(articleId) != null;
     }
 
     private ContentCardView toContinueReadingCard(SeriesReaderState state) {

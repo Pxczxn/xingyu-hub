@@ -12,6 +12,7 @@ import { ArticleMarkdownBody } from "@/lib/article-markdown";
 import { prepareArticleBodyForRead } from "@/lib/article-body-read";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/features/auth/auth.store";
+import { useSeriesProgressWriter } from "../useSeriesProgressWriter";
 
 type LoadState =
   | { kind: "loading" }
@@ -117,10 +118,9 @@ export function PublicSeriesReadPage() {
      two error branches below. Both effects keep their per-run `active` guard. */
   const [reloadKey, setReloadKey] = useState(0);
   const [articleReloadKey, setArticleReloadKey] = useState(0);
-  /* Which chapter's progress has already been written in this mount. Keyed by
-     series + article: the same article can belong to more than one series, so
-     an article id alone would suppress a legitimate write in the next series. */
-  const recordedRef = useRef<string | null>(null);
+  /* Progress writes are serialized per reader page: see the hook for the exact
+     guarantee and the cross-tab boundary. */
+  const recordProgress = useSeriesProgressWriter(isAuthenticated);
   /* Previous chapter key, used to scroll to the top ONLY on a real switch. */
   const previousChapterRef = useRef<string | null>(null);
 
@@ -215,21 +215,17 @@ export function PublicSeriesReadPage() {
    * previous/next, bookmarks) with one rule, and it never records an article the
    * reader could not read.
    *
-   * The write is deliberately best-effort: a failure must not interrupt reading.
-   * If it fails, the marker is cleared so a later successful load of the same
-   * chapter can retry; a successful write is not repeated for the same mount,
-   * so re-renders cannot multiply requests.
+   * The write goes through `useSeriesProgressWriter`, which keeps at most one
+   * request in flight. That is what stops a delayed earlier chapter from landing
+   * after a later one and moving the position backwards; the hook documents the
+   * guarantee and the cross-tab boundary. Failures are retried once and never
+   * interrupt reading; repeated renders of the same loaded chapter are deduped.
    */
   useEffect(() => {
     if (!isAuthenticated || articleState !== "idle" || !article || !currentArticleId) return;
     if (article.id !== currentArticleId) return;
-    const key = `${seriesId}:${article.id}`;
-    if (recordedRef.current === key) return;
-    recordedRef.current = key;
-    void seriesApi.recordReadingProgress(seriesId, article.id).catch(() => {
-      if (recordedRef.current === key) recordedRef.current = null;
-    });
-  }, [article, articleState, currentArticleId, isAuthenticated, seriesId]);
+    recordProgress(seriesId, article.id);
+  }, [article, articleState, currentArticleId, isAuthenticated, recordProgress, seriesId]);
 
   function selectChapter(index: number) {
     const chapter = chapters[index];

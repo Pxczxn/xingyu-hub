@@ -47,6 +47,14 @@ const SERIES = {
   ],
 };
 
+const THREE_CHAPTERS = {
+  ...SERIES,
+  chapters: [
+    ...SERIES.chapters,
+    { id: "ch-3", articleId: "art-3", title: "第三章", position: 3 },
+  ],
+};
+
 function article(id: string, title: string) {
   return {
     id,
@@ -346,6 +354,87 @@ describe("PublicSeriesReadPage", () => {
     await waitFor(() =>
       expect(mockedSeries.recordReadingProgress).toHaveBeenCalledWith("ser-1", "art-2"),
     );
+  });
+
+  it("keeps progress writes serialized so an earlier chapter cannot land last", async () => {
+    authState.isAuthenticated = true;
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedSeries.recordReadingProgress.mockResolvedValue(undefined);
+    mockedArticles.getArticle.mockImplementation(async (id: string) =>
+      article(id, id === "art-2" ? "第二章 标题" : "第一章 标题"),
+    );
+    const firstWrite = deferred<void>();
+    mockedSeries.recordReadingProgress
+      .mockReturnValueOnce(firstWrite.promise)
+      .mockResolvedValue(undefined);
+
+    renderReader();
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    await waitFor(() => expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(1));
+
+    // The reader moves on while chapter 1's write is still in flight.
+    await userEvent.click(screen.getByRole("button", { name: /第二章/ }));
+    await screen.findByRole("heading", { level: 1, name: "第二章 标题" });
+
+    // Sending chapter 2 now would let a slow chapter-1 request land last.
+    expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(1);
+    expect(mockedSeries.recordReadingProgress).toHaveBeenNthCalledWith(1, "ser-1", "art-1");
+
+    await act(async () => {
+      firstWrite.resolve();
+      await firstWrite.promise;
+    });
+
+    await waitFor(() => expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(2));
+    expect(mockedSeries.recordReadingProgress).toHaveBeenNthCalledWith(2, "ser-1", "art-2");
+  });
+
+  it("sends only the last chapter still pending in a rapid A → B → C switch", async () => {
+    authState.isAuthenticated = true;
+    mockedSeries.getPublicById.mockResolvedValue(THREE_CHAPTERS);
+    mockedSeries.recordReadingProgress.mockResolvedValue(undefined);
+    mockedArticles.getArticle.mockImplementation(async (id: string) => article(id, `${id} 标题`));
+    const firstWrite = deferred<void>();
+    mockedSeries.recordReadingProgress
+      .mockReturnValueOnce(firstWrite.promise)
+      .mockResolvedValue(undefined);
+
+    renderReader();
+    await screen.findByRole("heading", { level: 1, name: "art-1 标题" });
+    await waitFor(() => expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(1));
+
+    await userEvent.click(screen.getByRole("button", { name: "第二章" }));
+    await screen.findByRole("heading", { level: 1, name: "art-2 标题" });
+    await userEvent.click(screen.getByRole("button", { name: "第三章" }));
+    await screen.findByRole("heading", { level: 1, name: "art-3 标题" });
+
+    // Chapter 1 is still in flight; neither B nor C has been sent yet.
+    expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      firstWrite.resolve();
+      await firstWrite.promise;
+    });
+
+    await waitFor(() => expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(2));
+    // B was superseded before its turn: the position must end at C, not B.
+    expect(mockedSeries.recordReadingProgress).toHaveBeenNthCalledWith(2, "ser-1", "art-3");
+  });
+
+  it("retries a failed progress write once without blocking reading", async () => {
+    authState.isAuthenticated = true;
+    mockedSeries.getPublicById.mockResolvedValue(SERIES);
+    mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
+    mockedSeries.recordReadingProgress
+      .mockRejectedValueOnce(new Error("500"))
+      .mockResolvedValue(undefined);
+
+    renderReader();
+    await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+
+    await waitFor(() => expect(mockedSeries.recordReadingProgress).toHaveBeenCalledTimes(2));
+    expect(mockedSeries.recordReadingProgress).toHaveBeenNthCalledWith(1, "ser-1", "art-1");
+    expect(mockedSeries.recordReadingProgress).toHaveBeenNthCalledWith(2, "ser-1", "art-1");
   });
 
   it("shows the empty state when the series has no chapters", async () => {

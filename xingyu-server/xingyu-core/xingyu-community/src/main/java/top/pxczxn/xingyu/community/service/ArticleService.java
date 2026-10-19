@@ -4,10 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
-import top.pxczxn.xingyu.common.contract.ObjectId;
-import top.pxczxn.xingyu.common.contract.access.AccessPolicy;
-import top.pxczxn.xingyu.common.contract.access.AccessorContext;
-import top.pxczxn.xingyu.common.contract.access.ResourceAccess;
 import top.pxczxn.xingyu.common.contract.access.Visibility;
 import top.pxczxn.xingyu.community.dto.ArticlePublicView;
 import top.pxczxn.xingyu.community.dto.ArticleRevisionView;
@@ -57,6 +53,7 @@ public class ArticleService {
     private final CreationSpaceCategoryMapper categoryMapper;
     private final PublishedRevisionMapper publishedRevisionMapper;
     private final FormalRevisionMapper formalRevisionMapper;
+    private final ArticleAccessService articleAccessService;
     private final CommunityProfileMapper profileMapper;
     private final TopicMapper topicMapper;
     private final SeriesMapper seriesMapper;
@@ -300,45 +297,20 @@ public class ArticleService {
     }
 
     public ArticlePublicView getPublicArticle(String articleId, CommunityUser viewer) {
-        Article article = articleMapper.selectById(articleId);
-        if (article == null || !ArticleStateSupport.isActiveLifecycle(article)) {
+        /*
+         * 可见性判断只有一处：ArticleAccessService。
+         *
+         * 这里不再复制"生命周期 / 治理 / 已发布版本 / AccessPolicy"的判定，
+         * 系列阅读进度也复用同一入口——两条路径对"能不能读"必须给同一个答案。
+         */
+        ArticleAccessService.ReadableArticle readable = articleAccessService.findReadable(articleId, viewer);
+        if (readable == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        if (ArticleStateSupport.MODERATION_HIDDEN.equals(
-                ArticleStateSupport.normalizeModeration(article.getModerationStatus()))) {
-            boolean isOwner = viewer != null && viewer.getId().equals(article.getOwnerId());
-            if (!isOwner) {
-                throw new ContractException(ErrorCode.NOT_FOUND);
-            }
-        }
-
-        PublishedRevision published = publishedRevisionMapper.findByArticleId(articleId);
-        if (published == null) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
-        }
-
-        FormalRevision revision = formalRevisionMapper.selectById(published.getFormalRevisionId());
-        if (revision == null) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
-        }
-
+        Article article = readable.article();
+        PublishedRevision published = readable.published();
+        FormalRevision revision = readable.revision();
         boolean isOwner = viewer != null && viewer.getId().equals(article.getOwnerId());
-        Visibility visibility = Visibility.valueOf(revision.getVisibility());
-        var decision = AccessPolicy.evaluate(
-                ResourceAccess.builder()
-                        .exists(true)
-                        .ownerId(ObjectId.of(article.getOwnerId()))
-                        .visibility(visibility)
-                        .ownerActive(true)
-                        .resourceActive(true)
-                        .underReview(ArticleStateSupport.isUnderReview(article))
-                        .build(),
-                isOwner
-                        ? AccessorContext.authenticated(ObjectId.of(viewer.getId()))
-                        : AccessorContext.anonymous());
-        if (!decision.isAllowed()) {
-            throw new ContractException(ErrorCode.NOT_FOUND);
-        }
 
         CommunityCreationSpace space = spaceService.requireSpaceForUserById(article.getSpaceId());
         CommunityProfile profile = profileMapper.findByUserId(article.getOwnerId());

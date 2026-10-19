@@ -185,10 +185,13 @@ if (import.meta.env.DEV) {
     setTimeout(reportTouchTargets, 1000);
   }
   
-  // 暴露到全局，方便调试
-  (window as any).checkTouchTargets = {
-    report: reportTouchTargets,
-    highlight: highlightTouchTargetIssues,
-    check: checkTouchTargets,
-  };
+  // 暴露到全局，方便调试。用 Object.assign 而不是 `(window as any)`：
+  // 这是仅开发环境存在的调试入口，不需要为一个全局属性打开 any 逃生门。
+  Object.assign(window, {
+    checkTouchTargets: {
+      report: reportTouchTargets,
+      highlight: highlightTouchTargetIssues,
+      check: checkTouchTargets,
+    },
+  });
 }

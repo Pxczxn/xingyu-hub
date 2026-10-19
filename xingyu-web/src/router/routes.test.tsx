@@ -149,7 +149,12 @@ describe("router", () => {
     expect(screen.queryByRole("tab", { name: "最新" })).not.toBeInTheDocument();
     // Every mocked payload is empty: the feed degrades to its empty state and the
     // non-critical rail renders nothing at all (no placeholder boxes).
-    await waitFor(() => expect(screen.getByTestId("section-empty")).toBeInTheDocument());
+    //
+    // The assertion used to look for `data-testid="section-empty"`. That id no
+    // longer exists: the home feed's empty state moved to `EmptyFeedState`, whose
+    // user-visible heading is the stable thing to assert. The intent (empty
+    // payload → explicit empty state, no announcement rail) is unchanged.
+    await waitFor(() => expect(screen.getByText("暂无推荐内容")).toBeInTheDocument());
     expect(screen.queryByRole("heading", { name: "星语公告" })).not.toBeInTheDocument();
   });
 
