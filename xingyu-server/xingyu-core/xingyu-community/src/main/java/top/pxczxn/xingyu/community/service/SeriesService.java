@@ -34,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -46,6 +47,8 @@ import java.util.regex.Pattern;
 public class SeriesService {
 
     private static final Pattern SLUG_PATTERN = Pattern.compile("^[a-z0-9-]{2,64}$");
+    private static final int MAX_TITLE_LENGTH = 256;
+    private static final int MAX_DESCRIPTION_LENGTH = 1024;
 
     private final CreationSpaceService spaceService;
     private final SeriesMapper seriesMapper;
@@ -162,7 +165,7 @@ public class SeriesService {
         series.setSpaceId(space.getId());
         series.setTitle(title);
         series.setSlug(slug);
-        series.setDescription(trimToNull(body.get("description")));
+        series.setDescription(normalizeDescription(body.get("description")));
         series.setStatus("ACTIVE");
         series.setLockVersion(0L);
         series.setCreatedAt(now);
@@ -213,21 +216,46 @@ public class SeriesService {
     @Transactional
     public SeriesView update(CommunityUser user, String seriesId, Map<String, Object> body) {
         Series series = requireOwnedSeries(user, seriesId);
-        long expected = body.get("lockVersion") instanceof Number n
-                ? n.longValue()
-                : series.getLockVersion() == null ? 0L : series.getLockVersion();
-        if (series.getLockVersion() == null ? expected != 0L : series.getLockVersion() != expected) {
+        /*
+         * 乐观锁令牌是契约的必需字段。旧实现允许缺省并回退到"当前版本"，
+         * 这让一个忘记带 lockVersion 的客户端永远成功——等于关掉了并发保护。
+         * 拒绝缺省值而不是猜测，才能保证"读取版本 → 提交版本"这条链路真实存在。
+         */
+        if (!(body.get("lockVersion") instanceof Number lockVersionToken)) {
+            throw new FieldContractException("lockVersion", "缺少版本号");
+        }
+        long expected;
+        try {
+            expected = new java.math.BigDecimal(lockVersionToken.toString()).longValueExact();
+            if (expected < 0) {
+                throw new ArithmeticException("negative version");
+            }
+        } catch (ArithmeticException | NumberFormatException invalidVersion) {
+            throw new FieldContractException("lockVersion", "版本号必须是有效的非负整数");
+        }
+        long currentVersion = series.getLockVersion() == null ? 0L : series.getLockVersion();
+        if (currentVersion != expected) {
             // 快速失败路径：真正的并发裁决在下面的条件 UPDATE
             throw new ContractException(ErrorCode.CONFLICT, "系列已被他人更新");
         }
         // 字段校验先行：任何契约错误都必须发生在写库之前
         String title = body.containsKey("title") ? requireTitle(body.get("title")) : null;
+        String description = body.containsKey("description")
+                ? normalizeDescription(body.get("description"))
+                : null;
         String status = null;
         if (body.containsKey("status")) {
             status = String.valueOf(body.get("status")).trim().toUpperCase(Locale.ROOT);
             if (!"ACTIVE".equals(status) && !"ARCHIVED".equals(status)) {
                 throw new FieldContractException("status", "状态值无效");
             }
+        }
+        /* 章节列表先完整校验、再写库：格式错误、重复 ID 或不属于本人的文章都必须在
+           删除旧关联之前被拒绝，而不是依赖数据库唯一键或事务回滚兜底。 */
+        List<String> chapterArticleIds = null;
+        if (body.containsKey("chapterArticleIds")) {
+            chapterArticleIds = parseChapterArticleIds(body.get("chapterArticleIds"));
+            requireChapterArticlesOwned(series, chapterArticleIds);
         }
 
         Instant now = Instant.now();
@@ -240,7 +268,7 @@ public class SeriesService {
             update.set("title", title);
         }
         if (body.containsKey("description")) {
-            update.set("description", trimToNull(body.get("description")));
+            update.set("description", description);
         }
         if (status != null) {
             update.set("status", status);
@@ -251,8 +279,8 @@ public class SeriesService {
             throw new ContractException(ErrorCode.CONFLICT, "系列已被他人更新");
         }
 
-        if (body.containsKey("chapterArticleIds")) {
-            syncChapters(series, body.get("chapterArticleIds"));
+        if (chapterArticleIds != null) {
+            replaceChapters(series.getId(), chapterArticleIds);
         }
 
         Series fresh = seriesMapper.selectById(seriesId);
@@ -276,28 +304,73 @@ public class SeriesService {
                 series.getId());
     }
 
-    private void syncChapters(Series series, Object raw) {
-        chapterMapper.deleteBySeriesId(series.getId());
-        if (!(raw instanceof List<?> ids)) {
+    /**
+     * Parses the replacement list without touching the database.
+     *
+     * <p>旧实现先 {@code deleteBySeriesId} 再判断 {@code raw instanceof List}：
+     * 一个 {@code chapterArticleIds: {}} 或字符串会把整份章节静默清空，并返回 200。
+     * 现在非数组一律 400；重复 ID 也在写库前拒绝——DB 的
+     * {@code uk_series_chapter_series_article} 虽然能挡住重复，但会以
+     * DuplicateKeyException/500 的形式出现，创作者看不到可理解的错误。
+     *
+     * <p>空数组仍然合法，语义就是"清空章节"（保留系列本身）。
+     */
+    private List<String> parseChapterArticleIds(Object raw) {
+        if (!(raw instanceof List<?> entries)) {
+            throw new FieldContractException("chapterArticleIds", "章节列表必须是数组");
+        }
+        LinkedHashSet<String> articleIds = new LinkedHashSet<>();
+        for (Object rawId : entries) {
+            if (!(rawId instanceof String value) || value.isBlank()) {
+                throw new FieldContractException("chapterArticleIds", "章节 ID 必须是非空字符串");
+            }
+            String articleId = value.trim();
+            if (!articleIds.add(articleId)) {
+                throw new FieldContractException("chapterArticleIds", "章节不能重复");
+            }
+        }
+        return List.copyOf(articleIds);
+    }
+
+    /**
+     * Ownership check for every chapter article, before any write.
+     *
+     * <p>One batch read instead of a SELECT per chapter: 50 chapters is a normal
+     * series, and the replacement path is the hottest write on this page.
+     */
+    private void requireChapterArticlesOwned(Series series, List<String> articleIds) {
+        if (articleIds.isEmpty()) {
+            return;
+        }
+        Map<String, Article> found = articleMapper.selectBatchIds(articleIds).stream()
+                .collect(Collectors.toMap(Article::getId, Function.identity()));
+        for (String articleId : articleIds) {
+            Article article = found.get(articleId);
+            if (article == null || !series.getOwnerId().equals(article.getOwnerId())) {
+                throw new FieldContractException("chapterArticleIds", "章节文章不存在或不属于当前用户");
+            }
+        }
+    }
+
+    /**
+     * Full replacement of the chapter list. The caller has already validated the
+     * ids; this only deletes the old rows and inserts the new order.
+     *
+     * <p>Chapter identity for readers is the article id, not {@code series_chapter.id}
+     * — every save recreates the relation rows, so deep links and reading progress
+     * (which both key on the article) survive a reorder.
+     */
+    private void replaceChapters(String seriesId, List<String> articleIds) {
+        chapterMapper.deleteBySeriesId(seriesId);
+        if (articleIds.isEmpty()) {
             return;
         }
         Instant now = Instant.now();
         int position = 1;
-        for (Object rawId : ids) {
-            if (rawId == null) {
-                continue;
-            }
-            String articleId = String.valueOf(rawId).trim();
-            if (articleId.isBlank()) {
-                continue;
-            }
-            Article article = articleMapper.selectById(articleId);
-            if (article == null || !series.getOwnerId().equals(article.getOwnerId())) {
-                throw new FieldContractException("chapterArticleIds", "章节文章不存在或不属于当前用户");
-            }
+        for (String articleId : articleIds) {
             SeriesChapter chapter = new SeriesChapter();
             chapter.setId(TokenSupport.newId());
-            chapter.setSeriesId(series.getId());
+            chapter.setSeriesId(seriesId);
             chapter.setArticleId(articleId);
             chapter.setPosition(position++);
             chapter.setCreatedAt(now);
@@ -421,7 +494,23 @@ public class SeriesService {
         if (title.isBlank()) {
             throw new FieldContractException("title", "标题不能为空");
         }
+        if (title.codePointCount(0, title.length()) > MAX_TITLE_LENGTH) {
+            throw new FieldContractException("title", "标题不能超过 256 个字符");
+        }
         return title;
+    }
+
+    /**
+     * Description is optional; explicit empty string clears it (same as the DB
+     * column being nullable). The 1024 cap mirrors {@code series.description}
+     * varchar(1024) so an over-long value is a 400 instead of a DB 500.
+     */
+    private static String normalizeDescription(Object raw) {
+        String value = trimToNull(raw);
+        if (value != null && value.codePointCount(0, value.length()) > MAX_DESCRIPTION_LENGTH) {
+            throw new FieldContractException("description", "简介不能超过 1024 个字符");
+        }
+        return value;
     }
 
     private static void validateSlug(String slug) {
