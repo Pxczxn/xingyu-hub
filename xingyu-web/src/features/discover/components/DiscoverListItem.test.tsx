@@ -145,6 +145,20 @@ it("articles render their full Markdown body with working heading links and comm
     directory.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
 });
+it("keeps a collapsed row's own detail link and drops it once the row is the reading row", async () => {
+  render(
+    <MemoryRouter>
+      <Row item={{ id: "series", title: "折叠入口", objectType: "SERIES" }} />
+    </MemoryRouter>,
+  );
+  const folded = screen.getByRole("link", { name: "阅读全文：折叠入口" });
+  expect(folded).toHaveAttribute("href", "/series/series");
+  fireEvent.click(screen.getByText("折叠入口"));
+  await screen.findByText("正文 a");
+  expect(screen.queryByRole("link", { name: /^阅读全文：/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "查看详情" })).toHaveAttribute("href", "/series/series");
+});
+
 it("renders one unchanged detail link after the reading body and before comments in the reader grid", async () => {
   render(
     <MemoryRouter>

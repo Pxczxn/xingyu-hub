@@ -298,6 +298,8 @@ export function DiscoverListItem({
                     className={cn(
                       "flex flex-wrap items-center gap-x-2 gap-y-1 text-xs",
                       isCompact || isExpanded ? "mb-1" : "mb-2.5",
+                      // 折叠行右上角常驻「阅读全文」，元信息不进入该区域。
+                      !isExpanded && "pr-24 sm:pr-28",
                     )}
                   >
                     {/* 作者 */}
@@ -423,7 +425,7 @@ export function DiscoverListItem({
                 </div>
               </div>
             </div>
-            {isExpanded && (
+            {isExpanded ? (
               <button
                 type="button"
                 onClick={() => {
@@ -434,6 +436,19 @@ export function DiscoverListItem({
               >
                 收起阅读
               </button>
+            ) : (
+              /*
+               * 折叠行只有「展开预览」一条路径时，完整阅读要先展开再找面板底部的入口；
+               * 这里给一个常驻、不挤压标题与摘要的直达入口，键盘与新标签页都能用。
+               */
+              <Link
+                to={href}
+                aria-label={`阅读全文：${item.title}`}
+                className="focus-ring absolute right-4 top-4 inline-flex min-h-11 items-center gap-1 whitespace-nowrap rounded-md px-2 text-sm font-medium text-accent-strong transition-colors hover:bg-accent-soft sm:right-6"
+              >
+                阅读全文
+                <span aria-hidden>›</span>
+              </Link>
             )}
           </div>
 
