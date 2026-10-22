@@ -1,6 +1,10 @@
 
 === DIRECTORY TREE (max depth 3, source files only) ===
+.git-blame-ignore-revs
 .gitattributes
+.github
+.github\workflows
+.github\workflows\ci.yml
 .gitignore
 .idea
 .idea\.gitignore
@@ -20,186 +24,182 @@
 .idea\vcs.xml
 .idea\workspace.xml
 .idea\xingyu-hub.iml
-.plan
-.plan\home-refactor-completion-report.md
-.plan\home-refactor-plan.md
-.playwright-mcp
-.playwright-mcp\console-2026-09-24T15-33-04-730Z.log
-.playwright-mcp\console-2026-09-24T17-48-09-535Z.log
-.playwright-mcp\page-2026-09-24T15-27-11-386Z.yml
-.playwright-mcp\page-2026-09-24T15-27-53-736Z.yml
-.playwright-mcp\page-2026-09-24T15-28-13-932Z.yml
-.playwright-mcp\page-2026-09-24T15-29-04-159Z.yml
-.playwright-mcp\page-2026-09-24T15-29-08-946Z.yml
-.playwright-mcp\page-2026-09-24T15-29-22-933Z.yml
-.playwright-mcp\page-2026-09-24T15-29-33-574Z.yml
-.playwright-mcp\page-2026-09-24T15-29-56-354Z.yml
-.playwright-mcp\page-2026-09-24T15-30-01-569Z.yml
-.playwright-mcp\page-2026-09-24T15-30-14-602Z.yml
-.playwright-mcp\page-2026-09-24T15-30-19-548Z.yml
-.playwright-mcp\page-2026-09-24T15-30-34-931Z.yml
-.playwright-mcp\page-2026-09-24T15-30-40-864Z.yml
-.playwright-mcp\page-2026-09-24T15-30-45-740Z.yml
-.playwright-mcp\page-2026-09-24T15-31-05-057Z.yml
-.playwright-mcp\page-2026-09-24T15-31-10-275Z.yml
-.playwright-mcp\page-2026-09-24T15-31-26-169Z.yml
-.playwright-mcp\page-2026-09-24T15-31-31-847Z.yml
-.playwright-mcp\page-2026-09-24T15-31-36-502Z.yml
-.playwright-mcp\page-2026-09-24T15-31-53-323Z.yml
-.playwright-mcp\page-2026-09-24T15-32-07-774Z.yml
-.playwright-mcp\page-2026-09-24T15-32-13-292Z.yml
-.playwright-mcp\page-2026-09-24T15-32-18-083Z.yml
-.playwright-mcp\page-2026-09-24T15-32-30-230Z.yml
-.playwright-mcp\page-2026-09-24T15-32-36-869Z.yml
-.playwright-mcp\page-2026-09-24T15-32-45-736Z.yml
-.playwright-mcp\page-2026-09-24T15-32-57-367Z.yml
-.playwright-mcp\page-2026-09-24T15-33-04-831Z.yml
-.playwright-mcp\page-2026-09-24T15-33-14-851Z.yml
-.playwright-mcp\page-2026-09-24T15-33-34-338Z.yml
-.playwright-mcp\page-2026-09-24T15-33-56-462Z.yml
-.playwright-mcp\page-2026-09-24T15-34-03-595Z.yml
-.playwright-mcp\page-2026-09-24T15-34-18-055Z.yml
-.playwright-mcp\page-2026-09-24T15-34-26-514Z.yml
-.playwright-mcp\page-2026-09-24T15-34-39-170Z.yml
-.playwright-mcp\page-2026-09-24T15-34-53-514Z.yml
-.playwright-mcp\page-2026-09-24T15-35-06-390Z.yml
-.playwright-mcp\page-2026-09-24T15-35-12-932Z.yml
-.playwright-mcp\page-2026-09-24T15-35-49-433Z.yml
-.playwright-mcp\page-2026-09-24T15-35-56-903Z.yml
-.playwright-mcp\page-2026-09-24T15-36-06-329Z.yml
-.playwright-mcp\page-2026-09-24T15-36-30-823Z.yml
-.playwright-mcp\page-2026-09-24T15-36-48-884Z.yml
-.playwright-mcp\page-2026-09-24T15-37-28-244Z.yml
-.playwright-mcp\page-2026-09-24T15-37-39-820Z.yml
-.playwright-mcp\page-2026-09-24T15-37-49-671Z.yml
-.playwright-mcp\page-2026-09-24T17-35-22-682Z.yml
-.playwright-mcp\page-2026-09-24T17-35-39-042Z.yml
-.playwright-mcp\page-2026-09-24T17-36-00-128Z.yml
-.playwright-mcp\page-2026-09-24T17-46-40-230Z.yml
-.playwright-mcp\page-2026-09-24T17-46-52-914Z.yml
-.playwright-mcp\page-2026-09-24T17-47-10-305Z.yml
-.playwright-mcp\page-2026-09-24T17-47-22-917Z.yml
-.playwright-mcp\page-2026-09-24T17-47-35-866Z.yml
-.playwright-mcp\page-2026-09-24T17-47-41-856Z.yml
-.playwright-mcp\page-2026-09-24T17-48-00-031Z.yml
-.playwright-mcp\page-2026-09-24T17-48-09-689Z.yml
-.playwright-mcp\page-2026-09-24T17-48-31-423Z.yml
-.playwright-mcp\page-2026-09-24T17-48-53-518Z.yml
-.playwright-mcp\page-2026-09-24T17-48-54-417Z.yml
-.playwright-mcp\page-2026-09-24T17-49-02-984Z.yml
-.playwright-mcp\page-2026-09-24T17-49-03-861Z.yml
-.playwright-mcp\page-2026-09-24T17-49-25-193Z.yml
-.playwright-mcp\page-2026-09-24T17-49-31-168Z.yml
-.run
-.run\XingyuHubApplication.run.xml
-.tmp-cleanup-plan.sql
-.tmp-recon-verify
-.tmp-recon-verify\acc.post.data
-.tmp-recon-verify\acc.post.fp
-.tmp-recon-verify\acc.post.led
-.tmp-recon-verify\acc.pre.data
-.tmp-recon-verify\acc.pre.fp
-.tmp-recon-verify\acc.pre.led
-.tmp-recon-verify\acc.pre.recon
-.tmp-recon-verify\dev.final.fp
-.tmp-recon-verify\dev.final.led
-.tmp-recon-verify\dev.now.data
-.tmp-recon-verify\dev.now.fp
-.tmp-recon-verify\dev.now.led
-.tmp-recon-verify\dev.real.post.data
-.tmp-recon-verify\dev.real.post.fp
-.tmp-recon-verify\dev.real.post.led
-.tmp-recon-verify\dev.real.pre.data
-.tmp-recon-verify\dev.real.pre.fp
-.tmp-recon-verify\dev.real.pre.led
-.tmp-recon-verify\fp-data.sql
-.tmp-recon-verify\probe.post.data
-.tmp-recon-verify\probe.post.fp
-.tmp-recon-verify\probe.post.led
-.tmp-recon-verify\probe.post2.data
-.tmp-recon-verify\probe.post2.fp
-.tmp-recon-verify\probe.post2.led
-.tmp-recon-verify\probe.pre.data
-.tmp-recon-verify\probe.pre.fp
-.tmp-recon-verify\probe.pre.led
-.tmp-schema-audit
-.tmp-schema-audit\dev.led
-.tmp-schema-audit\dev.now
-.tmp-schema-audit\dev.post
-.tmp-schema-audit\dev.post2
-.tmp-schema-audit\dev.snap
-.tmp-schema-audit\dev2.nc
-.tmp-schema-audit\dev2.snap
-.tmp-schema-audit\dev2.sorted
-.tmp-schema-audit\file.ck
-.tmp-schema-audit\fingerprint.sql
-.tmp-schema-audit\fresh.led
-.tmp-schema-audit\fresh.now
-.tmp-schema-audit\fresh.post
-.tmp-schema-audit\fresh.post2
-.tmp-schema-audit\fresh.snap
-.tmp-schema-audit\fresh2.nc
-.tmp-schema-audit\fresh2.snap
-.tmp-schema-audit\fresh2.sorted
-.tmp-schema-audit\gen-v041.sh
-.tmp-schema-audit\led_expected.txt
-.tmp-schema-audit\led_now.txt
-.tmp-schema-audit\led_now_wo041.txt
-.tmp-schema-audit\mvn-package-2A-green.log
-.tmp-schema-audit\mvn-package-2A.log
-.tmp-schema-audit\mvn-package-2B-final.log
-.tmp-schema-audit\mvn-package-2B-pre.log
-.tmp-schema-audit\mvn-repackage-fix.log
-.tmp-schema-audit\mvn.sh
-.tmp-schema-audit\neg-A1.log
-.tmp-schema-audit\neg-A2.log
-.tmp-schema-audit\neg-B.log
-.tmp-schema-audit\neg-CRLF.log
-.tmp-schema-audit\probe-from-dev.sql
-.tmp-schema-audit\probe.after1
-.tmp-schema-audit\probe.after2
-.tmp-schema-audit\probe.before
-.tmp-schema-audit\ps-alive.txt
-.tmp-schema-audit\smoke.json
-.tmp-schema-audit\smoke2.json
-.tmp-schema-audit\snapshot.sql
-.tmp-schema-audit\snapshot2.sql
-.tmp-schema-audit\verify2.sql
-.tmp-sshproxy.py
-.tmp-xingyu_hub_before_cleanup_20260918-175044.sql
-.tmp-xingyu_hub_before_reconciliation_20260920-170556.sql
-.tmp-xingyu_hub_before_v041_20260919-042541.sql
+.tmp-verify
+.tmp-verify\verify-note.txt
+.tmp-verify\verify-pixel.png
 .workbuddy
 .workbuddy\memory
-.workbuddy\memory\2026-09-17.md
-.workbuddy\memory\2026-09-18.md
-.workbuddy\memory\2026-09-19.md
+.workbuddy\memory\2026-10-13.md
 .workbuddy\memory\MEMORY.md
-.workbuddy-ai
-.workbuddy-ai\memory
-.workbuddy-ai\memory\2026-09-19.md
-.workbuddy-ai\memory\2026-09-20.md
-.workbuddy-ai\memory\2026-09-21.md
-.workbuddy-ai\memory\2026-09-22.md
-.workbuddy-ai\memory\2026-09-23.md
-.workbuddy-ai\reports
-.workbuddy-ai\reports\phase2-0-roadmap.md
-.workbuddy-ai\reports\phase2a1-settings-foundation.md
-.workbuddy-ai\reports\phase2a2a-user-blocks.md
-.workbuddy-ai\reports\phase2a2b-api-tokens.md
-.workbuddy-ai\reports\phase2a2c-avatar.md
-.workbuddy-ai\reports\phase2f-contract-probe-result.md
-doc
-doc\article-body-html-recovery.md
-doc\星语前台称谓规范.md
-doc\星语探索导航体系 V1.0.md
-doc\星语社区-v3.2-全端接口文档.md
-doc\星语社区-产品功能与开发总文档-v3.2-品牌文案整合基线.md
+.workbuddy\tmp-bp
+.workbuddy\tmp-bp\scan-error-retry.py
 docs
+docs\audit
+docs\audit\2026-10-07-frontend-dead-code-cleanup-todo.md
+docs\audit\2026-10-08-web-static-design-route-ledger.md
 docs\codebase
 docs\codebase\.codebase-scan.txt
+docs\codebase\ARCHITECTURE.md
+docs\codebase\CONCERNS.md
+docs\codebase\CONVENTIONS.md
+docs\codebase\INTEGRATIONS.md
+docs\codebase\LEGACY-DELTA.md
+docs\codebase\STACK.md
+docs\codebase\STRUCTURE.md
+docs\codebase\TESTING.md
 docs\design-system
+docs\design-system\admin
+docs\design-system\admin\search-index-ops.DESIGN.md
 docs\design-system\MASTER.md
+docs\design-system\pages
+docs\design-system\pages\home.md
+docs\design-system\前端Layout设计方案.md
+docs\design-system\前端改进执行总结.md
+docs\legacy
+docs\legacy\web
+docs\studio-static-design-final-fix-2026-10-09.md
+docs\交接文档
+docs\交接文档\handoff-xingyu-hub-2026-10-18.md
+maintenance
+maintenance\legacy-scripts
+maintenance\legacy-scripts\delete-deprecated-pages.mjs
+maintenance\legacy-scripts\README.md
+maintenance\legacy-scripts\replace-user-links.mjs
+maintenance\reconciliation
+maintenance\reconciliation\2026-09-19-ledger-reconciliation.tsv
+maintenance\reconciliation\backfill-missing-ledger.sh
+maintenance\reconciliation\PLAN.md
+maintenance\reconciliation\README.md
+scripts
+scripts\ci-apply-migrations.sh
+scripts\local-db.env
+scripts\local-db.properties
+scripts\local-db.properties.example
+scripts\local-test-db.env
+scripts\scan-refactor-inventory.mjs
+scripts\seed_sample_content.py
+sql
+sql\README.md
+sql\rebuild-test-db.sh
+sql\rebuild.ps1
+sql\V000__schema_migration.sql
+sql\V001__mars_base_schema_and_seed.sql
+sql\V002__reliable_event.sql
+sql\V003__bootstrap.sql
+sql\V004__community_seeds.sql
+sql\V005__community_account.sql
+sql\V006__community_session.sql
+sql\V007__profile_recovery.sql
+sql\V008__creation_space_category.sql
+sql\V009__topic_alias.sql
+sql\V010__article_pipeline.sql
+sql\V011__content_lifecycle.sql
+sql\V012__series.sql
+sql\V013__social.sql
+sql\V014__moments.sql
+sql\V015__discovery_notification.sql
+sql\V016__conversation.sql
+sql\V017__moderation.sql
+sql\V018__seo.sql
+sql\V019__drop_mars_demo.sql
+sql\V020__clean_mars_seed.sql
+sql\V021__community_events_guide_galaxy.sql
+sql\V022__group_management_user_prefs.sql
+sql\V023__message_attachments_saved.sql
+sql\V024__remaining_features.sql
+sql\V025__cleanup_system_parameters.sql
+sql\V026__community_register_fields.sql
+sql\V027__align_community_token_header.sql
+sql\V028__topic_description.sql
+sql\V029__article_v3_state.sql
+sql\V030__topic_governance.sql
+sql\V031__p2_growth.sql
+sql\V032__sys_file_config.sql
+sql\V033__community_social_gaps.sql
+sql\V034__message_enhancements.sql
+sql\V035__event_registration.sql
+sql\V036__rename_creator_follow_to_user_follow.sql
+sql\V037__optimize_indexes.sql
+sql\V038__explore_domain_navigation.sql
+sql\V039__space_pinned_article.sql
+sql\V040__article_cover_url.sql
+sql\V041__align_dev_schema_baseline.sql
+sql\V042__backfill_search_index.sql
+sql\V043__search_correctness_recovery.sql
+sql\V044__notification_actor_identity.sql
+sql\V045__message_attachment_file_id.sql
+sql\V046__appeal_outcome_contract.sql
+sql\V047__governance_uniqueness.sql
+sql\V048__rules_copy_points_to_real_report_appeal_paths.sql
+sql\V049__recent_auth_single_use.sql
+sql\V050__role2_minimal_permissions.sql
+sql\V051__galaxy_identity_columns.sql
+sql\V052__unified_file_metadata.sql
+xingyu-admin
+xingyu-admin\.gitignore
+xingyu-admin\.idea
+xingyu-admin\.idea\.gitignore
+xingyu-admin\.idea\ApifoxUploaderProjectSetting.xml
+xingyu-admin\.idea\compiler.xml
+xingyu-admin\.idea\encodings.xml
+xingyu-admin\.idea\jarRepositories.xml
+xingyu-admin\.idea\misc.xml
+xingyu-admin\.idea\vcs.xml
+xingyu-admin\doc
+xingyu-admin\doc\ui-layout-restructure-plan.md
+xingyu-admin\doc\交流群.jpg
+xingyu-admin\doc\即时聊天.png
+xingyu-admin\doc\文件列表.png
+xingyu-admin\doc\暗黑首页.png
+xingyu-admin\doc\服务监控.png
+xingyu-admin\doc\用户管理.png
+xingyu-admin\doc\登录.png
+xingyu-admin\doc\系统通知.png
+xingyu-admin\doc\系统配置.png
+xingyu-admin\doc\首页.png
+xingyu-admin\index.html
+xingyu-admin\package-lock.json
+xingyu-admin\package.json
+xingyu-admin\public
+xingyu-admin\public\images
+xingyu-admin\public\images\admin-community-members.png
+xingyu-admin\public\images\admin-community-stewardship.png
+xingyu-admin\public\images\admin-monitor-observatory.png
+xingyu-admin\public\images\admin-review-governance.png
+xingyu-admin\public\images\admin-system-observatory.png
+xingyu-admin\public\images\auth-constellation.png
+xingyu-admin\public\images\auth-observatory.png
+xingyu-admin\public\images\brand-constellation-logo.png
+xingyu-admin\public\images\community-users-group.png
+xingyu-admin\public\images\dashboard-analytics.png
+xingyu-admin\public\images\empty-state-guide.png
+xingyu-admin\public\images\notification-bell.png
+xingyu-admin\public\images\report-analytics-charts.png
+xingyu-admin\public\prototype-assets
+xingyu-admin\public\prototype-assets\activity-review
+xingyu-admin\public\vite.svg
+xingyu-admin\README.md
+xingyu-admin\scripts
+xingyu-admin\scripts\admin-data-audit.mjs
+xingyu-admin\src
+xingyu-admin\src\api
+xingyu-admin\src\api\announcements.ts
+xingyu-admin\src\api\auth.ts
+xingyu-admin\src\api\community-users.ts
+xingyu-admin\src\api\customer.ts
+xingyu-admin\src\api\events.ts
+xingyu-admin\src\api\featured.ts
+xingyu-admin\src\api\galaxies.ts
+xingyu-admin\src\api\gen.ts
+xingyu-admin\src\api\guide-pages.ts
+xingyu-admin\src\api\message.ts
+xingyu-admin\src\api\moderation.ts
+xingyu-admin\src\api\monitor.ts
+xingyu-admin\src\api\operations.ts
+xingyu-admin\src\api\org.ts
+xingyu-admin\src\api\review.ts
+xingyu-admin\src\api\search-index.ts
+xingyu-admin\src\api\server.ts
 
 === STACK DETECTION (manifest files) ===
 No recognized manifest files found in project root.
@@ -214,71 +214,50 @@ No linting or formatting config files found in project root.
 No .env.example or .env.template found. Identify required environment variables by searching the code and config for environment variable reads.
 
 === TODO / FIXME / HACK (production code only, test dirs excluded) ===
-xingyu-backend\xingyu-api\xingyu-admin-api\src\main\java\top\pxczxn\xingyu\admin\controller\system\SysConfigGroupController.java:284: * TODO(P2): RSA 私钥迁移至独立密钥存储，不再放在 sys_config_group JSON。
-xingyu-backend\xingyu-core\xingyu-system\src\main\java\top\pxczxn\xingyu\system\service\impl\SysServerServiceImpl.java:96: // TODO: 可以在这里对密码进行加密存储
-xingyu-backend\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AlipayLogin.java:11: * TODO: 接入支付宝开放平台 OAuth2.0 授权登录
-xingyu-backend\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AlipayLogin.java:27: // TODO: 构建支付宝授权URL
-xingyu-backend\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AlipayLogin.java:35: // TODO: 使用 auth_code 换取用户信息
-xingyu-backend\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AppleLogin.java:9: * TODO: 接入 Sign in with Apple
-xingyu-backend\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AppleLogin.java:22: // TODO: 构建Apple授权URL
-xingyu-backend\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AppleLogin.java:29: // TODO: 验证 Apple identity token
-xingyu-web\app\page.tsx:190: unreadCount: 0, // TODO: 从通知 API 获取
-xingyu-web\app\page.tsx:192: onboardingCompleted: true, // TODO: 从用户状态获取
+xingyu-server\xingyu-api\xingyu-admin-api\src\main\java\top\pxczxn\xingyu\admin\controller\system\SysConfigGroupController.java:295: * TODO(P2): RSA 私钥迁移至独立密钥存储，不再放在 sys_config_group JSON。
+xingyu-server\xingyu-core\xingyu-system\src\main\java\top\pxczxn\xingyu\system\service\impl\SysServerServiceImpl.java:96: // TODO: 可以在这里对密码进行加密存储
+xingyu-server\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AlipayLogin.java:11: * TODO: 接入支付宝开放平台 OAuth2.0 授权登录
+xingyu-server\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AlipayLogin.java:27: // TODO: 构建支付宝授权URL
+xingyu-server\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AlipayLogin.java:35: // TODO: 使用 auth_code 换取用户信息
+xingyu-server\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AppleLogin.java:9: * TODO: 接入 Sign in with Apple
+xingyu-server\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AppleLogin.java:22: // TODO: 构建Apple授权URL
+xingyu-server\xingyu-infra\xingyu-social\src\main\java\top\pxczxn\xingyu\social\impl\AppleLogin.java:29: // TODO: 验证 Apple identity token
 
 === GIT RECENT COMMITS (last 20) ===
 No commits found.
 
 === HIGH-CHURN FILES (last 90 days, top 20) ===
-  11 xingyu-web-next/src/router/routes.tsx
-   7 xingyu-web-next/src/router/routes.test.tsx
-   7 xingyu-admin/src/views/community/users/index.vue
-   6 xingyu-web-next/src/layouts/AppLayout.tsx
-   6 xingyu-web/app/globals.css
-   6 xingyu-web/lib/community-api.ts
-   5 .gitignore
-   5 xingyu-admin/src/utils/table-cells.ts
-   5 xingyu-admin/src/views/system/user/index.vue
-   5 xingyu-web/components/community/discover-prototype-page.tsx
-   4 xingyu-web-next/src/features/studio/editor-page.test.tsx
-   4 xingyu-web-next/src/features/studio/editor/editor-workspace.module.css
-   4 xingyu-web-next/src/features/studio/pages/EditorPage.tsx
-   4 xingyu-web-next/vitest.setup.ts
-   4 xingyu-web-next/package-lock.json
-   4 xingyu-web-next/package.json
-   4 sql/rebuild-test-db.sh
-   4 xingyu-admin/src/api/community-users.ts
-   4 xingyu-backend/xingyu-api/xingyu-admin-api/src/main/java/top/pxczxn/xingyu/admin/controller/community/AdminCommunityUserController.java
-   4 xingyu-backend/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/service/CommunityUserAdminService.java
+None found.
 
 === MONOREPO SIGNALS ===
 No monorepo signals detected.
 
 === CODE METRICS ===
-Total files scanned: 3283
-Total lines of code: 145273
+Total files scanned: 1973
+Total lines of code: 326239
 
 Files by language:
-  Other: 1512
-  Java: 645
-  JavaScript: 520
-  TypeScript/React: 367
-  TypeScript: 237
+  Java: 726
+  Other: 533
+  TypeScript/React: 361
+  TypeScript: 274
+  JavaScript: 77
   Python: 2
 
 Top 10 largest files:
-uploads\community\messages\93c46bf7486a4602876242b84332c59a.png: 102400.0KB
-.tmp-xingyu_hub_before_cleanup_20260918-175044.sql: 3511.2KB
-.tmp-xingyu_hub_before_reconciliation_20260920-170556.sql: 3470.1KB
-.tmp-xingyu_hub_before_v041_20260919-042541.sql: 3464.9KB
-.tmp-schema-audit\probe-from-dev.sql: 3464.7KB
-uploads\community\messages\63893166c2e54a64b36ccdb1b43e7e2b.png: 3072.0KB
-xingyu-web\public\prototype-assets\profile\profile-cover.png: 2725.1KB
-xingyu-admin\dist-p1-close\images\community-users-group.png: 2421.7KB
-xingyu-admin\dist-p1-verify\images\community-users-group.png: 2421.7KB
-xingyu-admin\dist-p1-verify2\images\community-users-group.png: 2421.7KB
+xingyu-admin\public\images\community-users-group.png: 2421.7KB
+xingyu-admin\public\images\auth-observatory.png: 2197.8KB
+xingyu-admin\public\images\admin-community-members.png: 2146.7KB
+xingyu-admin\public\images\admin-community-stewardship.png: 2114.2KB
+xingyu-admin\public\images\admin-review-governance.png: 1964.8KB
+xingyu-admin\public\images\auth-constellation.png: 1898.8KB
+xingyu-admin\public\images\dashboard-analytics.png: 1838.2KB
+xingyu-admin\public\images\admin-system-observatory.png: 1655.3KB
+xingyu-admin\public\images\admin-monitor-observatory.png: 1549.7KB
+xingyu-server\xingyu-starter\src\main\resources\static\assets\index-Cg5sA8im.js: 1549.5KB
 
 === CI/CD PIPELINES ===
-No CI/CD pipelines detected.
+CI/CD: GitHub Actions
 
 === CONTAINERS & ORCHESTRATION ===
 No containerization configs detected.

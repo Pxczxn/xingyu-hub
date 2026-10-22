@@ -1,85 +1,58 @@
-# Codebase Concerns
+# 风险、技术债与后续优先级
 
-## Core Sections (Required)
+口径：**事实**指源码/命令直接可见；**推断**指有证据的后果判断但未运行复现；**未验证**指本轮未覆盖。下面优先级是后续核验建议，不是已证实生产故障或漏洞等级。本轮仅更新分析文档，不修业务代码。
 
-### 1) Top Risks (Prioritized)
+## 1) Top Risks (Prioritized)
 
-| Severity | Concern | Evidence | Impact | Suggested action |
-|----------|---------|----------|--------|------------------|
-| high | Dual user frontends; V2 is incomplete vs product/design nav | `docs/design-system/MASTER.md`; `../../xingyu-web/src/layouts/AppLayout.tsx`; `routes.tsx` comments (no `/galaxies`) | Users/devs hit the wrong app; features exist in API/Legacy but not V2 | [ASK USER] freeze Legacy vs finish V2 parity. *Progress:* public Series shipped in V2 (Phase 2G, `5cd1421`); `/galaxies` still missing |
-| high | Dual auth sharing `satoken` header | `CommunityAuthInterceptor.java`; `SaTokenConfig.java`; `sql/README.md` V027 | Token mix-up between admin Sa-Token and community DB sessions | Keep clients strictly separated; document header+cookie rules |
-| high | RSA private key in `sys_config_group` JSON | `SysConfigGroupController.java:284` TODO(P2) | Key compromise via config dump/backup | Move to dedicated secret storage |
-| med | Public series leaks unpublished chapters to guests | `SeriesService.syncChapters()` (binds any owned article, incl. `DRAFT`/`PRIVATE`); `listPublic`/`getPublicById` return those chapters; `ArticleService.getPublicArticle()` needs a `published_revision` row → guest 404 on open | A guest sees a chapter in the table of contents and gets a dead 404 for it; creator has no signal they bound an unreadable article | Filter unpublished articles out of the public chapter list (or reject the binding). **Deferred by user (2026-09-27) — frontend degrades gracefully for now, backend untouched** |
-| med | Redis treated as required; no optional fallback module | `xingyu-redis/pom.xml`; `RepeatSubmitAspect` (no catch) | Admin login/captcha/repeat-submit can fail hard | [ASK USER] confirm Redis SLO; add fail-open only if intended |
-| med | Server SSH passwords storage TODO (unencrypted) | `SysServerServiceImpl.java:96` | Credential leak in DB | Encrypt at rest before production SSH feature use |
-| med | Uni-app still Mars/admin-chat oriented | `pages.json` title `Mars办公`; `utils/api.js` `/api/v1/admin/sys/chat` | Wrong product surface; security if mini-program talks to admin APIs | [ASK USER] retire vs rewrite against community APIs |
-| med | No in-repo CI; secrets discipline exists in scripts | no `.github/`; `scripts/ci-apply-migrations.sh` | Drift and untested PRs | [ASK USER] where CI lives |
-| low | Social Alipay/Apple stubs | `AlipayLogin.java`; `AppleLogin.java` | Dead login types if exposed in UI | Hide until implemented |
-| low | Legacy home TODOs (unread/onboarding flags) | `xingyu-web/app/page.tsx` scan TODO lines | Incorrect UX on Legacy home | Wire APIs or drop Legacy home |
+| 优先级 | 发现与证据 | 影响与建议 |
+|---|---|---|
+| 已修复（2026-10-21） | **事实**：[ReliableEventMapper](../../xingyu-server/xingyu-core/xingyu-platform/src/main/java/top/pxczxn/xingyu/core/event/ReliableEventMapper.java) 新增 `reclaimExpiredLeases` / `isolateExpiredLeases`，`ReliableEventConsumer.poll` 每轮先回收过期租约；`updateOutcome` 增加 `lease_until` 栅栏；[V053](../../sql/V053__reliable_event_recovery_index.sql) 补 `(status, lease_until)` 索引 | **验证**：platform 15 项、租约恢复集成 8 项、索引链路 6 项通过。索引实测（20 万行探针表，MySQL 8.0.46 RR）：回收 UPDATE 0.95s → 0.0009s，EXPLAIN 由全索引扫描变 `range/rows=1`；锁实验证明无索引时并发 INSERT 会锁等待超时，加索引后冲突窗口随执行时间降到约 1ms（gap lock 本身未消除）。剩余：handler 仍是 at-least-once |
+| 已修复（2026-10-21） | **事实**：契约统一为「已发布文章在重新送审期间仍可发现并阅读旧发布版本」。`ArticleAccessService` 只读 published revision，不再把 `underReview` 传给 `AccessPolicy`；`ArticleTopicMapper`（5 处）、`SearchDocumentMapper`（发现筛选 / 关注流）、`FeedService` 去掉 `article.status='PUBLISHED'` 的二次过滤，统一信任活索引行；`PublishedRevisionMapper` 的空间作品列表补 lifecycle/moderation 排除；个人主页 `articleCount` 改为按「发布版本存在 + lifecycle/moderation」统计；发布（含转 PRIVATE）与移入/移出回收站在写事务内同步刷新索引 | **验证**：新增 `ArticleRevisionVisibilityConsistencyIntegrationTest` 6 项、`ArticleVisibilityIndexWindowIntegrationTest` 3 项（禁用异步消费后验证转 PRIVATE/删除立即从搜索与发现消失、恢复重新出现），回归 7 个测试类共 35 项、用户详情与通知 21 项均通过。剩余：索引写入与业务同事务，索引失败会导致业务回滚（有意的强一致取舍）；跨实例部署时同步刷新只作用于当前实例，但索引在共享库中，仍一致 |
+| 中高 | **事实**：uni-app 的 [request](../../xingyu-uniapp/utils/request.js)、[API](../../xingyu-uniapp/utils/api.js)、[socket](../../xingyu-uniapp/utils/websocket.js) 使用固定 localhost、Authorization、旧 admin 聊天与 /ws/message；与现 Web 的社区会话和 socket 不同。更关键的是它依赖的私聊/群聊后端已是空兼容层：[SysChatCompatController:26-29](../../xingyu-server/xingyu-api/xingyu-admin-api/src/main/java/top/pxczxn/xingyu/admin/controller/message/SysChatCompatController.java#L26-L29) 对发送返回"已迁移"，history/contacts 返回空 | **推断**：移动端聊天入口点击即失败，不是配置问题而是能力已下线；真机 localhost 也不等于开发电脑。先决定移动端维护目标（下线/迁移到 /api/v1/messages），不要在兼容层上补功能 |
+| 中 | **事实**：移动端品牌与项目脱节——`pages.json` 的标题仍是「Mars办公」、主题色为微信绿 `#07C160`，登录页残留 MarsAdmin，manifest 的 appid 为空；管理端 `operation-screen.vue` 无引用、`test/test/index.vue` 无路由 | 不是运行时故障，但直接发布小程序或对外演示会暴露模板痕迹。清理前先确认这些页面是否仍有人用 |
+| 中 | **事实**：现 CI 仅 Web job，见 [ci.yml](../../.github/workflows/ci.yml)；Admin build 不 type-check，见 [manifest](../../xingyu-admin/package.json) | 后端、Admin、移动端回归未由该流水线覆盖。补安全隔离的验证门禁，而非直接把写库测试接开发库 |
+| 中低 | **事实**：公开系列目录仍列出未发布章节——[SeriesService:425–442](../../xingyu-server/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/service/SeriesService.java#L425-L442) 的 `toChapterView(chapter, false)` 对无索引文档的章节返回 `title=null`，但条目仍在 `listPublic`/`getPublicById` 结果里；绑定校验 [requireChapterArticlesOwned:336–352](../../xingyu-server/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/service/SeriesService.java#L336-L352) 只校验存在与归属，不校验发布状态 | 读者在公开目录看到占位章节，点开因无 `published_revision` 得到 404；标题未泄露，但暴露"存在未公开章节"。前端已优雅降级，用户 2026-09-27 决定暂缓后端改动；若要收口，在公开章节列表过滤未发布项，或在绑定阶段拒绝 |
 
-### 2) Technical Debt
+## 2) Technical Debt
 
-| Debt item | Why it exists | Where | Risk if ignored | Suggested fix |
-|-----------|---------------|-------|-----------------|---------------|
-| Next.js shims without `next` dependency | Incremental migrate from App Router files | `xingyu-web` (`next.config.ts`, `app/**/page.tsx`, Vite aliases) | Tooling confusion (“this is Next”) | Keep documenting as Vite SPA; eventually delete with V2 |
-| Admin README port 3000 vs Vite 7778 | Stale README | `xingyu-admin/README.md` vs `vite.config.ts` | Wrong local URL | Update README |
-| Parent POM description still “通用管理系统 - RBAC” | Scaffold leftover | `../../xingyu-server/pom.xml` | Wrong mental model | Rename description to 星语 |
-| `public-base-url` `localhost:3000` | Copy-paste / old port | `application-dev.yml` `xingyu.community.public-base-url` | Wrong absolute links in emails/SEO | Point at actual web origin |
-| Schema ledger reconciliation history | Dev applied SQL outside migrator | `maintenance/reconciliation/` (CLOSED) | Repeat if people edit live DB | Stick to `V042+` files + rebuild scripts |
-| Design-system UI kit not fully in V2 | V2 started smaller | MASTER.md lists Avatar/Tabs; V2 has 5 `components/ui` files | Inconsistent UI | Port primitives as pages need them |
-| No formatter/linter configs | Not introduced | glob | Style drift across 4 JS apps + Java | Add once [ASK USER] chooses tools |
+- **分层偏差（事实）**：infra 的 pay/push/sms/social/wechat 依赖 core/system，证据分别为 [pay](../../xingyu-server/xingyu-infra/xingyu-pay/pom.xml#L21)、[push](../../xingyu-server/xingyu-infra/xingyu-push/pom.xml#L21)、[sms](../../xingyu-server/xingyu-infra/xingyu-sms/pom.xml#L21)、[social](../../xingyu-server/xingyu-infra/xingyu-social/pom.xml#L21)、[wechat](../../xingyu-server/xingyu-infra/xingyu-wechat/pom.xml#L21)。这是反向耦合，不直接证明 Maven 环；后续可按需求抽低层配置契约，当前不建议无目标大重构。
+- **文档漂移（已纠正本组七文档）**：原先双用户前端、旧目录/端口、jsdom、无 lint/CI 的结论不再成立。[App](../../xingyu-web/src/app/App.tsx)、[Vite](../../xingyu-web/vite.config.ts)、[Vitest](../../xingyu-web/vitest.config.ts)、[CI](../../.github/workflows/ci.yml) 是现状证据。原有 [LEGACY-DELTA](./LEGACY-DELTA.md) 是历史快照，所述 archive 路径当前不存在，保留而不当现行指南。
+- **未完成适配（事实）**：[AlipayLogin](../../xingyu-server/xingyu-infra/xingyu-social/src/main/java/top/pxczxn/xingyu/social/impl/AlipayLogin.java)、[AppleLogin](../../xingyu-server/xingyu-infra/xingyu-social/src/main/java/top/pxczxn/xingyu/social/impl/AppleLogin.java) 有 TODO；供应商上线状态未确认。
+- **测试隔离债（事实）**：Web 2536 测试通过但有 localhost:3000 连接拒绝与 act 警告，见 [验证记录](./TESTING.md)。应消除意外真实网络访问和异步残留，不能只追求绿色摘要。
+- **认证状态同步（2026-10-22 修复，同日收口跨标签换号）**：[storage](../../xingyu-web/src/lib/storage.ts#L24-L36) 的 `AUTH_CHANGED_EVENT` 由 [AuthProvider](../../xingyu-web/src/features/auth/auth.store.ts) 订阅，并额外监听跨标签 `storage` 事件：[client](../../xingyu-web/src/api/client.ts#L104-L106) 的 401 清 token、主动退出、其他标签清除都会把 `status/user/token` 同步为 unauthenticated，受保护页面由 `RequireAuth` 立即跳转 `/login`。**跨标签换号**：token 变化时强制重新解析 `/me`，并用单调会话 epoch 丢弃过期响应——A→B 切换会立即替换身份，慢请求不会覆盖较新会话，退出后迟到的 `/me` 也不会复活旧账号；新 token 验证失败会清空会话。**迟到的 401**：`api/client.ts` 只在「当前存储 token 仍是发起请求的 token」时清除，旧账号请求的 401 不会把已切换的新会话踢下线。
 
-### 3) Security Concerns
+## 3) Security Concerns
 
-| Risk | OWASP category (if applicable) | Evidence | Current mitigation | Gap |
-|------|--------------------------------|----------|--------------------|-----|
-| Secrets in Git | A02 | YAML placeholders; `.gitignore` `.env` / keys | Fail-fast dummy passwords | Confirm no local-db.env ever committed |
-| Config-stored RSA key | A02 | `SysConfigGroupController` TODO | Demo/dev convenience | Dedicated KMS/file |
-| SSH password plaintext TODO | A02 | `SysServerServiceImpl` | None in comment | Encrypt |
-| Admin default `admin123` after rebuild | A07 | `sql/README.md` | Prod YAML `xingyu.security.allow-default-admin-password` | Ensure prod forbids defaults (`application-prod.yml` keys exist) |
-| Druid console in dev | A01/A05 | `application-dev.yml` `/druid/*` | Env credentials; **disabled in prod** | Keep prod disabled |
-| Uni-app localhost + admin APIs | A01 | `utils/request.js`; `api.js` | Dev-only URL | Do not ship with admin chat paths |
-| Social login stubs | A07 | Alipay/Apple TODO | Incomplete | Do not enable in UI |
-| Large multipart 500MB | A04 | `application-*.yml` | Wall filter on Druid | Abuse/DoS sizing [ASK USER] |
+| 风险事实 | 当前边界与未验证项 | 建议 |
+|---|---|---|
+| [uni-app crypto:75–99](../../xingyu-uniapp/utils/crypto.js#L75-L99) 明示不验证 GCM tag，并剥离标签；请求基址为 HTTP | 若该分支用于受保护响应，缺少完整性校验；本轮未构造攻击或证明生产可利用 | 在确认仍使用的协议上完整认证解密；不要把“能解密”等同可信 |
+| [JobInvokeUtil:18–44](../../xingyu-server/xingyu-job/src/main/java/top/pxczxn/xingyu/job/util/JobInvokeUtil.java#L18-L44) 从数据库 invokeTarget 解析 Bean/方法并反射执行 | [任务 Controller](../../xingyu-server/xingyu-api/xingyu-admin-api/src/main/java/top/pxczxn/xingyu/admin/controller/monitor/SysJobController.java) 有 add/edit 等权限；不是匿名 RCE 结论 | 评估任务编辑者实际获得的应用 Bean 调用能力，并考虑 allowlist |
+| [SaTokenConfig:111–116](../../xingyu-server/xingyu-core/xingyu-system/src/main/java/top/pxczxn/xingyu/system/config/SaTokenConfig.java#L111-L116) 宽泛 origin patterns + credentials | 利用性依赖部署、凭证传播和浏览器策略，未验证 | 收敛生产信任源并做跨域凭证测试 |
+| 管理端响应加密是 fail-open 且只覆盖响应：[EncryptResponseBodyAdvice:95–116](../../xingyu-server/xingyu-infra/xingyu-crypto/src/main/java/top/pxczxn/xingyu/crypto/advice/EncryptResponseBodyAdvice.java#L95-L116) 缺会话头/会话过期时记 warn 后返回明文；前端 [fetchCryptoConfig](../../xingyu-admin/src/utils/request.ts#L72-L100) 失败即按 `enabled:false` 继续；请求体解密尚未实现 | 不能把"已加密"当成完整性/防重放保证；该链路的实际线上开关状态未验证 | 明确加密的威胁模型（防什么），再决定是否改为 fail-closed 并补齐请求体加密 |
+| [SysConfigGroupController:295](../../xingyu-server/xingyu-api/xingyu-admin-api/src/main/java/top/pxczxn/xingyu/admin/controller/system/SysConfigGroupController.java#L295) 记录 RSA 私钥迁出配置 JSON TODO；[SysServerServiceImpl:96](../../xingyu-server/xingyu-core/xingyu-system/src/main/java/top/pxczxn/xingyu/system/service/impl/SysServerServiceImpl.java#L96) 有密码存储 TODO | TODO 不是本轮证明的泄露；库权限/备份/加密现状未审计 | 核验真实存储与读权限，再安排独立密钥/凭据管理 |
 
-### 4) Performance and Scaling Concerns
+这不是完整 OWASP 审计或供应链审计；没有验证全部注解代理、权限缓存失效、上传边界与第三方凭证轮换。
 
-| Concern | Evidence | Current symptom | Scaling risk | Suggested improvement |
-|---------|----------|-----------------|-------------|-----------------------|
-| In-process event consumer | `ReliableEventConsumer` single app poll | Fine for one instance | Duplicate consumers / missed leases if multi-instance poorly tuned | Document single-writer or clustering |
-| Quartz + `@Scheduled` mixed | `xingyu-job` + community `ScheduledArticlePublishTask` | Two schedulers | Duplicate publishes if multiple nodes | Cluster Quartz; lock scheduled tasks |
-| Scan “largest files” are binaries/SQL dumps | `.codebase-scan.txt` | Repo/workspace bloat | Clone cost | Keep dumps gitignored (policy in `.gitignore`) |
-| N+1 | **[TODO]** not profiled in this pass | unknown | unknown | Use existing mybatis-batch skill when changing lists |
-| Access log via Redis then flush | `ApiAccessLogFlushTask` | extra hop | Redis down drops or errors logs | already logs Redis write failure for push |
+## 4) Performance and Scaling Concerns
 
-### 5) Fragile/High-Churn Areas
+- **查询结构事实**：[ArticleService:62–66](../../xingyu-server/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/service/ArticleService.java#L62-L66) 列表逐项转 summary，[toSummary:368–369](../../xingyu-server/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/service/ArticleService.java#L368-L369) 每项查 draft；[ArticleMapper:13–18](../../xingyu-server/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/mapper/ArticleMapper.java#L13-L18) 作者列表无 LIMIT。属于 1+N 查询和无界列表结构，未量测慢查询。先记录 SQL 次数和数据量，再批查/分页。
+- **审核列表**：[ReviewService:134–157](../../xingyu-server/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/service/ReviewService.java#L134-L157) 每项再查版本/资料，具有查询放大结构，未做容量实验。
+- **会话写放大**：[CommunityAccountService:746–760](../../xingyu-server/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/service/CommunityAccountService.java#L746-L760) 有效请求读 session/user 并更新 lastActiveAt；拦截器还会取用户。容量影响未量测，不能直接声称数据库瓶颈。
+- **事件重放**：consumer 多 handler 后统一标成功，前面副作用可能重复；新增邮件/支付 handler 时必须重新评估幂等，不能凭当前搜索“可重建”语义推及所有事件。
 
-From `docs/codebase/.codebase-scan.txt` HIGH-CHURN (last 90 days):
+## 5) Fragile/High-Churn Areas
 
-| Area | Why fragile | Churn signal | Safe change strategy |
-|------|-------------|-------------|----------------------|
-| `../../xingyu-web/src/router/routes.tsx` | Product surface + redirects | 11 edits | Keep `series-routes.test.tsx` / `routes.test.tsx` green |
-| `xingyu-admin/.../community/users` | Admin community user UX | 7 + related API/controller | Pair Vue + `AdminCommunityUserController` + `CommunityUserAdminService` |
-| `xingyu-web` layout/editor/studio | Editor CSS + workspace | 4–6 | Run web-next vitest; visual check studio |
-| `xingyu-web/lib/community-api.ts` + `globals.css` | Legacy still moving | 6 | Avoid duplicating into V2; port once |
-| `sql/rebuild-test-db.sh` | Test DB contract | 4 | Don’t change checksums of published `V000–V041` |
+近 90 天（2026-07-23 起）分支 `pxczxn` 共 166 次提交，改动集中在用户端。高变动前列：旧目录 `xingyu-web-next/src/router/routes.tsx` 35 次、`xingyu-web-next/src/layouts/AppLayout.tsx` 24 次（这两个路径当前已不存在，是历史改名前的记录）；当前文件里 [DiscoverPage](../../xingyu-web/src/features/discover/pages/DiscoverPage.tsx) 14、[HomePage](../../xingyu-web/src/features/home/pages/HomePage.tsx) 13、home.test 11、[AppLayout](../../xingyu-web/src/layouts/AppLayout.tsx) 10、HomeFeedItem 10、SearchDocumentMapper 9、[PublicSeriesListPage](../../xingyu-web/src/features/series/pages/PublicSeriesListPage.tsx) 8、[PublicSeriesDetailPage](../../xingyu-web/src/features/series/pages/PublicSeriesDetailPage.tsx) 8。含义是：首页/发现/系列三条阅读主线与搜索语义是当前最热的改动区，改动前先读同目录测试。
 
-### 6) `[ASK USER]` Questions
+当前 [routes](../../xingyu-web/src/router/routes.tsx)、[EditorPage](../../xingyu-web/src/features/studio/pages/EditorPage.tsx)、[CommunityAccountService](../../xingyu-server/xingyu-core/xingyu-community/src/main/java/top/pxczxn/xingyu/community/service/CommunityAccountService.java) 有较长实现；长度/变动不是缺陷本身。安全策略：先锁定状态与权限契约，以定向测试支持最小改动，不根据行数机械拆分。扫描共列出 8 条生产 TODO 命中，跨配置凭据和第三方适配；它不是完整缺陷数量，也不包含隐藏/未扫描文件。
 
-1. [ASK USER] 用户端是否以 `xingyu-web` 为唯一前进方向？`xingyu-web` 是否冻结/只作视觉参考？
-2. [ASK USER] `xingyu-uniapp` 是否仍要做成星语社区小程序，还是 Mars 办公/IM 遗留、可归档？
-3. [ASK USER] Redis 是生产硬依赖，还是允许无 Redis 降级（与部分内部 “Redis 可选” 政策是否一致）？
-4. [ASK USER] 社区 API 是否应全部改为 `ProblemDetails`，禁止未包装 DTO / `ResponseStatusException` 混用？
-5. [ASK USER] CI 跑在哪里？本仓库没有 `.github/workflows`，但有 `scripts/ci-apply-migrations.sh`。
-6. [ASK USER] 对外站点 origin 是什么？`xingyu.community.public-base-url` 现为 `http://localhost:3000`，与 5173/7777/7778 都不一致。
-7. [ASK USER] 开发库 schema 变更只允许 `sql/V042__*.sql` + `rebuild.ps1`，还是某些环境要打开 `xingyu.schema.migration.enabled`？
-8. [ASK USER] 代码风格工具（Java Checkstyle/Spotless、前端 ESLint/Prettier）是否要补，还是继续靠 TypeScript `strict` + 人工？
+## 6) [ASK USER] Questions
 
-### 7) Evidence
+1. [ASK USER] 已发布文章重新送审期间，旧发布版本应继续对非作者公开，还是立即下线？这决定访问策略与索引统一方向。
+2. [ASK USER] uni-app 仍是当前交付目标吗？若是，目标是下线聊天能力后仅保留资料/登录，还是迁移到 `/api/v1/messages`？空兼容层不应继续承载真实入口。
+3. [ASK USER] 管理端 XYC1 响应加密要防的是什么威胁（防抓包读明文，还是防篡改/重放）？当前设计只加密响应且缺头时降级明文，若目标含完整性与抗重放，需要另立改造。
+4. [ASK USER] 下一轮优先验证可靠事件崩溃恢复，还是补齐后端/Admin CI？默认建议先验证前者，再建立对应回归门禁。
 
-- `docs/codebase/.codebase-scan.txt` (TODO/FIXME, HIGH-CHURN, no root CI/Docker)
-- `doc/星语社区-产品功能与开发总文档-v3.2-品牌文案整合基线.md` (intent)
-- `sql/README.md`; `maintenance/reconciliation/README.md`
-- `SysConfigGroupController.java`; `SysServerServiceImpl.java`; `AlipayLogin.java`; `AppleLogin.java`
-- `../../xingyu-web/src/layouts/AppLayout.tsx`; `xingyu-uniapp/pages.json`
-- `application-dev.yml`; `application-prod.yml`
+## 7) Evidence
+
+主要证据已逐项链接；另见 [架构](./ARCHITECTURE.md)、[认证与集成](./INTEGRATIONS.md)、[确切测试命令](./TESTING.md)。未运行数据库、并发、进程崩溃、浏览器、真机或生产攻击验证。需求与实现的差异还包括“定时发布”当前实际送审；是否改为直接公开必须由产品规则决定。

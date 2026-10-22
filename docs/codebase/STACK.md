@@ -1,136 +1,69 @@
-# Technology Stack
+# 技术栈（当前源码核对版）
 
-## Core Sections (Required)
+本次为仓库级导航与关键链路分析，不代表逐行审计、生产部署验收或依赖漏洞扫描。依赖版本下列为 manifest 声明范围，不等于全部安装版本；未知项用 `[TODO]` 标记。
 
-### 1) Runtime Summary
+## 1) Runtime Summary
 
-This repository is a **multi-project workspace** (not a single npm/Maven root). There is no root `package.json` or root `pom.xml`.
+| 部分 | 语言、运行时与构建 | 证据 |
+|---|---|---|
+| 服务端 | Java 21，Maven 多模块，Spring Boot 3.2.2，单 starter JAR | [父 POM](../../xingyu-server/pom.xml)、[starter POM](../../xingyu-server/xingyu-starter/pom.xml) |
+| 用户端 | TypeScript、React 19、Vite 8；Node >=22.12；现行目录只有 xingyu-web，package name 仍为 xingyu-web-next | [package.json](../../xingyu-web/package.json) |
+| 管理端 | TypeScript 5.4.5、Vue 3.4、Vite 5；独立 npm 工程 | [package.json](../../xingyu-admin/package.json) |
+| 消息移动端 | JavaScript、Vue 3、uni-app；HBuilderX 工程，无 package scripts | [package.json](../../xingyu-uniapp/package.json)、[README](../../xingyu-uniapp/README.md) |
 
-| Area | Value | Evidence |
-|------|-------|----------|
-| Primary languages | Java 21 (backend); TypeScript/React (user web); Vue 3 (admin); JavaScript (uni-app) | `../../xingyu-server/pom.xml` (`java.version` 21); `../../xingyu-web/package.json`; `xingyu-admin/package.json`; `xingyu-uniapp/package.json` |
-| Runtime + version | Spring Boot 3.2.2; Node not pinned (no `.nvmrc`); Vite 8 (user web), Vite 5 (admin) | `../../xingyu-server/pom.xml`; `../../xingyu-web/package.json`; `xingyu-admin/package.json` |
-| Package managers | Maven (backend); npm (`package-lock.json` present in web/admin) | `../../xingyu-server/pom.xml`; `../../xingyu-web/package.json`; `xingyu-admin/package.json` |
-| Module/build system | Maven multi-module aggregator `xingyu-server`; independent Vite apps | `../../xingyu-server/pom.xml` `<modules>`; each frontend `package.json` |
+本机实际命令结果：Node v24.18.0、npm 11.16.0、Java 21.0.11、Maven 3.9.16。用户端 CI 使用 Node 22 与 npm ci，见 [CI](../../.github/workflows/ci.yml)。本次未安装或升级任何依赖。
 
-### 2) Production Frameworks and Dependencies
+仓库规模（2026-10-21 源码统计，排除 target/node_modules/dist）：Java 726 个文件（main 644 / test 82），`xingyu-web/src` 586 个 ts/tsx/css 文件约 8.3 万行，管理端 102 个源文件，移动端 10 个页面。数量只说明体量，不代表质量或覆盖。
 
-| Dependency | Version | Role in system | Evidence |
-|------------|---------|----------------|----------|
-| Spring Boot | 3.2.2 | HTTP server, DI, scheduling | `../../xingyu-server/pom.xml` |
-| MyBatis-Plus | 3.5.5 | ORM / mapper | `../../xingyu-server/pom.xml` |
-| Sa-Token | 1.37.0 | Admin/app session & RBAC | `../../xingyu-server/pom.xml`; `SaTokenConfig.java` |
-| Hutool | 5.8.25 | Utilities | `../../xingyu-server/pom.xml` |
-| Druid | 1.2.23 | JDBC pool | `../../xingyu-server/pom.xml`; `application-dev.yml` |
-| mysql-connector-j | (Spring Boot BOM) | MySQL driver `com.mysql.cj.jdbc.Driver` | `xingyu-infra/xingyu-db/pom.xml`; `application-dev.yml` |
-| Redis (Spring Data + Lettuce) | Boot BOM | Cache, Sa-Token Redis jackson, rate limits | `xingyu-infra/xingyu-redis/pom.xml`; `application-dev.yml` |
-| Quartz | `spring-boot-starter-quartz` | Admin-managed jobs | `xingyu-job/pom.xml` |
-| React | ^19.0.0 | User web (V2 and Legacy) | `../../xingyu-web/package.json`; `xingyu-web/package.json` |
-| react-router-dom | ^7.1.1 | Web V2 routing | `../../xingyu-web/package.json` |
-| Vue | ^3.4.15 | Admin UI | `xingyu-admin/package.json` |
-| Naive UI / Pinia / vue-router | Naive ^2.37.3, Pinia ^2.1.7, vue-router ^4.2.5 | Admin UI/state/routing | `xingyu-admin/package.json` |
-| axios | ^1.6.5 | Admin HTTP | `xingyu-admin/package.json` |
-| Milkdown | ^7.22.1 | Markdown editor | `../../xingyu-web/package.json` |
-| uview-plus / crypto-js | 3.3.36 / ^4.2.0 | Uni-app UI and crypto | `xingyu-uniapp/package.json` |
-| MinIO / Aliyun OSS SDKs | (infra poms) | Object storage adapters | `xingyu-infra/xingyu-oss/pom.xml` |
-| Aliyun / Tencent SMS SDKs | (infra poms) | SMS adapters | `xingyu-infra/xingyu-sms/pom.xml` |
-| spring-boot-starter-mail | Boot BOM | Email | `xingyu-infra/xingyu-mail/pom.xml` |
+## 2) Production Frameworks and Dependencies
 
-### 3) Development Toolchain
+| 部分 | 关键依赖及职责 | 证据 |
+|---|---|---|
+| 服务端 | MyBatis-Plus 3.5.5 持久化；Sa-Token 1.37.0 管理端认证；Spring MVC、MySQL/Druid；另有 Redis、Quartz 及基础设施集成模块 | [父 POM](../../xingyu-server/pom.xml)、[system POM](../../xingyu-server/xingyu-core/xingyu-system/pom.xml)、[infra POM](../../xingyu-server/xingyu-infra/pom.xml) |
+| 用户端 | React/React DOM ^19.0.0，React Router ^7.1.1，Radix UI，Milkdown ^7.22.1；原生 fetch，不是 Axios 请求层 | [manifest](../../xingyu-web/package.json)、[client](../../xingyu-web/src/api/client.ts) |
+| 管理端 | Vue ^3.4.15、Router ^4.2.5、Naive UI ^2.37.3、Pinia ^2.1.7、Axios ^1.6.5、ECharts ^6.0.0、xterm；另有自实现的 XYC1 响应加密（ECDH → HKDF → AES-256-GCM） | [manifest](../../xingyu-admin/package.json)、[加密协议](../../xingyu-admin/src/utils/crypto/protocol.ts) |
+| uni-app | uview-plus、crypto-js；uni 平台 API | [manifest](../../xingyu-uniapp/package.json)、[入口](../../xingyu-uniapp/main.js) |
 
-| Tool | Purpose | Evidence |
-|------|---------|----------|
-| Maven + spring-boot-maven-plugin | Backend build/repackage | `xingyu-starter/pom.xml` |
-| maven-surefire-plugin 3.5.4 | Backend tests (fork isolation) | `xingyu-starter/pom.xml` |
-| TypeScript 5.3.x | Frontend typecheck | frontend `package.json` files |
-| Vite | Frontend bundler/dev server | `xingyu-web`, `xingyu-web`, `xingyu-admin` |
-| Vitest + jsdom + Testing Library | User-web unit/UI tests | `../../xingyu-web/package.json`; `xingyu-web/package.json` |
-| Node `node --test` | Admin data-audit tests | `xingyu-admin/package.json` `test:audit` |
-| Tailwind CSS 3.4 | User-web styling | `../../xingyu-web/package.json` |
-| [TODO] ESLint / Prettier / Checkstyle / Spotless / Jacoco | No config files or POM plugins found | glob for eslint/prettier/checkstyle; grep of `pom.xml` |
+## 3) Development Toolchain
 
-### 4) Key Commands
+用户端有 TypeScript strict、ESLint 9、Prettier、Tailwind 3、Vitest 3 与 Testing Library；Vitest 实际选择 happy-dom，虽然依赖中仍有 jsdom。管理端有单独 vue-tsc 命令及 Node 内置审计测试，build 不自动类型检查。服务端测试使用 Spring Boot Test；这些是开发工具，不是线上业务依赖。
+
+证据：[TS 配置](../../xingyu-web/tsconfig.json)、[ESLint 配置](../../xingyu-web/eslint.config.js)、[Vitest 配置](../../xingyu-web/vitest.config.ts)、[管理端命令](../../xingyu-admin/package.json)、[starter POM](../../xingyu-server/xingyu-starter/pom.xml)。
+
+## 4) Key Commands
 
 ```bash
-# Backend
-cd xingyu-backend
-mvn -pl xingyu-starter -am package
-mvn -pl xingyu-starter -am test
-
-# Schema (local rebuild; requires DB_PASSWORD)
-cd sql
-./rebuild.ps1
-
-# User web V2
-cd xingyu-web-next
-npm install
-npm run dev          # Vite, port 5173
+# cwd: xingyu-web
+npm run dev
+npm run typecheck
+npm run lint
+npm run format:check
 npm test
 npm run build
+npm run check:bundle
 
-# Legacy user web
-cd xingyu-web
-npm install
-npm run dev          # Vite, port 7777
-npm test
-
-# Admin
-cd xingyu-admin
-npm install
-npm run dev          # Vite, port 7778 (README says 3000; vite.config.ts is 7778)
+# cwd: xingyu-admin
+npm run dev
+npm run type-check
 npm run test:audit
+npm run build
 
-# Uni-app
-cd xingyu-uniapp
-npm install
-# HBuilderX / uni-app CLI per README
+# cwd: xingyu-server；仅准备好隔离测试库后运行，可能写测试库
+mvn -pl xingyu-starter -am test
 ```
 
-Lint command: **[TODO]** — no lint scripts in frontend `package.json`; no Checkstyle/Spotless plugins in backend POMs.
+## 5) Environment and Config
 
-### 5) Environment and Config
+开发端口：用户端 7777、管理端 7778、服务端 7779，来源分别为 [Web Vite](../../xingyu-web/vite.config.ts)、[Admin Vite](../../xingyu-admin/vite.config.ts)、[dev profile](../../xingyu-server/xingyu-starter/src/main/resources/application-dev.yml)。用户端 VITE_API_BASE_URL 可覆盖 API 地址。
 
-- Config sources:
-  - `../../xingyu-server/xingyu-starter/src/main/resources/application.yml` (`spring.profiles.active: dev`)
-  - `application-dev.yml`, `application-prod.yml`, `application-test.yml`
-  - `xingyu-web/.env.example`
-  - gitignored `scripts/local-db.env` (referenced by `sql/README.md` and `application-dev.yml` comments)
-- Required env vars (explicit placeholders / fail-fast):
-  - `DB_PASSWORD` (dev default `__SET_DB_PASSWORD__`; prod also `DB_USERNAME`, `DB_URL`)
-  - `DRUID_USERNAME`, `DRUID_PASSWORD` (dev Druid console)
-  - Optional frontend: `VITE_API_BASE_URL` (web-next), `VITE_API_TARGET`, `VITE_USE_V2_HOME` (legacy web)
-- Deployment/runtime constraints:
-  - Default HTTP port **7779**
-  - MySQL database name `xingyu_hub` (dev/prod), `xingyu_hub_test` (tests)
-  - Redis host/port configured in all profiles; `xingyu-redis` has no optional/fallback Java source
-  - `xingyu.schema.migration.enabled: false` in dev and prod YAML
-  - No Dockerfiles or compose files found
-  - No `.github/workflows` found
+服务端默认 profile 为 dev。生产需显式选择 prod 并注入 DB_USERNAME、DB_PASSWORD，可覆盖 DB_URL、REDIS_HOST/PORT/PASSWORD/DATABASE；dev 支持导入被忽略的本地 properties。只确认配置机制，不读取或披露本地凭据。dev/prod/test 均显式关闭自动 schema migration。容器部署拓扑、实际生产反代与服务版本 `[TODO]`，源码不能证明线上配置。
 
-### 6) Evidence
+管理端响应加密由服务端配置驱动：前端启动拉取 `/api/v1/admin/crypto/config`，`enabled=false` 时全链路明文；启用后请求带 `X-Crypto-Session-Id` / `X-Crypto-Request-Id`，响应为 XYC1 信封。详见 [集成](./INTEGRATIONS.md)。
 
-- `../../xingyu-server/pom.xml`
-- `../../xingyu-server/xingyu-starter/src/main/resources/application-dev.yml`
-- `../../xingyu-server/xingyu-starter/src/main/resources/application-prod.yml`
-- `../../xingyu-web/package.json`
-- `xingyu-web/package.json`
-- `xingyu-admin/package.json`
-- `xingyu-uniapp/package.json`
-- `sql/README.md`
-- `docs/codebase/.codebase-scan.txt` (root scan missed subproject manifests)
+## 6) Evidence
 
-## Extended Sections (Optional)
+- [运行配置](../../xingyu-server/xingyu-starter/src/main/resources/application.yml)、[prod profile](../../xingyu-server/xingyu-starter/src/main/resources/application-prod.yml)
+- [用户端 manifest](../../xingyu-web/package.json)、[管理端 manifest](../../xingyu-admin/package.json)、[移动端 manifest](../../xingyu-uniapp/package.json)
+- [CI](../../.github/workflows/ci.yml)、[验证结果](./TESTING.md)
 
-### Per-app Node versions
-
-Exact Node version is **[TODO]** (no `.nvmrc` / `engines` field found in sampled `package.json` files).
-
-### Environment matrix
-
-| Profile | Port | DB | Redis DB | Schema migrator |
-|---------|------|----|----------|-----------------|
-| `dev` | 7779 | `xingyu_hub` | 6 | disabled |
-| `prod` | 7779 | `${DB_URL}` default `xingyu_hub` | (see YAML) | disabled |
-| `test` | (Boot test) | `xingyu_hub_test` | 7 | disabled |
-
-Evidence: `application-dev.yml`, `application-prod.yml`, `application-test.yml`.
+旧文档中的双用户端目录、5173/3000 开发端口、无 lint、Node 无约束、jsdom 为现行测试环境等描述均已被当前配置取代；历史记录不应作为启动依据。
