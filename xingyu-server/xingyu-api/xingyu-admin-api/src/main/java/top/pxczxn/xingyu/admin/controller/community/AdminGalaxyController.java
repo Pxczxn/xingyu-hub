@@ -2,10 +2,12 @@ package top.pxczxn.xingyu.admin.controller.community;
 
 import top.pxczxn.xingyu.common.result.Result;
 import top.pxczxn.xingyu.community.dto.GalaxyContentView;
+import top.pxczxn.xingyu.community.dto.GalaxyContentSubmissionView;
 import top.pxczxn.xingyu.community.dto.GalaxyMemberView;
 import top.pxczxn.xingyu.community.dto.GalaxyJoinRequestView;
 import top.pxczxn.xingyu.community.dto.GalaxyView;
 import top.pxczxn.xingyu.community.service.GalaxyService;
+import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -90,6 +92,33 @@ public class AdminGalaxyController {
     @PostMapping("/join-requests/{requestId}/reject")
     public Result<Void> rejectJoinRequest(@PathVariable String requestId) {
         galaxyService.rejectJoinRequestForAdmin(requestId);
+        return Result.ok();
+    }
+
+    /** 待审的内容推荐（Galaxy Content Contribution，V054）。 */
+    @GetMapping("/{galaxyId}/content-submissions")
+    public Result<List<GalaxyContentSubmissionView>> listContentSubmissions(
+            @PathVariable String galaxyId,
+            @RequestParam(defaultValue = "50") int limit) {
+        return Result.ok(galaxyService.listPendingContentSubmissionsForAdmin(galaxyId, limit));
+    }
+
+    /** 通过：同一事务里写入 galaxy_content 并置 APPROVED。 */
+    @PostMapping("/content-submissions/{submissionId}/approve")
+    public Result<Void> approveContentSubmission(@PathVariable String submissionId) {
+        galaxyService.approveContentSubmissionForAdmin(submissionId, String.valueOf(StpUtil.getLoginId()));
+        return Result.ok();
+    }
+
+    /** 拒绝：理由必填（作者从状态里能看到原因），不改动 galaxy_content。 */
+    @PostMapping("/content-submissions/{submissionId}/reject")
+    public Result<Void> rejectContentSubmission(
+            @PathVariable String submissionId,
+            @RequestBody(required = false) Map<String, Object> body) {
+        galaxyService.rejectContentSubmissionForAdmin(
+                submissionId,
+                body == null ? null : String.valueOf(body.get("reason")),
+                String.valueOf(StpUtil.getLoginId()));
         return Result.ok();
     }
 }

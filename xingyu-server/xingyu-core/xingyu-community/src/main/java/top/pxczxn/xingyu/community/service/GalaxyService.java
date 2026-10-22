@@ -6,19 +6,24 @@ import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.dto.GalaxyContentView;
+import top.pxczxn.xingyu.community.dto.GalaxyContentSubmissionView;
 import top.pxczxn.xingyu.community.dto.GalaxyJoinRequestView;
 import top.pxczxn.xingyu.community.dto.GalaxyView;
+import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.Galaxy;
 import top.pxczxn.xingyu.community.entity.GalaxyContent;
+import top.pxczxn.xingyu.community.entity.GalaxyContentSubmission;
 import top.pxczxn.xingyu.community.entity.GalaxyMember;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
+import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.entity.GalaxyJoinRequest;
 import top.pxczxn.xingyu.community.mapper.GalaxyJoinRequestMapper;
 import top.pxczxn.xingyu.community.dto.GalaxyMemberView;
 import top.pxczxn.xingyu.community.mapper.GalaxyContentMapper;
+import top.pxczxn.xingyu.community.mapper.GalaxyContentSubmissionMapper;
 import top.pxczxn.xingyu.community.mapper.GalaxyMapper;
 import top.pxczxn.xingyu.community.mapper.GalaxyMemberMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
@@ -39,6 +44,9 @@ public class GalaxyService {
     private final GalaxyJoinRequestMapper joinRequestMapper;
     private final GalaxyMemberMapper memberMapper;
     private final GalaxyContentMapper contentMapper;
+    private final GalaxyContentSubmissionMapper submissionMapper;
+    private final ArticleMapper articleMapper;
+    private final ArticleAccessService articleAccessService;
     private final CommunityProfileMapper profileMapper;
     private final SearchDocumentMapper searchDocumentMapper;
     private final ContentCoverService contentCoverService;
@@ -313,6 +321,207 @@ public class GalaxyService {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
         contentMapper.deleteById(contentId);
+    }
+
+    // ------------------------------------------------------------------
+    // 星系内容推荐（Galaxy Content Contribution，V054）
+    // ------------------------------------------------------------------
+
+    /**
+     * 成员推荐自己的作品。
+     *
+     * <p>三条判据都复用既有权威，不新增平行判断：成员身份 → galaxy_member；
+     * 作品归属 → article.owner_id；已公开发布 → {@link ArticleAccessService#findReadable}
+     * 以游客身份可读（published_revision + ACTIVE + NORMAL + visibility=PUBLIC 的统一出口）。
+     *
+     * <p>刻意不在此处查 search_document：索引是异步的（5s 轮询），作者刚发布就
+     * 来推荐会被"未入索引"误伤。最终上架那一刻由 approve 用活文档守门。
+     */
+    @Transactional
+    public GalaxyContentSubmissionView submitContent(CommunityUser user, String slug, Map<String, String> body) {
+        Galaxy galaxy = requireGalaxy(slug);
+        requireMember(galaxy, user);
+        String objectType = trimToNull(body == null ? null : body.get("objectType"));
+        String objectId = trimToNull(body == null ? null : body.get("objectId"));
+        if (objectType == null || objectId == null) {
+            throw new ContractException(ErrorCode.VALIDATION_FAILED, "作品类型与作品 id 不能为空");
+        }
+        String type = objectType.toUpperCase();
+        if (!"ARTICLE".equals(type)) {
+            throw new ContractException(ErrorCode.VALIDATION_FAILED, "当前只支持推荐文章");
+        }
+        Article article = articleMapper.selectById(objectId);
+        if (article == null || !user.getId().equals(article.getOwnerId())) {
+            throw new ContractException(ErrorCode.NOT_FOUND, "作品不存在或不属于你");
+        }
+        if (articleAccessService.findReadable(objectId, null) == null) {
+            throw new ContractException(ErrorCode.CONFLICT, "只有已公开发布的文章可以推荐");
+        }
+        if (contentMapper.findByGalaxyAndObject(galaxy.getId(), type, objectId) != null
+                || submissionMapper.findApproved(galaxy.getId(), type, objectId) != null) {
+            throw new ContractException(ErrorCode.CONFLICT, "该作品已在星系内容中");
+        }
+        GalaxyContentSubmission pending =
+                submissionMapper.findPending(galaxy.getId(), user.getId(), type, objectId);
+        if (pending != null) {
+            // 幂等：同一作品重复提交返回既有申请，不会堆出第二条待审记录
+            return toSubmissionViews(List.of(pending), galaxy).get(0);
+        }
+        String note = trimToNull(body == null ? null : body.get("note"));
+        if (note != null && note.length() > 500) {
+            throw new ContractException(ErrorCode.VALIDATION_FAILED, "推荐说明不能超过 500 字");
+        }
+        GalaxyContentSubmission submission = new GalaxyContentSubmission();
+        submission.setId(TokenSupport.newId());
+        submission.setGalaxyId(galaxy.getId());
+        submission.setSubmitterId(user.getId());
+        submission.setObjectType(type);
+        submission.setObjectId(objectId);
+        submission.setNote(note);
+        submission.setStatus("PENDING");
+        submission.setCreatedAt(Instant.now());
+        submissionMapper.insert(submission);
+        return toSubmissionViews(List.of(submission), galaxy).get(0);
+    }
+
+    /** 成员视角：我在该星系的推荐记录（含审核状态与拒绝理由）。 */
+    public List<GalaxyContentSubmissionView> listMyContentSubmissions(CommunityUser user, String slug, int limit) {
+        Galaxy galaxy = requireGalaxy(slug);
+        requireMember(galaxy, user);
+        int effective = limit <= 0 ? 20 : Math.min(limit, 100);
+        return toSubmissionViews(
+                submissionMapper.listBySubmitter(galaxy.getId(), user.getId(), effective), galaxy);
+    }
+
+    /** 管理端：某星系待审推荐（按提交时间正序，先到先审）。 */
+    public List<GalaxyContentSubmissionView> listPendingContentSubmissionsForAdmin(String galaxyId, int limit) {
+        Galaxy galaxy = galaxyMapper.selectById(galaxyId);
+        if (galaxy == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        int effective = limit <= 0 ? 50 : Math.min(limit, 200);
+        return toSubmissionViews(
+                submissionMapper.listByGalaxyAndStatus(galaxyId, "PENDING", effective), galaxy);
+    }
+
+    /**
+     * 审核通过：把作品挂进 galaxy_content（同一事务），并把推荐置为 APPROVED。
+     *
+     * <p>上架前用活文档守门，判据与 {@link #addContentForAdmin} 完全一致：
+     * 被治理下架的内容不得通过推荐入口重新挂回星系。
+     * 已挂载时只更新推荐状态，不产生第二条内容行。
+     */
+    @Transactional
+    public void approveContentSubmissionForAdmin(String submissionId, String operatorId) {
+        GalaxyContentSubmission submission = requirePendingSubmission(submissionId);
+        if (searchDocumentMapper.findLiveByTypeAndIds(
+                submission.getObjectType(), List.of(submission.getObjectId())).isEmpty()) {
+            throw new ContractException(ErrorCode.CONFLICT, "作品已下架或不可公开，无法上架");
+        }
+        if (contentMapper.findByGalaxyAndObject(
+                submission.getGalaxyId(), submission.getObjectType(), submission.getObjectId()) == null) {
+            GalaxyContent content = new GalaxyContent();
+            content.setId(TokenSupport.newId());
+            content.setGalaxyId(submission.getGalaxyId());
+            content.setObjectType(submission.getObjectType());
+            content.setObjectId(submission.getObjectId());
+            content.setPinned(false);
+            content.setCreatedAt(Instant.now());
+            contentMapper.insert(content);
+        }
+        submission.setStatus("APPROVED");
+        submission.setResolvedBy(operatorId);
+        submission.setResolvedAt(Instant.now());
+        submissionMapper.updateById(submission);
+    }
+
+    /** 审核拒绝：必须给理由（作者要能从状态里知道为什么被拒），不改动 galaxy_content。 */
+    @Transactional
+    public void rejectContentSubmissionForAdmin(String submissionId, String reason, String operatorId) {
+        GalaxyContentSubmission submission = requirePendingSubmission(submissionId);
+        String trimmed = trimToNull(reason);
+        if (trimmed == null) {
+            throw new ContractException(ErrorCode.VALIDATION_FAILED, "请填写拒绝理由");
+        }
+        if (trimmed.length() > 200) {
+            throw new ContractException(ErrorCode.VALIDATION_FAILED, "拒绝理由不能超过 200 字");
+        }
+        submission.setStatus("REJECTED");
+        submission.setRejectReason(trimmed);
+        submission.setResolvedBy(operatorId);
+        submission.setResolvedAt(Instant.now());
+        submissionMapper.updateById(submission);
+    }
+
+    private void requireMember(Galaxy galaxy, CommunityUser user) {
+        if (memberMapper.findByGalaxyAndUser(galaxy.getId(), user.getId()) == null) {
+            throw new ContractException(ErrorCode.AUTH_FORBIDDEN, "只有星系成员可以推荐作品");
+        }
+    }
+
+    private GalaxyContentSubmission requirePendingSubmission(String submissionId) {
+        GalaxyContentSubmission submission = submissionMapper.selectById(submissionId);
+        if (submission == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        if (!"PENDING".equals(submission.getStatus())) {
+            throw new ContractException(ErrorCode.CONFLICT, "该推荐已处理");
+        }
+        return submission;
+    }
+
+    /**
+     * 推荐视图富化：标题/摘要现查活文档（下架后为 null，前端按"内容不可用"降级），
+     * 推荐人昵称批量查一次资料表，避免逐行 N+1。
+     */
+    private List<GalaxyContentSubmissionView> toSubmissionViews(
+            List<GalaxyContentSubmission> rows, Galaxy galaxy) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        List<String> submitterIds = rows.stream()
+                .map(GalaxyContentSubmission::getSubmitterId)
+                .distinct()
+                .toList();
+        Map<String, String> submitterNames = new java.util.HashMap<>();
+        for (CommunityProfile profile : profileMapper.findByUserIds(submitterIds)) {
+            submitterNames.put(profile.getUserId(), profile.getUsername());
+        }
+        Map<String, List<String>> idsByType = new java.util.LinkedHashMap<>();
+        for (GalaxyContentSubmission row : rows) {
+            idsByType.computeIfAbsent(row.getObjectType(), k -> new java.util.ArrayList<>())
+                    .add(row.getObjectId());
+        }
+        Map<String, SearchDocument> liveDocs = new java.util.HashMap<>();
+        for (Map.Entry<String, List<String>> entry : idsByType.entrySet()) {
+            for (SearchDocument doc : searchDocumentMapper.findLiveByTypeAndIds(
+                    entry.getKey(), entry.getValue())) {
+                liveDocs.put(HomeFeedEnrichmentService.key(doc.getObjectType(), doc.getObjectId()), doc);
+            }
+        }
+        List<GalaxyContentSubmissionView> views = new java.util.ArrayList<>();
+        for (GalaxyContentSubmission row : rows) {
+            SearchDocument doc = liveDocs.get(
+                    HomeFeedEnrichmentService.key(row.getObjectType(), row.getObjectId()));
+            views.add(GalaxyContentSubmissionView.builder()
+                    .id(row.getId())
+                    .galaxyId(row.getGalaxyId())
+                    .galaxySlug(galaxy.getSlug())
+                    .galaxyName(galaxy.getName())
+                    .objectType(row.getObjectType())
+                    .objectId(row.getObjectId())
+                    .title(doc == null ? null : doc.getTitle())
+                    .summary(doc == null ? null : doc.getSummary())
+                    .submitterId(row.getSubmitterId())
+                    .submitterName(submitterNames.get(row.getSubmitterId()))
+                    .note(row.getNote())
+                    .status(row.getStatus())
+                    .rejectReason(row.getRejectReason())
+                    .createdAt(row.getCreatedAt())
+                    .resolvedAt(row.getResolvedAt())
+                    .build());
+        }
+        return views;
     }
 
     @Transactional

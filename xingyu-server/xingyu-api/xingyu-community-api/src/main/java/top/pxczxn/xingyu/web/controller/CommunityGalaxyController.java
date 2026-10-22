@@ -1,6 +1,7 @@
 package top.pxczxn.xingyu.web.controller;
 
 import top.pxczxn.xingyu.community.dto.GalaxyContentView;
+import top.pxczxn.xingyu.community.dto.GalaxyContentSubmissionView;
 import top.pxczxn.xingyu.community.dto.GalaxyJoinRequestView;
 import top.pxczxn.xingyu.community.dto.GalaxyMemberView;
 import top.pxczxn.xingyu.community.dto.GalaxyView;
@@ -67,5 +68,24 @@ public class CommunityGalaxyController {
             @PathVariable String slug,
             @RequestBody(required = false) Map<String, String> body) {
         return galaxyService.apply(CommunityAuthContext.requireUser(), slug, body);
+    }
+
+    /**
+     * 成员推荐自己的作品（Galaxy Content Contribution，V054）。
+     * 非成员 403；非本人作品 404；未公开发布或已在该星系 409；重复提交返回既有待审申请。
+     */
+    @PostMapping("/{slug}/content-submissions")
+    public GalaxyContentSubmissionView submitContent(
+            @PathVariable String slug,
+            @RequestBody(required = false) Map<String, String> body) {
+        return galaxyService.submitContent(CommunityAuthContext.requireUser(), slug, body);
+    }
+
+    /** 成员视角：我在该星系的推荐记录与审核状态。 */
+    @GetMapping("/{slug}/content-submissions/mine")
+    public List<GalaxyContentSubmissionView> myContentSubmissions(
+            @PathVariable String slug,
+            @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        return galaxyService.listMyContentSubmissions(CommunityAuthContext.requireUser(), slug, limit);
     }
 }

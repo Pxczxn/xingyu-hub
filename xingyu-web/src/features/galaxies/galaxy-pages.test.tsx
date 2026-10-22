@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
+import { articlesApi } from "@/api/articles/articles.api";
 import { ApiError } from "@/api/client";
 import { GalaxyDetailPage } from "./pages/GalaxyDetailPage";
 import { GalaxyMembersPage } from "./pages/GalaxyMembersPage";
@@ -19,6 +20,14 @@ vi.mock("@/api/galaxies/galaxies.api", () => ({
     listMine: vi.fn(),
     join: vi.fn(),
     apply: vi.fn(),
+    submitContent: vi.fn(),
+    listMySubmissions: vi.fn(),
+  },
+}));
+
+vi.mock("@/api/articles/articles.api", () => ({
+  articlesApi: {
+    listMine: vi.fn(),
   },
 }));
 
@@ -27,6 +36,7 @@ vi.mock("@/features/auth/auth.store", () => ({
 }));
 
 const mocked = vi.mocked(galaxiesApi);
+const mockedArticles = vi.mocked(articlesApi);
 
 const GALAXY = {
   id: "g-1",
@@ -77,6 +87,8 @@ beforeEach(() => {
   mocked.listMembers.mockResolvedValue(MEMBERS);
   mocked.listContent.mockResolvedValue(CONTENT);
   mocked.listMine.mockResolvedValue([]);
+  mocked.listMySubmissions.mockResolvedValue([]);
+  mockedArticles.listMine.mockResolvedValue([]);
 });
 
 describe("GalaxyShell", () => {
@@ -352,5 +364,167 @@ describe("GalaxyContentPage", () => {
       "/galaxies/:slug/content",
     );
     expect(await screen.findByText("暂无内容")).toBeInTheDocument();
+  });
+});
+
+/*
+ * 内容推荐（V054）。这些用例锁的是三件事，逐条对应业务契约：
+ *   1. 入口只对成员出现（`joined` 是 viewer-scoped 三态，guest 为 null，不能当 false 之外的意思用）；
+ *   2. 提交成功后状态来自服务端重读，而不是本地猜一个"已通过"；
+ *   3. 后端拒绝时原样展示它给的原因，前端不自己编一套资格判断。
+ */
+describe("GalaxyContentPage contribution", () => {
+  const MEMBER_GALAXY = { ...GALAXY, joined: true };
+
+  it("hides the contribution entry from non-members", async () => {
+    renderPage(
+      "/galaxies/xingyu-official/content",
+      <GalaxyContentPage />,
+      "/galaxies/:slug/content",
+    );
+    await screen.findByRole("link", { name: "第一篇" });
+    expect(screen.queryByRole("button", { name: "推荐我的作品" })).not.toBeInTheDocument();
+    expect(mocked.listMySubmissions).not.toHaveBeenCalled();
+  });
+
+  it("lets a member pick one of their works and submits it for review", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    authState.isAuthenticated = true;
+    mocked.getBySlug.mockResolvedValue(MEMBER_GALAXY);
+    mockedArticles.listMine.mockResolvedValue([
+      { id: "art-1", status: "PUBLISHED", title: "已发布的作品", categoryId: null, updatedAt: "2026-10-01T00:00:00Z" },
+      { id: "art-2", status: "DRAFT", title: "还在写", categoryId: null, updatedAt: "2026-10-02T00:00:00Z" },
+    ]);
+    mocked.submitContent.mockResolvedValue({
+      id: "sub-1",
+      galaxyId: "g-1",
+      galaxySlug: "xingyu-official",
+      galaxyName: "星语",
+      objectType: "ARTICLE",
+      objectId: "art-1",
+      title: "已发布的作品",
+      summary: null,
+      submitterId: "u-9",
+      submitterName: "me",
+      note: "很合适",
+      status: "PENDING",
+      rejectReason: null,
+      createdAt: "2026-10-22T00:00:00Z",
+      resolvedAt: null,
+    });
+    mocked.listMySubmissions.mockResolvedValue([]);
+
+    renderPage(
+      "/galaxies/xingyu-official/content",
+      <GalaxyContentPage />,
+      "/galaxies/:slug/content",
+    );
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "推荐我的作品" }));
+
+    // 草稿没有发布版本，后端必拒 —— 这里根本不该出现在候选里。
+    expect(await screen.findByRole("option", { name: "已发布的作品" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "还在写" })).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("选择作品"), "art-1");
+    await user.type(screen.getByLabelText("推荐语（可选）"), "很合适");
+    await user.click(screen.getByRole("button", { name: "提交推荐" }));
+
+    await waitFor(() =>
+      expect(mocked.submitContent).toHaveBeenCalledWith("xingyu-official", {
+        objectType: "ARTICLE",
+        objectId: "art-1",
+        note: "很合适",
+      }),
+    );
+    expect(await screen.findByText("已提交，等待星系管理员审核。")).toBeInTheDocument();
+    // 提交后重新读一次服务端状态，而不是本地把记录塞进列表。
+    await waitFor(() => expect(mocked.listMySubmissions).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows the server's rejection reason instead of inventing its own", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    authState.isAuthenticated = true;
+    mocked.getBySlug.mockResolvedValue(MEMBER_GALAXY);
+    mockedArticles.listMine.mockResolvedValue([
+      { id: "art-1", status: "PUBLISHED", title: "已发布的作品", categoryId: null, updatedAt: "2026-10-01T00:00:00Z" },
+    ]);
+    mocked.submitContent.mockRejectedValue(
+      new ApiError({
+        type: "about:blank",
+        title: "conflict",
+        status: 409,
+        detail: "该作品已在该星系中",
+        code: "CONFLICT",
+      }),
+    );
+
+    renderPage(
+      "/galaxies/xingyu-official/content",
+      <GalaxyContentPage />,
+      "/galaxies/:slug/content",
+    );
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "推荐我的作品" }));
+    await user.selectOptions(await screen.findByLabelText("选择作品"), "art-1");
+    await user.click(screen.getByRole("button", { name: "提交推荐" }));
+
+    expect(await screen.findByText("该作品已在该星系中")).toBeInTheDocument();
+  });
+
+  it("renders each submission status and degrades a delisted work honestly", async () => {
+    authState.isAuthenticated = true;
+    mocked.getBySlug.mockResolvedValue(MEMBER_GALAXY);
+    mocked.listMySubmissions.mockResolvedValue([
+      {
+        id: "sub-1",
+        galaxyId: "g-1",
+        galaxySlug: "xingyu-official",
+        galaxyName: "星语",
+        objectType: "ARTICLE",
+        objectId: "art-1",
+        title: "已上架的作品",
+        summary: null,
+        submitterId: "u-9",
+        submitterName: "me",
+        note: null,
+        status: "APPROVED",
+        rejectReason: null,
+        createdAt: "2026-10-20T00:00:00Z",
+        resolvedAt: "2026-10-21T00:00:00Z",
+      },
+      {
+        id: "sub-2",
+        galaxyId: "g-1",
+        galaxySlug: "xingyu-official",
+        galaxyName: "星语",
+        objectType: "ARTICLE",
+        objectId: "art-3",
+        // 活文档已消失（下架/删除）——不能沿用旧标题。
+        title: null,
+        summary: null,
+        submitterId: "u-9",
+        submitterName: "me",
+        note: null,
+        status: "REJECTED",
+        rejectReason: "与星系主题不符",
+        createdAt: "2026-10-19T00:00:00Z",
+        resolvedAt: "2026-10-20T00:00:00Z",
+      },
+    ]);
+
+    renderPage(
+      "/galaxies/xingyu-official/content",
+      <GalaxyContentPage />,
+      "/galaxies/:slug/content",
+    );
+
+    expect(await screen.findByText("已上架的作品")).toBeInTheDocument();
+    expect(screen.getByText("已上架")).toBeInTheDocument();
+    expect(screen.getByText("内容不可用")).toBeInTheDocument();
+    expect(screen.getByText("未通过")).toBeInTheDocument();
+    expect(screen.getByText("与星系主题不符")).toBeInTheDocument();
   });
 });

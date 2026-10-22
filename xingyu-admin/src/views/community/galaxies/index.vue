@@ -41,6 +41,18 @@
             </template>
             关联内容
           </n-button>
+          <n-button :disabled="!selectedGalaxy" @click="openReview">
+            待审推荐
+            <n-tag
+              v-if="pendingSubmissions.length"
+              size="small"
+              type="warning"
+              :bordered="false"
+              style="margin-left: 6px"
+            >
+              {{ pendingSubmissions.length }}
+            </n-tag>
+          </n-button>
         </n-space>
 
         <n-data-table
@@ -107,6 +119,44 @@
       </template>
     </n-modal>
 
+    <!-- 待审列表列宽合计约 1134px：弹窗窄于它时「推荐语/提交时间」会被挤出可视区，审核者得先横向滚动才能读到成员的推荐理由，所以这里按列宽给足并限制在视口内。 -->
+    <n-modal v-model:show="showReview" preset="card" title="待审推荐" style="width: min(1160px, 94vw)">
+      <n-data-table
+        v-if="pendingSubmissions.length"
+        v-bind="tableListProps(submissionScroll)"
+        :columns="submissionColumns"
+        :data="pendingSubmissions"
+        :loading="reviewLoading"
+        :row-key="(row: GalaxyContentSubmission) => row.id"
+      />
+      <EmptyState
+        v-else
+        title="没有待审推荐"
+        description="成员推荐的作品会出现在这里；通过后自动进入该星系的关联内容。"
+      />
+    </n-modal>
+
+    <n-modal v-model:show="showReject" preset="card" title="拒绝推荐" style="width: 440px">
+      <n-form label-placement="left" label-width="60">
+        <n-form-item label="理由">
+          <n-input
+            v-model:value="rejectReason"
+            type="textarea"
+            :rows="3"
+            maxlength="200"
+            show-count
+            placeholder="告诉作者为什么这次推荐不合适（必填）"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showReject = false">取消</n-button>
+          <n-button type="error" :loading="rejecting" @click="confirmReject">确认拒绝</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
     <RecordDetailDrawer v-model:show="showDetail" :title="detailTitle" :fields="detailFields" />
   </div>
 </template>
@@ -115,12 +165,18 @@
 import { computed, onMounted, ref } from 'vue'
 import { useMessage, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { AddOutline } from '@vicons/ionicons5'
-import { galaxyApi, type Galaxy, type GalaxyContent } from '@/api/galaxies'
+import { galaxyApi, type Galaxy, type GalaxyContent, type GalaxyContentSubmission } from '@/api/galaxies'
 import RecordDetailDrawer from '@/components/community/RecordDetailDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useContentDetailDrawer } from '@/composables/useCommunityDrawers'
 import { formatObjectType } from '@/utils/community-display'
-import { renderDangerAction, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
+import {
+  renderDangerAction,
+  renderDateTime,
+  renderTableActionButton,
+  renderTableActionCell,
+  renderTableLink
+} from '@/utils/table-cells'
 import { colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 
 const message = useMessage()
@@ -145,6 +201,14 @@ const galaxyForm = ref({
   coverUrl: ''
 })
 const form = ref({ objectType: 'ARTICLE', objectId: '', pinned: false })
+/* 内容推荐审核（V054）：待审列表只来自服务端 PENDING，处理完重新拉一次。 */
+const showReview = ref(false)
+const reviewLoading = ref(false)
+const pendingSubmissions = ref<GalaxyContentSubmission[]>([])
+const showReject = ref(false)
+const rejecting = ref(false)
+const rejectReason = ref('')
+const rejectTarget = ref<GalaxyContentSubmission | null>(null)
 const contentRules: FormRules = { objectId: [{ required: true, message: '请输入对象 ID', trigger: ['input', 'blur'] }] }
 const galaxyRules: FormRules = {
   name: [{ required: true, message: '请输入星系名称', trigger: ['input', 'blur'] }],
@@ -205,6 +269,53 @@ const columns: DataTableColumns<GalaxyContent> = [
 ]
 const tableScroll = tableScrollFromColumns(columns)
 
+/*
+ * 待审推荐表。作品标题来自活文档：为 null 说明作品已下架/删除，
+ * 这里显示「内容不可用」而不是旧标题，也仍然允许管理员拒绝它。
+ */
+const submissionColumns: DataTableColumns<GalaxyContentSubmission> = [
+  {
+    title: '作品',
+    key: 'title',
+    ...colLayout('title'),
+    render: (row) => {
+      const title = row.title
+      if (!title) return '(内容不可用)'
+      return renderTableLink(title, () => openRemoteContent(row.objectType, row.objectId, title))
+    }
+  },
+  {
+    title: '类型',
+    key: 'objectType',
+    ...colLayout('type'),
+    render: (row) => formatObjectType(row.objectType)
+  },
+  { title: '推荐人', key: 'submitterName', ...colLayout('author') },
+  {
+    title: '推荐语',
+    key: 'note',
+    ...colLayout('summary'),
+    render: (row) => row.note || '—'
+  },
+  {
+    title: '提交时间',
+    key: 'createdAt',
+    ...colLayout('datetime'),
+    render: (row) => renderDateTime(row.createdAt)
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    ...colLayout('action2'),
+    render: (row) =>
+      renderTableActionCell([
+        renderTableActionButton('通过', () => approveSubmission(row), { type: 'primary' }),
+        renderTableActionButton('拒绝', () => askReject(row), { type: 'error' })
+      ])
+  }
+]
+const submissionScroll = tableScrollFromColumns(submissionColumns)
+
 
 async function loadGalaxies() {
   try {
@@ -223,6 +334,8 @@ async function loadContent() {
   loading.value = true
   try {
     content.value = await galaxyApi.listContent(selectedSlug.value)
+    // 待审数量决定工具栏徽标，与内容列表一起刷新；失败只影响徽标，不打断内容。
+    void loadSubmissions()
   } catch {
     message.error('星系内容暂时无法加载')
   } finally {
@@ -255,6 +368,71 @@ async function remove(contentId: string) {
   } catch {
     message.error('移除失败，请稍后重试')
   }
+}
+
+/* ---- 内容推荐审核（V054）---- */
+
+async function loadSubmissions() {
+  if (!selectedGalaxy.value) return
+  reviewLoading.value = true
+  try {
+    pendingSubmissions.value = await galaxyApi.listContentSubmissions(selectedGalaxy.value.id)
+  } catch {
+    // 待审推荐读失败不影响主列表；徽标保持上一次的值。
+  } finally {
+    reviewLoading.value = false
+  }
+}
+
+async function openReview() {
+  if (!selectedGalaxy.value) return
+  showReview.value = true
+  await loadSubmissions()
+}
+
+async function approveSubmission(row: GalaxyContentSubmission) {
+  try {
+    await galaxyApi.approveContentSubmission(row.id)
+    message.success(`「${row.title ?? '该作品'}」已进入星系内容`)
+    await Promise.all([loadSubmissions(), loadContent()])
+  } catch (err) {
+    /*
+     * 通过失败最常见的原因是作品在提交后被下架/治理隐藏（服务端 409），
+     * 此时绝不能把这行从待审里删掉 —— 让管理员看到失败原因，由他决定拒绝还是等作品恢复。
+     */
+    message.error(readErrorMessage(err, '通过失败：作品可能已下架或不在待审状态'))
+  }
+}
+
+function askReject(row: GalaxyContentSubmission) {
+  rejectTarget.value = row
+  rejectReason.value = ''
+  showReject.value = true
+}
+
+async function confirmReject() {
+  if (!rejectTarget.value) return
+  const reason = rejectReason.value.trim()
+  if (!reason) {
+    message.warning('请填写拒绝理由')
+    return
+  }
+  rejecting.value = true
+  try {
+    await galaxyApi.rejectContentSubmission(rejectTarget.value.id, reason)
+    message.success('已拒绝并记录理由')
+    showReject.value = false
+    await loadSubmissions()
+  } catch (err) {
+    message.error(readErrorMessage(err, '拒绝失败，请稍后重试'))
+  } finally {
+    rejecting.value = false
+  }
+}
+
+/** 后端已拒绝时把它的原话带给管理员，避免一律显示"操作失败"。 */
+function readErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback
 }
 
 function openCreate() {

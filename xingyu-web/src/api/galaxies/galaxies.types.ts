@@ -79,3 +79,35 @@ export type GalaxyJoinRequest = {
   status: string;
   createdAt: string;
 };
+
+/**
+ * 内容推荐记录（Galaxy Content Contribution，V054）。
+ *
+ * 契约（community 端返回裸对象/数组，不包 Result）：
+ *   POST /galaxies/{slug}/content-submissions        -> GalaxyContentSubmissionView
+ *   GET  /galaxies/{slug}/content-submissions/mine   -> GalaxyContentSubmissionView[]
+ *
+ * 语义要点：
+ *  - 只有星系成员可推荐；游客 401、非成员 403、作品不可公开/已上架 409。
+ *  - `title`/`summary` 取自活文档（search_document.removed_at IS NULL）：
+ *    作品被下架或删除后为 null —— 按「内容不可用」降级，不能沿用旧标题。
+ *  - `status`：PENDING 待审核 / APPROVED 已上架 / REJECTED 未通过；
+ *    REJECTED 必带 `rejectReason`（作者要知道为什么被拒）。
+ */
+export type GalaxyContentSubmission = {
+  id: string;
+  galaxyId: string;
+  galaxySlug: string;
+  galaxyName: string;
+  objectType: string;
+  objectId: string;
+  title: string | null;
+  summary: string | null;
+  submitterId: string;
+  submitterName: string;
+  note: string | null;
+  status: string;
+  rejectReason: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+};

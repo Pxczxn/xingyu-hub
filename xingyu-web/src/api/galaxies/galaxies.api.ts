@@ -1,6 +1,7 @@
 import { apiRequest } from "@/api/client";
 import type {
   GalaxyContent,
+  GalaxyContentSubmission,
   GalaxyJoinRequest,
   GalaxyMember,
   GalaxySummary,
@@ -52,4 +53,26 @@ export const galaxiesApi = {
       method: "POST",
       body: message === undefined ? {} : { message },
     }),
+
+  /*
+   * 内容推荐（Galaxy Content Contribution，V054）。成员才能提交：
+   * 游客 401、非成员 403、作品不可公开或已上架 409 —— 前端不复制这些判断，
+   * 直接展示后端给出的原因。
+   */
+
+  /** 推荐一篇自己的作品到该星系；成功即进入 PENDING 待审核。 */
+  submitContent: (
+    slug: string,
+    payload: { objectType: string; objectId: string; note?: string },
+  ): Promise<GalaxyContentSubmission> =>
+    apiRequest<GalaxyContentSubmission>(
+      `/api/v1/galaxies/${encodeURIComponent(slug)}/content-submissions`,
+      { method: "POST", body: payload },
+    ),
+
+  /** 我在该星系的推荐记录与审核状态。 */
+  listMySubmissions: (slug: string, limit = 20): Promise<GalaxyContentSubmission[]> =>
+    apiRequest<GalaxyContentSubmission[]>(
+      `/api/v1/galaxies/${encodeURIComponent(slug)}/content-submissions/mine?limit=${encodeURIComponent(limit)}`,
+    ),
 };
