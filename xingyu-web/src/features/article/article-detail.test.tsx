@@ -23,6 +23,23 @@ vi.mock("@/api/interactions/interactions.api", () => ({
   },
 }));
 
+/* The detail page now ends with 「继续阅读」, which asks the public series and
+   topic endpoints for neighbours. Un-mocked, those calls escape to the network
+   from jsdom (ECONNREFUSED :3000) — silent in the UI, but a real request from a
+   unit test. Stub them here; the block's own behaviour is covered by
+   `article-continue-reading.test.tsx`. */
+vi.mock("@/api/series/series.api", () => ({
+  seriesApi: {
+    getPublicById: vi.fn(async () => {
+      throw new Error("no series in this test");
+    }),
+  },
+}));
+
+vi.mock("@/api/topics/topics.api", () => ({
+  topicsApi: { getTopicContent: vi.fn(async () => []) },
+}));
+
 vi.mock("@/api/auth/auth.api", () => ({
   authApi: {
     getMe: vi.fn(async () => ({ email: "a@b.c", emailVerified: true })),

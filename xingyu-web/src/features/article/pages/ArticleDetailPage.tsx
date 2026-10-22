@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { articlesApi } from "@/api/articles/articles.api";
 import type { ArticleDetail } from "@/api/articles/articles.types";
 import { ApiError } from "@/api/client";
+import { ArticleContinueReading } from "@/features/article/components/ArticleContinueReading";
 import { ArticleInteractions } from "@/features/article/components/ArticleInteractions";
 import { CommentSection } from "@/features/article/components/CommentSection";
 import { ReportLink } from "@/features/moderation/components/ReportLink";
@@ -288,6 +289,11 @@ export function ArticleDetailPage() {
         <ReportLink objectType="ARTICLE" objectId={article.id} hidden={article.owner} />
 
         <CommentSection objectType="ARTICLE" objectId={article.id} />
+
+        {/* Last, deliberately: a reader reaches this block only after the body
+            and the comments, which is the moment they are deciding what to read
+            next. See the component for the walkthrough evidence behind it. */}
+        <ArticleContinueReading article={article} />
       </div>
     </article>
   );
