@@ -283,6 +283,22 @@ describe("SeriesArticlesPage", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
   });
 
+  it("drops the undo affordance once the removal is persisted", async () => {
+    const list = await loadPage();
+    fireEvent.click(within(list).getByRole("button", { name: "移除：第一章" }));
+    expect(screen.getByText(/只解除关联，文章没有被删除/)).toBeInTheDocument();
+
+    mockedSeries.update.mockResolvedValue(savedDetail(["a2"]));
+    mockedSeries.getMine.mockResolvedValueOnce(savedDetail(["a2"]));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await screen.findByText("已保存。");
+
+    // The server already removed it; a lingering "撤销" would be misleading.
+    expect(screen.queryByText(/只解除关联，文章没有被删除/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "撤销" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+  });
+
   it("prevents duplicate articles and supports adding several in a row", async () => {
     const list = await loadPage();
     expect(screen.getByRole("button", { name: "已添加：第一章" })).toBeDisabled();

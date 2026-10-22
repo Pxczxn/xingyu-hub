@@ -261,6 +261,9 @@ export function SeriesArticlesPage() {
 
     if (revisionRef.current === revisionAtStart) {
       setChapters(serverEntries);
+      /* The removal is persisted now; keeping "撤销" would suggest it can be
+         undone locally while the server already dropped the relation. */
+      setLastRemoved(null);
       setSaveState("saved");
       if (!sameChapterOrder(chapterIds(serverEntries), requestIds)) {
         setSaveMessage("已保存，但服务端返回的顺序与提交不同，已按服务端结果更新。");
