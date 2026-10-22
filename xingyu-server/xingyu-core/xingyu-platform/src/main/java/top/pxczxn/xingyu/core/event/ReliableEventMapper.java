@@ -46,17 +46,73 @@ public interface ReliableEventMapper {
             """)
     int claim(@Param("id") Long id, @Param("leaseUntil") Instant leaseUntil, @Param("now") Instant now);
 
+    /**
+     * Fenced outcome write.
+     *
+     * <p>The {@code lease_until} predicate is what keeps a worker that overran its lease from
+     * overwriting the worker that took the row over: the stale worker's claim value no longer
+     * matches, so the update affects 0 rows and its result must be discarded.
+     */
     @Update("""
             UPDATE reliable_event
-            SET status = #{status},
-                attempt_count = #{attemptCount},
-                next_attempt_at = #{nextAttemptAt},
+            SET status = #{event.status},
+                attempt_count = #{event.attemptCount},
+                next_attempt_at = #{event.nextAttemptAt},
                 lease_until = NULL,
-                last_error = #{lastError},
-                updated_at = #{updatedAt}
-            WHERE id = #{id}
+                last_error = #{event.lastError},
+                updated_at = #{event.updatedAt}
+            WHERE id = #{event.id}
+              AND lease_until = #{leaseUntil}
             """)
-    int updateOutcome(ReliableEvent event);
+    int updateOutcome(@Param("event") ReliableEvent event, @Param("leaseUntil") Instant leaseUntil);
+
+    /**
+     * Lease recovery for a worker that died holding a claim (process crash, kill, host loss).
+     *
+     * <p>Without this, a row left in PROCESSING after its lease expired is invisible to both
+     * {@link #findClaimable} and {@link #claim}, which only accept PENDING/FAILED, so it would
+     * stay stuck forever. Demoting it back to FAILED reuses the existing retry path
+     * (next_attempt_at gates the next poll). The attempt is counted on purpose: a handler that
+     * keeps killing the process is bounded by max_attempts instead of looping forever.
+     *
+     * <p>{@code attempt_count + 1 < max_attempts} is the boundary with
+     * {@link #isolateExpiredLeases}; the two statements are complementary, not ordered, and each
+     * is an idempotent conditional update — a second poller arrives after lease_until = NULL and
+     * matches nothing.
+     */
+    @Update("""
+            UPDATE reliable_event
+            SET status = 'FAILED',
+                attempt_count = attempt_count + 1,
+                next_attempt_at = #{retryAt},
+                lease_until = NULL,
+                last_error = 'lease expired before processing completed',
+                updated_at = #{now}
+            WHERE status = 'PROCESSING'
+              AND lease_until IS NOT NULL
+              AND lease_until < #{now}
+              AND attempt_count + 1 < max_attempts
+            """)
+    int reclaimExpiredLeases(@Param("now") Instant now, @Param("retryAt") Instant retryAt);
+
+    /**
+     * Expired lease whose attempt budget is already exhausted — the crash-loop case. The row is
+     * isolated (operator-visible) rather than re-queued, so it cannot wedge the outbox.
+     */
+    @Update("""
+            UPDATE reliable_event
+            SET status = 'ISOLATED',
+                attempt_count = attempt_count + 1,
+                next_attempt_at = NULL,
+                lease_until = NULL,
+                last_error = 'lease expired; max attempts reached',
+                updated_at = #{now}
+            WHERE status = 'PROCESSING'
+              AND lease_until IS NOT NULL
+              AND lease_until < #{now}
+              AND attempt_count + 1 >= max_attempts
+            """)
+    int isolateExpiredLeases(@Param("now") Instant now);
 
     /**
      * How many events sit in a given status — the backlog / dead-letter read behind the
