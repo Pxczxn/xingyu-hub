@@ -1,7 +1,8 @@
 import { type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { ProfileDetail } from "@/api/users/users.types";
 import { Button } from "@/components/ui/button";
+import { buildLoginPath } from "@/features/auth/login-return-path";
 
 /*
  * Profile header: avatar / display name / username / bio / follow control.
@@ -36,6 +37,7 @@ export function ProfileHeader({
   canFollow: boolean;
   blockControl?: ReactNode;
 }) {
+  const location = useLocation();
   const name = profile.displayName ?? profile.username;
 
   return (
@@ -86,7 +88,10 @@ export function ProfileHeader({
             {followPending ? "处理中" : following ? "已关注" : "关注"}
           </Button>
         ) : (
-          <Link to="/login" className="focus-ring text-sm text-accent-strong hover:underline">
+          <Link
+            to={buildLoginPath(`${location.pathname}${location.search}`)}
+            className="focus-ring text-sm text-accent-strong hover:underline"
+          >
             登录后关注
           </Link>
         )}

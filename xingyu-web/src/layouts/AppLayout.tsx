@@ -24,6 +24,7 @@ import { notificationsApi } from "@/api/notifications/notifications.api";
 import { usersApi } from "@/api/users/users.api";
 import type { ProfileDetail } from "@/api/users/users.types";
 import { useAuth } from "@/features/auth/auth.store";
+import { buildLoginPath } from "@/features/auth/login-return-path";
 import { useChatSocket } from "@/features/chat/chat-socket.context";
 import { onUnreadChanged } from "@/features/notifications/unread-sync";
 import { cn } from "@/lib/cn";
@@ -436,7 +437,7 @@ export function AppLayout() {
                     disclosure costs a tap on the one action a guest most often
                     wants, and the row still fits at 390px. */}
                 <Link
-                  to="/login"
+                  to={buildLoginPath(`${location.pathname}${location.search}`)}
                   className="focus-ring rounded-lg px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-surface-sunken sm:px-3"
                 >
                   登录
@@ -515,7 +516,7 @@ export function AppLayout() {
                 </Link>
                 {!isAuthenticated ? (
                   <Link
-                    to="/login"
+                    to={buildLoginPath(`${location.pathname}${location.search}`)}
                     className="focus-ring inline-flex h-11 items-center justify-center rounded-lg border border-border px-4 text-sm text-foreground"
                   >
                     登录

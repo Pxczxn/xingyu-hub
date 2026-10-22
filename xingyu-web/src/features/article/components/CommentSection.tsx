@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import type { CommentItem } from "@/api/interactions/interactions.types";
 import { useAuth } from "@/features/auth/auth.store";
+import { buildLoginPath } from "@/features/auth/login-return-path";
 import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { Button } from "@/components/ui/button";
 
@@ -30,6 +31,7 @@ export function CommentSection({
   objectType?: string;
   objectId: string;
 }) {
+  const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [preview, setPreview] = useState<CommentItem[] | null>(null);
@@ -149,7 +151,10 @@ export function CommentSection({
             }
           >
             {preview && preview.length > 0 ? "以上是最新几条评论。" : "评论需要登录后查看。"}
-            <Link to="/login" className="ml-1 font-medium text-accent-strong hover:underline">
+            <Link
+              to={buildLoginPath(`${location.pathname}${location.search}${location.hash}`)}
+              className="ml-1 font-medium text-accent-strong hover:underline"
+            >
               登录后查看全部并参与讨论
             </Link>
           </p>

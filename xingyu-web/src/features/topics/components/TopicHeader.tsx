@@ -1,7 +1,8 @@
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { TopicVisual } from "@/components/visual/TopicVisual";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { buildLoginPath } from "@/features/auth/login-return-path";
 
 export function TopicHeader({
   topic,
@@ -17,6 +18,7 @@ export function TopicHeader({
   followPending?: boolean;
   onToggleFollow?: () => void;
 }) {
+  const location = useLocation();
   const meta = [
     topic.contentCount !== undefined ? `${topic.contentCount} 篇内容` : null,
     topic.followerCount && topic.followerCount > 0 ? `${topic.followerCount} 关注` : null,
@@ -73,7 +75,10 @@ export function TopicHeader({
               {following ? "已关注" : "关注"}
             </Button>
           ) : !isAuthenticated ? (
-            <Link to="/login" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <Link
+              to={buildLoginPath(`${location.pathname}${location.search}`)}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
               登录后关注
             </Link>
           ) : null}

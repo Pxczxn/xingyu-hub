@@ -1,6 +1,6 @@
 import * as Accordion from "@radix-ui/react-accordion";
 import type { ContentSummary } from "@/api/common.types";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect, useId, useRef, useLayoutEffect } from "react";
 import { contentHref } from "@/components/shared/ContentCard";
 import { ContentCoverImage } from "@/components/shared/OptimizedImage";
@@ -13,6 +13,7 @@ import type { ArticleDetail } from "@/api/articles/articles.types";
 import type { PublicSeriesDetail } from "@/api/series/series.types";
 import type { CommentItem } from "@/api/interactions/interactions.types";
 import { useAuth } from "@/features/auth/auth.store";
+import { buildLoginPath } from "@/features/auth/login-return-path";
 import { smoothDamp } from "../smooth-damp";
 import { DiscoverReadingPanel } from "./DiscoverReadingPanel";
 
@@ -35,6 +36,7 @@ export function DiscoverListItem({
   onToggleExpand,
   className,
 }: DiscoverListItemProps) {
+  const location = useLocation();
   const panelId = useId();
   const triggerRef = useRef<HTMLDivElement>(null);
   const panelClipRef = useRef<HTMLDivElement>(null);
@@ -548,7 +550,7 @@ export function DiscoverListItem({
                   )}
                   {!isAuthenticated && !commentsLoading && !commentsError && (
                     <Link
-                      to="/login"
+                      to={buildLoginPath(`${location.pathname}${location.search}`)}
                       className="focus-ring mt-2 inline-flex min-h-11 items-center rounded text-sm text-accent-strong"
                     >
                       登录查看全部评论

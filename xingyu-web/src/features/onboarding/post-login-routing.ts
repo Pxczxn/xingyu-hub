@@ -1,6 +1,10 @@
 import { onboardingApi } from "@/api/onboarding/onboarding.api";
 
-const AUTH_PATHS = [
+/**
+ * 认证域自身的路由。登录引导要用它判断"回跳目标是不是又一个登录页"，
+ * 所以这个清单是共享契约，不再只是本模块内部细节。
+ */
+export const AUTH_PATHS = [
   "/login",
   "/register",
   "/verify-email",
@@ -52,7 +56,7 @@ export async function resolvePostLoginPath(returnTo: string): Promise<string> {
   return returnTo;
 }
 
-function sanitizeInAppPath(raw: string, fallback: string): string {
+export function sanitizeInAppPath(raw: string, fallback: string): string {
   if (!raw.startsWith("/")) return fallback;
   if (raw.startsWith("//")) return fallback;
   return raw;

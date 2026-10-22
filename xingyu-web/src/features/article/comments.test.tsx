@@ -44,9 +44,9 @@ vi.mock("@/api/auth/auth.api", () => ({
 
 const mocked = vi.mocked(interactionsApi);
 
-function renderSection(objectType = "ARTICLE") {
+function renderSection(objectType = "ARTICLE", path = "/") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <AuthProvider>
         <CommentSection objectType={objectType} objectId="a1" />
       </AuthProvider>
@@ -107,6 +107,14 @@ describe("comments (guest)", () => {
     await waitFor(() => expect(screen.getByText(/评论需要登录后查看/)).toBeInTheDocument());
     // The backend 404s these; firing the request would only produce a console error.
     expect(mocked.getCommentPreview).not.toHaveBeenCalled();
+  });
+
+  it("sends the guest to login with the article as the return path", async () => {
+    mocked.getCommentPreview.mockResolvedValue([]);
+    renderSection("ARTICLE", "/articles/a1");
+    const link = await screen.findByRole("link", { name: "登录后查看全部并参与讨论" });
+    // 读者想参与讨论时被送去登录，登录成功后要回到这篇内容，而不是首页。
+    expect(link).toHaveAttribute("href", "/login?returnTo=%2Farticles%2Fa1");
   });
 });
 

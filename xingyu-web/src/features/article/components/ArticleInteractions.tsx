@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Bookmark, Heart } from "lucide-react";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import { useAuth } from "@/features/auth/auth.store";
+import { buildLoginPath } from "@/features/auth/login-return-path";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
@@ -31,6 +32,7 @@ export function ArticleInteractions({
   objectId: string;
 }) {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
   const [liked, setLiked] = useState(false);
   const [count, setCount] = useState<number | null>(null);
   const [bookmarked, setBookmarked] = useState(false);
@@ -155,7 +157,10 @@ export function ArticleInteractions({
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Heart className="h-4 w-4" aria-hidden />
           {count !== null ? `${count} 赞` : "点赞"}
-          <Link to="/login" className="ml-1 text-accent-strong hover:underline">
+          <Link
+            to={buildLoginPath(`${location.pathname}${location.search}${location.hash}`)}
+            className="ml-1 text-accent-strong hover:underline"
+          >
             登录后互动
           </Link>
         </span>

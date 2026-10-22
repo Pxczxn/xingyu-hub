@@ -212,7 +212,9 @@ describe("user follow", () => {
   it("prompts guests to sign in instead of following", async () => {
     mocked.getProfile.mockResolvedValue(PROFILE);
     renderAt("pxczxn");
-    expect(await screen.findByRole("link", { name: "登录后关注" })).toBeInTheDocument();
+    const prompt = await screen.findByRole("link", { name: "登录后关注" });
+    // 关注是读者在这个页面上想做的事，登录后必须回到这里。
+    expect(prompt).toHaveAttribute("href", "/login?returnTo=%2Fu%2Fpxczxn");
     expect(mocked.followUser).not.toHaveBeenCalled();
   });
 });

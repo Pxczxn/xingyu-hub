@@ -46,9 +46,9 @@ vi.mock("@/api/auth/auth.api", () => ({
 
 const mocked = vi.mocked(interactionsApi);
 
-function renderBar() {
+function renderBar(path = "/") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <AuthProvider>
         <ArticleInteractions objectId="a1" />
       </AuthProvider>
@@ -200,5 +200,12 @@ describe("article like", () => {
     const prompt = await screen.findByRole("link", { name: "登录后互动" });
     expect(prompt.parentElement).toHaveTextContent("点赞");
     expect(prompt.parentElement).not.toHaveTextContent(/\d+ 赞/);
+  });
+
+  it("sends the guest to login with the article as the return path", async () => {
+    renderBar("/articles/a1");
+    const prompt = await screen.findByRole("link", { name: "登录后互动" });
+    // 登录页读 returnTo 并在成功后回跳；入口只写裸 /login 会把读者丢回首页。
+    expect(prompt).toHaveAttribute("href", "/login?returnTo=%2Farticles%2Fa1");
   });
 });
