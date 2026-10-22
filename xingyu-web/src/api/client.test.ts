@@ -114,6 +114,27 @@ describe("api client", () => {
     expect(getStoredToken()).toBeNull();
   });
 
+  it("does not clear a newer token when a stale request returns 401", async () => {
+    setStoredToken("token-a");
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async () => {
+      await gate;
+      return jsonResponse({ status: 401, code: "UNAUTHORIZED", detail: "expired" }, { status: 401 });
+    });
+
+    const pending = apiRequest("/api/v1/me");
+    // Another tab switched to account B while A's request was still in flight.
+    setStoredToken("token-b");
+    release();
+
+    await expect(pending).rejects.toThrow(ApiError);
+    // A's late 401 must not sign the newer session out.
+    expect(getStoredToken()).toBe("token-b");
+  });
+
   it("throws ApiError carrying the backend problem details", async () => {
     fetchMock.mockImplementation(async () =>
       jsonResponse(

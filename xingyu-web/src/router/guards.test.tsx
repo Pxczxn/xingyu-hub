@@ -131,4 +131,27 @@ describe("RequireAuth", () => {
     });
     expect(screen.getByTestId("current-path")).toHaveTextContent("/studio");
   });
+
+  it("redirects to /login when the session dies while on a protected page", async () => {
+    setStoredToken("valid-token");
+    mockedGetMe.mockResolvedValue({
+      email: "alice@example.com",
+      emailVerified: true,
+      username: "alice",
+    });
+
+    renderGuard();
+    await waitFor(() => {
+      expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+    });
+
+    // Any API 401 clears the token; the guard must react without a reload.
+    setStoredToken(null);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/login");
+    });
+    expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
+    expect(screen.getByTestId("login-page")).toBeInTheDocument();
+  });
 });

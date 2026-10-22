@@ -33,6 +33,15 @@ vi.mock("@/api/auth/auth.api", () => ({
 const mocked = vi.mocked(authApi);
 
 const ME = { email: "alice@example.com", emailVerified: true, username: "alice" };
+const ME_B = { email: "bob@example.com", emailVerified: true, username: "bob" };
+const ME_C = { email: "carol@example.com", emailVerified: true, username: "carol" };
+
+/** Simulate another tab writing the token: no in-page custom event, only `storage`. */
+function switchTokenFromAnotherTab(next: string | null) {
+  if (next) localStorage.setItem(TOKEN_KEY, next);
+  else localStorage.removeItem(TOKEN_KEY);
+  window.dispatchEvent(new StorageEvent("storage", { key: TOKEN_KEY, newValue: next }));
+}
 
 function Probe() {
   const { status, user, token, login, logout } = useAuth();
@@ -144,6 +153,141 @@ describe("logout", () => {
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
     expect(getStoredToken()).toBeNull();
     expect(mocked.logout).toHaveBeenCalled();
+  });
+});
+
+describe("session invalidation sync", () => {
+  it("signs the UI out when a 401 clears the stored token", async () => {
+    setStoredToken("tok-123");
+    mocked.getMe.mockResolvedValue(ME);
+
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+
+    // Mirrors api/client.ts: a 401 clears the token and broadcasts.
+    setStoredToken(null);
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+    expect(screen.getByTestId("user")).toHaveTextContent("");
+    expect(screen.getByTestId("token")).toHaveTextContent("");
+  });
+
+  it("handles several concurrent 401s without extra session calls", async () => {
+    setStoredToken("tok-123");
+    mocked.getMe.mockResolvedValue(ME);
+
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+    const callsAfterLogin = mocked.getMe.mock.calls.length;
+
+    setStoredToken(null);
+    setStoredToken(null);
+    setStoredToken(null);
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+    expect(mocked.getMe.mock.calls.length).toBe(callsAfterLogin);
+  });
+
+  it("signs out when another tab clears the token", async () => {
+    setStoredToken("tok-123");
+    mocked.getMe.mockResolvedValue(ME);
+
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+
+    // Another tab removed the key: no in-page event, only the native one.
+    localStorage.removeItem(TOKEN_KEY);
+    window.dispatchEvent(new StorageEvent("storage", { key: TOKEN_KEY, newValue: null }));
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+    expect(screen.getByTestId("user")).toHaveTextContent("");
+  });
+
+  it("adopts a session created in another tab", async () => {
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+    mocked.getMe.mockResolvedValue(ME);
+
+    localStorage.setItem(TOKEN_KEY, "tab-token");
+    window.dispatchEvent(new StorageEvent("storage", { key: TOKEN_KEY, newValue: "tab-token" }));
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+    expect(screen.getByTestId("user")).toHaveTextContent("alice");
+    expect(screen.getByTestId("token")).toHaveTextContent("tab-token");
+  });
+});
+
+describe("cross-tab account switch", () => {
+  it("replaces the previous account identity when another tab signs in as B", async () => {
+    setStoredToken("token-a");
+    mocked.getMe.mockResolvedValueOnce(ME);
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("alice"));
+
+    mocked.getMe.mockResolvedValueOnce(ME_B);
+    switchTokenFromAnotherTab("token-b");
+
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("bob"));
+    expect(screen.getByTestId("token")).toHaveTextContent("token-b");
+    expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
+  });
+
+  it("clears the session when the switched account fails verification", async () => {
+    setStoredToken("token-a");
+    mocked.getMe.mockResolvedValueOnce(ME);
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("alice"));
+
+    mocked.getMe.mockRejectedValueOnce(new Error("401"));
+    switchTokenFromAnotherTab("token-b");
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+    expect(screen.getByTestId("user")).toHaveTextContent("");
+    expect(getStoredToken()).toBeNull();
+  });
+
+  it("ignores a slow /me for an account that was already superseded", async () => {
+    setStoredToken("token-a");
+    mocked.getMe.mockResolvedValueOnce(ME);
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("alice"));
+
+    let resolveB!: (me: typeof ME) => void;
+    mocked.getMe.mockImplementationOnce(
+      () => new Promise<typeof ME>((resolve) => { resolveB = resolve; }),
+    );
+    switchTokenFromAnotherTab("token-b");
+    await waitFor(() => expect(mocked.getMe).toHaveBeenCalledTimes(2));
+
+    mocked.getMe.mockResolvedValueOnce(ME_C);
+    switchTokenFromAnotherTab("token-c");
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("carol"));
+
+    // The delayed response for B arrives last: it must not overwrite C.
+    resolveB(ME_B);
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("carol"));
+    expect(screen.getByTestId("token")).toHaveTextContent("token-c");
+  });
+
+  it("does not resurrect a session whose /me resolves after sign-out", async () => {
+    setStoredToken("token-a");
+    mocked.getMe.mockResolvedValueOnce(ME);
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("alice"));
+
+    let resolveB!: (me: typeof ME) => void;
+    mocked.getMe.mockImplementationOnce(
+      () => new Promise<typeof ME>((resolve) => { resolveB = resolve; }),
+    );
+    switchTokenFromAnotherTab("token-b");
+    await waitFor(() => expect(mocked.getMe).toHaveBeenCalledTimes(2));
+
+    switchTokenFromAnotherTab(null);
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+
+    resolveB(ME_B);
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent(""));
+    expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated");
   });
 });
 

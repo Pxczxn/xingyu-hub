@@ -102,7 +102,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     return undefined as T;
   }
   if (!response.ok) {
-    if (response.status === 401 && token) setStoredToken(null);
+    if (response.status === 401 && token && getStoredToken() === token) setStoredToken(null);
     throw new ApiError(toProblemDetails(data, response.status, response.statusText));
   }
   return data as T;
@@ -128,7 +128,7 @@ export async function apiRequestBlob(path: string): Promise<Blob> {
   });
 
   if (!response.ok) {
-    if (response.status === 401 && token) setStoredToken(null);
+    if (response.status === 401 && token && getStoredToken() === token) setStoredToken(null);
     // Read as text so the ProblemDetails shape still produces a real ApiError.
     const data = await response.json().catch(() => null);
     throw new ApiError(toProblemDetails(data, response.status, response.statusText));
@@ -158,7 +158,7 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
     return undefined as T;
   }
   if (!response.ok) {
-    if (response.status === 401 && token) setStoredToken(null);
+    if (response.status === 401 && token && getStoredToken() === token) setStoredToken(null);
     throw new ApiError(toProblemDetails(data, response.status, response.statusText));
   }
   return data as T;
