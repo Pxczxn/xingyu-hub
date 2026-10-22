@@ -11,8 +11,18 @@ import { Button } from "@/components/ui/button";
  *
  * Verified on the real backend: GET /api/v1/comments/{type}/{id} requires auth
  * (401 for guests); POST /api/v1/comments works when authenticated.
- * So guests see a sign-in prompt instead of an error, and no request is fired.
+ *
+ * Guests therefore get no full list, but they are not left with nothing to go
+ * on: GET /api/v1/comments/preview/{type}/{id} is public for ARTICLE and SERIES
+ * (the interceptor allows exactly that path, and the service 404s for anything
+ * else), returning at most three visible comments. The same endpoint already
+ * backs the comment excerpt on discover cards, so a reader who saw a discussion
+ * on a card finds it here rather than a bare "sign in to read".
  */
+
+/** Object types the backend's public preview accepts (SocialService.listCommentPreview). */
+const PREVIEW_OBJECT_TYPES = new Set(["ARTICLE", "SERIES"]);
+
 export function CommentSection({
   objectType = "ARTICLE",
   objectId,
@@ -22,11 +32,36 @@ export function CommentSection({
 }) {
   const { isAuthenticated, user } = useAuth();
   const [comments, setComments] = useState<CommentItem[]>([]);
+  const [preview, setPreview] = useState<CommentItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setPreview(null);
+      return;
+    }
+    if (!PREVIEW_OBJECT_TYPES.has(objectType)) {
+      setPreview(null);
+      return;
+    }
+    let active = true;
+    interactionsApi
+      .getCommentPreview(objectType, objectId)
+      .then((items) => {
+        if (active) setPreview(items);
+      })
+      .catch(() => {
+        // A preview failure must not block the sign-in path; fall back to the prompt.
+        if (active) setPreview(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [objectType, objectId, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -74,12 +109,51 @@ export function CommentSection({
       </h2>
 
       {!isAuthenticated ? (
-        <p className="text-sm text-muted-foreground">
-          评论需要登录后查看。
-          <Link to="/login" className="ml-1 font-medium text-accent-strong hover:underline">
-            去登录
-          </Link>
-        </p>
+        <div>
+          {preview && preview.length > 0 ? (
+            /*
+              Read-only excerpt: the three most recent visible comments, sharing
+              the signed-in list's hairlines so the thread keeps one shape when
+              the reader signs in. No report link — reporting needs a reporter.
+            */
+            <ul data-testid="comment-preview" className="flex flex-col divide-y divide-border/60">
+              {preview.map((comment) => (
+                <li key={comment.id} className="py-4 first:pt-0 last:pb-0">
+                  <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    {comment.authorUsername ? (
+                      <Link
+                        to={`/u/${comment.authorUsername}`}
+                        className="font-medium text-foreground transition-colors hover:text-accent-strong"
+                      >
+                        {comment.authorUsername}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-foreground">匿名</span>
+                    )}
+                    <span className="tabular-nums">
+                      {new Date(comment.createdAt).toLocaleString("zh-CN")}
+                    </span>
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+                    {comment.body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p
+            className={
+              preview && preview.length > 0
+                ? "mt-3 text-sm text-muted-foreground"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            {preview && preview.length > 0 ? "以上是最新几条评论。" : "评论需要登录后查看。"}
+            <Link to="/login" className="ml-1 font-medium text-accent-strong hover:underline">
+              登录后查看全部并参与讨论
+            </Link>
+          </p>
+        </div>
       ) : (
         <>
           <form onSubmit={submit} className="flex flex-col gap-2">

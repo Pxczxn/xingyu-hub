@@ -180,9 +180,25 @@ describe("article like", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("操作失败");
   });
 
-  it("prompts guests to sign in instead of liking", async () => {
+  it("shows guests the public like count and no interactive controls", async () => {
     renderBar();
-    expect(await screen.findByRole("link", { name: "登录后互动" })).toBeInTheDocument();
+    const prompt = await screen.findByRole("link", { name: "登录后互动" });
+    // The count is the one interaction read a guest can make: the backend exposes
+    // GET /likes/{type}/{id}/count publicly and discovery cards already print it,
+    // so the article page must not regress to a bare 「点赞」.
+    await waitFor(() => expect(prompt.parentElement).toHaveTextContent("3 赞"));
+    expect(mocked.getLikeCount).toHaveBeenCalledWith("ARTICLE", "a1");
+    // Viewer-scoped reads stay session-only (401 for guests).
+    expect(mocked.getLikeStatus).not.toHaveBeenCalled();
+    expect(mocked.getBookmarkStatus).not.toHaveBeenCalled();
     expect(mocked.like).not.toHaveBeenCalled();
+  });
+
+  it("keeps the plain guest prompt when the public count is unavailable", async () => {
+    mocked.getLikeCount.mockRejectedValue(new Error("500"));
+    renderBar();
+    const prompt = await screen.findByRole("link", { name: "登录后互动" });
+    expect(prompt.parentElement).toHaveTextContent("点赞");
+    expect(prompt.parentElement).not.toHaveTextContent(/\d+ 赞/);
   });
 });

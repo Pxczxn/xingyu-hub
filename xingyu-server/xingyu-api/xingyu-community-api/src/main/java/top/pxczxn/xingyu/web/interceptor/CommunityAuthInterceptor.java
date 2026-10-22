@@ -101,6 +101,12 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
                 || "/api/v1/bookmarks/status".equals(uri)
                 // Only the bounded comment preview is public; full lists and lookup remain authenticated.
                 || uri.matches("/api/v1/comments/preview/(ARTICLE|SERIES|article|series)/[^/]+")
+                // The like count is public social evidence — every discovery card
+                // already reports it to guests (SearchIndexPipelineIntegrationTest
+                // pins "点赞数对所有人可见"), yet this route was behind the login
+                // wall, so the article page could only say 「点赞」. Allow the one
+                // aggregate read; status stays viewer-scoped and still needs a session.
+                || uri.matches("/api/v1/likes/(ARTICLE|SERIES|MOMENT|article|series|moment)/[^/]+/count")
                 // 话题公开读取（列表/详情/内容聚合/创作者）。following 字段 viewer-dependent，
                 // 必须在有 token 时带上身份；游客照常放行（following=null）。
                 || uri.startsWith("/api/v1/topics")

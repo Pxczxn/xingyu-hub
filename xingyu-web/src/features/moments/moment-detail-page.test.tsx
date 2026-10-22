@@ -39,6 +39,7 @@ vi.mock("@/api/interactions/interactions.api", () => ({
     getLikeStatus: vi.fn(async () => ({ liked: false })),
     getLikeCount: vi.fn(async () => ({ count: 0 })),
     getComments: vi.fn(async () => []),
+    getCommentPreview: vi.fn(async () => []),
     createComment: vi.fn(),
     addBookmark: vi.fn(),
     removeBookmark: vi.fn(),

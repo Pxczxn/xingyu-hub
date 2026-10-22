@@ -108,6 +108,7 @@ vi.mock("@/api/interactions/interactions.api", () => ({
     like: vi.fn(),
     unlike: vi.fn(),
     getComments: vi.fn(async () => []),
+    getCommentPreview: vi.fn(async () => []),
     createComment: vi.fn(),
   },
 }));

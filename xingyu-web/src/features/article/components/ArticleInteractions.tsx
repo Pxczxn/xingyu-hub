@@ -38,14 +38,23 @@ export function ArticleInteractions({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Both like endpoints require auth (verified: 401 AUTH_REQUIRED for guests),
-    // so guests fire no request at all — otherwise we would issue a call that
-    // can never succeed.
+    // Guests cannot read like *status* or bookmark state (verified: 401
+    // AUTH_REQUIRED), so those stay request-free. The *count* is different: it is
+    // a public aggregate (the interceptor allows GET /likes/{type}/{id}/count
+    // without a session) and discovery cards already show it to guests — hiding
+    // it here made the article page say less about a piece than the card that led
+    // to it did.
     if (!isAuthenticated) {
-      setCount(null);
       setLiked(false);
       setBookmarked(false);
-      return;
+      let active = true;
+      interactionsApi
+        .getLikeCount(objectType, objectId)
+        .then((r) => active && setCount(r.count))
+        .catch(() => active && setCount(null));
+      return () => {
+        active = false;
+      };
     }
     let active = true;
     interactionsApi

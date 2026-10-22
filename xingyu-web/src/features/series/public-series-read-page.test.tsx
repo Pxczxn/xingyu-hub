@@ -142,6 +142,13 @@ describe("PublicSeriesReadPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("reader-position")).toHaveTextContent("第 1 / 2 章");
     expect(mockedArticles.getArticle).toHaveBeenCalledWith("art-1");
+    // The reader deliberately carries no interaction controls, so it owes the
+    // reader one way out to the article page where like / bookmark / comments
+    // actually live.
+    expect(screen.getByRole("link", { name: "到文章页点赞、收藏或评论" })).toHaveAttribute(
+      "href",
+      "/articles/art-1",
+    );
   });
 
   it("switches chapter and loads the next article", async () => {
@@ -158,6 +165,11 @@ describe("PublicSeriesReadPage", () => {
       await screen.findByRole("heading", { level: 1, name: "第二章 标题" }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("reader-position")).toHaveTextContent("第 2 / 2 章");
+    // The exit has to follow the chapter being read, not the first one opened.
+    expect(screen.getByRole("link", { name: "到文章页点赞、收藏或评论" })).toHaveAttribute(
+      "href",
+      "/articles/art-2",
+    );
   });
 
   it("opens the chapter named by the URL", async () => {

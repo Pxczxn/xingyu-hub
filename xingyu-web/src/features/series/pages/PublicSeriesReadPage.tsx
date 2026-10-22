@@ -594,6 +594,26 @@ export function PublicSeriesReadPage() {
                   下一篇
                 </Button>
               </nav>
+
+              {/*
+                The reader is the one surface that deliberately carries no
+                interaction controls, but a reader who finishes a chapter and
+                wants to react used to have no exit at all — the page offered
+                「上一篇 / 下一篇」and then the footer, and zero links to the
+                article page where like / bookmark / comments live. One quiet
+                secondary line, not an embedded widget: mounting the interaction
+                bar here would fetch likes and comments for every chapter and
+                turn a reading surface into another feed.
+              */}
+              <p className="mt-6 text-sm text-muted-foreground">
+                想留下反馈？
+                <Link
+                  to={`/articles/${current.articleId}`}
+                  className="ml-1 font-medium text-accent-strong hover:underline"
+                >
+                  到文章页点赞、收藏或评论
+                </Link>
+              </p>
             </div>
           </>
         )}

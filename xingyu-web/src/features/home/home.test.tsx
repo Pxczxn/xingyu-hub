@@ -90,6 +90,7 @@ vi.mock("@/api/interactions/interactions.api", () => ({
     getLikeStatus: vi.fn(),
     getLikeCount: vi.fn(),
     getComments: vi.fn(),
+    getCommentPreview: vi.fn(),
     createComment: vi.fn(),
   },
 }));
