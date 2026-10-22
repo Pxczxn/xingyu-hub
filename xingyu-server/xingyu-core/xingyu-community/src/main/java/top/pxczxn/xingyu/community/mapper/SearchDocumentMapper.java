@@ -189,7 +189,6 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
                 SELECT 1 FROM article_topic at
                 INNER JOIN article a ON a.id = at.article_id
                 WHERE at.article_id = sd.object_id AND at.topic_id = #{topicId}
-                  AND a.status = 'PUBLISHED'
               )
             </if>
             <if test="cursorIndexedAt != null">
@@ -213,15 +212,16 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
 
     /**
      * 关注流批量取数（Phase 6.1，2026-10-11）：关注作者集合的 ARTICLE 活文档。
-     * 发布/生命周期规则在 SQL 内保持与逐条路径一致
-     * （status='PUBLISHED' AND lifecycle_status='ACTIVE'，见 ArticleStateSupport）。
+     * 公开性以活索引行（removed_at IS NULL）为准，生命周期再做一层校验；
+     * 不再按 article.status 过滤——重新送审会把 status 置为 IN_REVIEW，但已发布版本
+     * 仍应出现在关注流里（与搜索/详情一致）。
      */
     @Select("""
             <script>
             SELECT sd.* FROM search_document sd
             INNER JOIN article a ON a.id = sd.object_id
             WHERE sd.object_type = 'ARTICLE' AND sd.removed_at IS NULL
-              AND a.status = 'PUBLISHED' AND a.lifecycle_status = 'ACTIVE'
+              AND a.lifecycle_status = 'ACTIVE'
               AND a.owner_id IN
               <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
             </script>

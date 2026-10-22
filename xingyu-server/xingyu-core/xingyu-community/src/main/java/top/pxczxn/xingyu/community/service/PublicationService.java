@@ -27,6 +27,7 @@ public class PublicationService {
     private final PublishedRevisionMapper publishedRevisionMapper;
     private final CommunityEventSupport eventSupport;
     private final SysFileService fileService;
+    private final SearchIndexService searchIndexService;
 
     @Transactional
     public PublishedRevision publishApprovedRevision(ReviewSubmission submission) {
@@ -82,6 +83,13 @@ public class PublicationService {
                 eventId,
                 CommunityEventSupport.PUBLICATION_SUCCEEDED,
                 submission.getArticleId());
+
+        // The pointer just moved to a revision that may be PRIVATE (or different content).
+        // The event above is consumed asynchronously (default 5s poll), so without this the
+        // search index would keep serving the previous public title/summary to readers while
+        // the detail route already denies it — an information leak, not merely stale content.
+        // Refreshing inside the same transaction keeps the index and the pointer atomic.
+        searchIndexService.refresh(SearchIndexService.ARTICLE, submission.getArticleId());
 
         return published;
     }

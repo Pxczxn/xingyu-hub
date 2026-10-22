@@ -36,6 +36,21 @@ public interface ArticleMapper extends BaseMapper<Article> {
             """)
     List<String> listIndexableIds();
 
+    /**
+     * Public article count for a profile, keyed on the presence of a published revision
+     * rather than on {@code article.status}: submitting a new revision flips the article to
+     * IN_REVIEW while the published one stays readable, so a status-based count would drop a
+     * still-public article. Lifecycle/moderation keep trashed or suppressed articles out.
+     */
+    @Select("""
+            SELECT COUNT(*) FROM article a
+            INNER JOIN published_revision pr ON pr.article_id = a.id
+            WHERE a.owner_id = #{ownerId}
+              AND (a.lifecycle_status IS NULL OR a.lifecycle_status = 'ACTIVE')
+              AND (a.moderation_status IS NULL OR a.moderation_status = 'NORMAL')
+            """)
+    long countPublishedByOwnerId(String ownerId);
+
     @Select("""
             SELECT * FROM article
             WHERE space_id = #{spaceId}

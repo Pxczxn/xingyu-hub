@@ -53,7 +53,12 @@ public class FeedService {
         List<FeedItemDTO> items = new ArrayList<>();
         for (String followeeId : followeeIds) {
             for (Article article : articleMapper.listByOwnerId(followeeId)) {
-                if (!ArticleStateSupport.isActiveLifecycle(article) || !ArticleStateSupport.isPublished(article)) {
+                // Public visibility is decided by the live search document inside
+                // toFeedItemFromDocument (removed_at IS NULL). Filtering on
+                // article.status == PUBLISHED here would drop the published revision while
+                // its next revision is IN_REVIEW — the same article search and detail keep
+                // serving. Lifecycle stays as a cheap guard.
+                if (!ArticleStateSupport.isActiveLifecycle(article)) {
                     continue;
                 }
                 FeedItemDTO item = toFeedItemFromDocument("ARTICLE", article.getId(), article.getOwnerId(), article.getUpdatedAt());

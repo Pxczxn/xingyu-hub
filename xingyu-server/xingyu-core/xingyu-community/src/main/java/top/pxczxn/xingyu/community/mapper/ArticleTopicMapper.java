@@ -59,7 +59,6 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
               AND sd.object_id = a.id
               AND sd.removed_at IS NULL
             WHERE at.topic_id = #{topicId}
-              AND a.status = 'PUBLISHED'
             """)
     long countPublicContent(String topicId);
 
@@ -70,7 +69,6 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
             WHERE at.topic_id = #{topicId}
               AND sd.object_type = 'ARTICLE'
               AND sd.removed_at IS NULL
-              AND a.status = 'PUBLISHED'
             ORDER BY sd.indexed_at DESC, sd.object_id DESC
             LIMIT #{limit}
             """)
@@ -89,7 +87,6 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
             WHERE at.topic_id = #{topicId}
               AND sd.object_type = 'ARTICLE'
               AND sd.removed_at IS NULL
-              AND a.status = 'PUBLISHED'
             ORDER BY COALESCE(lc.like_count, 0) DESC, sd.indexed_at DESC, sd.object_id DESC
             LIMIT #{limit}
             """)
@@ -103,7 +100,6 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
               AND sd.object_id = a.id
               AND sd.removed_at IS NULL
             WHERE at.topic_id = #{topicId}
-              AND a.status = 'PUBLISHED'
             GROUP BY a.owner_id
             ORDER BY contentCount DESC, a.owner_id ASC
             LIMIT #{limit}
@@ -119,8 +115,8 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
      * 是什么时候发的」。
      *
      * <p>可见性判据与 {@link #countPublicContent} / {@link #listLatestContent} 保持一致：
-     * 只统计 PUBLISHED 且索引行未被移除（removed_at IS NULL）的文章。草稿、下架、治理隐藏
-     * 的内容不计入 —— 否则「最近活跃」会指向读者点进去看不到的东西。
+     * 只统计仍有活索引行（{@code removed_at IS NULL}）的文章。发布版本、生命周期与治理状态
+     * 由索引管线统一维护；重新送审不会移除索引，因此旧发布版本在此期间仍计入活跃。
      */
     @Select("""
             SELECT at.topic_id AS topicId, MAX(pr.published_at) AS lastPublishedAt
@@ -130,7 +126,6 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
             INNER JOIN search_document sd ON sd.object_type = 'ARTICLE'
               AND sd.object_id = a.id
               AND sd.removed_at IS NULL
-            WHERE a.status = 'PUBLISHED'
             GROUP BY at.topic_id
             """)
     List<TopicActivityStat> listTopicActivity();
@@ -144,8 +139,7 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
             INNER JOIN search_document sd ON sd.object_type = 'ARTICLE'
               AND sd.object_id = a.id
               AND sd.removed_at IS NULL
-            WHERE a.status = 'PUBLISHED'
-              AND at.topic_id = #{topicId}
+            WHERE at.topic_id = #{topicId}
             """)
     Instant findLastPublishedAt(String topicId);
 }

@@ -24,7 +24,6 @@ import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 import top.pxczxn.xingyu.community.mapper.ReservedWordMapper;
 import top.pxczxn.xingyu.community.mapper.UsernameHistoryMapper;
-import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
@@ -111,10 +110,7 @@ public class CommunityProfileService {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
         CommunityCreationSpace space = spaceMapper.findByUserId(entity.getUserId());
-        long articleCount = articleMapper.listByOwnerId(entity.getUserId()).stream()
-                .filter(ArticleStateSupport::isActiveLifecycle)
-                .filter(ArticleStateSupport::isPublished)
-                .count();
+        long articleCount = articleMapper.countPublishedByOwnerId(entity.getUserId());
         long seriesCount = seriesMapper.listByOwnerId(entity.getUserId()).stream()
                 .filter(series -> "ACTIVE".equals(series.getStatus()))
                 .count();

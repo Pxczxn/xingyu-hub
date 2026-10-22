@@ -36,7 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 生命周期 / 已发布版本 / 治理隐藏，漏掉了 {@code AccessPolicy} 里的：
  * <ul>
  *   <li>PRIVATE 文章仅作者可读；</li>
- *   <li>审核中的文章仅作者可读；</li>
+ *   <li>首次送审（从未发布）的文章仅作者可读；已发布文章重新送审时，旧发布版本仍对读者可读
+ *       （与搜索、话题、发现入口一致，2026-10-21 契约统一）；</li>
  *   <li>UNLISTED 仍可由直接链接读取（不可公开列出，但不是 PRIVATE）。</li>
  * </ul>
  *
@@ -162,7 +163,8 @@ class SeriesReadingProgressVisibilityIntegrationTest {
         assertArticleStatus(unlistedArticle, null, 200, "UNLISTED 是直接链接可读，不是 PRIVATE");
         assertArticleStatus(privateArticle, null, 404);
         assertArticleStatus(hiddenArticle, null, 404);
-        assertArticleStatus(underReviewArticle, null, 404);
+        // 已发布 + 新版本送审：读者仍读旧发布版本（2026-10-21 契约统一）。
+        assertArticleStatus(underReviewArticle, null, 200);
         assertArticleStatus(draftArticle, null, 404);
         assertArticleStatus(trashedArticle, null, 404);
         assertArticleStatus(articleOutsideSeries, null, 200);
@@ -281,9 +283,17 @@ class SeriesReadingProgressVisibilityIntegrationTest {
     private JsonNode progress(String token) throws Exception {
         MvcResult result = mockMvc.perform(get("/api/v1/me/series/" + seriesId + "/reading-progress")
                         .header("satoken", token))
-                .andExpect(status().isOk())
                 .andReturn();
-        return objectMapper.readTree(result.getResponse().getContentAsString(StandardCharsets.UTF_8));
+        int status = result.getResponse().getStatus();
+        String body = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        if (status != 200) {
+            Integer exists = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM series WHERE id = ?", Integer.class, seriesId);
+            throw new AssertionError("progress uri=" + result.getRequest().getRequestURI()
+                    + " seriesId=" + seriesId + " exists=" + exists
+                    + " status=" + status + " body=" + body);
+        }
+        return objectMapper.readTree(body);
     }
 
     private String userIdFor(String token) {

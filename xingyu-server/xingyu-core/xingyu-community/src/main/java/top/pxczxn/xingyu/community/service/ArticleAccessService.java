@@ -85,7 +85,16 @@ public class ArticleAccessService {
                         .visibility(visibility)
                         .ownerActive(true)
                         .resourceActive(true)
-                        .underReview(ArticleStateSupport.isUnderReview(article))
+                        // The public route only ever serves the PUBLISHED revision (the one the
+                        // pointer above resolved). An article being IN_REVIEW means its NEXT
+                        // revision is under review — the published one is still the contract
+                        // readers see, so "under review" must NOT hide it.
+                        //
+                        // A first-time submission has no published_revision row and already
+                        // returned null above; passing false here cannot expose unreviewed text.
+                        // This matches SearchIndexService.isDiscoverable, which also evaluates
+                        // discovery with underReview(false) — search and read must agree.
+                        .underReview(false)
                         .build(),
                 isOwner
                         ? AccessorContext.authenticated(ObjectId.of(viewer.getId()))

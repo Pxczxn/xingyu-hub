@@ -31,6 +31,7 @@ public class TrashService {
     private final ContentTrashMapper trashMapper;
     private final WorkingDraftMapper draftMapper;
     private final CommunityEventSupport eventSupport;
+    private final SearchIndexService searchIndexService;
 
     public List<TrashItemView> listForOwner(CommunityUser user) {
         return trashMapper.listByOwnerId(user.getId()).stream()
@@ -62,6 +63,10 @@ public class TrashService {
         article.setUpdatedAt(now);
         articleMapper.updateById(article);
         publishLifecycleChanged(article);
+        // Same reason as PublicationService: the lifecycle event is consumed asynchronously,
+        // so the index would keep serving the trashed article's title for up to the poll
+        // interval. Removing it inline keeps search/discovery consistent with the detail route.
+        searchIndexService.refresh(SearchIndexService.ARTICLE, articleId);
         return toView(trash);
     }
 
@@ -85,6 +90,9 @@ public class TrashService {
             article.setUpdatedAt(Instant.now());
             articleMapper.updateById(article);
             publishLifecycleChanged(article);
+            // Restoring a still-published article must re-enter search without waiting for
+            // the event consumer.
+            searchIndexService.refresh(SearchIndexService.ARTICLE, articleId);
         }
     }
 
