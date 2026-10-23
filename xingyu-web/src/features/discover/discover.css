@@ -78,6 +78,69 @@
 .discover-directory-content[data-open="false"] {
   display: none;
 }
+/*
+ * Chapter switcher. The menu renders in a portal on <body>, so it cannot inherit
+ * --discover-ease from .discover-layout; every rule here falls back to ease-out.
+ * The warm white is the card colour lifted by the brand gold wash rather than a
+ * new colour token, which keeps the palette inside the design system.
+ */
+.discover-chapter-trigger {
+  transition:
+    border-color 160ms var(--discover-ease, ease-out),
+    background-color 160ms var(--discover-ease, ease-out);
+}
+/*
+ * The label span sits next to the chevron and has to shrink before `truncate`
+ * can ellipsize a long chapter title inside the narrow directory column.
+ */
+.discover-chapter-trigger > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.discover-chapter-trigger:hover {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--surface-sunken) / 0.6);
+}
+.discover-chapter-trigger[data-state="open"] {
+  border-color: hsl(var(--accent-line));
+  background-color: hsl(var(--accent-soft) / 0.7);
+}
+.discover-chapter-menu {
+  background-color: hsl(var(--card));
+  background-image: linear-gradient(hsl(var(--accent-soft) / 0.55), hsl(var(--accent-soft) / 0.55));
+  box-shadow:
+    0 12px 28px -12px hsl(var(--foreground) / 0.18),
+    0 2px 6px -2px hsl(var(--foreground) / 0.08);
+  animation: discover-chapter-menu-in 160ms var(--discover-ease, ease-out);
+}
+.discover-chapter-option {
+  color: hsl(var(--foreground));
+  transition: background-color 120ms ease-out;
+}
+.discover-chapter-option[data-state="checked"] {
+  background-color: hsl(var(--accent-soft) / 0.75);
+  color: hsl(var(--accent-strong));
+  font-weight: 500;
+}
+.discover-chapter-option[data-highlighted] {
+  background-color: hsl(var(--accent-line) / 0.28);
+  color: hsl(var(--foreground));
+}
+.discover-chapter-option[data-state="checked"][data-highlighted] {
+  background-color: hsl(var(--accent-line) / 0.45);
+  color: hsl(var(--accent-strong));
+}
+@keyframes discover-chapter-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .discover-reading-viewport {
   overflow: visible;
   overflow-wrap: anywhere;

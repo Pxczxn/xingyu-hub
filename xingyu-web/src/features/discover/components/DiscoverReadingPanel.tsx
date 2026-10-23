@@ -1,4 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Check, ChevronDown } from "lucide-react";
 import { articlesApi } from "@/api/articles/articles.api";
 import type { ArticleDetail } from "@/api/articles/articles.types";
 import type { PublicSeriesDetail } from "@/api/series/series.types";
@@ -15,6 +17,7 @@ type ChapterState =
 export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
   const headingPrefix = `${useId()}-heading-`;
   const directoryId = useId();
+  const chapterLabelId = useId();
   const readingViewport = useRef<HTMLDivElement>(null);
   const chapters = "chapters" in content ? content.chapters : null;
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
@@ -25,6 +28,9 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
   const chapterId =
     chapters?.find((chapter) => chapter.articleId === selectedChapter)?.articleId ??
     chapters?.[0]?.articleId;
+  const activeChapterIndex =
+    chapters?.findIndex((chapter) => chapter.articleId === chapterId) ?? -1;
+  const activeChapter = activeChapterIndex >= 0 ? chapters?.[activeChapterIndex] : undefined;
 
   useEffect(() => {
     if (!chapterId) return;
@@ -125,23 +131,62 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
         >
           {chapters &&
             (chapters.length ? (
-              <label className="block text-xs font-medium text-muted-foreground">
-                切换章节
-                <select
-                  value={chapterId}
-                  onChange={(event) => {
-                    setSelectedChapter(event.target.value);
-                    setOutlineExpanded(false);
-                  }}
-                  className="focus-ring mt-2 min-h-11 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm text-foreground"
-                >
-                  {chapters.map((chapter, index) => (
-                    <option key={chapter.articleId} value={chapter.articleId}>
-                      {index + 1}. {chapter.title || `第 ${index + 1} 章`}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="block text-xs font-medium text-muted-foreground">
+                <span id={chapterLabelId}>切换章节</span>
+                {/*
+                 * A non-modal DropdownMenu, not a Radix Select: Select wraps its
+                 * content in RemoveScroll unconditionally (react-select/dist/
+                 * index.mjs, the SelectContent.RemoveScroll slot), which locks the
+                 * document and removes the page scrollbar the moment the menu opens.
+                 * The non-modal menu branch disables scroll lock (react-menu/dist/
+                 * index.mjs MenuRootContentNonModal), so page layout stays put.
+                 */}
+                <DropdownMenu.Root modal={false}>
+                  <DropdownMenu.Trigger
+                    aria-labelledby={chapterLabelId}
+                    title={activeChapter?.title ?? undefined}
+                    className="discover-chapter-trigger focus-ring mt-2 flex min-h-11 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-border/70 bg-card px-2.5 text-left text-sm text-foreground"
+                  >
+                    <span className="block min-w-0 flex-1 truncate">
+                      {activeChapterIndex >= 0 ? `${activeChapterIndex + 1}. ` : ""}
+                      {activeChapter?.title ||
+                        (activeChapterIndex >= 0 ? `${activeChapterIndex + 1} 章` : "")}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                      align="end"
+                      sideOffset={4}
+                      className="discover-chapter-menu z-50 max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))] w-max min-w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(22rem,92vw)] overflow-y-auto rounded-lg border border-border/70 p-1 text-foreground"
+                    >
+                      <DropdownMenu.RadioGroup
+                        value={chapterId}
+                        onValueChange={(value) => {
+                          setSelectedChapter(value);
+                          setOutlineExpanded(false);
+                        }}
+                      >
+                        {chapters.map((chapter, index) => (
+                          <DropdownMenu.RadioItem
+                            key={chapter.articleId}
+                            value={chapter.articleId}
+                            title={chapter.title || `第 ${index + 1} 章`}
+                            className="discover-chapter-option relative flex cursor-pointer select-none items-start gap-1.5 rounded-md py-1.5 pl-2 pr-6 text-[13px] leading-5 outline-none"
+                          >
+                            <span className="block min-w-0 truncate">
+                              {index + 1}. {chapter.title || `第 ${index + 1} 章`}
+                            </span>
+                            <DropdownMenu.ItemIndicator className="absolute right-1.5 top-1.5">
+                              <Check className="h-3.5 w-3.5 text-accent-strong" aria-hidden />
+                            </DropdownMenu.ItemIndicator>
+                          </DropdownMenu.RadioItem>
+                        ))}
+                      </DropdownMenu.RadioGroup>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
             ) : (
               <p className="text-xs text-muted-foreground">暂无章节</p>
             ))}

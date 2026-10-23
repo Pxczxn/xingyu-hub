@@ -57,6 +57,23 @@ function expand(summary?: string) {
   fireEvent.click(screen.getByText("测试系列"));
   return view;
 }
+
+/*
+ * The chapter switcher is a non-modal Radix DropdownMenu rather than a Radix
+ * Select: Select locks document scroll while open, which dropped the page
+ * scrollbar. The trigger is a button labelled by the "切换章节" span and the
+ * options are menuitemradio elements.
+ */
+async function selectChapter(name: string) {
+  const trigger = await screen.findByRole("button", { name: "切换章节" });
+  await act(async () => {
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: "mouse" });
+  });
+  const option = await screen.findByRole("menuitemradio", { name });
+  await act(async () => {
+    fireEvent.click(option);
+  });
+}
 it("reading panel keeps body and directory landmarks without redundant visible labels", async () => {
   expand();
   expect(await screen.findByText("正文 a")).toBeInTheDocument();
@@ -84,7 +101,7 @@ it("chapter loading keeps the same reading viewport and resets only its own scro
       resolveNext = resolve;
     }),
   );
-  fireEvent.change(screen.getByRole("combobox", { name: "切换章节" }), { target: { value: "b" } });
+  await selectChapter("2. 第二章");
   expect(screen.getByText("章节加载中...")).toBeInTheDocument();
   expect(region.querySelector("[data-reading-viewport]")).toBe(viewport);
   expect(viewport.scrollTop).toBe(0);
@@ -105,13 +122,15 @@ it("series opens the first chapter body and switches chapters from its directory
   expand();
   expect(await screen.findByText("正文 a")).toBeInTheDocument();
   const directory = screen.getByRole("navigation", { name: "章节目录" });
-  expect(within(directory).getByRole("combobox", { name: "切换章节" })).toHaveValue("a");
-  fireEvent.change(within(directory).getByRole("combobox", { name: "切换章节" }), {
-    target: { value: "b" },
-  });
+  expect(within(directory).getByRole("button", { name: "切换章节" })).toHaveTextContent(
+    "1. 第一章",
+  );
+  await selectChapter("2. 第二章");
   expect(await screen.findByText("正文 b")).toBeInTheDocument();
   expect(screen.queryByText("正文 a")).not.toBeInTheDocument();
-  expect(within(directory).getByRole("combobox", { name: "切换章节" })).toHaveValue("b");
+  expect(within(directory).getByRole("button", { name: "切换章节" })).toHaveTextContent(
+    "2. 第二章",
+  );
   expect(screen.getByText("真实评论 1")).toBeInTheDocument();
 });
 it("articles render their full Markdown body with working heading links and comments below", async () => {
@@ -362,9 +381,7 @@ it("late chapter responses cannot overwrite the selected chapter", async () => {
     }),
   );
   expand();
-  fireEvent.change(await screen.findByRole("combobox", { name: "切换章节" }), {
-    target: { value: "b" },
-  });
+  await selectChapter("2. 第二章");
   expect(await screen.findByText("正文 b")).toBeInTheDocument();
   await act(async () => {
     resolveFirst({ id: "a", body: "旧章节正文" });
@@ -453,7 +470,7 @@ it("sizes the desktop reading limit from measured header geometry and releases i
 
 it("expanding hides the list summary without a duplicate introduction card", async () => {
   expand("关于产品、写作与社区反馈的连续记录。");
-  expect(await screen.findByRole("combobox", { name: "切换章节" })).toHaveValue("a");
+  expect(await screen.findByRole("button", { name: "切换章节" })).toHaveTextContent("1. 真实章节");
   expect(screen.getAllByText("关于产品、写作与社区反馈的连续记录。")).toHaveLength(1);
   expect(
     screen.getByText("关于产品、写作与社区反馈的连续记录。").closest(".discover-summary"),
@@ -463,7 +480,7 @@ it("expanding hides the list summary without a duplicate introduction card", asy
 });
 it("guests see three preview comments and a login link without requesting the full list", async () => {
   expand();
-  expect(await screen.findByRole("combobox", { name: "切换章节" })).toHaveValue("a");
+  expect(await screen.findByRole("button", { name: "切换章节" })).toHaveTextContent("1. 真实章节");
   expect(await screen.findByText("真实评论 1")).toBeInTheDocument();
   expect(screen.getByText("真实评论 3")).toBeInTheDocument();
   expect(screen.queryByText("真实评论 4")).not.toBeInTheDocument();
@@ -474,7 +491,7 @@ it("guests see three preview comments and a login link without requesting the fu
 it("comment failures do not hide successfully loaded content", async () => {
   mocks.signedIn = true;
   expand();
-  expect(await screen.findByRole("combobox", { name: "切换章节" })).toHaveValue("a");
+  expect(await screen.findByRole("button", { name: "切换章节" })).toHaveTextContent("1. 真实章节");
   expect(await screen.findByText("评论加载失败，请稍后重试。")).toBeInTheDocument();
   expect(mocks.preview).not.toHaveBeenCalled();
 });
@@ -482,7 +499,7 @@ it("guests see comment errors rather than a misleading login restriction", async
   mocks.preview.mockRejectedValue(new Error("Network error"));
   expand();
   expect(await screen.findByRole("alert")).toHaveTextContent("评论加载失败，请稍后重试。");
-  expect(await screen.findByRole("combobox", { name: "切换章节" })).toHaveValue("a");
+  expect(await screen.findByRole("button", { name: "切换章节" })).toHaveTextContent("1. 真实章节");
 });
 it("empty previews show an empty state", async () => {
   mocks.preview.mockResolvedValue([]);
