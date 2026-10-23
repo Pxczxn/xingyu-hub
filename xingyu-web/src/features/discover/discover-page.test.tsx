@@ -68,7 +68,7 @@ describe("discover page", () => {
     expect(await screen.findByText("真实发现内容")).toBeInTheDocument();
     expect(discover).toHaveBeenCalledWith({ limit: 20 });
     expect(topics).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("heading", { name: "探索发现" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "探索", level: 1 })).toBeInTheDocument();
   });
 
   it("renders every real topic as a filter button, including one with no content", async () => {

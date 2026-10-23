@@ -244,7 +244,7 @@ describe("legacy redirect table", () => {
 describe("phase 1A routes", () => {
   it("renders the discover page at /discover", async () => {
     renderAt("/discover");
-    expect(await screen.findByRole("heading", { name: "探索发现" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "探索", level: 1 })).toBeInTheDocument();
     // Wait for the (mocked, empty) feed so no state update lands after the test.
     await waitFor(() => expect(screen.getByTestId("page-state-empty")).toBeInTheDocument());
   });

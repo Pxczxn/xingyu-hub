@@ -5,7 +5,7 @@ import { useState, useEffect, useId, useRef, useLayoutEffect } from "react";
 import { contentHref } from "@/components/shared/ContentCard";
 import { ContentCoverImage } from "@/components/shared/OptimizedImage";
 import { cn } from "@/lib/cn";
-import { BookOpen, Users, Heart, MessageSquare, Clock, Loader2 } from "lucide-react";
+import { Heart, MessageSquare, Clock, Loader2 } from "lucide-react";
 import { articlesApi } from "@/api/articles/articles.api";
 import { seriesApi } from "@/api/series/series.api";
 import { interactionsApi } from "@/api/interactions/interactions.api";
@@ -238,12 +238,9 @@ export function DiscoverListItem({
         <div
           data-discover-variant={variant}
           className={cn(
-            "discover-row group relative block px-4 sm:px-6",
+            "discover-row group relative block",
             isCompact || isExpanded ? "py-3" : "py-5",
-            isExpanded && "bg-muted/20 before:opacity-100",
-            "hover:bg-gradient-to-r hover:from-muted/40 hover:to-transparent",
-            "before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:bg-accent before:opacity-0 before:transition-opacity before:duration-200",
-            "hover:before:opacity-100",
+            isExpanded && "bg-muted/20",
             className,
           )}
         >
@@ -251,7 +248,9 @@ export function DiscoverListItem({
             data-reading-toolbar={isExpanded || undefined}
             className={cn(
               "discover-item-header",
-              isExpanded && "discover-reading-toolbar rounded-lg bg-background/95",
+              isExpanded
+                ? "discover-reading-toolbar rounded-lg bg-background/95"
+                : "flex items-start justify-between gap-5",
             )}
           >
             {/* 可点击区域 - 展开/收起；收起按钮保持为其独立的同级控件。 */}
@@ -270,60 +269,46 @@ export function DiscoverListItem({
                   onToggleExpand();
                 }
               }}
-              className="min-w-0 cursor-pointer rounded-sm focus-ring"
+              className="min-w-0 flex-1 cursor-pointer rounded-sm focus-ring"
             >
               {/* 折叠内容 */}
               <div className="flex gap-4">
-                {/* 左侧封面图（如果有） */}
-                {hasCover && item.cover ? (
-                  <div
-                    className="discover-cover relative shrink-0 overflow-hidden rounded-xl ring-1 ring-border/50"
-                    aria-hidden
-                  >
-                    <ContentCoverImage
-                      src={item.cover}
-                      alt=""
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                    {/* 渐变遮罩 */}
-                    <div
-                      className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                      aria-hidden
-                    />
-                  </div>
-                ) : null}
-
+                {/*
+                 * 封面退到右侧、只在真有封面时出现。
+                 *
+                 * 视觉稿是纯文字流（样图里所有行都没有封面），但 cover 是服务端
+                 * 真实字段而不是装饰，删掉展示能力等于功能退化。放在标题之后、
+                 * 与文字列并排，没有封面时这一列不存在，行的左边缘不会因为
+                 * 「有的行有图、有的行没有」而错位。
+                 */}
                 {/* 右侧内容 */}
                 <div className="min-w-0 flex-1">
-                  {/* 元信息行 */}
+                  {/*
+                   * 署名行：字母头像 + 作者 · 类型 · 日期，一条线读到底。
+                   *
+                   * 视觉稿把这一行压成 12px 的连续文本（头像 24px），比原来
+                   * 「人形图标 + 蓝紫胶囊 + 时钟图标」轻得多：三个图标同权重时
+                   * 每一行都在抢标题的注意力。类型仍然用胶囊区分，只是改成中性
+                   * 灰/淡紫，让「系列」与「文章」一眼可辨但不刺眼。
+                   *
+                   * 没有作者时整块不渲染，行首直接是类型与日期 —— 不留空头像位。
+                   */}
                   <div
                     className={cn(
-                      "flex flex-wrap items-center gap-x-2 gap-y-1 text-xs",
+                      "flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground",
                       isCompact || isExpanded ? "mb-1" : "mb-2.5",
-                      // 折叠行右上角常驻「阅读全文」，元信息不进入该区域。
-                      !isExpanded && "pr-24 sm:pr-28",
                     )}
                   >
-                    {/* 作者 */}
                     {item.authorName ? (
                       <>
-                        <span className="flex min-w-0 max-w-full items-center gap-1 font-medium text-foreground transition-colors group-hover:text-accent-strong">
-                          <svg
-                            className="h-3 w-3 shrink-0 opacity-60"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden
-                          >
-                            <circle cx="12" cy="8" r="4" strokeWidth="2" />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M4 20c0-3.314 2.686-6 6-6h4c3.314 0 6 2.686 6 6"
-                            />
-                          </svg>
-                          <span className="truncate">{item.authorName}</span>
+                        <span
+                          aria-hidden
+                          className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground"
+                        >
+                          {item.authorName.slice(0, 1)}
+                        </span>
+                        <span className="min-w-0 max-w-full truncate font-medium text-foreground/80 transition-colors group-hover:text-foreground">
+                          {item.authorName}
                         </span>
                         <span className="text-border" aria-hidden>
                           ·
@@ -331,29 +316,17 @@ export function DiscoverListItem({
                       </>
                     ) : null}
 
-                    {/* 内容类型标签 */}
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-all",
+                        "inline-flex shrink-0 items-center rounded-[7px] px-2 py-0.5 text-[11px] font-medium",
                         isSeriesType
-                          ? "bg-purple-500/10 text-purple-600 ring-1 ring-purple-500/20 dark:bg-purple-400/10 dark:text-purple-400"
-                          : "bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400",
+                          ? "bg-[hsl(272_44%_95%)] text-[hsl(270_28%_53%)]"
+                          : "bg-muted text-muted-foreground",
                       )}
                     >
-                      {isSeriesType ? (
-                        <>
-                          <Users className="h-3 w-3" aria-hidden />
-                          系列
-                        </>
-                      ) : (
-                        <>
-                          <BookOpen className="h-3 w-3" aria-hidden />
-                          文章
-                        </>
-                      )}
+                      {isSeriesType ? "系列" : "文章"}
                     </span>
 
-                    {/* 更新时间 */}
                     {item.updatedAt ? (
                       <>
                         <span className="text-border" aria-hidden>
@@ -361,9 +334,8 @@ export function DiscoverListItem({
                         </span>
                         <time
                           dateTime={item.updatedAt}
-                          className="flex items-center gap-1 text-muted-foreground transition-colors group-hover:text-foreground"
+                          className="shrink-0 text-[11px] tabular-nums text-muted-foreground/75"
                         >
-                          <Clock className="h-3 w-3" aria-hidden />
                           {new Date(item.updatedAt).toLocaleDateString("zh-CN", {
                             month: "numeric",
                             day: "numeric",
@@ -376,22 +348,24 @@ export function DiscoverListItem({
                   {/* 标题 */}
                   <h3
                     className={cn(
-                      "text-lg font-bold leading-7 text-foreground transition-colors duration-200 group-hover:text-accent-strong",
+                      "font-bold text-foreground transition-colors duration-200 group-hover:text-accent-strong",
+                      // 标题字距按视觉稿收到 -0.5px：19px 下 -0.01em 只有 -0.19px，
+                      // 中文方块字在 19px 上几乎看不出区别，拉丁字母却明显偏松。
                       isExpanded
-                        ? "mb-1 break-words [overflow-wrap:anywhere] md:text-xl md:leading-8"
+                        ? "mb-1 break-words text-[1.1875rem] leading-[1.4] tracking-[-0.5px] [overflow-wrap:anywhere]"
                         : isCompact
-                          ? "mb-0 line-clamp-2"
-                          : "mb-2.5 line-clamp-2 md:text-xl md:leading-8",
+                          ? "mb-0 line-clamp-2 text-[1.0625rem] leading-[1.4] tracking-[-0.4px]"
+                          : "mb-2 line-clamp-2 text-[1.1875rem] leading-[1.4] tracking-[-0.5px]",
                     )}
                   >
                     {item.title}
                   </h3>
 
-                  {/* 摘要 */}
+                  {/* 摘要：单行省略，扫读时不会因为两行折行把行高撑开 */}
                   {item.summary ? (
                     <div className="discover-summary" aria-hidden={isCompact || isExpanded}>
                       <div className="min-h-0 overflow-hidden">
-                        <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground/90">
+                        <p className="mb-3 truncate text-[13px] leading-[1.7] text-muted-foreground/90">
                           {item.summary}
                         </p>
                       </div>
@@ -401,30 +375,51 @@ export function DiscoverListItem({
                   {/* 统计信息 */}
                   <div
                     className={cn(
-                      "flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground",
+                      "flex flex-wrap items-center gap-x-[18px] gap-y-1 text-xs text-muted-foreground",
                       isCompact && "hidden",
                     )}
                   >
                     {item.likeCount !== undefined ? (
-                      <span className="flex items-center gap-1.5 transition-colors hover:text-accent-strong">
-                        <Heart className="h-3.5 w-3.5" aria-hidden />
+                      <span className="flex items-center gap-1.5">
+                        <Heart className="h-[15px] w-[15px]" aria-hidden />
                         <span className="tabular-nums">{item.likeCount} 赞</span>
                       </span>
                     ) : null}
                     {item.commentCount !== undefined ? (
-                      <span className="flex items-center gap-1.5 transition-colors hover:text-accent-strong">
-                        <MessageSquare className="h-3.5 w-3.5" aria-hidden />
+                      <span className="flex items-center gap-1.5">
+                        <MessageSquare className="h-[15px] w-[15px]" aria-hidden />
                         <span className="tabular-nums">{item.commentCount} 评论</span>
                       </span>
                     ) : null}
                     {item.readMinutes !== undefined && item.readMinutes > 0 ? (
                       <span className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" aria-hidden />
+                        <Clock className="h-[15px] w-[15px]" aria-hidden />
                         {item.readMinutes} 分钟
                       </span>
                     ) : null}
                   </div>
                 </div>
+
+                {/*
+                 * 封面缩略图 —— 真有封面时才出现，放在文字列右侧并与行同高。
+                 *
+                 * 视觉稿的数据全是无封面内容，所以稿子里看不到这一列；但 cover
+                 * 是真实字段，去掉展示能力就是功能退化。缩到 96×72 且不做 hover
+                 * 放大，有图的行只是多一张小图，没有图的行与稿子完全一致。
+                 */}
+                {hasCover && item.cover ? (
+                  <div
+                    className="relative hidden shrink-0 overflow-hidden rounded-lg ring-1 ring-border/50 sm:block"
+                    style={{ width: 96, height: 72 }}
+                    aria-hidden
+                  >
+                    <ContentCoverImage
+                      src={item.cover}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
             {isExpanded ? (
@@ -441,15 +436,20 @@ export function DiscoverListItem({
             ) : (
               /*
                * 折叠行只有「展开预览」一条路径时，完整阅读要先展开再找面板底部的入口；
-               * 这里给一个常驻、不挤压标题与摘要的直达入口，键盘与新标签页都能用。
+               * 这里给一个常驻的直达入口，键盘与新标签页都能用。
+               *
+               * 位置按视觉稿放到行右缘、与文字列垂直居中 —— 原来绝对定位在右上角，
+               * 会与标题首行抢同一条基线，行高越高越显得悬空。
                */
               <Link
                 to={href}
                 aria-label={`阅读全文：${item.title}`}
-                className="focus-ring absolute right-4 top-4 inline-flex min-h-11 items-center gap-1 whitespace-nowrap rounded-md px-2 text-sm font-medium text-accent-strong transition-colors hover:bg-accent-soft sm:right-6"
+                className="focus-ring inline-flex min-h-11 shrink-0 items-center gap-1 self-center whitespace-nowrap rounded-md pl-3 pr-1 text-[13px] font-semibold text-accent-strong/90 transition-colors hover:text-accent-strong"
               >
                 阅读全文
-                <span aria-hidden>›</span>
+                <span aria-hidden className="text-base font-normal leading-none">
+                  ›
+                </span>
               </Link>
             )}
           </div>
@@ -464,7 +464,7 @@ export function DiscoverListItem({
             <div ref={panelClipRef} className="discover-panel-clip">
               <div
                 ref={panelContentRef}
-                className="discover-panel-content space-y-3 rounded-xl border border-border/60 bg-gradient-to-br from-muted/40 to-muted/20 p-2 shadow-sm"
+                className="discover-panel-content space-y-3 border-t border-border/60 bg-muted/15 p-4"
               >
                 <div className="discover-reader min-w-0">
                   {loading || (!detailContent && !error) ? (
@@ -506,7 +506,7 @@ export function DiscoverListItem({
 
                 <section
                   aria-label="评论预览"
-                  className="rounded-lg border border-border/60 bg-card p-3"
+                  className="border-t border-border/60 pt-3"
                 >
                   <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
                     <MessageSquare className="h-4 w-4" aria-hidden />

@@ -7,7 +7,6 @@ import type { DiscoverInput } from "@/api/discover/discover.types";
 import type { ContentSummary } from "@/api/common.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { topicsApi } from "@/api/topics/topics.api";
-import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { DiscoverSidebar } from "@/features/discover/components/DiscoverSidebar";
 import { DiscoverListItem } from "@/features/discover/components/DiscoverListItem";
@@ -140,9 +139,36 @@ export function DiscoverPage() {
   const isFiltered = Boolean(topic || type);
 
   return (
-    <div className="section-gap">
-      <PageMasthead variant="featured" title="探索发现" description="优质内容，每天更新" />
-      <div className="discover-layout grid gap-6" data-focused={expandedKey !== null}>
+    <div>
+      {/*
+       * 报头按视觉稿重排：eyebrow / 大标题 / 一句说明，右侧一句金句对齐基线，
+       * 整条报头以一条细线收口 —— 与首页报头同一套排版语言，但字号与留白按
+       * 探索页自己的稿子（标题 39px、上下 39/27px）。不再复用 PageMasthead：
+       * 那个组件是「标题 + 操作按钮」的横向条，装不下右侧金句与底部通栏细线。
+       */}
+      <header className="border-b border-border/60">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 py-8 pb-6 sm:py-9 sm:pb-7">
+          <div className="min-w-0">
+            <p className="eyebrow">DISCOVER · 阅读发现</p>
+            <h1 className="font-display mt-2 text-[2.05rem] font-extrabold leading-[1.22] tracking-[-0.045em] text-primary sm:text-[2.4375rem]">
+              探索
+            </h1>
+            <p className="mt-2.5 text-sm text-muted-foreground">
+              从感兴趣的话题，找到下一篇想读的内容。
+            </p>
+          </div>
+          <p className="mb-1 hidden items-center gap-2 text-xs text-muted-foreground/75 sm:flex">
+            <span aria-hidden className="text-lg leading-none text-accent-line">
+              ✦
+            </span>
+            好内容，值得慢慢发现
+          </p>
+        </div>
+      </header>
+      <div
+        className="discover-layout mt-7 grid gap-6"
+        data-focused={expandedKey !== null}
+      >
         <DiscoverSidebar
           focused={expandedKey !== null}
           activeTopic={topic}
@@ -188,14 +214,23 @@ export function DiscoverPage() {
             </div>
           )}
           {!loading && !error && items.length > 0 && (
-            <div className="rounded-2xl border border-border/80 bg-card shadow-sm">
-              <ul className="flex flex-col divide-y divide-border/40">
+            <div>
+              <div className="flex items-baseline justify-between gap-4 border-b border-border/70 pb-3">
+                <h2 className="text-[1.0625rem] font-bold tracking-[-0.01em] text-foreground">
+                  发现内容
+                </h2>
+                <p className="hidden text-xs text-muted-foreground sm:block">
+                  点击内容可<span className="px-0.5 text-accent-strong">展开阅读预览</span> ·
+                  或直接阅读全文
+                </p>
+              </div>
+              <ul>
                 {items.map((item) => {
                   const key = itemKey(item);
                   return (
                     <li
                       key={key}
-                      className="scroll-mt-24"
+                      className="scroll-mt-24 border-b border-border/50 last:border-b-0"
                       ref={(node) => {
                         if (node) rowRefs.current.set(key, node);
                         else rowRefs.current.delete(key);
@@ -220,17 +255,17 @@ export function DiscoverPage() {
             </div>
           )}
           {!loading && !error && loadMoreError && (
-            <p role="alert" className="pt-2 text-center text-sm text-destructive">
+            <p role="alert" className="pt-2 text-right text-sm text-destructive">
               {loadMoreError}
             </p>
           )}
           {!loading && !error && nextCursor && (
-            <div className="mt-8 text-center">
+            <div className="mt-6 flex items-center justify-end">
               <Button
                 variant="outline"
-                size="lg"
                 disabled={loadingMore}
                 onClick={() => void loadMore()}
+                className="px-6"
               >
                 {loadingMore ? "正在加载…" : "加载更多"}
               </Button>

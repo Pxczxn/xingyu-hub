@@ -99,10 +99,17 @@
 }
 @media (min-width: 1024px) {
   .discover-layout {
-    grid-template-columns: minmax(0, calc((100% - 1.5rem) / 5)) minmax(0, 1fr);
+    /*
+     * 244px 筛选栏 + 39px 栏间距，取自视觉稿。侧栏用固定宽度而不是比例：
+     * 话题名是单行截断的短标签，超过 244px 只是把「内容计数」推得更远；
+     * 比例宽度在大屏上会把侧栏撑到 300px 以上，反而挤掉正文的行长。
+     */
+    grid-template-columns: 244px minmax(0, 1fr);
+    column-gap: 39px;
   }
   .discover-layout[data-focused="true"] {
-    grid-template-columns: minmax(0, 156px) minmax(0, 1fr);
+    grid-template-columns: 156px minmax(0, 1fr);
+    column-gap: 28px;
   }
   .discover-reading-toolbar {
     position: static;
