@@ -207,23 +207,35 @@ export function HomePage() {
 
   return (
     <div className="section-gap">
-      {/* 增强版 Hero 区 */}
+      {/*
+        Nameplate only. Promoting the newest row into the head was tried and
+        reverted — it printed the same headline twice above the fold and made
+        every text query for that article ambiguous. The head says what the page
+        is; the list starts right under it.
+      */}
       <EnhancedHero isAuthenticated={isAuthenticated} />
 
       {/* 公告条：时效性信息，Hero 和内容区之间 */}
       {notice ? <HomeNotice item={notice} /> : null}
 
-      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
+      {/*
+        Two columns from `lg`, one below it. The rail is 300px rather than 320 so
+        the feed keeps a usable measure on a 1024 screen; below `lg` the rail
+        stacks under the feed, which is where the old `md` switch used to squeeze
+        rows into ~430px.
+      */}
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-14">
         {/* 左列 — 主 Feed 区 */}
         <div
           className={cn(
-            "flex min-w-0 flex-col gap-4",
-            showSidebar ? "md:col-span-1" : "md:col-span-2",
+            "flex min-w-0 flex-col gap-5",
+            showSidebar ? "lg:col-span-1" : "lg:col-span-2",
           )}
         >
           <HomeFeedTabs
             value={tab}
             onChange={setTab}
+            topics={topicSection.items}
             trailing={
               tab === "recommend" ? (
                 <Link
@@ -279,12 +291,13 @@ export function HomePage() {
                 </div>
               </div>
             ) : (
-              <div
-                className={cn(
-                  "animate-in fade-in slide-in-from-bottom-4 duration-300",
-                  "rounded-2xl border border-border/80 bg-card shadow-sm overflow-hidden",
-                )}
-              >
+              // Rows, not a card. A 2xl bordered card wrapping a list made the
+              // feed read as one object and pushed the section's edge 24px past
+              // every other block on the page; a single hairline above the first
+              // row is enough to separate it from the tabs, and each row's own
+              // hover wash now spans the full column instead of being clipped by
+              // `overflow-hidden`.
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 border-t border-border/70">
                 {/*
                  * 第四刀：Feed 内容卡增强
                  *
@@ -302,9 +315,7 @@ export function HomePage() {
                       key={item.id}
                       className={cn(
                         "animate-rise-in",
-                        index > 0 && "border-t border-border/40",
-                        index === 0 && "rounded-t-2xl overflow-hidden",
-                        index === (feedItems?.length ?? 0) - 1 && "rounded-b-2xl overflow-hidden",
+                        index > 0 && "border-t border-border/50",
                       )}
                       style={{ animationDelay: staggerDelay(index) }}
                     >
@@ -331,19 +342,27 @@ export function HomePage() {
          * 注意：这里的"探索星系"是 HomeSidebar 内部的模块，
          * 不是上方的 GalaxyExploreEntries。
          */}
-        {homeStatus === "loading" ? (
-          <HomeSidebarSkeleton />
-        ) : (
-          <HomeSidebar
-            topics={topicSection}
-            creators={creatorSection}
-            events={eventSection}
-            signedIn={isAuthenticated}
-            followError={creators.followError}
-            pendingUsername={creators.pendingUsername}
-            onToggleFollow={(creator) => void creators.toggleFollow(creator)}
-          />
-        )}
+        {/*
+          The rail follows the reader down the feed at `lg` and up. It is sticky
+          rather than fixed so it stops at its own last module, and `items-start`
+          on the grid keeps it from stretching to the feed's height (a stretched
+          sticky box pins at the wrong offset).
+        */}
+        <div className="lg:sticky lg:top-[92px] lg:self-start">
+          {homeStatus === "loading" ? (
+            <HomeSidebarSkeleton />
+          ) : (
+            <HomeSidebar
+              topics={topicSection}
+              creators={creatorSection}
+              events={eventSection}
+              signedIn={isAuthenticated}
+              followError={creators.followError}
+              pendingUsername={creators.pendingUsername}
+              onToggleFollow={(creator) => void creators.toggleFollow(creator)}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

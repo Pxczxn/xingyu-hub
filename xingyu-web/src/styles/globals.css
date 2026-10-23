@@ -218,6 +218,38 @@
   }
 
   /*
+   * Editorial face — the ONLY serif in the app, used by the home nameplate and
+   * the 今日精选 title so the reading surfaces get a print-like voice without
+   * touching the UI text anywhere else.
+   *
+   * The CJK families come FIRST on purpose: a serif stack that leads with Georgia
+   * renders Latin punctuation one way and Chinese glyphs another, and mixing the
+   * two inside one line is exactly what a 报头 cannot afford. These are all
+   * self-hosted-by-the-OS faces, so nothing is downloaded; a system that has none
+   * of them falls back through ui-serif to its own serif, which is still a serif.
+   */
+  .font-display {
+    font-family:
+      "Source Han Serif SC",
+      "Noto Serif SC",
+      "Songti SC",
+      "STSong",
+      "SimSun",
+      ui-serif,
+      Georgia,
+      Cambria,
+      "Times New Roman",
+      Times,
+      serif;
+    /*
+     * -0.01em, not the -0.022em the sans display sizes use: 宋体-class faces are
+     * already tight at large sizes, and pulling them further makes the counters
+     * of 星/语 touch at 40px.
+     */
+    letter-spacing: -0.01em;
+  }
+
+  /*
    * Shared shell: aligned with the header and footer so all three edges land on
    * the same vertical line. Was `max-w-[1440px]`, which ran body text to ~100 CJK
    * glyphs per line on a wide display; MASTER.md asks for 1152px. 1200px is the

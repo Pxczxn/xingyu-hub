@@ -44,59 +44,48 @@ export function TrendingTopicsPanel({
   return (
     <section
       aria-labelledby="home-trending-topics"
-      className="sidebar-card group rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/50 p-5 shadow-sm transition-all duration-200 hover:border-border hover:shadow-md"
+      className="rounded-2xl border border-border/60 bg-card/60 p-4"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2
           id="home-trending-topics"
-          className="flex items-center gap-2 text-sm font-semibold text-foreground"
+          className="flex items-center gap-2 text-[13px] font-semibold text-foreground"
         >
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/10 text-accent">
+          <span className="grid h-6 w-6 place-items-center rounded-md bg-accent-soft text-accent-strong">
             <Hash className="h-3.5 w-3.5" aria-hidden />
           </span>
           热门话题
         </h2>
         <Link
           to="/topics"
-          className="group/link shrink-0 inline-flex items-center gap-1 text-xs text-accent-strong transition-all hover:gap-1.5 hover:text-accent-strong/80"
+          className="shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-accent-strong"
         >
-          <span>查看全部</span>
-          <svg
-            className="h-3 w-3 transition-transform group-hover/link:translate-x-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          查看全部 →
         </Link>
       </div>
 
       <SectionState status={status} emptyText="暂无话题" className="border-0 bg-transparent p-0">
-        <ol className="flex flex-col gap-1">
+        <ol className="flex flex-col gap-0.5">
           {ranked.map((topic, index) => (
             <li key={topic.id}>
               <Link
                 to={`/topics/${encodeURIComponent(topic.slug)}`}
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-all duration-200 hover:bg-surface-sunken/70"
+                className="-mx-1.5 flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-sm transition-colors hover:bg-accent-soft/60"
               >
                 <span
                   aria-hidden
                   className={cn(
-                    "grid h-5 w-5 shrink-0 place-items-center rounded text-xs font-semibold tabular-nums",
-                    index < 3
-                      ? "bg-accent/20 text-accent-foreground"
-                      : "bg-muted text-muted-foreground",
+                    "w-4 shrink-0 text-center text-xs font-semibold tabular-nums",
+                    index < 3 ? "text-accent-strong" : "text-muted-foreground/60",
                   )}
                 >
                   {index + 1}
                 </span>
-                <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-foreground">
                   {topic.name}
                 </span>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {formatCompact(topic.contentCount ?? 0)} 内容
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                  {formatCompact(topic.contentCount ?? 0)} 篇
                 </span>
               </Link>
             </li>

@@ -385,7 +385,7 @@ describe("home (authenticated)", () => {
 });
 
 describe("home feed rows", () => {
-  it("uses real covers first and deterministic visuals for coverless content", async () => {
+  it("uses a real cover as the only thumbnail and leaves coverless rows text-only", async () => {
     homeMocked.getGuestHome.mockResolvedValue(
       guestHome({
         discoveries: [
@@ -415,12 +415,33 @@ describe("home feed rows", () => {
       expect(document.querySelector('img[src="/article-cover.jpg"]')).toBeInTheDocument(),
     );
     /*
-     * 契约（新 HomeFeedVisual）：只有真实封面渲染 <img>；无封面的非系列内容
-     * 降级为渐变占位块（无 img）；无封面 SERIES 用确定性生成封面
-     * （generated-series-cover，仍然恰好 1 个）。
+     * 契约（视觉稿）：只有真实封面渲染缩略图；无封面时该列整体消失 —— 既没有
+     * 占位图，也没有系列生成封面。缩略图是可选证据，不是版式填充。
      */
-    expect(document.querySelectorAll("img")).toHaveLength(1);
-    expect(screen.getAllByTestId("generated-series-cover")).toHaveLength(1);
+    // 断言范围限定在 feed 行（article）内：报头的星空素材也是一张 <img>，
+    // 但它是背景装饰、不是内容缩略图，不能算进「只有真实封面才出图」这条契约。
+    expect(document.querySelectorAll("article img")).toHaveLength(1);
+    expect(screen.queryAllByTestId("generated-series-cover")).toHaveLength(0);
+
+    /*
+     * 行栅格：有封面是「正文 + 缩略图」两栏，无封面是单栏。
+     *
+     * 这里必须断言 className 上的列定义，而不是「无封面行里没有 img」——
+     * `HomeFeedVisual` 内部本来就有 `if (!item.cover) return null`，那种断言
+     * 在没有这个修复时也成立，测不出回归。真正要守住的是：无封面行的 article
+     * 不再声明第二列，否则 CSS Grid 会为 `col-start-2` 生成一条 0 宽的隐式列
+     * （实测 `grid-template-columns: 830.5px 0px`），列定义与内容长期不一致。
+     */
+    const coverless = screen.getByText("文章 fallback").closest("article");
+    expect(coverless?.className).toContain("grid-cols-1");
+    expect(coverless?.className).not.toContain("minmax(0,1fr)_auto");
+    expect(coverless?.querySelectorAll("img")).toHaveLength(0);
+
+    const withCover = screen.getByText("真实封面").closest("article");
+    expect(withCover?.className).toContain("minmax(0,1fr)_auto");
+    expect(withCover?.className).not.toContain("grid-cols-1");
+    // 有封面的行仍然有那张缩略图链接（`aria-hidden` + `tabIndex=-1`）。
+    expect(withCover?.querySelectorAll("a[aria-hidden]")).toHaveLength(1);
   });
 
   it("renders the enrichment it was given, and nothing it was not", async () => {
@@ -517,10 +538,13 @@ describe("home feed byline", () => {
     expect(byline.textContent).not.toContain("·");
   });
 
-  it("drops the avatar in discovery and keeps it in the subscription feed", async () => {
+  it("shows an avatar in both feeds, and nothing when the row has no author", async () => {
     homeMocked.getGuestHome.mockResolvedValue(
       guestHome({
-        discoveries: [{ id: "d1", objectType: "ARTICLE", title: "推荐条目", authorName: "林深" }],
+        discoveries: [
+          { id: "d1", objectType: "ARTICLE", title: "推荐条目", authorName: "林深" },
+          { id: "d2", objectType: "ARTICLE", title: "无作者条目" },
+        ],
         followingUpdates: [
           { id: "f1", objectType: "ARTICLE", title: "关注条目", authorName: "林深" },
         ],
@@ -529,12 +553,18 @@ describe("home feed byline", () => {
 
     renderHome();
     await screen.findByText("推荐条目");
-    // Discovery scans by content, so its rows carry no author avatar at all.
-    expect(screen.queryByTestId("feed-avatar")).toBeNull();
+    // 有作者就用首字母兜底（真实头像缺失时），发现/关注同一套规则。
+    const avatars = screen.getAllByTestId("feed-avatar");
+    expect(avatars).toHaveLength(1);
+    expect(avatars[0]).toHaveTextContent("林");
+
+    // 没有作者的行不画空圆圈 —— 空头像会被读成一个真实用户。
+    expect(
+      screen.getByText("无作者条目").closest("article")?.querySelector("[data-testid=feed-avatar]"),
+    ).toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "关注" }));
     await screen.findByText("关注条目");
-    // Subscription scans by who published, so the avatar stays.
     expect(screen.getByTestId("feed-avatar")).toBeInTheDocument();
   });
 });
@@ -764,7 +794,8 @@ describe("home masthead", () => {
     // ✦ 是独立于标题文本的装饰 span（ml-2），textContent 中无空格，分开断言。
     expect(heading).toHaveTextContent("欢迎来到星语");
     expect(heading).toHaveTextContent("✦");
-    expect(screen.getByText("从一篇内容开始，探索属于你的星语")).toBeInTheDocument();
+    // 视觉稿钉住的副文：一句话说清这里有什么，不再用「从一篇内容开始」的产品说明。
+    expect(screen.getByText("在这里，遇见好内容，和同频的人。")).toBeInTheDocument();
   });
 
   it("gives a returning reader a one-line greeting", async () => {

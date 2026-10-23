@@ -1,62 +1,59 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { Heart, Star } from "lucide-react";
 import { cn } from "@/lib/cn";
+import type { TopicSummary } from "@/api/topics/topics.types";
 
 /*
- * Home feed switcher — 推荐 / 关注
+ * 首页内容流的顶部一行：推荐 / 关注 + 话题入口。
  *
- * 设计升级（2026-10-14）：
- *  - 从简单下划线 → 现代卡片式切换
- *  - 增加动效：悬浮、点击、切换
- *  - 增加视觉细节：背景、阴影、滑动指示器
+ * 两个 tab 是真实数据源切换：
+ *   推荐 -> MeHomeView.recommendations | GuestHomeView.discoveries
+ *   关注 -> MeHomeView.followUpdates   | GuestHomeView.followingUpdates
  *
- * 两个 tab 对应真实数据：
- *   - 推荐 -> MeHomeView.recommendations   | GuestHomeView.discoveries
- *   - 关注 -> MeHomeView.followUpdates     | GuestHomeView.followingUpdates
+ * 右侧每个话题都是真实话题（GET /api/v1/topics，按内容数排序），点击进入
+ * 该话题的探索页，而不是在首页做一次假的本地过滤 —— 首页接口不接受话题参数，
+ * 客户端过滤会得到「点了但列表没变」的假交互。没有话题数据时整段不渲染。
  *
- * `trailing` 是右侧插槽，首页用来放"查看更多推荐"
+ * `trailing` 是右端插槽，首页用来放「查看更多推荐」。
  */
 
 export type HomeFeedTab = "recommend" | "following";
 
-const TABS: { id: HomeFeedTab; label: string }[] = [
-  { id: "recommend", label: "推荐" },
-  { id: "following", label: "关注" },
+const TABS: { id: HomeFeedTab; label: string; icon: typeof Star }[] = [
+  { id: "recommend", label: "推荐", icon: Star },
+  { id: "following", label: "关注", icon: Heart },
 ];
+
+const TOPIC_CHIP_LIMIT = 6;
 
 export function HomeFeedTabs({
   value,
   onChange,
+  topics = [],
   trailing,
   className,
 }: {
   value: HomeFeedTab;
   onChange: (tab: HomeFeedTab) => void;
-  /** Rendered at the far right of the tab row. */
+  /** 真实话题，用于话题入口；空数组则不渲染。 */
+  topics?: TopicSummary[];
+  /** Rendered at the far right of the row. */
   trailing?: ReactNode;
   className?: string;
 }) {
-  const selectedIndex = TABS.findIndex((tab) => tab.id === value);
+  const chips = topics.slice(0, TOPIC_CHIP_LIMIT);
 
   return (
-    <div className={cn("flex items-center justify-between gap-4", className)}>
-      {/* Tab 列表 - 现代卡片式设计 */}
+    <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-2", className)}>
       <div
         role="tablist"
         aria-label="首页内容流"
-        className="relative inline-flex items-center gap-1 rounded-lg bg-muted/50 p-1"
+        className="flex shrink-0 items-center gap-1"
       >
-        {/* 滑动背景指示器 */}
-        <div
-          className="absolute left-1 top-1 bottom-1 rounded-md bg-background shadow-sm transition-all duration-200 ease-out"
-          style={{
-            width: `calc(50% - 4px)`,
-            transform: `translateX(${selectedIndex * 100}%)`,
-          }}
-          aria-hidden="true"
-        />
-
         {TABS.map((tab) => {
           const selected = tab.id === value;
+          const Icon = tab.icon;
           return (
             <button
               key={tab.id}
@@ -67,24 +64,53 @@ export function HomeFeedTabs({
               aria-controls={`home-tabpanel-${tab.id}`}
               onClick={() => onChange(tab.id)}
               className={cn(
-                "relative z-10 px-4 py-2 text-sm font-medium transition-all duration-200",
-                "rounded-md",
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 selected
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground active:scale-95",
+                  ? "bg-accent-soft font-medium text-accent-strong"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {/* Tab 文字 */}
-              <span className="relative">{tab.label}</span>
+              <Icon
+                className={cn("h-3.5 w-3.5", selected && "fill-current")}
+                aria-hidden
+              />
+              <span>{tab.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* 右侧插槽 - "查看更多推荐" */}
+      {chips.length > 0 ? (
+        <>
+          <span aria-hidden className="hidden h-4 w-px shrink-0 bg-border sm:block" />
+          <nav
+            aria-label="按话题浏览"
+            className="flex w-full min-w-0 items-center gap-1 overflow-x-auto sm:w-auto sm:flex-1"
+          >
+            <Link
+              to="/discover"
+              className="shrink-0 rounded-full px-2 py-1 text-sm font-medium text-foreground transition-colors hover:text-accent-strong"
+            >
+              全部
+            </Link>
+            {chips.map((topic) => (
+              <Link
+                key={topic.id}
+                to={`/discover?topic=${encodeURIComponent(topic.slug)}`}
+                className="shrink-0 rounded-full px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent-soft hover:text-accent-strong"
+              >
+                {topic.name}
+              </Link>
+            ))}
+          </nav>
+        </>
+      ) : (
+        <div className="flex-1" />
+      )}
+
       {trailing ? (
-        <div className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <div className="ml-auto shrink-0 text-sm text-muted-foreground transition-colors hover:text-foreground">
           {trailing}
         </div>
       ) : null}

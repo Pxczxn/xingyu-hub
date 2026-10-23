@@ -49,6 +49,13 @@ export function HomeSidebar({
   if (!hasSidebarContent([topics, creators, events])) return null;
 
   return (
+    /*
+     * 一列三张轻卡片，和内容区的平面列表形成「正文 / 边注」的分工。
+     *
+     * 之前试过纯细线分隔（无卡片），在只有文字时成立；一旦每块都带图标标题和
+     * 右侧动作，没有边界就会糊成一段。卡片只保留 1px 边框 + 半透明纸色，不加
+     * 阴影、不加 hover 抬升：边注是配角，不能和 feed 抢层级。
+     */
     <aside aria-label="社区侧栏" className="flex flex-col gap-4">
       <TrendingTopicsPanel status={topics.status} items={topics.items} />
       <RecommendedCreatorsPanel
