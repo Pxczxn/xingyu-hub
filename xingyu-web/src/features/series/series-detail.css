@@ -1,0 +1,225 @@
+/*
+ * Series detail geometry.
+ *
+ * Scoped to the work page (`/series/:seriesId`) the way `discover.css` is scoped
+ * to the plaza: the shared shell, header and footer keep their own geometry and
+ * nothing here is reusable elsewhere.
+ *
+ * Three things live here rather than in utility classes:
+ *
+ *   1. The two-column measure. The jacket column is a fixed 242px and the text
+ *      column takes the rest, because the cover must render at a real book size,
+ *      not at a percentage of the viewport. The breakpoints (1150 / 820 / 560)
+ *      are the visual spec's own and do not line up with Tailwind's scale.
+ *   2. The chapter row. A catalogue row is a hairline rule, not a card: it sits
+ *      full-bleed inside the text column, with the ordinal column sized so the
+ *      titles align across chapters regardless of the number width.
+ *   3. Two tints the token set does not carry — the warm ordinal ink and the
+ *      resume notice. They are declared as local variables on the layout root
+ *      so there is one place to change them and no pretence that they are
+ *      global tokens.
+ */
+
+.series-detail-layout {
+  --series-ordinal: 30 19% 52%;
+  --series-notice: 31 66% 44%;
+
+  display: grid;
+  grid-template-columns: 242px minmax(0, 1fr);
+  column-gap: 70px;
+  align-items: start;
+}
+
+/* The shell already provisions the top gap (`content-shell` py); only the space
+   between the trail and the work is this page's own. */
+.series-detail-crumb {
+  margin: 0 0 39px;
+}
+
+/* The rule between the jacket blurb and the catalogue: it closes the
+   introduction and opens the list, so it gets more air above than below. */
+.series-detail-sep {
+  margin: 43px 0 31px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.series-detail-jacket-col {
+  min-width: 0;
+}
+
+/*
+ * Descendant selector, not a bare class: `SeriesCover` sets `w-full` on its own
+ * root, and both selectors have the same specificity — this one has to win on
+ * specificity rather than on stylesheet order, which the bundler owns.
+ */
+.series-detail-jacket-col .series-detail-jacket {
+  width: 222px;
+}
+
+.series-detail-caption {
+  margin-top: 19px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: hsl(var(--muted-foreground) / 0.85);
+}
+
+.series-detail-caption-label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--foreground-soft));
+}
+
+/*
+ * How far into the work the reader is. The bar is a hairline under the caption
+ * rather than a widget: it answers "how much is left" in one glance while the
+ * sentence above answers "which chapter". Only rendered when a chapter is
+ * actually recorded — an empty track would claim 0% progress for a guest who
+ * has simply not started.
+ */
+.series-detail-meter {
+  width: 215px;
+  height: 3px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: hsl(var(--muted));
+}
+
+.series-detail-meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(var(--accent));
+  transition: width 200ms ease-out;
+}
+
+/*
+ * The catalogue rule. The <li> owns the border and the state tint; the <a>
+ * inside owns the hit area and the layout, so hover and the resume wash run the
+ * full row width instead of stopping at the link's content box.
+ */
+.series-detail-chapter {
+  border-bottom: 1px solid hsl(var(--border));
+  transition: background-color 160ms ease-out;
+}
+
+.series-detail-chapter:first-child {
+  border-top: 1px solid hsl(var(--border));
+}
+
+/* The resume marker is a wash from the gold edge, not a filled row: the reader
+   needs to spot it while scanning, not have it shout. */
+.series-detail-chapter[data-active="true"] {
+  background: linear-gradient(90deg, hsl(var(--accent-soft) / 0.85), transparent 50%);
+}
+
+.series-detail-chapter:hover {
+  background-color: hsl(var(--surface-sunken) / 0.45);
+}
+
+.series-detail-chapter[data-active="true"]:hover {
+  background-color: hsl(var(--accent-soft) / 0.55);
+}
+
+.series-detail-chapter-link {
+  display: flex;
+  align-items: center;
+  gap: 23px;
+  padding: 20px 14px;
+}
+
+.series-detail-ordinal {
+  width: 34px;
+  flex-shrink: 0;
+  font-family: Georgia, Cambria, "Times New Roman", serif;
+  font-size: 22px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--series-ordinal));
+}
+
+.series-detail-notice {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: hsl(var(--series-notice));
+}
+
+.series-detail-arrow {
+  flex-shrink: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: hsl(var(--muted-foreground) / 0.6);
+  transition:
+    color 160ms ease-out,
+    transform 160ms ease-out;
+}
+
+.series-detail-chapter:hover .series-detail-arrow {
+  transform: translate(1px, -1px);
+}
+
+.series-detail-chapter[data-active="true"] .series-detail-arrow {
+  color: hsl(var(--accent-strong));
+}
+
+@media (max-width: 1150px) {
+  .series-detail-layout {
+    column-gap: 40px;
+  }
+}
+
+@media (max-width: 820px) {
+  .series-detail-layout {
+    grid-template-columns: 160px minmax(0, 1fr);
+    column-gap: 25px;
+  }
+
+  .series-detail-jacket-col .series-detail-jacket {
+    width: 158px;
+  }
+
+  /* The jacket column narrows here, and the bar tracks its own scale rather
+     than the jacket's: 160 of the 215 it uses at full width. */
+  .series-detail-meter {
+    width: 160px;
+  }
+}
+
+@media (max-width: 560px) {
+  .series-detail-layout {
+    display: block;
+  }
+
+  /* The jacket stops being a column and becomes the first line of the page:
+     cover on the left, the reading position beside it. */
+  .series-detail-jacket-col {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .series-detail-jacket-col .series-detail-jacket {
+    width: 99px;
+  }
+
+  .series-detail-caption {
+    margin-top: 0;
+  }
+
+  /* Single column at this width, so the bar may run a little wider than its
+     share of the shrunken jacket column. */
+  .series-detail-meter {
+    width: 170px;
+  }
+
+  .series-detail-crumb {
+    margin: 22px 0;
+  }
+
+  .series-detail-footnote {
+    display: none;
+  }
+}

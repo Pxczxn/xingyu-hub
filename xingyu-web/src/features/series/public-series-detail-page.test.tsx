@@ -255,4 +255,46 @@ describe("PublicSeriesDetailPage", () => {
     expect(await screen.findByRole("link", { name: "开始阅读" })).toBeInTheDocument();
     expect(await screen.findByText("阅读进度暂时无法读取")).toBeInTheDocument();
   });
+
+  it("measures the recorded position with a bar instead of a percentage", async () => {
+    authState.isAuthenticated = true;
+    mocked.getPublicById.mockResolvedValue({ ...SERIES, hasSubscribed: false });
+    mocked.getReadingProgress.mockResolvedValue({
+      readingHistoryEnabled: true,
+      chapterArticleId: "art-1",
+      chapterIndex: 1,
+      chapterCount: 2,
+      lastReadAt: "2026-10-18T10:00:00Z",
+    });
+    const { container } = renderDetail();
+
+    const meter = await screen.findByRole("progressbar");
+    expect(meter).toHaveAttribute("aria-valuenow", "1");
+    expect(meter).toHaveAttribute("aria-valuemax", "2");
+    expect(meter).toHaveAccessibleName("已读到第 1 章，共 2 章");
+    /* The fill is a real fraction of the track, not a decoration: half of two
+       chapters has to paint half the bar. */
+    const fill = container.querySelector(".series-detail-meter-fill") as HTMLElement;
+    expect(fill.style.width).toBe("50%");
+    /* The sentence above already says "第 1 / 2 章"; a percentage would repeat it. */
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+  });
+
+  it("draws no bar when nothing is recorded", async () => {
+    authState.isAuthenticated = true;
+    mocked.getPublicById.mockResolvedValue({ ...SERIES, hasSubscribed: false });
+    renderDetail();
+
+    /* An empty track would assert a 0% the backend never recorded. */
+    expect(await screen.findByRole("link", { name: "开始阅读" })).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("draws no bar for a guest, who has no recorded position at all", async () => {
+    mocked.getPublicById.mockResolvedValue({ ...SERIES, hasSubscribed: false });
+    renderDetail();
+
+    expect(await screen.findByRole("link", { name: "开始阅读" })).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
 });
