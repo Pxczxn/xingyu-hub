@@ -54,12 +54,19 @@ const SHANGHAI = "Asia/Shanghai";
  * 当天只给 `HH:mm` —— 那一屏的每条消息都在同一天里，重复日期是纯噪音（实测一屏 6 个
  * 完全相同的时间戳）。非当天沿用原来的「MM/DD HH:mm」，不引入「昨天 / N 分钟前」那类
  * 需要日历边界推理的聚合。
+ *
+ * `now` 是可注入的，和 `isRecallable` 的 `now` 参数同一个理由：这是函数里唯一依赖「此刻」
+ * 的地方，而「今天」是上海时区的日历边界。测试若拿 `Date.now() - 60_000` 构造样本，
+ * 在本地 00:00 前一分钟内就不再是「今天」——函数会正确地给出带日期的格式，断言却
+ * 期待只有时分，于是每天有一个窗口必然失败。
  */
-export function formatMessageTimeShort(value: string | null | undefined): string | null {
+export function formatMessageTimeShort(
+  value: string | null | undefined,
+  now: Date = new Date(),
+): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  const now = new Date();
   const sameDay =
     now.toLocaleDateString("zh-CN", { timeZone: SHANGHAI }) ===
     date.toLocaleDateString("zh-CN", { timeZone: SHANGHAI });

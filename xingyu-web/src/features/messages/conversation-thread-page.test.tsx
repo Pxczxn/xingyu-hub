@@ -451,18 +451,46 @@ describe("shouldShowMessageTime — no more repeated identical timestamps", () =
 });
 
 describe("formatMessageTimeShort", () => {
-  it("drops the date for a message from today", () => {
-    const sameDay = new Date(Date.now() - 60_000).toISOString();
-    expect(formatMessageTimeShort(sameDay)).toMatch(/^\d{2}:\d{2}$/);
+  /*
+   * `now` is injected, not read from the wall clock. The formatter's "today" is a
+   * Shanghai calendar day, so a sample built as `Date.now() - 60_000` stops being
+   * today for one minute every night — the function then correctly returns
+   * "MM/DD HH:mm" while a `/^\d{2}:\d{2}$/` assertion still expects the bare time.
+   * That window is what made this file fail intermittently; the fix is to pin the
+   * instant the formatter compares against.
+   */
+
+  /** 2026-10-25 00:30 CST — just inside a Shanghai day, so "same day" is unambiguous. */
+  const MIDDAY_NOW = new Date("2026-10-24T16:30:00Z");
+
+  it("drops the date for a message from the same Shanghai day", () => {
+    expect(formatMessageTimeShort("2026-10-24T16:29:00Z", MIDDAY_NOW)).toBe("00:29");
+  });
+
+  it("keeps the date for a message from the previous Shanghai day", () => {
+    expect(formatMessageTimeShort("2026-10-24T15:59:00Z", MIDDAY_NOW)).toBe("10/24 23:59");
+  });
+
+  /*
+   * The exact boundary that used to break: one minute after Shanghai midnight the
+   * "a minute ago" sample has already crossed into yesterday. Keeping the date is
+   * the correct answer here, and it is pinned rather than left to luck.
+   */
+  it("crosses midnight correctly instead of assuming a minute ago is today", () => {
+    const justAfterMidnight = new Date("2026-10-24T16:00:30Z"); // 2026-10-25 00:00:30 CST
+    expect(formatMessageTimeShort("2026-10-24T15:59:30Z", justAfterMidnight)).toBe("10/24 23:59");
+    expect(formatMessageTimeShort("2026-10-24T16:00:00Z", justAfterMidnight)).toBe("00:00");
   });
 
   it("keeps a short date for anything older", () => {
-    expect(formatMessageTimeShort("2026-09-27T02:00:00Z")).toMatch(/\d{2}\/\d{2} \d{2}:\d{2}/);
+    expect(formatMessageTimeShort("2026-09-27T02:00:00Z", MIDDAY_NOW)).toMatch(
+      /\d{2}\/\d{2} \d{2}:\d{2}/,
+    );
   });
 
   it("returns null for a missing or unparseable value", () => {
-    expect(formatMessageTimeShort(null)).toBeNull();
-    expect(formatMessageTimeShort("nope")).toBeNull();
+    expect(formatMessageTimeShort(null, MIDDAY_NOW)).toBeNull();
+    expect(formatMessageTimeShort("nope", MIDDAY_NOW)).toBeNull();
   });
 });
 

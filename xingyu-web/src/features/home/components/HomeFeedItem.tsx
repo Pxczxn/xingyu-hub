@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Bookmark, Heart, MessageSquare } from "lucide-react";
@@ -193,6 +193,25 @@ export function HomeFeedItem({
   const [bookmarkPending, setBookmarkPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   * The heart-pop timer outlives the click that started it, so it has to be owned
+   * rather than fire-and-forget: a row that unmounts within the 600ms (a tab
+   * switch, a refetch that drops the item) would otherwise leave a `setState`
+   * scheduled against a component React has already torn down. In the browser that
+   * is a harmless no-op warning; in tests the environment is gone by then and the
+   * callback throws `ReferenceError: window is not defined` as an unhandled error.
+   */
+  const likeAnimationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (likeAnimationTimer.current !== null) {
+        clearTimeout(likeAnimationTimer.current);
+        likeAnimationTimer.current = null;
+      }
+    };
+  }, []);
+
   // Re-seed when the payload changes (a tab switch or a refetch), so the controls
   // reflect the server rather than a stale local flip.
   useEffect(() => {
@@ -221,7 +240,11 @@ export function HomeFeedItem({
     // 触发动画
     if (!liked) {
       setLikeAnimating(true);
-      setTimeout(() => setLikeAnimating(false), 600);
+      if (likeAnimationTimer.current !== null) clearTimeout(likeAnimationTimer.current);
+      likeAnimationTimer.current = setTimeout(() => {
+        likeAnimationTimer.current = null;
+        setLikeAnimating(false);
+      }, 600);
     }
 
     try {
