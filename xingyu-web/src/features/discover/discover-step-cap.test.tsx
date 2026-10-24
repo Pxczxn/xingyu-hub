@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { discoverApi } from "@/api/discover/discover.api";
@@ -116,4 +116,90 @@ it("never moves the viewport more than the cap in one paint when opening a far r
   await waitFor(() => expect(Math.abs(window.scrollY - 300)).toBeLessThan(1.5));
   expect(requested.length).toBeGreaterThan(3);
   expect(largestStep(requested)).toBeLessThanOrEqual(MAX_STEP + 0.5);
+});
+
+/*
+ * Switching is the same easing against a target it cannot measure yet: the
+ * article being replaced is still expanded when the request is prepared, so the
+ * loop aims at an estimate and finishes on the measured error. Crossing a row a
+ * screen and a half away is the largest gap a switch can ask for, and it must
+ * arrive under the same per-paint budget as an open.
+ */
+it("holds a switch across a distant row to the same per-paint budget", async () => {
+  const requested = scrollViewport();
+  renderPage();
+  await screen.findByText("第一篇");
+  followViewport(screen.getByText("第一篇").closest("li")!, 200);
+  followViewport(screen.getByText("第二篇").closest("li")!, 1600);
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  await waitFor(() => expect(Math.abs(window.scrollY - 200)).toBeLessThan(1.5));
+
+  requested.length = 0;
+  fireEvent.click(screen.getByText("第二篇"));
+  await screen.findByText("正文 b");
+  await waitFor(() => expect(Math.abs(window.scrollY - 1600)).toBeLessThan(1.5));
+  expect(requested.length).toBeGreaterThan(3);
+  expect(largestStep(requested)).toBeLessThanOrEqual(MAX_STEP + 0.5);
+});
+
+/*
+ * One write is deliberately outside the budget: restoring the collapse context
+ * runs in the same task that flips the row, before any paint can show the
+ * intermediate position, so there is no frame for the eye to see it split. That
+ * is the "first scroll" the per-paint assertion above cannot cover — it happens
+ * before the loop starts. Everything after it is capped like any other paint.
+ */
+it("places the collapse context in one task, then caps every later paint", async () => {
+  const media = window.matchMedia("all");
+  vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+    ...media,
+    matches: query.includes("max-width: 1023px"),
+  }));
+  const requested = scrollViewport();
+  renderPage();
+  await screen.findByText("第一篇");
+  const row = screen.getByText("第一篇").closest("li")!;
+  followViewport(row, 100);
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  await waitFor(() => expect(Math.abs(window.scrollY - 100)).toBeLessThan(1.5));
+
+  requested.length = 0;
+  // The reader has scrolled far past the open article before collapsing it.
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 2000 });
+  fireEvent.click(screen.getByRole("button", { name: "收起阅读" }));
+  // The row lives at documentTop 100, so the collapse context lands there in a
+  // single write — 1900px, far over the cap, and correct.
+  expect(requested[0]).toBe(100);
+  const later = requested.slice(1);
+  expect(largestStep([requested[0], ...later])).toBeLessThanOrEqual(MAX_STEP + 0.5);
+});
+
+/*
+ * The other half of the collapse paths: a row that is still fully visible keeps
+ * the reader's position. No loop, no correction, no write at all.
+ */
+it("does not touch the viewport when a visible row collapses", async () => {
+  const requested = scrollViewport();
+  renderPage();
+  await screen.findByText("第一篇");
+  const row = screen.getByText("第一篇").closest("li")!;
+  followViewport(row, 100);
+  fireEvent.click(screen.getByText("第一篇"));
+  await screen.findByText("正文 a");
+  await waitFor(() => expect(Math.abs(window.scrollY - 100)).toBeLessThan(1.5));
+
+  requested.length = 0;
+  // Freeze the geometry where it settled: the row is on screen and short enough
+  // that its restored neighbours cannot push anything off.
+  vi.mocked(row.getBoundingClientRect).mockReturnValue(new DOMRect(0, 100, 800, 160));
+  vi.mocked(
+    row.querySelector<HTMLElement>("[data-discover-trigger]")!.getBoundingClientRect,
+  ).mockReturnValue(new DOMRect(0, 100, 800, 100));
+  fireEvent.click(screen.getByRole("button", { name: "收起阅读" }));
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  });
+  expect(requested).toEqual([]);
 });
