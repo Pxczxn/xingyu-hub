@@ -122,7 +122,10 @@ describe("api client", () => {
     });
     fetchMock.mockImplementation(async () => {
       await gate;
-      return jsonResponse({ status: 401, code: "UNAUTHORIZED", detail: "expired" }, { status: 401 });
+      return jsonResponse(
+        { status: 401, code: "UNAUTHORIZED", detail: "expired" },
+        { status: 401 },
+      );
     });
 
     const pending = apiRequest("/api/v1/me");

@@ -81,7 +81,9 @@ describe("article continue-reading block", () => {
     } as never);
 
     renderBlock(
-      article({ seriesContexts: [{ id: "s1", slug: "starmap", title: "星图验收系列", position: 2 }] }),
+      article({
+        seriesContexts: [{ id: "s1", slug: "starmap", title: "星图验收系列", position: 2 }],
+      }),
     );
 
     expect(await screen.findByRole("link", { name: /第一章/ })).toHaveAttribute(
@@ -111,7 +113,12 @@ describe("article continue-reading block", () => {
       ],
     } as never);
 
-    renderBlock(article({ id: "a1", seriesContexts: [{ id: "s1", slug: "starmap", title: "星图验收系列", position: 1 }] }));
+    renderBlock(
+      article({
+        id: "a1",
+        seriesContexts: [{ id: "s1", slug: "starmap", title: "星图验收系列", position: 1 }],
+      }),
+    );
 
     expect(await screen.findByRole("link", { name: /第二章/ })).toBeInTheDocument();
     expect(screen.queryByText("上一章")).not.toBeInTheDocument();
@@ -132,7 +139,10 @@ describe("article continue-reading block", () => {
       "href",
       "/articles/a9",
     );
-    expect(screen.getByRole("link", { name: /Spring Boot/ })).toHaveAttribute("href", "/articles/a8");
+    expect(screen.getByRole("link", { name: /Spring Boot/ })).toHaveAttribute(
+      "href",
+      "/articles/a8",
+    );
     /* Itself is never offered as "read next". */
     expect(screen.queryByRole("link", { name: /第二章 星图的走向/ })).not.toBeInTheDocument();
     /* A series hit is not an article row; the block only offers articles. */
@@ -144,7 +154,12 @@ describe("article continue-reading block", () => {
     mockedSeries.getPublicById.mockRejectedValue(new Error("boom"));
     mockedTopics.getTopicContent.mockResolvedValue([topicItem("a9", "分层架构下的接口设计")]);
 
-    renderBlock(article({ seriesContexts: [{ id: "s1", slug: "starmap", title: "系列", position: 1 }], topicSlugs: ["tech"] }));
+    renderBlock(
+      article({
+        seriesContexts: [{ id: "s1", slug: "starmap", title: "系列", position: 1 }],
+        topicSlugs: ["tech"],
+      }),
+    );
 
     expect(await screen.findByRole("link", { name: /分层架构下的接口设计/ })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -154,9 +169,17 @@ describe("article continue-reading block", () => {
     mockedSeries.getPublicById.mockRejectedValue(new Error("boom"));
     mockedTopics.getTopicContent.mockRejectedValue(new Error("boom"));
 
-    renderBlock(article({ seriesContexts: [{ id: "s1", slug: "starmap", title: "系列", position: 1 }], topicSlugs: ["tech"] }));
+    renderBlock(
+      article({
+        seriesContexts: [{ id: "s1", slug: "starmap", title: "系列", position: 1 }],
+        topicSlugs: ["tech"],
+      }),
+    );
 
-    expect(await screen.findByRole("link", { name: "去探索更多内容" })).toHaveAttribute("href", "/discover");
+    expect(await screen.findByRole("link", { name: "去探索更多内容" })).toHaveAttribute(
+      "href",
+      "/discover",
+    );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText("继续阅读")).toBeInTheDocument();
   });
@@ -181,7 +204,11 @@ describe("article continue-reading block", () => {
     ]);
 
     renderBlock(
-      article({ id: "a2", seriesContexts: [{ id: "s1", slug: "backend", title: "后端工程入门", position: 2 }], topicSlugs: ["tech"] }),
+      article({
+        id: "a2",
+        seriesContexts: [{ id: "s1", slug: "backend", title: "后端工程入门", position: 2 }],
+        topicSlugs: ["tech"],
+      }),
     );
 
     expect(await screen.findByRole("link", { name: /第一章/ })).toHaveAttribute(
@@ -203,7 +230,10 @@ describe("article continue-reading block", () => {
   it("asks the network nothing when the article is neither in a series nor in a topic", async () => {
     renderBlock(article());
 
-    expect(await screen.findByRole("link", { name: "去探索更多内容" })).toHaveAttribute("href", "/discover");
+    expect(await screen.findByRole("link", { name: "去探索更多内容" })).toHaveAttribute(
+      "href",
+      "/discover",
+    );
     expect(mockedSeries.getPublicById).not.toHaveBeenCalled();
     expect(mockedTopics.getTopicContent).not.toHaveBeenCalled();
   });

@@ -516,10 +516,7 @@ export function DiscoverListItem({
                   </div>
                 </div>
 
-                <section
-                  aria-label="评论预览"
-                  className="border-t border-border/60 pt-3"
-                >
+                <section aria-label="评论预览" className="border-t border-border/60 pt-3">
                   <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
                     <MessageSquare className="h-4 w-4" aria-hidden />
                     {isAuthenticated ? `评论 (${comments.length})` : "评论预览"}

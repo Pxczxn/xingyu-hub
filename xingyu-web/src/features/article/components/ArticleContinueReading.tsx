@@ -115,7 +115,9 @@ export function ArticleContinueReading({ article }: { article: ArticleDetail }) 
          and the first topic row). One destination, two labels is noise, so the
          chapter wins and the topic list drops it — then trims to the limit. */
       const chapterIds = new Set(
-        [series?.prev?.articleId, series?.next?.articleId].filter((id): id is string => Boolean(id)),
+        [series?.prev?.articleId, series?.next?.articleId].filter((id): id is string =>
+          Boolean(id),
+        ),
       );
       setState({
         series,

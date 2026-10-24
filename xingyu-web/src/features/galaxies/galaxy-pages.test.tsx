@@ -392,8 +392,20 @@ describe("GalaxyContentPage contribution", () => {
     authState.isAuthenticated = true;
     mocked.getBySlug.mockResolvedValue(MEMBER_GALAXY);
     mockedArticles.listMine.mockResolvedValue([
-      { id: "art-1", status: "PUBLISHED", title: "已发布的作品", categoryId: null, updatedAt: "2026-10-01T00:00:00Z" },
-      { id: "art-2", status: "DRAFT", title: "还在写", categoryId: null, updatedAt: "2026-10-02T00:00:00Z" },
+      {
+        id: "art-1",
+        status: "PUBLISHED",
+        title: "已发布的作品",
+        categoryId: null,
+        updatedAt: "2026-10-01T00:00:00Z",
+      },
+      {
+        id: "art-2",
+        status: "DRAFT",
+        title: "还在写",
+        categoryId: null,
+        updatedAt: "2026-10-02T00:00:00Z",
+      },
     ]);
     mocked.submitContent.mockResolvedValue({
       id: "sub-1",
@@ -448,7 +460,13 @@ describe("GalaxyContentPage contribution", () => {
     authState.isAuthenticated = true;
     mocked.getBySlug.mockResolvedValue(MEMBER_GALAXY);
     mockedArticles.listMine.mockResolvedValue([
-      { id: "art-1", status: "PUBLISHED", title: "已发布的作品", categoryId: null, updatedAt: "2026-10-01T00:00:00Z" },
+      {
+        id: "art-1",
+        status: "PUBLISHED",
+        title: "已发布的作品",
+        categoryId: null,
+        updatedAt: "2026-10-01T00:00:00Z",
+      },
     ]);
     mocked.submitContent.mockRejectedValue(
       new ApiError({

@@ -343,9 +343,7 @@ function GalaxyContributionSection({ slug }: { slug: string }) {
           <p
             role="status"
             className={
-              feedback.kind === "ok"
-                ? "text-sm text-emerald-700"
-                : "text-sm text-destructive"
+              feedback.kind === "ok" ? "text-sm text-emerald-700" : "text-sm text-destructive"
             }
           >
             {feedback.text}

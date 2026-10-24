@@ -254,7 +254,10 @@ describe("cross-tab account switch", () => {
 
     let resolveB!: (me: typeof ME) => void;
     mocked.getMe.mockImplementationOnce(
-      () => new Promise<typeof ME>((resolve) => { resolveB = resolve; }),
+      () =>
+        new Promise<typeof ME>((resolve) => {
+          resolveB = resolve;
+        }),
     );
     switchTokenFromAnotherTab("token-b");
     await waitFor(() => expect(mocked.getMe).toHaveBeenCalledTimes(2));
@@ -277,7 +280,10 @@ describe("cross-tab account switch", () => {
 
     let resolveB!: (me: typeof ME) => void;
     mocked.getMe.mockImplementationOnce(
-      () => new Promise<typeof ME>((resolve) => { resolveB = resolve; }),
+      () =>
+        new Promise<typeof ME>((resolve) => {
+          resolveB = resolve;
+        }),
     );
     switchTokenFromAnotherTab("token-b");
     await waitFor(() => expect(mocked.getMe).toHaveBeenCalledTimes(2));

@@ -165,10 +165,7 @@ export function DiscoverPage() {
           </p>
         </div>
       </header>
-      <div
-        className="discover-layout mt-7 grid gap-6"
-        data-focused={expandedKey !== null}
-      >
+      <div className="discover-layout mt-7 grid gap-6" data-focused={expandedKey !== null}>
         <DiscoverSidebar
           focused={expandedKey !== null}
           activeTopic={topic}

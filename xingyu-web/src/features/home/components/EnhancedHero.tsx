@@ -112,7 +112,10 @@ export function EnhancedHero({ isAuthenticated }: { isAuthenticated: boolean }) 
               </Link>
               <Link
                 to="/register"
-                className={cn(buttonVariants({ variant: "outline", size: "default" }), "group gap-2")}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "default" }),
+                  "group gap-2",
+                )}
               >
                 开始创作
                 <ArrowRight

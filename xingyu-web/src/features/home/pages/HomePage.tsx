@@ -313,10 +313,7 @@ export function HomePage() {
                   {(feedItems ?? []).map((item, index) => (
                     <li
                       key={item.id}
-                      className={cn(
-                        "animate-rise-in",
-                        index > 0 && "border-t border-border/50",
-                      )}
+                      className={cn("animate-rise-in", index > 0 && "border-t border-border/50")}
                       style={{ animationDelay: staggerDelay(index) }}
                     >
                       <HomeFeedItem

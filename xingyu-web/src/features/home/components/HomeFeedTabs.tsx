@@ -46,11 +46,7 @@ export function HomeFeedTabs({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-2", className)}>
-      <div
-        role="tablist"
-        aria-label="首页内容流"
-        className="flex shrink-0 items-center gap-1"
-      >
+      <div role="tablist" aria-label="首页内容流" className="flex shrink-0 items-center gap-1">
         {TABS.map((tab) => {
           const selected = tab.id === value;
           const Icon = tab.icon;
@@ -71,10 +67,7 @@ export function HomeFeedTabs({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon
-                className={cn("h-3.5 w-3.5", selected && "fill-current")}
-                aria-hidden
-              />
+              <Icon className={cn("h-3.5 w-3.5", selected && "fill-current")} aria-hidden />
               <span>{tab.label}</span>
             </button>
           );

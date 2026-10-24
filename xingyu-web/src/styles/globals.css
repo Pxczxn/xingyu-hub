@@ -230,17 +230,8 @@
    */
   .font-display {
     font-family:
-      "Source Han Serif SC",
-      "Noto Serif SC",
-      "Songti SC",
-      "STSong",
-      "SimSun",
-      ui-serif,
-      Georgia,
-      Cambria,
-      "Times New Roman",
-      Times,
-      serif;
+      "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", "SimSun", ui-serif, Georgia,
+      Cambria, "Times New Roman", Times, serif;
     /*
      * -0.01em, not the -0.022em the sans display sizes use: 宋体-class faces are
      * already tight at large sizes, and pulling them further makes the counters
