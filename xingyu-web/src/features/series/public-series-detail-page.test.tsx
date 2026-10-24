@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { seriesApi } from "@/api/series/series.api";
@@ -43,6 +43,18 @@ const SERIES = {
   ],
 };
 
+/* A rail entry: the public summary shape, which is not the detail shape. */
+const SUMMARY = {
+  id: "ser-2",
+  title: "另一本系列",
+  slug: "another-series",
+  description: null,
+  chapterCount: 3,
+  author: { username: "alice", displayName: "Alice", avatar: null },
+};
+
+const BOB = { username: "bob", displayName: "Bob", avatar: null };
+
 function renderDetail() {
   return render(
     <MemoryRouter initialEntries={["/series/ser-1"]}>
@@ -58,6 +70,10 @@ beforeEach(() => {
   authState.isAuthenticated = false;
   /* A signed-in page asks for private progress; no record is the neutral case. */
   mocked.getReadingProgress.mockResolvedValue({ readingHistoryEnabled: true, chapterCount: 2 });
+  /* The discovery rail reads the public catalogue in parallel with the work.
+     An empty catalogue is the neutral case: both panels get to prove they
+     render their "nothing here" state instead of crashing on the read. */
+  mocked.listPublic.mockResolvedValue([]);
 });
 
 describe("PublicSeriesDetailPage", () => {
@@ -296,5 +312,94 @@ describe("PublicSeriesDetailPage", () => {
 
     expect(await screen.findByRole("link", { name: "开始阅读" })).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  /* ------------------------------------------------------------------------
+     Discovery rail (V4)
+
+     Both panels are read from the one public catalogue and split locally. The
+     rules worth pinning: the current work is never offered back to the reader,
+     the author panel contains only that author, and a failure in the rail is
+     announced without taking the page down with it.
+     --------------------------------------------------------------------- */
+
+  it("splits the catalogue into the author's other works and everything else", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    mocked.listPublic.mockResolvedValue([
+      /* The current work — offering this back would not be a suggestion. */
+      { ...SUMMARY, id: "ser-1", title: "星语开发日志" },
+      { ...SUMMARY, id: "ser-2", title: "同一作者的另一本" },
+      { ...SUMMARY, id: "ser-3", title: "别人写的系列", author: BOB },
+    ]);
+    renderDetail();
+
+    const authorPanel = await screen.findByRole("region", { name: "创作者的更多系列" });
+    const relatedPanel = screen.getByRole("region", { name: "继续探索" });
+
+    expect(within(authorPanel).getByText("同一作者的另一本")).toBeInTheDocument();
+    expect(within(authorPanel).queryByText("星语开发日志")).not.toBeInTheDocument();
+    expect(within(authorPanel).queryByText("别人写的系列")).not.toBeInTheDocument();
+
+    expect(within(relatedPanel).getByText("别人写的系列")).toBeInTheDocument();
+    expect(within(relatedPanel).queryByText("同一作者的另一本")).not.toBeInTheDocument();
+    expect(within(relatedPanel).queryByText("星语开发日志")).not.toBeInTheDocument();
+  });
+
+  it("links each rail entry to its series page", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    mocked.listPublic.mockResolvedValue([{ ...SUMMARY, id: "ser-9", title: "另一本" }]);
+    renderDetail();
+
+    const link = await screen.findByRole("link", { name: /另一本/ });
+    expect(link).toHaveAttribute("href", "/series/ser-9");
+  });
+
+  it("says so when the author has published nothing else", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    mocked.listPublic.mockResolvedValue([{ ...SUMMARY, id: "ser-1", title: "星语开发日志" }]);
+    renderDetail();
+
+    expect(await screen.findByText("暂时还没有其他公开系列")).toBeInTheDocument();
+  });
+
+  it("says so when there is nothing else to recommend", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    mocked.listPublic.mockResolvedValue([{ ...SUMMARY, id: "ser-1", title: "星语开发日志" }]);
+    renderDetail();
+
+    expect(await screen.findByText("暂时没有更多公开系列")).toBeInTheDocument();
+  });
+
+  it("keeps the work readable when the rail cannot be read", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    mocked.listPublic.mockRejectedValue(new Error("503"));
+    renderDetail();
+
+    /* The page still works: chapters and the primary action are unaffected. */
+    expect(await screen.findByRole("link", { name: "第一章" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "开始阅读" })).toBeInTheDocument();
+
+    /* Both panels announce their own failure instead of vanishing silently.
+       The brand copy is deliberately identical for both — one honest sentence,
+       not two ways of describing the same request that failed. */
+    const failures = await screen.findAllByText("暂时无法加载，请重试。");
+    expect(failures).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "重试加载" })).toHaveLength(2);
+  });
+
+  it("retries the rail without refetching the work", async () => {
+    mocked.getPublicById.mockResolvedValue(SERIES);
+    mocked.listPublic.mockRejectedValue(new Error("503"));
+    renderDetail();
+
+    expect((await screen.findAllByText("暂时无法加载，请重试。")).length).toBe(2);
+    expect(mocked.getPublicById).toHaveBeenCalledTimes(1);
+
+    mocked.listPublic.mockResolvedValue([{ ...SUMMARY, id: "ser-2", title: "加载回来了" }]);
+    await userEvent.click(screen.getAllByRole("button", { name: "重试加载" })[0]);
+
+    expect(await screen.findByText("加载回来了")).toBeInTheDocument();
+    /* The work was not reloaded — only the rail. */
+    expect(mocked.getPublicById).toHaveBeenCalledTimes(1);
   });
 });

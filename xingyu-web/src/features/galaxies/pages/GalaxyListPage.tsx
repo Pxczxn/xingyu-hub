@@ -210,7 +210,7 @@ export function GalaxyListPage() {
       <PageHero
         eyebrow="GALAXIES"
         title="星系"
-        description="围绕共同兴趣聚合内容与成员，找到属于你的社区轨道。"
+        description="围绕共同兴趣聚合内容与成员，找到属于你的社区空间。"
         illustration={
           <GalaxyVisual
             stableKey="galaxy-plaza-masthead"

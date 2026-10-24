@@ -189,7 +189,7 @@ export function ExplorationInterestsPage() {
       <header className="border-b border-border/70 pb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-primary">我的探索</h1>
         <p className="lede mt-2 max-w-2xl">
-          从官方领域星图中选择你关心的方向，也可以添加个人兴趣标签。
+          从官方领域列表中选择你关心的方向，也可以添加个人兴趣标签。
           这只影响你自己的探索视图，不会改变社区的公共结构。
         </p>
       </header>
@@ -200,7 +200,7 @@ export function ExplorationInterestsPage() {
         <PageState
           kind="empty"
           title="暂无可选领域"
-          description="官方领域星图还没有可选的子领域，请稍后再试。"
+          description="官方领域还没有可选的子领域，请稍后再试。"
         />
       ) : (
         <section
@@ -254,7 +254,7 @@ export function ExplorationInterestsPage() {
       <section aria-label="个人兴趣" className="rounded-xl border border-border/70 bg-card p-5">
         <h2 className="section-heading">个人兴趣标签</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          例如 Java、独立开发、逆向研究——只对你可见，不进入官方星图。 最多 {MAX_CUSTOM_LABELS}{" "}
+          例如 Java、独立开发、逆向研究——只对你可见，不进入官方领域。 最多 {MAX_CUSTOM_LABELS}{" "}
           个，每个不超过 {MAX_CUSTOM_LABEL_LENGTH} 个字符。
         </p>
 

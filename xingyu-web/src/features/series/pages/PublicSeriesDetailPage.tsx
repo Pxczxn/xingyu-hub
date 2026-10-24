@@ -1,13 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Compass,
+  Library,
+  PenLine,
+  Sparkles,
+} from "lucide-react";
 import { ApiError } from "@/api/client";
 import { seriesApi } from "@/api/series/series.api";
-import type { PublicSeriesDetail, SeriesReadingProgress } from "@/api/series/series.types";
+import type {
+  PublicSeriesDetail,
+  PublicSeriesSummary,
+  SeriesReadingProgress,
+} from "@/api/series/series.types";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { SeriesCover } from "@/components/visual/SeriesCover";
 import { useAuth } from "@/features/auth/auth.store";
+import readingNook from "@/assets/series-reading-nook.webp";
 import "../series-detail.css";
 
 type LoadState =
@@ -23,23 +37,47 @@ type LoadState =
  */
 type ProgressState = "idle" | "loading" | "ready" | "error";
 
+/*
+ * The discovery panels read the public catalogue in one request and split it
+ * locally. That is a deliberate trade: there is no "series by this author"
+ * endpoint, and the public collection is small enough that one bounded page
+ * covers it. When it outgrows `listPublic`'s limit the split silently thins out
+ * instead of erroring — so the panels treat "few items" as normal, not as a
+ * failure worth alarming the reader about.
+ */
+type DiscoverState =
+  { kind: "loading" } | { kind: "failed" } | { kind: "ready"; all: PublicSeriesSummary[] };
+
+const DISCOVER_LIMIT = 50;
+const PANEL_ITEM_LIMIT = 3;
+
 function isNotFound(err: unknown): boolean {
   return (
     err instanceof ApiError && (err.problem.status === 404 || err.problem.code === "NOT_FOUND")
   );
 }
 
+function authorLabel(series: PublicSeriesSummary | PublicSeriesDetail): string {
+  return series.author.displayName?.trim() || `@${series.author.username}`;
+}
+
 /**
- * Public series detail — the WORK page (Phase 2G; work layout + resume, Phase 3).
+ * Public series detail — the WORK page (V4 layout).
  *
  * Backend: GET /api/v1/series/{id} -> PublicSeriesDetail, 404 for a missing or
  * non-ACTIVE series. Chapters come back ordered by `position`.
  *
- * The page is a jacket and its table of contents: the reading copy on the left
- * (with the reader's own position recorded under it), the work's facts and the
- * primary action on the right, then the catalogue as hairline rows. Reading is
- * the P1 action; subscribing is secondary and independent of progress — a
- * reader who never subscribes can still resume.
+ * The page is a work head plus its catalogue, with a discovery rail beside it:
+ *
+ *   head       the jacket, the work's facts, the primary action, and the
+ *              reader's position — one band, read left to right
+ *   catalogue  the chapters, as a single card of hairline rows
+ *   rail       the author's other works and related series, both described as
+ *              offers rather than requirements: each panel can be empty or
+ *              unreadable without touching the work itself
+ *
+ * Reading is the P1 action; subscribing is secondary and independent of
+ * progress — a reader who never subscribes can still resume.
  *
  * The resume position comes from `GET /me/series/{id}/reading-progress` only
  * for a signed-in viewer. It is a chapter reference, never a percentage: the
@@ -65,9 +103,13 @@ export function PublicSeriesDetailPage() {
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
   const [progress, setProgress] = useState<SeriesReadingProgress | null>(null);
   const [progressState, setProgressState] = useState<ProgressState>("idle");
+  const [discover, setDiscover] = useState<DiscoverState>({ kind: "loading" });
   /* Bumping the key replays the load effects — the retry mechanism for the
      error branch below. The effects keep their per-run `active` guard. */
   const [reloadKey, setReloadKey] = useState(0);
+  /* The rail has its own reload: retrying a failed panel must not refetch the
+     work and throw away the reader's scroll position. */
+  const [discoverKey, setDiscoverKey] = useState(0);
 
   useEffect(() => {
     if (!seriesId) {
@@ -121,6 +163,29 @@ export function PublicSeriesDetailPage() {
     };
   }, [seriesId, isAuthenticated, reloadKey]);
 
+  /*
+   * Fired in parallel with the work itself: the rail does not need to know
+   * which series we are on to download the catalogue, and waiting for the
+   * series would serialise two independent reads.
+   */
+  useEffect(() => {
+    let active = true;
+    setDiscover({ kind: "loading" });
+    seriesApi
+      .listPublic(DISCOVER_LIMIT)
+      .then((items) => {
+        if (!active) return;
+        setDiscover({ kind: "ready", all: items ?? [] });
+      })
+      .catch(() => {
+        if (!active) return;
+        setDiscover({ kind: "failed" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [discoverKey]);
+
   async function onToggleSubscribe() {
     if (subscribePending || subscribed === null) return; // duplicate-click guard
     setSubscribeError(null);
@@ -171,11 +236,11 @@ export function PublicSeriesDetailPage() {
     : `/series/${encodeURIComponent(series.id)}/read`;
 
   /*
-   * The position under the jacket answers "where am I in this work" for every
-   * viewer, so it is never blank: a guest is told the position is not recorded
-   * yet, a signed-in reader with no history is told they have not started. Only
-   * the recorded case names a chapter number — the backend knows the chapter,
-   * not the offset inside it.
+   * The position answers "where am I in this work" for every viewer, so it is
+   * never blank: a guest is told the position is not recorded yet, a signed-in
+   * reader with no history is told they have not started. Only the recorded
+   * case names a chapter number — the backend knows the chapter, not the offset
+   * inside it.
    */
   const positionLine =
     resumeArticleId && resumeIndex !== null
@@ -200,146 +265,174 @@ export function PublicSeriesDetailPage() {
       ? Math.min(100, Math.round((resumeIndex / resumeChapterCount) * 100))
       : null;
 
+  /*
+   * The rail splits one catalogue into two questions: "what else did this
+   * author write" and "what else is worth reading". Both exclude the work we
+   * are already on — offering the current page is not a suggestion.
+   */
+  const catalogue = discover.kind === "ready" ? discover.all : [];
+  const others = catalogue
+    .filter((item) => item.id !== series.id && item.author.username === series.author.username)
+    .slice(0, PANEL_ITEM_LIMIT);
+  const related = catalogue
+    .filter((item) => item.id !== series.id && item.author.username !== series.author.username)
+    .slice(0, PANEL_ITEM_LIMIT);
+
+  const authorName = authorLabel(series);
+  const authorInitial = authorName.replace(/^@/, "").charAt(0).toUpperCase();
+
   return (
-    <article>
-      <nav aria-label="面包屑" className="series-detail-crumb text-meta text-muted-foreground">
+    <article className="series-detail-page">
+      <nav aria-label="面包屑" className="series-detail-crumb text-muted-foreground">
         <Link
           to="/series"
           className="focus-ring rounded-sm transition-colors hover:text-accent-strong"
         >
           系列广场
         </Link>
-        <span aria-hidden className="mx-2 text-border">
-          ／
+        <span aria-hidden className="text-border">
+          /
         </span>
         <span className="text-foreground">{series.title}</span>
       </nav>
 
-      {/*
-        Jacket on the left, facts on the right — one work, not a summary card.
-        ============================================================
-        A `p-6` panel around the introduction would announce "here is a summary,
-        the content starts below" and stack a second white rectangle on a page
-        whose real shape is a single book. The cover carries the identity (same
-        `SeriesCover` key as the plaza card, so a series looks like itself in
-        both places) and the caption under it is the reader's bookmark in this
-        copy, which is why it belongs beside the jacket and not with the facts.
-      */}
-      <div className="series-detail-layout">
-        <aside className="series-detail-jacket-col">
-          <SeriesCover
-            stableKey={`${series.id}:${series.slug}`}
-            title={series.title}
-            variant="jacket"
-            className="series-detail-jacket"
-          />
-          <div className="series-detail-caption">
-            <span className="series-detail-caption-label">阅读位置</span>
-            <span className="block tabular-nums">{positionLine}</span>
-            {resumePercent !== null ? (
-              <div
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={resumeChapterCount}
-                aria-valuenow={resumeIndex ?? 0}
-                aria-label={`已读到第 ${resumeIndex} 章，共 ${resumeChapterCount} 章`}
-                className="series-detail-meter"
-              >
-                <div className="series-detail-meter-fill" style={{ width: `${resumePercent}%` }} />
+      <div className="series-detail-grid">
+        <div className="series-detail-main">
+          {/*
+            One band, three columns: the jacket, the facts, the illustration.
+            The illustration is the third column only while there is room for
+            it; below 1290px it becomes a watermark and below 650px it is gone,
+            because at that width it would sit on top of the copy it is meant to
+            warm up.
+          */}
+          <section className="series-detail-head" aria-label="当前系列">
+            <div className="series-detail-cover">
+              <SeriesCover
+                stableKey={`${series.id}:${series.slug}`}
+                title={series.title}
+                variant="jacket"
+              />
+            </div>
+
+            <div className="series-detail-intro">
+              <p className="eyebrow">星语系列 · SERIES</p>
+
+              <h1 className="series-detail-title font-display font-extrabold text-primary">
+                {series.title}
+              </h1>
+
+              {/* Who wrote it and how long it is are the same kind of fact —
+                  one line, one weight, both true. No lifecycle status is shown:
+                  ACTIVE is not "连载中" and ARCHIVED is not "完结". */}
+              <div className="series-detail-meta text-muted-foreground">
+                <Link
+                  to={`/u/${encodeURIComponent(series.author.username)}`}
+                  className="focus-ring rounded-sm font-semibold text-foreground transition-colors hover:text-accent-strong"
+                >
+                  {authorName}
+                </Link>
+                <span aria-hidden className="text-border">
+                  ·
+                </span>
+                <span className="tabular-nums">{`共 ${chapters.length} 章`}</span>
               </div>
-            ) : null}
-          </div>
-        </aside>
 
-        <section className="min-w-0">
-          <p className="eyebrow">星语系列 · SERIES</p>
+              <p className="series-detail-description text-foreground-soft">
+                {series.description || "该系列暂未提供简介。"}
+              </p>
 
-          <h1 className="font-display mt-[19px] text-[2.05rem] font-extrabold leading-[1.22] tracking-[-0.045em] text-primary sm:text-[2.4375rem]">
-            {series.title}
-          </h1>
+              <div className="series-detail-actions">
+                {chapters.length > 0 ? (
+                  <Button asChild className="h-[42px] px-[17px] text-sm">
+                    <Link to={readHref}>
+                      {resumeArticleId ? "继续阅读" : "开始阅读"}
+                      <ArrowRight aria-hidden className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                ) : null}
 
-          {/* Who wrote it and how long it is are the same kind of fact — one
-              line, one weight, both true. No lifecycle status is shown: ACTIVE
-              is not "连载中" and ARCHIVED is not "完结". */}
-          <div className="mt-[18px] flex flex-wrap items-center gap-x-[15px] gap-y-1 text-[14px] text-muted-foreground">
-            <Link
-              to={`/u/${encodeURIComponent(series.author.username)}`}
-              className="focus-ring rounded-sm font-semibold text-foreground transition-colors hover:text-accent-strong"
-            >
-              {series.author.displayName?.trim() || `@${series.author.username}`}
-            </Link>
-            <span aria-hidden className="h-[3px] w-[3px] rounded-full bg-muted-foreground/35" />
-            <span className="tabular-nums">{`共 ${chapters.length} 章`}</span>
-          </div>
+                {/* A guest still sees the subscribe slot: it is the second of
+                    two buttons, so it takes the second button's shape rather
+                    than shrinking to a text link next to the primary. */}
+                {!isAuthenticated ? (
+                  <Button asChild variant="outline" className="h-[42px] px-[17px] text-sm">
+                    <Link to={`/login?returnTo=${encodeURIComponent(`/series/${series.id}`)}`}>
+                      登录后订阅
+                    </Link>
+                  </Button>
+                ) : subscribed !== null ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-[42px] px-[17px] text-sm"
+                    disabled={subscribePending}
+                    aria-pressed={subscribed}
+                    onClick={() => void onToggleSubscribe()}
+                  >
+                    {subscribed ? <Check aria-hidden className="h-4 w-4" /> : null}
+                    {subscribed ? "已订阅" : "订阅系列"}
+                  </Button>
+                ) : (
+                  <span className="text-meta text-muted-foreground">订阅状态不可用</span>
+                )}
+              </div>
 
-          <p className="mt-[23px] max-w-[650px] text-[16px] leading-[1.9] text-foreground-soft">
-            {series.description || "该系列暂未提供简介。"}
-          </p>
+              {/* A failed toggle is not a page error: it belongs to the control
+                  that caused it, and it must be announced. */}
+              {subscribeError ? (
+                <p role="alert" className="mt-2 text-meta text-destructive">
+                  {subscribeError}
+                </p>
+              ) : null}
 
-          <div className="mt-[24px] flex flex-wrap items-center gap-[13px]">
-            {chapters.length > 0 ? (
-              <Button asChild className="h-11 px-6 text-sm">
-                <Link to={readHref}>
-                  {resumeArticleId ? "继续阅读" : "开始阅读"}
-                  <ArrowRight aria-hidden className="h-4 w-4" />
-                </Link>
-              </Button>
-            ) : null}
+              <p className="series-detail-hint text-muted-foreground">{positionLine}</p>
 
-            {/* A guest still sees the subscribe slot: it is the second of two
-                buttons, so it takes the second button's shape rather than
-                shrinking to a text link next to a 44px primary. */}
-            {!isAuthenticated ? (
-              <Button asChild variant="outline" className="h-11 px-5 text-sm">
-                <Link to={`/login?returnTo=${encodeURIComponent(`/series/${series.id}`)}`}>
-                  登录后订阅
-                </Link>
-              </Button>
-            ) : subscribed !== null ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 px-5 text-sm"
-                disabled={subscribePending}
-                aria-pressed={subscribed}
-                onClick={() => void onToggleSubscribe()}
-              >
-                {subscribed ? <Check aria-hidden className="h-4 w-4" /> : null}
-                {subscribed ? "已订阅" : "订阅系列"}
-              </Button>
-            ) : (
-              <span className="text-meta text-muted-foreground">订阅状态不可用</span>
-            )}
-          </div>
+              {resumePercent !== null ? (
+                <div
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={resumeChapterCount}
+                  aria-valuenow={resumeIndex ?? 0}
+                  aria-label={`已读到第 ${resumeIndex} 章，共 ${resumeChapterCount} 章`}
+                  className="series-detail-meter"
+                >
+                  <div
+                    className="series-detail-meter-fill"
+                    style={{ width: `${resumePercent}%` }}
+                  />
+                </div>
+              ) : null}
+            </div>
 
-          {/* A failed toggle is not a page error: it belongs to the control that
-              caused it, and it must be announced. */}
-          {subscribeError ? (
-            <p role="alert" className="mt-2 text-meta text-destructive">
-              {subscribeError}
-            </p>
-          ) : null}
-
-          <hr className="series-detail-sep" />
+            <div className="series-detail-hero-art" aria-hidden="true">
+              <img data-testid="series-reading-nook" src={readingNook} alt="" />
+            </div>
+          </section>
 
           {/*
             The catalogue is this page's P0, so it builds its own structure
             instead of using `PageSection`: a catalogue is not a section of
             another page's content, and the tokens it needs (title step, meta
-            count, hairline rows) are used directly.
+            count, hairline rows inside one card) are used directly.
           */}
-          <section id="series-chapters" aria-labelledby="series-chapters-heading">
-            <div className="mb-[10px] flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <section
+            id="series-chapters"
+            className="series-detail-chapters"
+            aria-labelledby="series-chapters-heading"
+          >
+            <div className="series-detail-chapters-head">
               <h2
                 id="series-chapters-heading"
                 className="text-[21px] font-bold tracking-[-0.5px] text-primary"
               >
                 章节目录
-                <span className="ml-2 text-[13px] font-normal tabular-nums text-muted-foreground/70">
-                  {String(chapters.length).padStart(2, "0")}
+                <span className="ml-2 text-[12px] font-normal tabular-nums text-muted-foreground/80">
+                  {String(chapters.length).padStart(2, "0")} 章
                 </span>
               </h2>
-              <p className="text-[12px] text-muted-foreground/80">按作者编排顺序阅读</p>
+              <p className="hidden text-[12px] text-muted-foreground/80 sm:block">
+                按作者编排顺序阅读
+              </p>
             </div>
 
             {chapters.length === 0 ? (
@@ -347,14 +440,13 @@ export function PublicSeriesDetailPage() {
             ) : (
               /*
                 Each row is ONE link. The destination is the series reader at
-                that chapter (`?chapter=<articleId>`), so a catalogue entry
-                keeps the reader inside the work and the reader can highlight,
-                refresh and share the exact chapter. The ordinal is
-                `aria-hidden` because the title already states it ("第一章");
-                the resume marker is not, so a screen reader hears where the
-                reader left off.
+                that chapter (`?chapter=<articleId>`), so a catalogue entry keeps
+                the reader inside the work and lets them highlight, refresh and
+                share the exact chapter. The ordinal is `aria-hidden` because the
+                title already states it ("第一章"); the resume marker is not, so a
+                screen reader hears where the reader left off.
               */
-              <ol>
+              <ol className="series-detail-chapter-list">
                 {chapters.map((chapter, index) => {
                   const isResume =
                     resumeArticleId !== null && chapter.articleId === resumeArticleId;
@@ -372,14 +464,18 @@ export function PublicSeriesDetailPage() {
                           {String(index + 1).padStart(2, "0")}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[15.5px] font-semibold leading-[1.6] text-foreground">
+                          <span className="block text-[15px] font-semibold leading-[1.6] text-foreground">
                             {chapter.title?.trim() || `第 ${chapter.position} 章`}
                           </span>
-                          {isResume ? <span className="series-detail-notice">上次阅读</span> : null}
+                          {isResume ? (
+                            <span className="series-detail-notice text-accent-strong">
+                              上次阅读
+                            </span>
+                          ) : null}
                         </span>
-                        <ArrowUpRight
+                        <ChevronRight
                           aria-hidden
-                          className="series-detail-arrow h-[18px] w-[18px]"
+                          className="series-detail-chevron h-5 w-5 text-accent-strong/70"
                         />
                       </Link>
                     </li>
@@ -389,13 +485,221 @@ export function PublicSeriesDetailPage() {
             )}
 
             {chapters.length > 0 ? (
-              <p className="series-detail-footnote mt-[18px] text-[12px] text-muted-foreground/80">
-                选择章节后，将在系列阅读器中打开对应内容。
+              <p className="mt-3 text-[12px] text-muted-foreground/80">
+                点击章节后，将在系列阅读器中打开对应内容。
               </p>
             ) : null}
           </section>
-        </section>
+        </div>
+
+        {/*
+          The rail is an offer, not a requirement: every panel states its own
+          health and can be retried on its own. Nothing here may block the work,
+          which is why the failure copy says so out loud.
+        */}
+        <aside className="series-detail-side" aria-label="延伸发现">
+          <section className="series-detail-panel" aria-labelledby="series-author-panel">
+            <div className="series-detail-panel-head">
+              <h2
+                id="series-author-panel"
+                className="flex items-center gap-2 text-[17px] font-bold text-primary"
+              >
+                <PenLine aria-hidden className="h-4 w-4 text-accent-strong" />
+                创作者的更多系列
+              </h2>
+              <Link
+                to={`/u/${encodeURIComponent(series.author.username)}`}
+                className="focus-ring shrink-0 rounded-sm text-[12px] text-accent-strong hover:underline"
+              >
+                创作者主页 ↗
+              </Link>
+            </div>
+
+            <div className="mt-[17px] flex items-center gap-3">
+              {series.author.avatar ? (
+                <img
+                  src={series.author.avatar}
+                  alt=""
+                  className="h-11 w-11 shrink-0 rounded-full border-2 border-card object-cover ring-1 ring-border"
+                />
+              ) : (
+                <span
+                  aria-hidden
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-card bg-primary text-[21px] font-bold text-primary-foreground ring-1 ring-border"
+                >
+                  {authorInitial}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-bold text-primary">{authorName}</div>
+                <p className="mt-1 text-[12px] leading-6 text-muted-foreground">
+                  当前系列创作者 · 更多分享与个人介绍
+                </p>
+              </div>
+            </div>
+
+            <div aria-live="polite">
+              {discover.kind === "loading" ? (
+                <p className="mt-4 text-[12px] text-muted-foreground">正在读取其他系列…</p>
+              ) : discover.kind === "failed" ? (
+                <EmptyPanel
+                  icon={<AlertCircle className="h-[18px] w-[18px]" />}
+                  tone="error"
+                  title="暂时无法加载，请重试。"
+                  description="创作者信息仍可正常查看。"
+                  onRetry={() => setDiscoverKey((key) => key + 1)}
+                />
+              ) : others.length === 0 ? (
+                <EmptyPanel
+                  icon={<Library className="h-[18px] w-[18px]" />}
+                  title="暂时还没有其他公开系列"
+                  description="也可以前往创作者主页，了解更多分享。"
+                />
+              ) : (
+                <div className="series-detail-panel-list">
+                  {others.map((item) => (
+                    <WorkRow key={item.id} item={item} subtitle={`共 ${item.chapterCount} 章`} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="series-detail-panel" aria-labelledby="series-related-panel">
+            <div className="series-detail-panel-head items-start">
+              <div className="min-w-0">
+                <h2
+                  id="series-related-panel"
+                  className="flex items-center gap-2 text-[17px] font-bold text-primary"
+                >
+                  <Sparkles aria-hidden className="h-4 w-4 text-accent-strong" />
+                  继续探索
+                </h2>
+                {/*
+                  The blurb says what this panel actually is. It reads the public
+                  series list and splits it by author, so there is no relevance
+                  ranking behind the door and the copy must not imply one.
+                */}
+                <p className="mt-1 text-[12px] leading-6 text-muted-foreground">
+                  发现更多值得阅读的系列。
+                </p>
+              </div>
+              <Link
+                to="/series"
+                className="focus-ring mt-0.5 shrink-0 rounded-sm text-[12px] text-accent-strong hover:underline"
+              >
+                全部系列 ↗
+              </Link>
+            </div>
+
+            <div aria-live="polite">
+              {discover.kind === "loading" ? (
+                <p className="mt-4 text-[12px] text-muted-foreground">正在读取公开系列…</p>
+              ) : discover.kind === "failed" ? (
+                <EmptyPanel
+                  icon={<AlertCircle className="h-[18px] w-[18px]" />}
+                  tone="error"
+                  title="暂时无法加载，请重试。"
+                  description="不影响当前系列的阅读。"
+                  onRetry={() => setDiscoverKey((key) => key + 1)}
+                />
+              ) : related.length === 0 ? (
+                <EmptyPanel
+                  icon={<Compass className="h-[18px] w-[18px]" />}
+                  title="暂时没有更多公开系列"
+                  description="可以返回系列列表继续浏览。"
+                />
+              ) : (
+                <div className="series-detail-panel-list">
+                  {related.map((item) => (
+                    <WorkRow
+                      key={item.id}
+                      item={item}
+                      subtitle={`${authorLabel(item)} · 共 ${item.chapterCount} 章`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </aside>
       </div>
     </article>
+  );
+}
+
+/**
+ * One series in a rail panel: the cover, the title, one supporting line.
+ *
+ * The whole row is the link — there is no nested control — and the cover is
+ * the shared `SeriesCover` poster, so a series wears the same jacket here as it
+ * does in the plaza and in the panel's own head.
+ */
+function WorkRow({ item, subtitle }: { item: PublicSeriesSummary; subtitle: string }) {
+  return (
+    <Link
+      to={`/series/${encodeURIComponent(item.id)}`}
+      data-testid="series-rail-item"
+      className="series-detail-work-row group focus-ring rounded-sm"
+    >
+      <SeriesCover
+        stableKey={`${item.id}:${item.slug}`}
+        title={item.title}
+        variant="poster"
+        className="w-[41px]"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-bold text-primary transition-colors group-hover:text-accent-strong">
+          {item.title}
+        </span>
+        <span className="mt-1 block truncate text-[11px] text-muted-foreground">{subtitle}</span>
+      </span>
+      <span aria-hidden className="shrink-0 pl-1 text-[23px] text-muted-foreground/60">
+        ›
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * A rail panel with nothing to show.
+ *
+ * Two different things wear the same box: "there is nothing here" (a dashed
+ * neutral frame — the shelf is empty) and "this could not be read" (a warmer
+ * frame and a retry, because the difference matters to a reader deciding
+ * whether to refresh). Neither is a page error, so neither uses `PageState`.
+ */
+function EmptyPanel({
+  icon,
+  tone,
+  title,
+  description,
+  onRetry,
+}: {
+  icon: ReactNode;
+  tone?: "error";
+  title: string;
+  description: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="series-detail-blank" data-tone={tone} role={tone ? "alert" : "status"}>
+      <span aria-hidden className="series-detail-blank-icon">
+        {icon}
+      </span>
+      <strong className="block text-[13px] font-semibold text-primary">{title}</strong>
+      <p className="mx-auto mt-[7px] max-w-[25ch] text-[12px] leading-7 text-muted-foreground">
+        {description}
+      </p>
+      {onRetry ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="focus-ring mt-2.5 rounded-lg border border-accent-line bg-card px-3.5 py-2 text-[12px] text-accent-strong transition-colors hover:border-accent/60"
+        >
+          重试加载
+        </button>
+      ) : null}
+    </div>
   );
 }
