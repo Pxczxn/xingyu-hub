@@ -141,6 +141,37 @@
     transform: translateY(0);
   }
 }
+/*
+ * Content that arrives asynchronously — a chapter body, the outline, the comment
+ * list — used to replace its placeholder in a single paint. The panel height
+ * already eases (DiscoverListItem tracks it per frame), so the only thing still
+ * snapping was the content itself. A short fade with a 4px rise ties the arrival
+ * to the panel's own motion without becoming a second, competing animation.
+ *
+ * `backwards`, not `both`: this element owns no transform of its own, and a
+ * retained fill would keep the finished keyframe's identity matrix on it, which
+ * still creates a containing block for the sticky heading and the position of
+ * anything absolutely placed inside. With `backwards` the fill only covers the
+ * time before the run, so the moment the animation ends the element is left
+ * exactly as authored.
+ *
+ * Almost every use pairs this with a `key` on the wrapper. React remounts on a
+ * key change, and a remount is what replays the animation — an element whose
+ * children were swapped in place keeps its painted result and plays nothing.
+ */
+.discover-content-in {
+  animation: discover-content-in 260ms var(--discover-ease, ease-out) backwards;
+}
+@keyframes discover-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 .discover-reading-viewport {
   overflow: visible;
   overflow-wrap: anywhere;

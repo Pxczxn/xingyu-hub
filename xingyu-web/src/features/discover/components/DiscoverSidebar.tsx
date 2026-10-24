@@ -79,17 +79,20 @@ export function DiscoverSidebar({
       </p>
 
       <section aria-labelledby="discover-topic-filter" className="mb-5">
-        <h2
-          id="discover-topic-filter"
-          className="mb-3 flex items-baseline justify-between gap-2 text-sm font-bold text-foreground"
-        >
-          按话题筛选
-          {!focused && (
-            <span className="shrink-0 text-[11px] font-normal text-muted-foreground">
-              可同时选择内容类型
-            </span>
-          )}
-        </h2>
+        <div className="mb-3">
+          {/*
+           * The heading never wraps. Opening a row narrows this column from
+           * 244px to 156px over 260ms, and the heading is the one thing here
+           * with no slack: `nowrap` keeps every frame of that transition from
+           * reflowing it into several lines.
+           */}
+          <h2
+            id="discover-topic-filter"
+            className="whitespace-nowrap text-sm font-bold text-foreground"
+          >
+            按话题筛选
+          </h2>
+        </div>
         <div
           className="overflow-hidden"
           style={hasMore && !showAll ? { maxHeight: collapsedHeight } : undefined}

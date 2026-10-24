@@ -23,6 +23,9 @@ import { DiscoverReadingPanel } from "./DiscoverReadingPanel";
  * 支持展开/收起：展开时加载正文和评论
  */
 
+/** Per-paint ceiling for the panel height, matching the scroll loop's budget. */
+const MAX_HEIGHT_STEP = 24;
+
 interface DiscoverListItemProps {
   item: ContentSummary;
   variant?: "normal" | "compact" | "expanded";
@@ -195,7 +198,16 @@ export function DiscoverListItem({
       last = now;
       const damped = smoothDamp(heightRef.current, target, velocity, smoothTime, dt);
       velocity = damped.velocity;
-      const next = damped.value;
+      // One paint may not travel more than this. A long frame (a commit, a decode)
+      // hands the spring a large dt and a critical spring covers a fixed fraction
+      // of the remaining distance, so an uncapped step turns a slow collapse into
+      // a visible snap — the live height is measured per frame, so the ceiling
+      // costs no fidelity: the next paint simply continues from here.
+      const wanted = damped.value - heightRef.current;
+      const next =
+        Math.abs(wanted) > MAX_HEIGHT_STEP
+          ? heightRef.current + Math.sign(wanted) * MAX_HEIGHT_STEP
+          : damped.value;
       heightRef.current = next;
       clip.style.height = `${next}px`;
       if (Math.abs(target - next) < 0.5) {
@@ -512,42 +524,62 @@ export function DiscoverListItem({
                     <MessageSquare className="h-4 w-4" aria-hidden />
                     {isAuthenticated ? `评论 (${comments.length})` : "评论预览"}
                   </h4>
-                  {commentsLoading ? (
-                    <p role="status" className="text-sm text-muted-foreground">
-                      评论加载中...
-                    </p>
-                  ) : commentsError ? (
-                    <p role="alert" className="text-sm text-destructive">
-                      评论加载失败，请稍后重试。
-                    </p>
-                  ) : comments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">暂无评论</p>
-                  ) : (
-                    <>
-                      <ul className="grid gap-3 xl:grid-cols-3">
-                        {comments.slice(0, 3).map((comment) => (
-                          <li key={comment.id} className="min-w-0">
-                            <div className="mb-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                              <span className="font-medium text-foreground">
-                                {comment.authorUsername || "匿名用户"}
-                              </span>
-                              <time dateTime={comment.createdAt}>
-                                {new Date(comment.createdAt).toLocaleDateString("zh-CN")}
-                              </time>
-                            </div>
-                            <p className="line-clamp-2 break-words text-sm leading-relaxed text-muted-foreground">
-                              {comment.body}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                      {comments.length > 3 && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          还有 {comments.length - 3} 条评论...
-                        </p>
-                      )}
-                    </>
-                  )}
+                  {/*
+                   * Comments resolve independently of the body, usually a beat
+                   * after it, so they used to appear under an already-settled
+                   * panel with no transition. Keying on the state (not on the
+                   * text) makes each of the four arrivals — loading, error,
+                   * empty, list — enter the same way.
+                   */}
+                  <div
+                    key={
+                      commentsLoading
+                        ? "comments-loading"
+                        : commentsError
+                          ? "comments-error"
+                          : comments.length === 0
+                            ? "comments-empty"
+                            : "comments-list"
+                    }
+                    className="discover-content-in"
+                  >
+                    {commentsLoading ? (
+                      <p role="status" className="text-sm text-muted-foreground">
+                        评论加载中...
+                      </p>
+                    ) : commentsError ? (
+                      <p role="alert" className="text-sm text-destructive">
+                        评论加载失败，请稍后重试。
+                      </p>
+                    ) : comments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">暂无评论</p>
+                    ) : (
+                      <>
+                        <ul className="grid gap-3 xl:grid-cols-3">
+                          {comments.slice(0, 3).map((comment) => (
+                            <li key={comment.id} className="min-w-0">
+                              <div className="mb-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                                <span className="font-medium text-foreground">
+                                  {comment.authorUsername || "匿名用户"}
+                                </span>
+                                <time dateTime={comment.createdAt}>
+                                  {new Date(comment.createdAt).toLocaleDateString("zh-CN")}
+                                </time>
+                              </div>
+                              <p className="line-clamp-2 break-words text-sm leading-relaxed text-muted-foreground">
+                                {comment.body}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                        {comments.length > 3 && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            还有 {comments.length - 3} 条评论...
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
                   {!isAuthenticated && !commentsLoading && !commentsError && (
                     <Link
                       to={buildLoginPath(`${location.pathname}${location.search}`)}

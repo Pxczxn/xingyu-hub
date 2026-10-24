@@ -36,6 +36,26 @@ const ALIGN_TOLERANCE = 1;
 const STABLE_FRAMES = 4;
 const BLOCKED_FRAMES = 4;
 
+/*
+ * Largest distance a single alignment frame may cover, in CSS pixels.
+ *
+ * A critically damped spring takes a fixed *fraction* of the remaining distance
+ * every frame, so its first step scales with the gap it is closing: with a 90ms
+ * smooth time and a 16.7ms frame that fraction is 31%. Re-aligning an in-view row
+ * by 40px, 31% is 12px and nothing looks wrong. Switching to a row two screens
+ * away asks for 215px, and 31% of that is a 66px jump in a single paint — the
+ * scroll the eye reads as the page teleporting instead of sliding. A frame that
+ * ran long makes it worse: the spring integrates elapsed time, so a 64ms commit
+ * is charged 64ms of travel in the very next paint.
+ *
+ * One cap covers both causes, because both land in the same place: how far the
+ * viewport is allowed to move between two paints. The spring keeps its shape and
+ * its velocity; it simply cannot cash a whole step at once. 24px sits above the
+ * 12px an ordinary frame travels at 60Hz, so normal re-aligns are untouched, and
+ * far below the pathological 66px first step.
+ */
+const MAX_ALIGN_STEP = 24;
+
 function readingInsets(row: HTMLElement) {
   const headerBottom = Math.max(
     0,
@@ -196,6 +216,9 @@ export function useDiscoverPosition(expandedKey: string | null) {
       return Math.abs(window.scrollY - before) > 0.5 ? ("moved" as const) : ("blocked" as const);
     };
     if (request.initialSync) {
+      // Before the first paint of the new layout, so there is no frame to split
+      // this across: it runs in the same task that opens the row, and the user
+      // has not seen the intermediate position at all.
       scrollBy(request.anchor.getBoundingClientRect().top - request.anchorTop);
     }
 
@@ -230,7 +253,7 @@ export function useDiscoverPosition(expandedKey: string | null) {
         stop();
         return;
       }
-      const dt = Math.min(64, Math.max(0, now - last)) / 1000;
+      const dt = Math.max(0, now - last) / 1000;
       last = now;
       const variant = row.querySelector<HTMLElement>("[data-discover-variant]") ?? row;
       const { top, headerBottom } = readingInsets(variant);
@@ -246,7 +269,11 @@ export function useDiscoverPosition(expandedKey: string | null) {
         } else if (alignError < 0) {
           // The compacted rows above can move faster than the easing: never let
           // the header sit under the sticky navigation, correct it in the frame it
-          // happens instead of after the animation.
+          // happens instead of after the animation. This one is deliberately not
+          // capped the way the easing is — it is not travel the user asked to
+          // watch, it is the gap between the header and where it has to be, and
+          // spreading it over several paints would leave the header under the
+          // navigation for exactly that long.
           outcome = scrollBy(alignError);
           alignPosition = window.scrollY;
           alignVelocity = 0;
@@ -261,8 +288,19 @@ export function useDiscoverPosition(expandedKey: string | null) {
           const damped = smoothDamp(alignPosition, target, alignVelocity, ALIGN_SMOOTH_TIME, dt);
           alignPosition = damped.value;
           alignVelocity = damped.velocity;
-          outcome = scrollBy(alignPosition - window.scrollY);
+          const step = alignPosition - window.scrollY;
+          const capped = Math.abs(step) > MAX_ALIGN_STEP ? Math.sign(step) * MAX_ALIGN_STEP : step;
+          outcome = scrollBy(capped);
+          if (capped !== step) {
+            // The spring asked for more ground than one paint should show. Scale its
+            // velocity by the same factor instead of zeroing it: dropping it to zero
+            // restarts the ease from rest on every frame, and that settles into a
+            // visible back-and-forth limit cycle instead of converging.
+            alignVelocity *= Math.abs(capped / step);
+          }
           if (outcome === "blocked") {
+            // The document cannot scroll as far as the spring believes: stop asking,
+            // or the loop would keep integrating motion the viewport refuses.
             alignPosition = window.scrollY;
             alignVelocity = 0;
           }

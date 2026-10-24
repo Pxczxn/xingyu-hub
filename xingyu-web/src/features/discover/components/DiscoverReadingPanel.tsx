@@ -66,6 +66,20 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
   );
   const chapterError = chapterState?.id === chapterId && chapterState?.kind === "error";
   const visibleOutline = outlineExpanded ? outline : outline.slice(0, 6);
+  /*
+   * Which of the viewport's four states is on screen. Including the chapter id
+   * matters: switching from chapter one to chapter two passes through `loading`
+   * and back to `ready`, and without the id the two `ready` frames would share a
+   * key and swap in place with no entry animation at all.
+   */
+  const panelStateKey =
+    article && prepared
+      ? `ready-${chapterId ?? "article"}`
+      : chapterError
+        ? `error-${chapterId}`
+        : chapterId
+          ? `loading-${chapterId}`
+          : "empty";
 
   const locateHeading = (id: string) => {
     const viewport = readingViewport.current;
@@ -191,7 +205,12 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
               <p className="text-xs text-muted-foreground">暂无章节</p>
             ))}
           {outline.length ? (
-            <>
+            /*
+             * Keyed by chapter: the outline is a fresh set of headings per
+             * chapter, but the list element itself never unmounts, so without
+             * the key a switch would repaint the links in place.
+             */
+            <div key={`outline-${chapterId ?? "article"}`} className="discover-content-in">
               <ul className="space-y-1">
                 {visibleOutline.map((heading) => (
                   <li key={heading.id}>
@@ -218,7 +237,7 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
                   {outlineExpanded ? "收起小节" : `显示全部 ${outline.length} 个小节`}
                 </button>
               )}
-            </>
+            </div>
           ) : (
             <p className="px-2 text-xs text-muted-foreground">暂无小节标题</p>
           )}
@@ -239,28 +258,38 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
           className="discover-reading-viewport focus-ring break-words rounded-lg p-3"
           aria-busy={Boolean(chapterId && !article && !chapterError)}
         >
-          {article && prepared ? (
-            <ArticleMarkdownBody body={prepared.markdown} headingIdPrefix={headingPrefix} />
-          ) : chapterError ? (
-            <div className="space-y-2">
-              <p role="alert" className="text-sm text-destructive">
-                章节加载失败，请重试。
+          {/*
+           * Keyed on which of the four states is on screen, not on the text:
+           * a chapter switch swaps ready → loading → ready, and each of those is
+           * a different thing arriving, so each deserves its own entry. The key
+           * sits *inside* the viewport, never on it — the viewport is the scroll
+           * box the reader keeps across switches, and remounting it would reset
+           * the position the effect above deliberately manages.
+           */}
+          <div key={panelStateKey} className="discover-content-in">
+            {article && prepared ? (
+              <ArticleMarkdownBody body={prepared.markdown} headingIdPrefix={headingPrefix} />
+            ) : chapterError ? (
+              <div className="space-y-2">
+                <p role="alert" className="text-sm text-destructive">
+                  章节加载失败，请重试。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setRetryKey((key) => key + 1)}
+                  className="focus-ring min-h-11 rounded px-2 text-sm text-accent-strong"
+                >
+                  重新加载章节
+                </button>
+              </div>
+            ) : chapterId ? (
+              <p role="status" className="text-sm text-muted-foreground">
+                章节加载中...
               </p>
-              <button
-                type="button"
-                onClick={() => setRetryKey((key) => key + 1)}
-                className="focus-ring min-h-11 rounded px-2 text-sm text-accent-strong"
-              >
-                重新加载章节
-              </button>
-            </div>
-          ) : chapterId ? (
-            <p role="status" className="text-sm text-muted-foreground">
-              章节加载中...
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">暂无可阅读章节</p>
-          )}
+            ) : (
+              <p className="text-sm text-muted-foreground">暂无可阅读章节</p>
+            )}
+          </div>
         </div>
         {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
       </section>
