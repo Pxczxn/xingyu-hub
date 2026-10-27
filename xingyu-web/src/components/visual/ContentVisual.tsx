@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   AlignLeft,
   BookOpen,
@@ -71,12 +72,25 @@ export function ContentVisual({
   label?: string;
   className?: string;
 }) {
-  if (cover) {
+  /*
+   * 记住「哪一张 URL 加载失败了」而不是一个布尔值：`cover` 换成新的 URL 时
+   * `brokenCover !== cover` 自动恢复出图，不需要 useEffect 去同步状态。
+   *
+   * 为什么要处理失败：装饰板与封面共享同一个 `aspect-[2.6/1]` 位，封面 URL
+   * 404 / 图床挂掉 / 运营填了错地址时，浏览器会画出一个破图标 + 空白区，高度
+   * 虽然不塌（aspect 会撑住），但那一格看起来像「页面坏了」。此时退回装饰板，
+   * 至少仍是「这篇是纯文字内容」的语义，且与真正无封面的卡完全一致。
+   */
+  const [brokenCover, setBrokenCover] = useState<string | null>(null);
+  const showCover = Boolean(cover) && brokenCover !== cover;
+
+  if (showCover) {
     return (
       <img
         src={cover}
         alt=""
         data-content-visual-variant={variant}
+        onError={() => setBrokenCover(cover ?? null)}
         className={cn(
           "block w-full rounded-lg object-cover",
           variant === "card" ? "aspect-[2.6/1]" : "aspect-video",

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ContentVisual, contentVisualIconName } from "./ContentVisual";
 
@@ -41,6 +41,30 @@ describe("ContentVisual", () => {
     expect(screen.getByTestId("content-visual")).toHaveAttribute("data-content-visual-icon", icon);
 
     rerender(<ContentVisual stableKey="article-1" objectType="ARTICLE" cover="/real-cover.jpg" />);
+    expect(screen.queryByTestId("content-visual")).not.toBeInTheDocument();
+    expect(document.querySelector('img[src="/real-cover.jpg"]')).toBeInTheDocument();
+  });
+
+  it("falls back to the plate when the cover image fails to load", () => {
+    render(<ContentVisual stableKey="broken-1" objectType="ARTICLE" cover="/missing-cover.jpg" />);
+    const img = document.querySelector('img[src="/missing-cover.jpg"]');
+    expect(img).toBeInTheDocument();
+    expect(screen.queryByTestId("content-visual")).not.toBeInTheDocument();
+
+    fireEvent.error(img!);
+
+    expect(document.querySelector('img[src="/missing-cover.jpg"]')).not.toBeInTheDocument();
+    expect(screen.getByTestId("content-visual")).toBeInTheDocument();
+  });
+
+  it("retries with the new cover after a failure instead of staying broken", () => {
+    const { rerender } = render(
+      <ContentVisual stableKey="broken-2" objectType="ARTICLE" cover="/missing-cover.jpg" />,
+    );
+    fireEvent.error(document.querySelector('img[src="/missing-cover.jpg"]')!);
+    expect(screen.getByTestId("content-visual")).toBeInTheDocument();
+
+    rerender(<ContentVisual stableKey="broken-2" objectType="ARTICLE" cover="/real-cover.jpg" />);
     expect(screen.queryByTestId("content-visual")).not.toBeInTheDocument();
     expect(document.querySelector('img[src="/real-cover.jpg"]')).toBeInTheDocument();
   });
