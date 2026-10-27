@@ -380,3 +380,44 @@ describe("user profile category filter", () => {
     expect(mocked.getUserWorks.mock.calls.find(([name]) => name === "other")?.[1]).toBeUndefined();
   });
 });
+
+/*
+ * 批次 09：无封面卡在混排时补视觉位。
+ *
+ * 批次 06 的原意是「无封面时宁可留白」，代码落成了「不渲染」——不渲染就不占位，
+ * 于是同一行里无封面卡的标题会顶到卡片上沿，与邻卡差一个封面的高度。这里钉住的
+ * 是**条件**：混排时补板、整片无封面时不补板。后者是批次 06 真正想避免的
+ * 「一片占位符」，不能被这次修复顺手推翻。
+ */
+describe("user profile works cover placeholder", () => {
+  it("draws a decorative plate for cover-less works when the list also has covers", async () => {
+    mocked.getProfile.mockResolvedValue(PROFILE);
+    mocked.getUserWorks.mockResolvedValue(
+      worksPage([
+        { id: "w1", title: "没有封面的作品" },
+        { id: "w2", title: "有封面的作品", coverUrl: "https://example.test/cover.jpg" },
+      ]),
+    );
+    renderAt("pxczxn");
+
+    await screen.findByTestId("works-list");
+    // 混排：无封面那张也要出装饰板，标题才与邻卡同基线。
+    expect(screen.getAllByTestId("content-visual")).toHaveLength(1);
+    expect(document.querySelectorAll('[data-testid="works-list"] img')).toHaveLength(1);
+  });
+
+  it("draws no plates at all when every work lacks a cover", async () => {
+    mocked.getProfile.mockResolvedValue(PROFILE);
+    mocked.getUserWorks.mockResolvedValue(
+      worksPage([
+        { id: "w1", title: "作品一" },
+        { id: "w2", title: "作品二" },
+      ]),
+    );
+    renderAt("pxczxn");
+
+    await screen.findByTestId("works-list");
+    // 整片无封面：所有卡本来就在同一基线上，补板只会制造一片占位符。
+    expect(screen.queryAllByTestId("content-visual")).toHaveLength(0);
+  });
+});

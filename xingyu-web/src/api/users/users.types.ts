@@ -24,12 +24,33 @@ export type ProfileDetail = {
   seriesCount?: number;
 };
 
+/*
+ * Works element shape — re-verified against the live backend 2026-10-25.
+ * `GET /api/v1/users/{username}/works` actually returns three more fields than
+ * this type used to declare. They are typed here because the profile now renders
+ * them; both are optional and MUST degrade when absent.
+ *
+ *   publishedAt    — Instant, serialized as `2026-09-27T17:07:18Z`. Real.
+ *   likeCount      — int from engagementMetricsService.likeCounts("ARTICLE", ...). Real.
+ *   bookmarkCount  — int from bookmarkCounts("ARTICLE", ...). Real.
+ *
+ * Deliberately NOT typed, because they are not trustworthy:
+ *   pinned         — CreationSpaceService.listPublishedWorks falls back to
+ *                    `drafts.get(0).articleId()` when the space has no explicit
+ *                    pinnedArticleId, so the newest article is always "pinned".
+ *                    Rendering a 置顶 badge from it would label an arbitrary item.
+ *   viewCount      — hard-coded `0L` at CreationSpaceService.java:273. Rendering
+ *                    it would display a fabricated zero as real data.
+ */
 export type SpaceWorkItem = {
   id: string;
   title: string;
   categorySlug?: string | null;
   summary?: string | null;
   coverUrl?: string | null;
+  publishedAt?: string | null;
+  likeCount?: number | null;
+  bookmarkCount?: number | null;
 };
 
 export type SpaceWorks = {
