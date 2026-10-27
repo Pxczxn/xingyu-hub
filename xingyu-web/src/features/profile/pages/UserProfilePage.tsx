@@ -29,6 +29,11 @@ import { Button } from "@/components/ui/button";
  * followers/following（CommunityUserController 逐条核对）—— 没有 series，也没有 moments，
  * 三个 tab 里两个没有数据源。改由真实存在的第二维（创作空间分类）承担筛选，
  * 理由写在 ProfileWorksFilter 里。
+ *
+ * 批次 07（视觉改造）：身份头从卡片改成通栏身份带（见 ProfileHeader），统计从侧栏四宫格
+ * 改成身份带内联一行（见 ProfileStats），侧栏整列撤掉、主栏吃满宽度。撤侧栏的理由和
+ * 「为什么没有创作空间卡」写在下面渲染处的注释里 —— 结论是当前没有满足「真实存在且有
+ * 有效数据」的侧栏内容，而不是「没时间做」。
  */
 type LoadState =
   | { kind: "loading" }
@@ -244,6 +249,7 @@ export function UserProfilePage() {
         followError={followError}
         onToggleFollow={() => void toggleFollow()}
         canFollow={isAuthenticated}
+        statsSlot={<ProfileStats profile={profile} />}
         blockControl={
           canBlock && (blockStatus === "blocked" || blockStatus === "clear") ? (
             <ProfileBlockControl
@@ -255,45 +261,46 @@ export function UserProfilePage() {
         }
       />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        {/*
-          The main column is a <section>, NOT a <main>: AppLayout already renders
-          <main id="main">, so a second one is invalid HTML and a duplicate landmark.
-          GalaxyDetailPage / TopicDetailPage both nest one — that is a defect, not a
-          pattern worth copying.
+      {/*
+        批次 07：侧栏撤掉，主栏吃满宽度。
 
-          The 300px rail matches the S4 family (GalaxyDetailPage / TopicDetailPage).
-          `lg:` is 1024px, which is exactly the §五 breakpoint where the rail moves
-          below the main column.
-        */}
-        <section aria-labelledby="works-heading" className="min-w-0">
-          <h2 id="works-heading" className="section-heading mb-3">
-            公开文章
-          </h2>
+        上一版是 `lg:grid-cols-[minmax(0,1fr)_300px]` + 300px 侧栏，但侧栏里只装得下
+        四张统计小卡 —— 那是「数字」，不是「内容」。撤掉统计（改由身份带内联承载）之后
+        侧栏没有任何有独立价值的东西可放，实测确认：
 
-          {/* Chips come from the works response, so they appear with the first page of
-              results and stay put across filter changes (see the works effect above). */}
-          <ProfileWorksFilter
-            categories={works?.categories ?? []}
-            active={categorySlug}
-            onSelect={handleSelectCategory}
-          />
+          · 创作空间 description —— `CommunityAccountService` 注册时无条件创建空间且
+            description 恒为 null，`CommunitySpaceController` 只有两个 GET，没有编辑
+            端点，所以这个字段在当前产品里根本填不进来；
+          · 用户维度系列列表 —— 没有端点（CommunityUserController 只有 /{username}、
+            /{username}/works、/works/categories、follow、followers/following）；
+          · 「TA 的关注者」 —— `/u/:username/followers` 没有前端路由，且
+            canViewFollowLists=false 时后端直接 403，链接会指向死路。
 
-          {worksError ? (
-            <p role="alert" data-testid="works-error" className="text-sm text-destructive">
-              文章加载失败
-            </p>
-          ) : works ? (
-            <ProfileWorks works={works} filterSlug={categorySlug} pending={worksPending} />
-          ) : (
-            <PageState kind="loading" />
-          )}
-        </section>
+        空着一列 300px 只为放几张小卡，正是这一版要解决的问题。留白给作品流。
+      */}
+      <section aria-labelledby="works-heading" className="min-w-0">
+        <h2 id="works-heading" className="section-heading mb-3">
+          公开文章
+        </h2>
 
-        <aside className="space-y-5 lg:sticky lg:top-24">
-          <ProfileStats profile={profile} />
-        </aside>
-      </div>
+        {/* Chips come from the works response, so they appear with the first page of
+            results and stay put across filter changes (see the works effect above). */}
+        <ProfileWorksFilter
+          categories={works?.categories ?? []}
+          active={categorySlug}
+          onSelect={handleSelectCategory}
+        />
+
+        {worksError ? (
+          <p role="alert" data-testid="works-error" className="text-sm text-destructive">
+            文章加载失败
+          </p>
+        ) : works ? (
+          <ProfileWorks works={works} filterSlug={categorySlug} pending={worksPending} />
+        ) : (
+          <PageState kind="loading" />
+        )}
+      </section>
     </div>
   );
 }

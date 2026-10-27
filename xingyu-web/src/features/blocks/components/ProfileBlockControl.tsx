@@ -65,10 +65,11 @@ export function ProfileBlockControl({
       <div className="flex flex-col items-start gap-2">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           disabled={pending}
           data-testid="profile-unblock"
+          className="text-muted-foreground"
           onClick={() => void run(() => unblockUser(username), false)}
         >
           {pending ? "处理中" : "解除屏蔽"}
@@ -85,30 +86,48 @@ export function ProfileBlockControl({
   return (
     <div className="flex flex-col items-start gap-2">
       {confirming ? (
-        <div className="flex flex-wrap items-center gap-2" data-testid="profile-block-confirm">
-          <span className="text-sm text-muted-foreground">
+        /*
+         * 就地确认块，不是一行横幅。
+         *
+         * 上一版是 `flex flex-wrap items-center gap-2`：一句 24 字的事实说明 +
+         * 「确认屏蔽」+「取消」摊成一整行。它作为身份区右侧操作区的一员时，这一行
+         * 会把操作区从 156px 撑到 654px（1440/1920 实测同值），横向拉出一片只有
+         * 文字的带子，而「关注」被留在最左端孤零零的 —— 主操作与破坏性确认挤在
+         * 同一视觉层里。
+         *
+         * 现在收成一块：说明在上、按钮在下，整体限宽 `max-w-sm`、加淡底色与边框
+         * 把它和常驻操作区分开。破坏性动作需要读者停顿，视觉上也应当是一个
+         * 单独的、要处理的东西，而不是一条可以扫过去的提示。
+         */
+        <div
+          data-testid="profile-block-confirm"
+          className="flex w-full max-w-sm flex-col items-start gap-2.5 rounded-lg border border-border bg-surface-sunken px-3 py-2.5"
+        >
+          <span className="text-sm leading-5 text-muted-foreground">
             屏蔽后，你们之间的关注关系会被解除，双方无法互发私信。确认屏蔽？
           </span>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            disabled={pending}
-            data-testid="profile-block-confirm-button"
-            onClick={() => void run(() => blockUser(username), true)}
-          >
-            {pending ? "处理中" : "确认屏蔽"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={pending}
-            data-testid="profile-block-cancel"
-            onClick={() => setConfirming(false)}
-          >
-            取消
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={pending}
+              data-testid="profile-block-confirm-button"
+              onClick={() => void run(() => blockUser(username), true)}
+            >
+              {pending ? "处理中" : "确认屏蔽"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              data-testid="profile-block-cancel"
+              onClick={() => setConfirming(false)}
+            >
+              取消
+            </Button>
+          </div>
         </div>
       ) : (
         <Button
