@@ -146,6 +146,32 @@
   --text-title: 1.125rem; /* section heading */
   --text-card: 0.9375rem; /* card title */
   --text-meta: 0.8125rem; /* meta, captions */
+
+  /*
+   * Long-form body size — the one number every reading surface typesets at.
+   *
+   * The article page used to run 15px while the series reader defaulted to 18px,
+   * so the same text read differently depending on which route you arrived
+   * from. Both now sit on this value (Batch 13).
+   */
+  --reading-body-size: 1.125rem; /* 18px */
+
+  /*
+   * The reading measure, stated in an absolute length on purpose.
+   *
+   * It is the width of `68ch` at the 18px body — the series reader's default
+   * `layout: "medium"`, measured on the live page as 717.785px. The article
+   * page cannot simply repeat `68ch`: `ch` resolves against the element's OWN
+   * font-size, so the page's `max-w-[68ch]` measured 638px on a 16px ancestor
+   * while the reader's `68ch` measured 717.8px on its 18px column. The two
+   * surfaces agreed on the token and disagreed on the width, which is exactly
+   * the mismatch this batch exists to remove.
+   *
+   * 44.86156rem × 16px = 717.785px. Keeping it in `rem` means it follows the
+   * root size if that ever changes, without re-introducing a dependency on the
+   * font-size of whichever element happens to carry the rule.
+   */
+  --reading-measure: 44.86156rem; /* 68ch at 18px = 717.785px */
 }
 
 /* Dark shell is out of scope for Phase 0; keep a single light theme. */

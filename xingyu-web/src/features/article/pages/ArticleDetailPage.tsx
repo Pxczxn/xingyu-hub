@@ -143,7 +143,7 @@ export function ArticleDetailPage() {
           no surface, one step down in weight, same left edge as the body below.
         */}
         {article.summary ? (
-          <p className="max-w-[68ch] text-[15px] leading-7 text-muted-foreground">
+          <p className="max-w-[var(--reading-measure)] text-meta leading-7 text-muted-foreground">
             {article.summary}
           </p>
         ) : null}
@@ -203,7 +203,8 @@ export function ArticleDetailPage() {
 
         2. The body had no reading measure, so on a 1200px shell a Chinese line
            ran ~70 glyphs. Comfortable long-form reading is 30-40 CJK glyphs;
-           `max-w-[68ch]` is about 34.
+           `max-w-[var(--reading-measure)]` measures 39 glyphs at the 18px body
+           (Batch 13; it was 42 at the old 15px body on a 638px column).
 
         Both are fixed by one grid. `order` moves the outline ABOVE the body
         below `lg` (where a side rail has no room) and beside it at `lg`+ as a
@@ -211,6 +212,7 @@ export function ArticleDetailPage() {
         copies behind responsive `hidden` — two copies would mean two
         `nav[aria-label="文章目录"]` landmarks, which is both an a11y smell and
         something the tests would have to work around.
+
         Batch 11 — the first column was `minmax(0, 1fr)`.
         ------------------------------------------------------------
         `1fr` took everything the shell gave it (974.5px at 1440) while the body
@@ -220,13 +222,24 @@ export function ArticleDetailPage() {
         estimated. The outline was not beside the text, it was at the far right
         edge of the viewport.
 
-        The column is now sized to the measure (`minmax(0, 68ch)`) so the gap is
-        the gap and nothing else. `justify-start`, not `justify-center`: centring
-        the pair would drag the title's left edge off the body's, and this app has
-        already learned that lesson once (`PageMasthead`: the action cluster
-        pushed to the far right left a 530px hole). Left edges stay put; the
-        leftover width becomes page margin, which is what it is.      */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,68ch)_220px] lg:items-start lg:justify-start lg:gap-x-12">
+        The column is now sized to the measure (`minmax(0, var(--reading-measure))`)
+        so the gap is the gap and nothing else. `justify-start`, not
+        `justify-center`: centring the pair would drag the title's left edge off
+        the body's, and this app has already learned that lesson once
+        (`PageMasthead`: the action cluster pushed to the far right left a 530px
+        hole). Left edges stay put; the leftover width becomes page margin,
+        which is what it is.
+
+        Batch 13 — why the measure is a variable and not `68ch`.
+        ------------------------------------------------------------
+        `ch` resolves against the element's OWN font-size, so `68ch` here
+        measured 638px on the page's 16px ancestor while the series reader's
+        `68ch` measured 717.8px on its 18px column: two surfaces that both said
+        "68ch" and disagreed by 79.75px. `--reading-measure` states the width
+        once, as an absolute length, so this column and the reader's default
+        column are the same 717.785px. The token is documented in tokens.css.
+      */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,var(--reading-measure))_220px] lg:items-start lg:justify-start lg:gap-x-12">
         <div className="order-2 min-w-0 lg:order-1">
           {/*
             The cover lives INSIDE the reading column, not above it.
@@ -239,7 +252,7 @@ export function ArticleDetailPage() {
             them.
 
             Two changes fix it without deleting the author's artwork: it now
-            shares the body's measure (`max-w-[68ch]`, so ~340px tall instead of
+            shares the body's measure (`max-w-[var(--reading-measure)]`, so ~340px tall instead of
             675px) and shares the body's left edge, which makes it read as an
             illustration FOR this text rather than a banner the text sits under.
             The 16:9 ratio is kept as-is — cropping the author's framing to buy
@@ -249,11 +262,11 @@ export function ArticleDetailPage() {
             <img
               src={article.coverUrl}
               alt=""
-              className="mb-8 aspect-[16/9] w-full max-w-[68ch] rounded-lg border border-border object-cover"
+              className="mb-8 aspect-[16/9] w-full max-w-[var(--reading-measure)] rounded-lg border border-border object-cover"
             />
           ) : null}
 
-          <div className="max-w-[68ch]">
+          <div className="max-w-[var(--reading-measure)]">
             <ArticleMarkdownBody body={prepared?.markdown ?? article.body} />
 
             {prepared?.recoveredFromHtml ? (
@@ -271,13 +284,14 @@ export function ArticleDetailPage() {
         The tail shares the body's measure.
 
         Everything below the body used to span the whole shell (1200px) while
-        the body itself is `max-w-[68ch]` (~605px). Two costs: the page widens
-        abruptly the moment the article ends, and every comment line then runs
-        ~85 CJK glyphs — more than twice a comfortable measure. Holding the tail
-        to the reading column keeps one left edge from the title to the last
-        comment. `gap-8` matches `section-gap`, so the rhythm is unchanged.
+        the body itself is capped at `max-w-[var(--reading-measure)]` (717.8px).
+        Two costs: the page widens abruptly the moment the article ends, and
+        every comment line then runs ~85 CJK glyphs — more than twice a
+        comfortable measure. Holding the tail to the reading column keeps one
+        left edge from the title to the last comment. `gap-8` matches
+        `section-gap`, so the rhythm is unchanged.
       */}
-      <div className="flex max-w-[68ch] flex-col gap-8">
+      <div className="flex max-w-[var(--reading-measure)] flex-col gap-8">
         <ArticleInteractions objectType="ARTICLE" objectId={article.id} />
 
         {/* Quiet, secondary entry. `owner` comes from the server, so the author

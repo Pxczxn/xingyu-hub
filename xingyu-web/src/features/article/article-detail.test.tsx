@@ -168,4 +168,57 @@ describe("article detail", () => {
 
     await waitFor(() => expect(screen.getByTestId("page-state-error")).toBeInTheDocument());
   });
+
+  /*
+   * Batch 13 — one long-form type baseline for every reading surface.
+   *
+   * The article page ran 15px / 2.1333 while the series reader defaulted to
+   * 18px / 1.85, so the same text read as two different products. The shared
+   * scale now lives on `.article-body` in globals.css, which both surfaces
+   * inherit; these two assertions pin the article side of the column contract.
+   *
+   * The column width is the part jsdom CAN pin. `ch` resolves against the
+   * element's OWN font-size, so `max-w-[68ch]` measured 638px on the page's
+   * 16px ancestor but 717.8px inside the reader's 18px column — "the same"
+   * 68ch held 42 glyphs in one place and 39 in the other. Both surfaces now
+   * read their width from `--reading-measure`, an absolute length equal to
+   * 68ch at the shared 18px body.
+   */
+  it("caps the body and its column at the shared reading measure", async () => {
+    mocked.getArticle.mockResolvedValue(ARTICLE);
+    const { container } = renderAt("a1");
+
+    await screen.findByRole("heading", { name: "真实文章标题" });
+
+    // The column wrapper and the body it holds must agree on the measure; the
+    // grid's first track is what actually caps the body's width.
+    const column = container.querySelector(".article-body")?.parentElement;
+    expect(column?.className).toContain("max-w-[var(--reading-measure)]");
+    // Select by the track definition, not `.grid`: the author avatar is also
+    // `grid` (a 24px disc), and it comes first in document order.
+    const grid = container.querySelector(
+      '[class*="lg:grid-cols-[minmax(0,var(--reading-measure))_220px]"]',
+    );
+    expect(grid).not.toBeNull();
+    // A literal `68ch` here would silently reintroduce the 16px-vs-18px split.
+    expect(container.querySelector('[class*="68ch"]')).toBeNull();
+  });
+
+  it("keeps the shared body size off the outline and the tail", async () => {
+    mocked.getArticle.mockResolvedValue(ARTICLE);
+    const { container } = renderAt("a1");
+
+    await screen.findByRole("heading", { name: "真实文章标题" });
+
+    /*
+     * An earlier cut of this batch put `font-size: 18px` on the page root to
+     * make `68ch` resolve the same way it does in the reader. Measured on the
+     * live page, that inheritance escaped into 14 kinds of element — the
+     * outline headings, the comment block, the continue-reading card — none of
+     * which are long-form prose. The measure is a width token for that reason,
+     * and this assertion keeps it that way.
+     */
+    const root = container.querySelector("article");
+    expect(root?.className).not.toContain("reading-surface");
+  });
 });

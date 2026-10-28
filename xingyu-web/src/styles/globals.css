@@ -315,6 +315,22 @@
     @apply text-title font-semibold text-primary;
   }
 
+  /*
+   * Batch 13 — reading measure.
+   *
+   * `ch` resolves against the element's OWN font-size, so a column capped at
+   * `68ch` is 638px wide when the cap sits on a 16px element and 717.8px when
+   * it sits on an 18px one. That is why the article page and the series reader
+   * measured 42 and 39 glyphs per line: they agreed on "68ch" and disagreed on
+   * what a `ch` was. Measured on the live pages, 1ch is 9.3828px at 16px and
+   * 10.5563px at 18px.
+   *
+   * The measure now lives in `--reading-measure` (see tokens.css) as an
+   * absolute length equal to 68ch at the shared 18px body, so callers write
+   * `max-w-[var(--reading-measure)]` instead of `max-w-[68ch]` and get the same
+   * column regardless of which element happens to carry the rule.
+   */
+
   /* Muted body copy used under headings. Bounded so lines stay readable. */
   .lede {
     @apply text-meta leading-6 text-muted-foreground;
@@ -360,14 +376,41 @@
    * At the default 15px body every value below is arithmetically identical to
    * what it replaced — the article page renders pixel-for-pixel as before.
    */
+  /*
+   * Batch 13 — one long-form type baseline for every reading surface.
+   *
+   * The article page and the series reader used to typeset the SAME text two
+   * different ways, and the difference was not subtle:
+   *
+   *   article page   15px / 2.1333  → 32px leading at a 15px body
+   *   series reader  18px / 1.85    → 33.3px leading at an 18px body
+   *
+   * Measured at 1440: the article body ran 42 CJK glyphs per line in a 638px
+   * column, the series reader 39 in a 718px one. Reading an article and then a
+   * series chapter felt like two products: the article was smaller and airier
+   * (2.13 is a Latin-text rhythm; on 15px CJK the gap is wide enough to lose
+   * the line you were on), the chapter was larger and tighter.
+   *
+   * Both surfaces now share 18px / 1.85. 18px is the series reader's own
+   * default (READER_DEFAULT_PREFERENCES), so the article page adopts the value
+   * the reader already offered rather than inventing a third one, and the A-
+   * control still reaches down to 15px for anyone who wants the old size.
+   */
   .article-body {
-    @apply text-[15px] leading-[2.1333] text-foreground;
+    /*
+     * The size comes from the token, not from a literal here. An earlier cut of
+     * this batch wrote `text-[18px]` and left `--reading-body-size` defined but
+     * unused — two places to edit and no guarantee they agree. The token is the
+     * single statement of "how big is long-form prose in this product".
+     */
+    font-size: var(--reading-body-size);
+    @apply leading-[1.85] text-foreground;
   }
   /*
    * A reader that offers a font-size control owns the body's type scale.
-   * `.article-body`'s 15px is the default for every other caller (the article
+   * `.article-body`'s 18px is the default for every other caller (the article
    * page); inside a reader column the reader's own size is the truth, and the
-   * relative sizes above carry it through the whole scale from one value.
+   * relative sizes below carry it through the whole scale from one value.
    */
   .reader-column .article-body {
     font-size: inherit;
@@ -379,41 +422,18 @@
     overflow-wrap: break-word;
   }
   /*
-   * Reader-only long-form rhythm (Phase 4.1B).
+   * Batch 13 deleted the reader-only line-height block that used to live here.
    *
-   * The shared `.article-body` uses a 2.1333 line height, which is deliberate on
-   * the article page (15px body) but becomes ~51px at the reader's 24px ceiling.
-   * Inside the reader column — and ONLY here — paragraphs, lists, table cells and
-   * quotes settle at 1.85, headings tighten to 1.35–1.45 so the document outline
-   * stays legible at every size, and code keeps its own 1.6 rhythm. The values are
-   * unitless, so they scale with the reader's chosen font size rather than
-   * freezing one size's pixel rhythm.
-   *
-   * The font-size/measure relationship is untouched: `font-size: inherit` above
-   * still hands the reader's size to `.article-body`, and `ch` still resolves on
-   * the element that carries it.
+   * It existed because the shared `.article-body` carried a 2.1333 rhythm that
+   * was tolerable at the article page's 15px but became ~51px at the reader's
+   * 24px ceiling — so the reader overrode paragraphs to 1.85 and tightened
+   * headings to 1.35–1.45. Once the shared baseline became 18px / 1.85 those
+   * overrides restated the shared values for paragraphs and kept DIVERGING on
+   * headings: the same `<h2>` was 1.6 on the article page and 1.35 in a
+   * chapter. The heading ratios are now stated once, in the shared block below,
+   * at the tighter values the reader had already proven. Nothing here should
+   * grow a second copy of them again.
    */
-  .reader-column .article-body,
-  .reader-column .article-body p,
-  .reader-column .article-body li,
-  .reader-column .article-body td,
-  .reader-column .article-body th,
-  .reader-column .article-body blockquote {
-    line-height: 1.85;
-  }
-  .reader-column .article-body h2 {
-    line-height: 1.35;
-  }
-  .reader-column .article-body h3 {
-    line-height: 1.4;
-  }
-  .reader-column .article-body h4 {
-    line-height: 1.45;
-  }
-  .reader-column .article-body pre,
-  .reader-column .article-body pre code {
-    line-height: 1.6;
-  }
 
   /* Inline code is the one place where breaking inside a token is preferable
      to overflowing the column; fenced blocks already scroll (`.article-body pre`). */
@@ -427,14 +447,26 @@
   .article-body > * + * {
     @apply mt-4;
   }
+  /*
+   * Heading ratios, stated once for every reading surface (Batch 13).
+   *
+   * These are the values the series reader had already settled on at 18px —
+   * 1.35 / 1.4 / 1.45 — promoted to the shared block now that both surfaces
+   * share a body size. The article page previously ran 1.6 / 2 / 2.1333 here,
+   * which at the old 15px body was 32px of leading for a 20px h2: barely a
+   * heading rhythm, and it left a 24px h2 at 38.4px once the body grew.
+   *
+   * Sizes stay relative (`em` of the body) so the reader's A+/A- carries the
+   * whole outline with it and `h2 > h3 > h4` can never invert.
+   */
   .article-body h2 {
-    @apply mt-10 text-[1.3333em] leading-[1.6] font-semibold tracking-tight text-primary;
+    @apply mt-10 text-[1.3333em] leading-[1.35] font-semibold tracking-tight text-primary;
   }
   .article-body h3 {
-    @apply mt-8 text-[1.0667em] leading-[2] font-semibold tracking-tight text-primary;
+    @apply mt-8 text-[1.0667em] leading-[1.4] font-semibold tracking-tight text-primary;
   }
   .article-body h4 {
-    @apply mt-6 text-[1em] leading-[2.1333] font-semibold text-primary;
+    @apply mt-6 text-[1em] leading-[1.45] font-semibold text-primary;
   }
   /*
    * Batch 11: in-page heading anchors must clear the sticky header.
@@ -463,7 +495,7 @@
     @apply mt-3;
   }
   .article-body p {
-    @apply leading-[2.1333];
+    @apply leading-[1.85];
   }
   .article-body ul,
   .article-body ol {
@@ -483,6 +515,15 @@
   }
   .article-body pre {
     @apply overflow-x-auto rounded-lg border border-border/70 bg-surface-sunken p-4;
+  }
+  /*
+   * Code keeps a tighter rhythm than prose at every size. This used to be
+   * reader-only; the article page inherited the full body ratio instead, which
+   * made a fenced block taller than the paragraph around it (Batch 13).
+   */
+  .article-body pre,
+  .article-body pre code {
+    @apply leading-[1.6];
   }
   .article-body pre code {
     @apply bg-transparent p-0 text-[0.8667em];
