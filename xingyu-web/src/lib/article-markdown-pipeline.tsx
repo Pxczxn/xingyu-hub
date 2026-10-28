@@ -9,6 +9,7 @@ import { unified } from "unified";
 import { visit } from "unist-util-visit";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import { ArticleMarkdownImg } from "@/lib/article-markdown-media-context";
+import { ArticleMarkdownLink } from "@/lib/article-markdown-link";
 import { ArticleTableScroll } from "@/lib/article-table-scroll";
 
 /*
@@ -39,11 +40,12 @@ export function parseArticleMarkdownAst(body: string): MdastRoot {
 }
 
 const articleMarkdownComponents: Components = {
-  a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noreferrer">
-      {children}
-    </a>
-  ),
+  /*
+   * `a` is not node-specific, so it lives in its own module
+   * (`@/lib/article-markdown-link`) — see the rule table there for which hrefs
+   * navigate in place and which still open a new tab.
+   */
+  a: ({ href, children }) => <ArticleMarkdownLink href={href}>{children}</ArticleMarkdownLink>,
   img: ({ src, alt }) => <ArticleMarkdownImg src={src} alt={alt} />,
   /*
    * A wide table must scroll inside the reading column, not stretch the page.

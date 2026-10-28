@@ -5,6 +5,7 @@ import type { ArticleDetail } from "@/api/articles/articles.types";
 import { ApiError } from "@/api/client";
 import { ArticleContinueReading } from "@/features/article/components/ArticleContinueReading";
 import { ArticleInteractions } from "@/features/article/components/ArticleInteractions";
+import { ArticleOutline } from "@/features/article/components/ArticleOutline";
 import { CommentSection } from "@/features/article/components/CommentSection";
 import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { ArticleMarkdownBody, extractArticleOutline } from "@/lib/article-markdown";
@@ -210,8 +211,22 @@ export function ArticleDetailPage() {
         copies behind responsive `hidden` — two copies would mean two
         `nav[aria-label="文章目录"]` landmarks, which is both an a11y smell and
         something the tests would have to work around.
-      */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start lg:gap-10">
+        Batch 11 — the first column was `minmax(0, 1fr)`.
+        ------------------------------------------------------------
+        `1fr` took everything the shell gave it (974.5px at 1440) while the body
+        below capped itself at `max-w-[68ch]` (638px). The surplus 336px stayed
+        INSIDE the first column, and `lg:gap-10` added 40px more, so the outline
+        sat 376.5px from the body at 1440 and 494px at 1920 — measured, not
+        estimated. The outline was not beside the text, it was at the far right
+        edge of the viewport.
+
+        The column is now sized to the measure (`minmax(0, 68ch)`) so the gap is
+        the gap and nothing else. `justify-start`, not `justify-center`: centring
+        the pair would drag the title's left edge off the body's, and this app has
+        already learned that lesson once (`PageMasthead`: the action cluster
+        pushed to the far right left a 530px hole). Left edges stay put; the
+        leftover width becomes page margin, which is what it is.      */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,68ch)_220px] lg:items-start lg:justify-start lg:gap-x-12">
         <div className="order-2 min-w-0 lg:order-1">
           {/*
             The cover lives INSIDE the reading column, not above it.
@@ -249,26 +264,7 @@ export function ArticleDetailPage() {
           </div>
         </div>
 
-        {outline.length > 0 ? (
-          <nav
-            aria-label="文章目录"
-            className="order-1 rounded-xl border border-border/70 bg-card p-4 lg:order-2 lg:sticky lg:top-24"
-          >
-            <p className="eyebrow mb-3">目录</p>
-            <ul className="flex list-none flex-col gap-1.5 p-0">
-              {outline.map((item) => (
-                <li key={item.id} style={{ paddingLeft: `${(item.level - 2) * 12}px` }}>
-                  <a
-                    href={`#${item.id}`}
-                    className="focus-ring block rounded-sm text-meta leading-5 text-muted-foreground transition-colors hover:text-accent-strong"
-                  >
-                    {item.text}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ) : null}
+        {outline.length > 0 ? <ArticleOutline items={outline} /> : null}
       </div>
 
       {/*

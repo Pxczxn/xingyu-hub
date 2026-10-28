@@ -436,6 +436,26 @@
   .article-body h4 {
     @apply mt-6 text-[1em] leading-[2.1333] font-semibold text-primary;
   }
+  /*
+   * Batch 11: in-page heading anchors must clear the sticky header.
+   *
+   * The article outline links to `#article-h-N`. Without compensation the
+   * browser scrolls the target to y=0 and the 65px sticky shell header covers
+   * the first 64.7px of it — measured on a real page, the heading the reader
+   * just clicked was not visible. `scroll-margin-top` is the standard fix and
+   * it belongs on the TARGET (the heading), not on the outline's anchors: any
+   * other inbound in-page link — a shared deep link, a footnote backref — gets
+   * the same compensation for free.
+   *
+   * `--shell-header-height` (61px) + 1rem of air ≈ 77px, and it follows the
+   * token if the header ever changes height. It is scoped to the rendered body
+   * so it cannot affect `<h2>` used as a section title elsewhere in the app.
+   */
+  .article-body h2,
+  .article-body h3,
+  .article-body h4 {
+    scroll-margin-top: calc(var(--shell-header-height) + 1rem);
+  }
   /* A heading immediately after another heading should not double the gap. */
   .article-body h2 + *,
   .article-body h3 + *,
