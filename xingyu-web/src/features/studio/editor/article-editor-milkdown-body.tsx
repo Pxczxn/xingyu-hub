@@ -362,7 +362,7 @@ function MilkdownEditorInner({
             className={cn(styles.bodyPreviewReadonly, styles.bodySurface, "xy-article-body")}
             aria-label="文章预览"
           >
-            <ArticleMarkdownBody body={previewMarkdown} authenticatePrivateMedia />
+            <ArticleMarkdownBody body={previewMarkdown} authenticatePrivateMedia linksDisabled />
           </div>
         ) : null}
 

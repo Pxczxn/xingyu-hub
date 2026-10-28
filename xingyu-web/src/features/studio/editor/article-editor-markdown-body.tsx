@@ -292,7 +292,7 @@ export function ArticleEditorMarkdownBody({
             className={cn(styles.bodyPreviewReadonly, styles.bodySurface, "xy-article-body")}
             aria-label="文章预览"
           >
-            <ArticleMarkdownBody body={value} authenticatePrivateMedia />
+            <ArticleMarkdownBody body={value} authenticatePrivateMedia linksDisabled />
           </div>
         ) : null}
 

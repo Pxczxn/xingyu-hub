@@ -267,6 +267,40 @@ describe("local editing state", () => {
     expect(container.querySelector(".article-body")).not.toBeNull();
     expect(bodyTextarea(container)).toHaveValue(before);
   });
+
+  /*
+   * Batch 12 — the preview is a preview, not a reading session.
+   *
+   * The reading pipeline renders site links as same-tab `<Link>`, which is
+   * right on the article page and wrong here: clicking `/topics/tech` inside the
+   * preview navigates the author out of `/studio/content/:id` mid-draft, and the
+   * leave-guard then interrupts them with "要离开吗？". The preview therefore
+   * renders links inert (href kept, click cancelled).
+   *
+   * Assert on `router.state.location.pathname`, not on `defaultPrevented`: a
+   * router `<Link>` also preventDefaults before pushing, so that flag is true
+   * under both designs and proves nothing.
+   */
+  it("keeps preview links from navigating away from the draft", async () => {
+    getDraftMock.mockResolvedValue(
+      draftFixture({ body: "# 一级标题\n\n[站内话题](/topics/tech)\n" }),
+    );
+    const { container, router } = await renderLoaded();
+
+    fireEvent.click(screen.getByRole("button", { name: "预览" }));
+
+    const link = container.querySelector<HTMLAnchorElement>('[aria-label="文章预览"] a');
+    if (!link) throw new Error("preview link not found");
+    expect(link.getAttribute("href")).toBe("/topics/tech");
+
+    fireEvent.click(link);
+    /* Let React Router commit any navigation it did accept. */
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(router.state.location.pathname).toBe(`/studio/content/${DRAFT_ID}`);
+  });
 });
 
 describe("outline", () => {

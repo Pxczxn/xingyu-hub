@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { ArticleMarkdownBody } from "@/lib/article-markdown";
 
@@ -22,8 +22,8 @@ function LocationProbe() {
   return <div data-testid="path">{location.pathname}</div>;
 }
 
-function renderBody(markdown: string, { router = true } = {}) {
-  const body = <ArticleMarkdownBody body={markdown} />;
+function renderBody(markdown: string, { router = true, linksDisabled = false } = {}) {
+  const body = <ArticleMarkdownBody body={markdown} linksDisabled={linksDisabled} />;
   if (!router) return render(body);
   return render(
     <MemoryRouter>
@@ -92,5 +92,62 @@ describe("article markdown links", () => {
     const { container } = renderBody("[外部](https://example.com)", { router: false });
 
     expect(anchors(container)[0]).toHaveAttribute("target", "_blank");
+  });
+});
+
+/*
+ * Batch 12 — the editor's inline preview renders this same pipeline inside the
+ * router. `linksDisabled` keeps the anchor and its href (the preview must still
+ * show what will publish) but cancels the click so previewing formatting never
+ * navigates the author out of the draft.
+ */
+describe("article markdown links in the editor preview", () => {
+  it("keeps site links out of the router when links are disabled", () => {
+    const { container, getByTestId } = renderBody("[话题](/topics/tech)", {
+      linksDisabled: true,
+    });
+
+    const [topic] = anchors(container);
+    /* Still an anchor with its href, so the preview matches the published page. */
+    expect(topic.getAttribute("href")).toBe("/topics/tech");
+    expect(topic).not.toHaveAttribute("target");
+    expect(topic.className).toContain("cursor-default");
+
+    fireEvent.click(topic);
+    expect(getByTestId("path").textContent).toBe("/");
+  });
+
+  it("cancels external links instead of opening a tab", () => {
+    const { container } = renderBody("[外部](https://example.com/doc)", {
+      linksDisabled: true,
+    });
+
+    const [external] = anchors(container);
+    expect(external.getAttribute("href")).toBe("https://example.com/doc");
+    expect(external).toHaveAttribute("target", "_blank");
+
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    external.dispatchEvent(event);
+    /* preventDefault is what stops the browser from opening the new tab. */
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("cancels in-page anchors so the preview does not jump the editor", () => {
+    const { container } = renderBody("[跳转](#article-h-1)", { linksDisabled: true });
+
+    const [anchor] = anchors(container);
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    anchor.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("still navigates normally when links are enabled", () => {
+    const { container, getByTestId } = renderBody("[话题](/topics/tech)");
+
+    const [topic] = anchors(container);
+    expect(topic.className).not.toContain("cursor-default");
+
+    fireEvent.click(topic);
+    expect(getByTestId("path").textContent).toBe("/topics/tech");
   });
 });

@@ -8,6 +8,7 @@ import {
   renderArticleMarkdown,
 } from "@/lib/article-markdown-pipeline";
 import { ArticleMarkdownMediaProvider } from "@/lib/article-markdown-media-context";
+import { ArticleMarkdownLinkProvider } from "@/lib/article-markdown-link";
 
 /*
  * Migrated from Legacy lib/article-markdown.tsx — READ path only.
@@ -47,12 +48,15 @@ export function ArticleMarkdownBody({
   body,
   authenticatePrivateMedia = false,
   headingIdPrefix = ARTICLE_HEADING_ID_PREFIX,
+  linksDisabled = false,
 }: {
   body: string;
   /** Distinct targets when several articles are rendered on the same page. */
   headingIdPrefix?: string;
   /** 仅编辑器草稿预览：私有图片走认证 fetch，阅读页必须保持 false。 */
   authenticatePrivateMedia?: boolean;
+  /** 仅编辑器草稿预览：链接保留 href，但点击不导航，避免预览时离开编辑器。 */
+  linksDisabled?: boolean;
 }) {
   const content = useMemo(() => {
     if (!body.trim()) return null;
@@ -69,7 +73,9 @@ export function ArticleMarkdownBody({
 
   return (
     <ArticleMarkdownMediaProvider authenticatePrivateMedia={authenticatePrivateMedia}>
-      <div className="article-body">{content}</div>
+      <ArticleMarkdownLinkProvider linksDisabled={linksDisabled}>
+        <div className="article-body">{content}</div>
+      </ArticleMarkdownLinkProvider>
     </ArticleMarkdownMediaProvider>
   );
 }

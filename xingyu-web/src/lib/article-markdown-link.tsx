@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Link, useInRouterContext } from "react-router-dom";
 
 /*
@@ -25,12 +25,58 @@ import { Link, useInRouterContext } from "react-router-dom";
  * instead of throwing.
  */
 
+/*
+ * Batch 12 — the editor's inline preview renders this same pipeline, and it
+ * sits inside the router, so a same-tab `<Link>` there would navigate the
+ * author out of `/studio/content/:articleId` mid-draft. The leave-guard would
+ * then ask "要离开吗？", which is a worse outcome than the mistake it guards
+ * against: previewing your own formatting is not an intent to navigate.
+ *
+ * So the pipeline takes a mode. `disabled` keeps the anchor and its href — the
+ * link still looks like a link, and right-click → copy address still works, so
+ * the preview stays a faithful rendering of what will publish — but cancels the
+ * click. A preview is for judging typesetting, not for browsing.
+ *
+ * The default is `false`, so the article page, the discover panel and the
+ * series reader keep real navigation; only the editor preview opts in.
+ */
+
+type ArticleMarkdownLinkContextValue = {
+  /** 编辑器预览：链接保留 href 与样式，但点击不导航。 */
+  linksDisabled: boolean;
+};
+
+const ArticleMarkdownLinkContext = createContext<ArticleMarkdownLinkContextValue>({
+  linksDisabled: false,
+});
+
+export function ArticleMarkdownLinkProvider({
+  linksDisabled,
+  children,
+}: {
+  linksDisabled: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <ArticleMarkdownLinkContext.Provider value={{ linksDisabled }}>
+      {children}
+    </ArticleMarkdownLinkContext.Provider>
+  );
+}
+
 function opensInNewTab(href: string): boolean {
   return /^https?:/i.test(href) || href.startsWith("//");
 }
 
+/**
+ * The dead-link styles belong on the anchor itself, not in a CSS descendant
+ * rule, so that `disabled` never depends on where the preview happens to mount.
+ */
+const DISABLED_CLASS = "cursor-default";
+
 export function ArticleMarkdownLink({ href, children }: { href?: string; children?: ReactNode }) {
   const inRouter = useInRouterContext();
+  const { linksDisabled } = useContext(ArticleMarkdownLinkContext);
   const target = href ?? "";
 
   if (!target) {
@@ -42,10 +88,18 @@ export function ArticleMarkdownLink({ href, children }: { href?: string; childre
     return <>{children}</>;
   }
 
+  const stopNavigation = (event: { preventDefault: () => void }) => event.preventDefault();
+
   /* Somebody else's site: leaving the community IS a new context. */
   if (opensInNewTab(target)) {
     return (
-      <a href={target} target="_blank" rel="noreferrer noopener">
+      <a
+        href={target}
+        target="_blank"
+        rel="noreferrer noopener"
+        className={linksDisabled ? DISABLED_CLASS : undefined}
+        onClick={linksDisabled ? stopNavigation : undefined}
+      >
         {children}
       </a>
     );
@@ -53,12 +107,28 @@ export function ArticleMarkdownLink({ href, children }: { href?: string; childre
 
   /* In-page anchor (`#`), `mailto:`/`tel:`, or a relative path we cannot route. */
   if (!target.startsWith("/")) {
-    return <a href={target}>{children}</a>;
+    return (
+      <a
+        href={target}
+        className={linksDisabled ? DISABLED_CLASS : undefined}
+        onClick={linksDisabled ? stopNavigation : undefined}
+      >
+        {children}
+      </a>
+    );
   }
 
   /* Site link: same-tab navigation. Degrades to <a> where there is no router. */
-  if (!inRouter) {
-    return <a href={target}>{children}</a>;
+  if (!inRouter || linksDisabled) {
+    return (
+      <a
+        href={target}
+        className={linksDisabled ? DISABLED_CLASS : undefined}
+        onClick={linksDisabled ? stopNavigation : undefined}
+      >
+        {children}
+      </a>
+    );
   }
   return <Link to={target}>{children}</Link>;
 }
