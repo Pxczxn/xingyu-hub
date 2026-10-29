@@ -41,6 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class DiscoverCursorIntegrationTest {
 
     private static final int SEED = 7;
+    /** 安全上限：防止 cursor 实现异常导致无限翻页；正常 fresh DB 远小于此值。 */
+    private static final int MAX_PAGES = 500;
 
     @Autowired
     private MockMvc mockMvc;
@@ -54,6 +56,10 @@ class DiscoverCursorIntegrationTest {
 
     @BeforeAll
     void seed() {
+        // 上次失败/中断可能留下探针；先清掉，测试不再依赖“库刚好是新的”。
+        cleanupProbes();
+        docIds.clear();
+        articleIds.clear();
         // 7 篇活文档 + 1 篇被治理隐藏（removed_at），indexed_at 递增可断言排序
         for (int i = 0; i < SEED + 1; i++) {
             String articleId = "dcur-art-" + i;
@@ -79,14 +85,20 @@ class DiscoverCursorIntegrationTest {
 
     @AfterAll
     void cleanup() {
-        for (String docId : docIds) {
-            jdbcTemplate.update("DELETE FROM search_document WHERE id = ?", docId);
-        }
+        cleanupProbes();
+        docIds.clear();
+        articleIds.clear();
+    }
+
+    /**
+     * 删除探针相关的全部残留：ARTICLE 文档、隐藏探针、以及同 object_id 的 SERIES 探针。
+     * seed 前与 @AfterAll 共用，避免上次失败把 10 页窗口挤满。
+     */
+    private void cleanupProbes() {
+        jdbcTemplate.update("DELETE FROM search_document WHERE id = 'dcur-doc-series-0'");
+        jdbcTemplate.update("DELETE FROM search_document WHERE id LIKE 'dcur-doc-%'");
         jdbcTemplate.update(
                 "DELETE FROM search_document WHERE object_type = 'ARTICLE' AND object_id LIKE 'dcur-art-%'");
-        for (String articleId : articleIds) {
-            jdbcTemplate.update("DELETE FROM article WHERE id = ?", articleId);
-        }
         jdbcTemplate.update("DELETE FROM article WHERE id LIKE 'dcur-art-%'");
     }
 
@@ -117,22 +129,21 @@ class DiscoverCursorIntegrationTest {
         Set<String> seen = new HashSet<>();
         List<String> ordered = new ArrayList<>();
         String cursor = null;
-        int rounds = 0;
-        while (rounds < 10) {
+        int pages = 0;
+        do {
             Page page = fetch(cursor);
-            System.out.println("[DCUR] page" + rounds + " items=" + page.ids().size()
+            System.out.println("[DCUR] page" + pages + " items=" + page.ids().size()
                     + " ids=" + page.ids());
             List<String> probes = probeIds(page);
             for (String id : probes) {
                 assertTrue(seen.add(id), "跨页不得重复：" + id);
                 ordered.add(id);
             }
-            rounds++;
-            if (page.nextCursor() == null) {
-                break;
-            }
             cursor = page.nextCursor();
-        }
+            pages++;
+        } while (cursor != null && pages < MAX_PAGES);
+        assertTrue(cursor == null,
+                "分页必须在安全上限内耗尽（pages=" + pages + "，cursor 仍非空）");
         // 所有活探针文档都可达（治理隐藏的 doc 不在其中——docIds 只含活文档）
         assertEquals(docIds.size(), ordered.size(), "全部活文档必须跨页可达且不重复");
         // 排序稳定：探针内部保持 indexed_at DESC 相对顺序
@@ -171,8 +182,8 @@ class DiscoverCursorIntegrationTest {
             String cursor = null;
             boolean sawArticle = false;
             boolean sawSeries = false;
-            int rounds = 0;
-            while (rounds < 10) {
+            int pages = 0;
+            do {
                 String uri = cursor == null ? "/api/v1/discover?limit=3"
                         : "/api/v1/discover?limit=3&cursor=" + cursor;
                 MvcResult result = mockMvc.perform(get(uri)).andExpect(status().isOk()).andReturn();
@@ -185,8 +196,8 @@ class DiscoverCursorIntegrationTest {
                     if (key.equals("SERIES:" + sharedId)) sawSeries = true;
                 }
                 cursor = body.path("nextCursor").isNull() ? null : body.path("nextCursor").asText();
-                if (cursor == null || ++rounds >= 10) break;
-            }
+                pages++;
+            } while (cursor != null && !(sawArticle && sawSeries) && pages < MAX_PAGES);
             assertTrue(sawArticle && sawSeries, "同 object_id 的 ARTICLE 与 SERIES 都必须可达");
         } finally {
             jdbcTemplate.update("DELETE FROM search_document WHERE id = 'dcur-doc-series-0'");
