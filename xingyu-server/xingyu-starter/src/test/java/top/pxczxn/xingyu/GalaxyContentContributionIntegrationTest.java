@@ -268,8 +268,10 @@ class GalaxyContentContributionIntegrationTest {
         mockMvc.perform(get("/api/v1/galaxies/" + galaxySlug + "/content-submissions/mine")
                         .header("satoken", memberToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].status").value("REJECTED"))
-                .andExpect(jsonPath("$[0].rejectReason").value("与星系主题不符"));
+                // 同一成员可能有多条推荐记录，按 id 过滤，避免依赖列表首项的顺序
+                .andExpect(jsonPath("$[?(@.id == '" + submissionId + "')].status", hasItem("REJECTED")))
+                .andExpect(jsonPath("$[?(@.id == '" + submissionId + "')].rejectReason",
+                        hasItem("与星系主题不符")));
 
         // 被拒绝的作品没有进入内容区
         String body = mockMvc.perform(get("/api/v1/galaxies/" + galaxySlug + "/content"))
