@@ -2,7 +2,7 @@
 
 ## 0) 2026-10-29 当前基线（优先于下方历史记录）
 
-- 后端全量：在 `xingyu-server` 下 `mvn test -Dstyle.color=never`，测试库 `xingyu_hub_test` 先用 `bash sql/rebuild-test-db.sh` 重建。最近一次 fresh DB 结果：**370 tests / 0 failures / 0 errors / 0 skipped，34:51，BUILD SUCCESS**。
+- 后端全量：在 `xingyu-server` 下 `mvn test -Dstyle.color=never`，测试库 `xingyu_hub_test` 先用 `bash sql/rebuild-test-db.sh` 重建；Windows 用 `powershell -ExecutionPolicy Bypass -File sql/rebuild-test-db.ps1`（会自动读取 `scripts/local-test-db.env`，固定库名，失败不写台账）。最近一次 fresh DB 结果：**370 tests / 0 failures / 0 errors / 0 skipped，34:51，BUILD SUCCESS**；Windows 脚本实测 55/55 迁移、117 张表、55 行台账。
 - 后端定向：`mvn test -Dtest=类名1,类名2 -Dsurefire.failIfNoSpecifiedTests=false -pl xingyu-starter -am`。`-pl` 必须带 `-am`，否则会解析本地仓库里的旧核心模块 jar。
 - 前端：`npm test` 223 个文件 / 2617 个测试通过；`npm run typecheck`、`lint`、`format:check`、`build`、`check:bundle` 通过。
 - CI 已按路径拆分：
@@ -12,7 +12,7 @@
 - `xingyu-admin` 的 85 个历史 TS 错误已清理，`vue-tsc --noEmit` 归零并纳入 CI；Windows 本地 `npm run build` 若报 `esbuild ... Access is denied`，把 `TMP`/`TEMP` 指到可写目录即可，CI 的 Ubuntu runner 不受影响。
 - `xingyu-uniapp` 没有测试脚本/依赖安装目录，未纳入 CI。
 - 测试依赖：Spring Boot 3.2.2 BOM 默认的 Mockito 5.7.0 / ByteBuddy 1.14.11 在 Temurin 21.0.13 上 inline mock maker 无法启动；`xingyu-server/pom.xml` 已显式覆盖为 Mockito 5.24.0 / ByteBuddy 1.18.16。
-- 测试库新鲜度：全量套件必须从重建后的 `xingyu_hub_test` 开始；连续跑会累积 `search_document` 行，把 `DiscoverCursorIntegrationTest` 的探针挤出 10 页窗口，表现为与代码无关的分页失败。
+- 测试库新鲜度：全量套件仍建议从重建后的 `xingyu_hub_test` 开始（跨测试类的搜索索引/业务数据会互相影响）；`DiscoverCursorIntegrationTest` 已在 seed 前自清理 `dcur-*` 探针并移除固定 10 页窗口，单独重复跑不再依赖库是否刚重建。
 
 ## 1) Test Stack and Commands
 
