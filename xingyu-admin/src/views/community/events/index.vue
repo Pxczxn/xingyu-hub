@@ -11,7 +11,7 @@
         <div class="queue-sort">最新提交⌄</div>
         <div class="queue-list" :class="{ loading }">
           <button v-for="(event,index) in displayEvents" :key="event.id" :class="{ selected:selectedEvent?.id===event.id }" @click="selectEvent(event)">
-            <img loading="lazy" decoding="async" :src="`/prototype-assets/activity-review/list-${index%4+1}.png`" alt="" />
+            <img loading="lazy" decoding="async" :src="EVENT_COVERS[index % EVENT_COVERS.length]" alt="" />
             <span><b>{{ event.title }}</b><small>活动状态：{{ event.status }}</small><small>活动时间：{{ formatRange(event) }}</small><small>投稿：{{ event.submissionOpen ? '开放中' : '暂未开放' }}</small></span>
             <em>{{ event.status }}</em><i class="low">{{ event.submissionOpen ? '可投稿' : '已关闭' }}</i>
           </button>
@@ -21,9 +21,9 @@
 
       <section v-if="selectedEvent" class="review-detail">
         <header><h2>活动详情</h2><span>状态：{{ selectedEvent.status }}</span></header>
-        <div class="detail-summary"><img src="/prototype-assets/activity-review/detail-cover.png" alt="活动封面" /><dl><dt>活动标题</dt><dd>{{ selectedEvent.title }}</dd><dt>活动别名</dt><dd>{{ selectedEvent.slug }}</dd><dt>活动时间</dt><dd>{{ formatRange(selectedEvent) }}</dd><dt>投稿状态</dt><dd>{{ selectedEvent.submissionOpen ? '开放投稿' : '暂未开放投稿' }}</dd><dt>活动状态</dt><dd><n-tag :type="selectedEvent.status === 'ACTIVE' ? 'success' : 'warning'" size="small">{{ selectedEvent.status }}</n-tag></dd></dl></div>
+        <div class="detail-summary"><img src="/images/admin-community-stewardship.png" alt="活动封面" /><dl><dt>活动标题</dt><dd>{{ selectedEvent.title }}</dd><dt>活动别名</dt><dd>{{ selectedEvent.slug }}</dd><dt>活动时间</dt><dd>{{ formatRange(selectedEvent) }}</dd><dt>投稿状态</dt><dd>{{ selectedEvent.submissionOpen ? '开放投稿' : '暂未开放投稿' }}</dd><dt>活动状态</dt><dd><n-tag :type="selectedEvent.status === 'ACTIVE' ? 'success' : 'warning'" size="small">{{ selectedEvent.status }}</n-tag></dd></dl></div>
         <div class="detail-tabs"><strong>活动说明</strong></div>
-        <div class="detail-body"><article><h3>活动介绍</h3><p>{{ selectedEvent.body || '该活动暂未填写说明。' }}</p><h3>活动设置</h3><ul><li>活动状态：{{ selectedEvent.status }}</li><li>投稿状态：{{ selectedEvent.submissionOpen ? '开放投稿' : '暂未开放投稿' }}</li></ul></article><aside><h3>活动资源</h3><p>封面图</p><img class="poster" src="/prototype-assets/activity-review/poster.png" alt="活动封面示意" /><p>当前活动接口未提供活动资源列表。</p><n-button block @click="openSubmissions(selectedEvent)">查看投稿</n-button></aside></div>
+        <div class="detail-body"><article><h3>活动介绍</h3><p>{{ selectedEvent.body || '该活动暂未填写说明。' }}</p><h3>活动设置</h3><ul><li>活动状态：{{ selectedEvent.status }}</li><li>投稿状态：{{ selectedEvent.submissionOpen ? '开放投稿' : '暂未开放投稿' }}</li></ul></article><aside><h3>活动资源</h3><p>封面图</p><img class="poster" src="/images/admin-review-governance.png" alt="活动封面示意" /><p>当前活动接口未提供活动资源列表。</p><n-button block @click="openSubmissions(selectedEvent)">查看投稿</n-button></aside></div>
         <footer><n-button size="large" type="error" ghost @click="reviewEvent('ARCHIVED')">⊗ 拒绝通过</n-button><n-button size="large" type="primary" :loading="reviewing" @click="reviewEvent('ACTIVE')">✓ 审核通过</n-button></footer>
       </section>
     </div>
@@ -40,6 +40,15 @@ import { NButton, NTag, useMessage, type DataTableColumns, type FormInst, type F
 import { eventApi, type CommunityEvent, type EventSubmission } from '@/api/events'
 import { colLayout, tableModalProps, tableScrollSum } from '@/utils/table-layout'
 import { renderEllipsisText, renderTableActionCell } from '@/utils/table-cells'
+
+// 管理端已提交的品牌插图；不再依赖被 gitignore 的 prototype-assets，
+// 否则 CI 的干净 checkout 在 vite build 时会因找不到文件而失败。
+const EVENT_COVERS = [
+  '/images/admin-community-members.png',
+  '/images/admin-community-stewardship.png',
+  '/images/admin-review-governance.png',
+  '/images/admin-monitor-observatory.png'
+]
 
 const message=useMessage();const loading=ref(false);const saving=ref(false);const reviewing=ref(false);const events=ref<CommunityEvent[]>([]);const selectedEvent=ref<CommunityEvent|null>(null);const showManage=ref(false);const showModal=ref(false);const editing=ref<CommunityEvent|null>(null);const showSubmissions=ref(false);const reviewingEvent=ref<CommunityEvent|null>(null);const submissions=ref<EventSubmission[]>([]);const submissionsLoading=ref(false);const form=ref({title:'',slug:'',body:'',status:'ACTIVE',submissionOpen:true,startsAt:null as string|null,endsAt:null as string|null});const eventFormRef=ref<FormInst|null>(null);
 const eventRules:FormRules={title:[{required:true,message:'请输入活动标题',trigger:['input','blur']}],slug:[{required:true,message:'请输入活动别名',trigger:['input','blur']},{pattern:/^[a-z0-9]+(?:-[a-z0-9]+)*$/,message:'仅支持小写字母、数字和连字符',trigger:['input','blur']}]}
