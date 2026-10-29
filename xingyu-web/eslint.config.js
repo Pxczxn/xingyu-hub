@@ -27,11 +27,17 @@ export default [
     // 2026-10-09：它没被忽略时贡献了 7684 个 lint error，全是
     // `'self' is not defined` / `no-unused-vars` 这类第三方产物噪音，
     // 会把真实源码错误彻底淹没。这里补上忽略，属于修配置而不是掩盖代码问题。
+    //
+    // `test-results/**` 与根目录 `.tmp-*.mjs` 是浏览器冒烟脚本的产物/临时脚本，
+    // 同样不在源码审查范围内；它们的 `document` / `innerWidth` no-undef
+    // 会让本地 `npm run lint` 红而 CI（干净 checkout）绿。
     ignores: [
       "dist/**",
       "coverage/**",
       "node_modules/**",
       ".tmp-*/**",
+      ".tmp-*",
+      "test-results/**",
     ],
   },
   js.configs.recommended,
