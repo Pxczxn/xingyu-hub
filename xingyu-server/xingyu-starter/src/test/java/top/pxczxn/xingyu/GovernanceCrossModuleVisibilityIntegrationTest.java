@@ -54,7 +54,7 @@ class GovernanceCrossModuleVisibilityIntegrationTest {
     private static final String USER_PREFIX = "govvis";
 
     /** Bounded so a handler that keeps failing cannot hang the test forever. */
-    private static final int MAX_DRAIN_ROUNDS = 20;
+    private static final int MAX_DRAIN_ROUNDS = 40;
 
     @Autowired
     private MockMvc mockMvc;
@@ -489,12 +489,19 @@ class GovernanceCrossModuleVisibilityIntegrationTest {
     private void drainReliableEvents() {
         for (int round = 0; round < MAX_DRAIN_ROUNDS; round++) {
             Integer pending = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM reliable_event WHERE status IN ('PENDING', 'FAILED')",
+                    "SELECT COUNT(*) FROM reliable_event WHERE status IN ('PENDING', 'FAILED', 'PROCESSING')",
                     Integer.class);
             if (pending == null || pending == 0) {
                 return;
             }
             eventConsumer.poll();
+            try {
+                // 后台调度线程可能正持有 PROCESSING 租约；等它完成后再重试。
+                Thread.sleep(50);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
     }
 
