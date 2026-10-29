@@ -8,7 +8,7 @@
 - CI 已按路径拆分：
   - `.github/workflows/ci-web.yml`：`xingyu-web/**` 变更触发，跑 typecheck/lint/format/test/build/bundle。
   - `.github/workflows/ci-server.yml`：`xingyu-server/**`、`sql/**`、`scripts/**`、`.gitattributes` 变更触发，使用 MySQL 8 + Redis 7，`SET GLOBAL time_zone='+08:00'`、`TZ=Asia/Shanghai`，先重建测试库再跑 `mvn -B test`。
-  - `.github/workflows/ci-admin.yml`：`xingyu-admin/**` 变更触发，跑 `npm run test:audit`（5/5）与 `npm run build`。
+  - `.github/workflows/ci-admin.yml`：`xingyu-admin/**` 变更触发，用 Node 24 跑 `npm run test:audit`（5/5）与 `npm run build`。Node 24 是必要的：naive-ui 2.43.2 的 ESM named exports 在 Node 22 的解析下会报 `does not provide an export named 'NButton'`。
 - `xingyu-admin` 的 `npm run type-check` 仍有 85 个历史 TS 错误（未使用变量/类型不匹配等），暂不纳入 CI；清理后再加 type-check step。Windows 本地 `npm run build` 若报 `esbuild ... Access is denied`，把 `TMP`/`TEMP` 指到可写目录即可，CI 的 Ubuntu runner 不受影响。
 - `xingyu-uniapp` 没有测试脚本/依赖安装目录，未纳入 CI。
 - 测试依赖：Spring Boot 3.2.2 BOM 默认的 Mockito 5.7.0 / ByteBuddy 1.14.11 在 Temurin 21.0.13 上 inline mock maker 无法启动；`xingyu-server/pom.xml` 已显式覆盖为 Mockito 5.24.0 / ByteBuddy 1.18.16。
