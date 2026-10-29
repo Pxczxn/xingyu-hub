@@ -29,4 +29,25 @@ public class MomentView {
     String authorUsername;
     String authorDisplayName;
     Instant createdAt;
+
+    /**
+     * Engagement counters, filled by the feed list only (2026-10-28).
+     *
+     * <p>Added so a moment card can show 点赞 / 评论 on the card itself. Before this the feed had
+     * to either issue one `GET /likes/MOMENT/{id}/count` per row — N+1 requests for a page that
+     * shows 20 — or offer no engagement at all, which is what it did. The counts are computed in
+     * one batch query by {@code EngagementMetricsService}.
+     *
+     * <p>{@link #liked} is the VIEWER's state and is deliberately a nullable {@code Boolean}, not a
+     * primitive: {@code null} means "nobody is signed in, so we never asked", which is a different
+     * answer from {@code false} ("signed in, not liked"). Collapsing the two would make a guest's
+     * unliked card indistinguishable from a signed-in reader's, and the frontend could not tell
+     * whether to offer 点赞 or 登录后互动.
+     *
+     * <p>These stay null on the single-moment endpoints (publish / update / trash), which return
+     * the author's own write straight back and have no viewer-scoped audience to answer for.
+     */
+    Long likeCount;
+    Long commentCount;
+    Boolean liked;
 }

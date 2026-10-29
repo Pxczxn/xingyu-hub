@@ -3,6 +3,7 @@ package top.pxczxn.xingyu.community.service;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
+import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.dto.MomentView;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
@@ -21,23 +22,50 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class MomentService {
+
+    /** The social object type moments are stored under in likes / comments. */
+    private static final String OBJECT_TYPE = "MOMENT";
 
     private final MomentMapper momentMapper;
     private final CommunityProfileMapper profileMapper;
     private final MomentRevisionMapper momentRevisionMapper;
     private final CommunityProperties communityProperties;
     private final CommunityEventSupport eventSupport;
+    private final EngagementMetricsService engagementMetrics;
 
+    /**
+     * The public feed, with engagement counters attached.
+     *
+     * <p>Counters are batched, not per row. `GET /likes/MOMENT/{id}/count` is public, but a
+     * 20-card feed asking it 20 times is an N+1 that grows with the page size, so the three
+     * numbers come from {@link EngagementMetricsService} instead — two grouped queries plus one
+     * viewer-scoped id query, regardless of how many moments the page holds.
+     *
+     * <p>A guest gets `liked: null` rather than `false`; see {@link MomentView#getLiked()}.
+     */
     public List<MomentView> listPublished(int limit) {
         if (limit <= 0) {
             limit = 20;
         }
-        return momentMapper.listPublished(limit).stream()
-                .map(this::toView)
+        List<Moment> moments = momentMapper.listPublished(limit);
+        if (moments.isEmpty()) {
+            return List.of();
+        }
+        List<String> ids = moments.stream().map(Moment::getId).toList();
+        Map<String, Long> likeCounts = engagementMetrics.likeCounts(OBJECT_TYPE, ids);
+        Map<String, Long> commentCounts = engagementMetrics.commentCounts(OBJECT_TYPE, ids);
+        String viewerId = CommunityAuthContext.currentUser().map(CommunityUser::getId).orElse(null);
+        Set<String> likedIds =
+                viewerId == null
+                        ? Set.of()
+                        : engagementMetrics.likedObjectIds(viewerId, OBJECT_TYPE, ids);
+        return moments.stream()
+                .map(moment -> withMetrics(moment, likeCounts, commentCounts, likedIds, viewerId != null))
                 .toList();
     }
 
@@ -154,6 +182,31 @@ public class MomentService {
     // Package-private, not private, so the author resolution can be unit-tested
     // with mocked mappers — no database required.
     MomentView toView(Moment moment) {
+        return toView(moment, null, null, null);
+    }
+
+    private MomentView withMetrics(
+            Moment moment,
+            Map<String, Long> likeCounts,
+            Map<String, Long> commentCounts,
+            Set<String> likedIds,
+            boolean signedIn) {
+        /*
+         * The ternary is not decoration. `signedIn && likedIds.contains(id)` is a PRIMITIVE
+         * boolean, so it autoboxes to Boolean.FALSE for a guest — and the guest's `null` ("we
+         * never asked") silently becomes `false` ("asked, not liked"), which would render the
+         * 登录后互动 link as an un-liked button. Caught by
+         * MomentFeedCountersIntegrationTest#guestGetsNullLikedRatherThanFalse.
+         */
+        Boolean liked = signedIn ? likedIds.contains(moment.getId()) : null;
+        return toView(
+                moment,
+                likeCounts.getOrDefault(moment.getId(), 0L),
+                commentCounts.getOrDefault(moment.getId(), 0L),
+                liked);
+    }
+
+    private MomentView toView(Moment moment, Long likeCount, Long commentCount, Boolean liked) {
         MomentRevision revision = momentRevisionMapper.findLatestByMomentId(moment.getId());
         /*
          * Resolve the author here rather than leaving it to the client.
@@ -175,6 +228,9 @@ public class MomentService {
                 .authorUsername(profile == null ? null : profile.getUsername())
                 .authorDisplayName(profile == null ? null : profile.getDisplayName())
                 .createdAt(moment.getCreatedAt())
+                .likeCount(likeCount)
+                .commentCount(commentCount)
+                .liked(liked)
                 .build();
     }
 }
