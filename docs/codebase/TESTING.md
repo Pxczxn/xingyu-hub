@@ -1,12 +1,23 @@
 # 测试与验证状态
 
+## 0) 2026-10-29 当前基线（优先于下方历史记录）
+
+- 后端全量：在 `xingyu-server` 下 `mvn test -Dstyle.color=never`，测试库 `xingyu_hub_test` 先用 `bash sql/rebuild-test-db.sh` 重建。最近一次 fresh DB 结果：**370 tests / 0 failures / 0 errors / 0 skipped，34:51，BUILD SUCCESS**。
+- 后端定向：`mvn test -Dtest=类名1,类名2 -Dsurefire.failIfNoSpecifiedTests=false -pl xingyu-starter -am`。`-pl` 必须带 `-am`，否则会解析本地仓库里的旧核心模块 jar。
+- 前端：`npm test` 223 个文件 / 2617 个测试通过；`npm run typecheck`、`lint`、`format:check`、`build`、`check:bundle` 通过。
+- CI 已按路径拆分：
+  - `.github/workflows/ci-web.yml`：`xingyu-web/**` 变更触发，跑 typecheck/lint/format/test/build/bundle。
+  - `.github/workflows/ci-server.yml`：`xingyu-server/**`、`sql/**`、`scripts/**`、`.gitattributes` 变更触发，使用 MySQL 8 + Redis 7，`SET GLOBAL time_zone='+08:00'`、`TZ=Asia/Shanghai`，先重建测试库再跑 `mvn -B test`。
+- 测试依赖：Spring Boot 3.2.2 BOM 默认的 Mockito 5.7.0 / ByteBuddy 1.14.11 在 Temurin 21.0.13 上 inline mock maker 无法启动；`xingyu-server/pom.xml` 已显式覆盖为 Mockito 5.24.0 / ByteBuddy 1.18.16。
+- 测试库新鲜度：全量套件必须从重建后的 `xingyu_hub_test` 开始；连续跑会累积 `search_document` 行，把 `DiscoverCursorIntegrationTest` 的探针挤出 10 页窗口，表现为与代码无关的分页失败。
+
 ## 1) Test Stack and Commands
 
 | 工程 | 测试工具与命令 | 证据 |
 |---|---|---|
 | Web | Vitest（声明 ^3.0.5，本轮运行 3.2.7）、Testing Library、happy-dom；npm test / npm run typecheck | [manifest](../../xingyu-web/package.json)、[配置](../../xingyu-web/vitest.config.ts) |
 | Admin | Node 内置 node:test；npm run test:audit 仅运行 admin-data-audit.test.mjs | [manifest](../../xingyu-admin/package.json) |
-| Backend | Spring Boot Test、JUnit 等；cwd xingyu-server 下 mvn -pl xingyu-starter -am test | [starter POM](../../xingyu-server/xingyu-starter/pom.xml) |
+| Backend | Spring Boot Test、JUnit 等；cwd xingyu-server 下 `mvn test`（全量，先重建 xingyu_hub_test）；定向用 `-pl xingyu-starter -am` | [starter POM](../../xingyu-server/xingyu-starter/pom.xml)、[application-test.yml](../../xingyu-server/xingyu-starter/src/test/resources/application-test.yml) |
 | uni-app | 未检出 package 测试脚本；HBuilderX/真机验收 `[TODO]` | [manifest](../../xingyu-uniapp/package.json) |
 
 服务端测试可能写库，不能在未准备隔离环境时盲跑；下列通过结果仅来自本轮确切执行的前端命令。
