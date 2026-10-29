@@ -8,7 +8,9 @@
 - CI 已按路径拆分：
   - `.github/workflows/ci-web.yml`：`xingyu-web/**` 变更触发，跑 typecheck/lint/format/test/build/bundle。
   - `.github/workflows/ci-server.yml`：`xingyu-server/**`、`sql/**`、`scripts/**`、`.gitattributes` 变更触发，使用 MySQL 8 + Redis 7，`SET GLOBAL time_zone='+08:00'`、`TZ=Asia/Shanghai`，先重建测试库再跑 `mvn -B test`。
-- 未纳入 CI：`xingyu-admin` 的 `npm run test:audit` 5/5 通过，但 `npm run type-check` 当前有 7 个 TS 错误、`npm run build` 失败（esbuild），先不加 admin job，避免制造红灯；`xingyu-uniapp` 没有测试脚本/依赖安装目录。
+  - `.github/workflows/ci-admin.yml`：`xingyu-admin/**` 变更触发，跑 `npm run test:audit`（5/5）与 `npm run build`。
+- `xingyu-admin` 的 `npm run type-check` 仍有 85 个历史 TS 错误（未使用变量/类型不匹配等），暂不纳入 CI；清理后再加 type-check step。Windows 本地 `npm run build` 若报 `esbuild ... Access is denied`，把 `TMP`/`TEMP` 指到可写目录即可，CI 的 Ubuntu runner 不受影响。
+- `xingyu-uniapp` 没有测试脚本/依赖安装目录，未纳入 CI。
 - 测试依赖：Spring Boot 3.2.2 BOM 默认的 Mockito 5.7.0 / ByteBuddy 1.14.11 在 Temurin 21.0.13 上 inline mock maker 无法启动；`xingyu-server/pom.xml` 已显式覆盖为 Mockito 5.24.0 / ByteBuddy 1.18.16。
 - 测试库新鲜度：全量套件必须从重建后的 `xingyu_hub_test` 开始；连续跑会累积 `search_document` 行，把 `DiscoverCursorIntegrationTest` 的探针挤出 10 页窗口，表现为与代码无关的分页失败。
 
