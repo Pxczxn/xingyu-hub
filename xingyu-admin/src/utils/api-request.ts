@@ -33,7 +33,7 @@ export function apiRecordsPage<T>(config: AxiosRequestConfig, fallbackPageSize =
 }
 
 /** 单对象接口：解密后规范为对象。 */
-export function apiRecord<T extends Record<string, unknown>>(config: AxiosRequestConfig): Promise<T> {
+export function apiRecord<T extends object>(config: AxiosRequestConfig): Promise<T> {
   return baseRequest(config).then((data) => asApiRecord<T>(data))
 }
 

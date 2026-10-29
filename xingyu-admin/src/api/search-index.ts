@@ -15,12 +15,8 @@ import { apiRecord } from '@/utils/api-request'
  * `value / count / total / unreadCount` —— 而全量重建返回的是 `{ queued: N }`，
  * 是个对象，`apiValue` 取不到它。
  *
- * ⚠️ 下面三个类型必须用 **`type` 别名而不是 `interface`**：
- * `apiRecord<T extends Record<string, unknown>>` 带泛型约束，而 TypeScript 里
- * `interface` 不满足 `Record<string, unknown>`（只有 `type` 别名对对象字面量隐式带索引签名）。
- * 写成 interface 会直接编译不过 —— 而管理端目前**没有可用的类型检查门禁**
- * （vue-tsc 1.8.27 与 typescript 5.9.3 不兼容，npx vue-tsc@2 也因 exports 报错），
- * 所以这个错会一直潜伏到运行时。改动这里时请手动确认类型形状。
+ * `apiRecord<T extends object>` 现在接受 interface 与 type 别名；
+ * 这里保留 type 别名只是与文件内其它返回结构保持一致。
  */
 
 /** 索引健康读数：投影（存量）+ 事件队列（流量）。两组必须一起看。 */

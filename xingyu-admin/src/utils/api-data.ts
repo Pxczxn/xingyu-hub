@@ -38,7 +38,7 @@ export function asApiList<T>(payload: unknown): T[] {
 }
 
 /** 将接口返回值规范为对象，兼容 { data: T } 包裹。 */
-export function asApiRecord<T extends Record<string, unknown>>(payload: unknown): T {
+export function asApiRecord<T extends object>(payload: unknown): T {
   const obj = asObject(payload)
   if (!obj) {
     return {} as T
