@@ -194,10 +194,7 @@ public class SysFileServiceImpl implements SysFileService {
         if (purpose == CommunityFilePurpose.MESSAGE_ATTACHMENT) {
             FileContentValidator.validateAttachmentUpload(
                     file,
-                    java.util.Set.of(
-                            "jpg", "jpeg", "png", "gif", "webp",
-                            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-                            "txt", "md", "csv", "zip"),
+                    FileContentValidator.MESSAGE_ATTACHMENT_EXTENSIONS,
                     maxBytes);
         } else {
             FileContentValidator.validateImageUpload(file, maxBytes);

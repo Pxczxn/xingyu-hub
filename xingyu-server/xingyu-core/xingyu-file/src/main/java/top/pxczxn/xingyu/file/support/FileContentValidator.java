@@ -19,6 +19,14 @@ public final class FileContentValidator {
 
     private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
 
+    /**
+     * 社区消息附件允许的扩展名。Controller 与 Service 共用这一份，避免白名单在多处漂移。
+     */
+    public static final Set<String> MESSAGE_ATTACHMENT_EXTENSIONS = Set.of(
+            "jpg", "jpeg", "png", "gif", "webp",
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+            "txt", "md", "csv", "zip");
+
     private FileContentValidator() {}
 
     public static void validateImageUpload(MultipartFile file, long maxBytes) {

@@ -16,7 +16,6 @@ import top.pxczxn.xingyu.file.entity.SysFile;
 import top.pxczxn.xingyu.file.service.SysFileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,22 +28,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/messages")
 @RequiredArgsConstructor
 public class CommunityMessageController {
-
-    private static final Set<String> COMMUNITY_ATTACHMENT_EXTENSIONS = Set.of(
-            "jpg", "jpeg", "png", "gif", "webp",
-            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-            "txt", "md", "csv", "zip");
 
     private final ConversationService conversationService;
     private final SysFileService fileService;
@@ -161,17 +152,6 @@ public class CommunityMessageController {
                 "name", uploaded.getName(),
                 "mimeType", uploaded.getMimeType(),
                 "fileId", uploaded.getFileId());
-    }
-
-    private void validateCommunityAttachment(MultipartFile file) {
-        String filename = file == null ? null : file.getOriginalFilename();
-        if (filename == null || filename.isBlank() || !filename.contains(".")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "附件文件名必须包含允许的扩展名");
-        }
-        String extension = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
-        if (!COMMUNITY_ATTACHMENT_EXTENSIONS.contains(extension)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "该附件类型不允许上传");
-        }
     }
 
     /**
