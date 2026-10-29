@@ -26,6 +26,11 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.2.2</spring-boot.version>
+        <!-- 测试期 Mock 依赖：Spring Boot 3.2.2 默认的 Mockito 5.7.0 / ByteBuddy 1.14.11
+             在 Temurin 21.0.13 上 inline mock maker 无法 attach agent，CI 会直接失败。
+             覆盖为与当前 JDK 21 更新兼容的版本；仅影响 test scope。 -->
+        <mockito.version>5.24.0</mockito.version>
+        <byte-buddy.version>1.18.16</byte-buddy.version>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
         <sa-token.version>1.37.0</sa-token.version>
         <hutool.version>5.8.25</hutool.version>
@@ -43,6 +48,29 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- 显式覆盖 Spring Boot 3.2.2 BOM 的测试 Mock 依赖版本。
+                 BOM 导入后属性覆盖不会改变已解析的 managed version，必须逐项声明。 -->
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>${mockito.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte-buddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${byte-buddy.version}</version>
             </dependency>
 
             <!-- MyBatis Plus -->
