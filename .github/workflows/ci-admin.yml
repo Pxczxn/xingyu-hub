@@ -1,0 +1,47 @@
+name: CI Admin
+
+on:
+  push:
+    branches: [pxczxn, web-v2]
+    paths:
+      - "xingyu-admin/**"
+      - ".github/workflows/ci-admin.yml"
+  pull_request:
+    paths:
+      - "xingyu-admin/**"
+      - ".github/workflows/ci-admin.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-admin-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admin:
+    name: xingyu-admin · build / data audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: xingyu-admin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: xingyu-admin/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # type-check 暂不纳入：现有 85 个历史 TS 错误，待单独清理后再加。
+      - name: Data audit
+        run: npm run test:audit
+
+      - name: Build
+        run: npm run build
