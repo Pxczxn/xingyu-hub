@@ -39,7 +39,9 @@ jobs:
       - name: Install
         run: npm ci
 
-      # type-check 暂不纳入：现有 85 个历史 TS 错误，待单独清理后再加。
+      - name: Type check
+        run: npm run type-check
+
       - name: Data audit
         run: npm run test:audit
 
