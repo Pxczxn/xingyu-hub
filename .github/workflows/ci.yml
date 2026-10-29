@@ -77,6 +77,7 @@ jobs:
           --health-timeout=5s
           --health-retries=12
     env:
+      TZ: Asia/Shanghai
       TEST_DB_ADMIN_USER: root
       TEST_DB_ADMIN_PASSWORD: root
       TEST_DB_USERNAME: root
@@ -93,6 +94,9 @@ jobs:
 
       - name: Install MySQL 8 and Redis clients
         run: sudo apt-get update && sudo apt-get install -y mysql-client-8.0 redis-tools
+
+      - name: Align MySQL timezone with the application
+        run: mysql -h127.0.0.1 -uroot -proot -e "SET GLOBAL time_zone = '+08:00';"
 
       - name: Rebuild test database
         run: bash sql/rebuild-test-db.sh
