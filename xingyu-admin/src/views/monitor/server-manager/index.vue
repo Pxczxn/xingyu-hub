@@ -265,7 +265,7 @@ async function loadServers() {
       name: searchName.value || undefined,
       status: searchStatus.value ?? undefined
     })
-    servers.value = res.records || []
+    servers.value = res.list || []
   } catch (error) {
     console.error('加载服务器列表失败', error)
   } finally {

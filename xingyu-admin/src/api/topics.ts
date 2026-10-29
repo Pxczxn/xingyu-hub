@@ -27,7 +27,9 @@ export const topicApi = {
     return request({ url: `/topics/${topicId}`, method: 'patch', data })
   },
   listAliases(topicId: string): Promise<Array<{ id: string; aliasSlug: string }>> {
-    return request({ url: `/topics/${topicId}/aliases`, method: 'get' }).then(asApiList)
+    return request({ url: `/topics/${topicId}/aliases`, method: 'get' }).then((payload) =>
+      asApiList<{ id: string; aliasSlug: string }>(payload)
+    )
   },
   addAlias(topicId: string, aliasSlug: string) {
     return request({ url: `/topics/${topicId}/aliases`, method: 'post', data: { aliasSlug } })

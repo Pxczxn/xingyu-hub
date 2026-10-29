@@ -49,7 +49,7 @@ import { useAuthorDetailDrawer, useContentDetailDrawer } from '@/composables/use
 import { buildDetailFields, formatAuthorLabel, formatObjectType, resolveStatusLabel } from '@/utils/community-display'
 import { renderDateTime, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
 import { colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
-import { canDecide, decideEndpoint, queueEndpoint, queueKind } from './governance-status.logic.mjs'
+import { canDecide, decideEndpoint, queueEndpoint } from './governance-status.logic.mjs'
 
 interface QueueItem {
   id: string
@@ -245,7 +245,6 @@ async function submit() {
   if (!selected.value || saving.value) return
   saving.value = true
   try {
-    const kind = queueKind(route.path)
     if (!canDecide(route.path)) return
     await request({
       url: decideEndpoint(route.path, selected.value.id),

@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { ref, h, onMounted } from 'vue'
-import { NButton, NSpace, NTag, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
+import { NButton, NTag, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
 import { onlineApi, type OnlineUser } from '@/api/monitor'
 import { useUserStore } from '@/stores/user'
 import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'

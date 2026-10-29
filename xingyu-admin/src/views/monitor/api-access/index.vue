@@ -76,7 +76,7 @@
         </n-form>
       </div>
 
-      <n-data-table v-bind="tableListProps(tableScroll)" :columns="columns" :data="tableData" :loading="loading" :row-key="(row: ApiAccessLog) => row.id" />
+      <n-data-table v-bind="tableListProps(tableScroll)" :columns="columns" :data="tableData" :loading="loading" :row-key="(row: ApiAccessLog) => row.id ?? ''" />
 
       <div class="pagination-container">
         <n-pagination

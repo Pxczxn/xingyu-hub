@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, h, onMounted, computed } from 'vue'
+import { ref, reactive, h, onMounted } from 'vue'
 import { NButton, NTag, NSpace, NPagination, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
 import { SearchOutline, RefreshOutline, TrashOutline } from '@vicons/ionicons5'
 import { loginLogApi, type SysLoginLog } from '@/api/monitor'
@@ -89,8 +89,6 @@ const pagination = reactive({
   pageSize: 10,
   itemCount: 0
 })
-
-const pageCount = computed(() => Math.ceil(pagination.itemCount / pagination.pageSize))
 
 const columns: DataTableColumns<SysLoginLog> = [
   { title: 'ID', key: 'id', ...colLayout('id') },
@@ -116,7 +114,7 @@ const tableScroll = tableScrollFromColumns(columns)
 async function loadData() {
   loading.value = true
   try {
-    const res = await loginLogApi.page({ page: pagination.page, pageSize: pagination.pageSize, ...searchForm })
+    const res = await loginLogApi.page({ page: pagination.page, pageSize: pagination.pageSize, ...searchForm, status: searchForm.status ?? undefined })
     tableData.value = res.list
     pagination.itemCount = Number(res.total)
   } finally { loading.value = false }

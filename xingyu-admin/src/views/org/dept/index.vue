@@ -160,7 +160,7 @@ import {
 } from 'naive-ui'
 import {SearchOutline, AddOutline} from '@vicons/ionicons5'
 import {deptApi, type SysDept} from '@/api/org'
-import {userApi, type SysUser, postApi} from '@/api/system'
+import {userApi, type SysUser} from '@/api/system'
 import {useUserStore} from '@/stores/user'
 import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
 import { renderDateTime } from '@/utils/table-cells'

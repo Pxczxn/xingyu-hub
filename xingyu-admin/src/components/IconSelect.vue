@@ -9,7 +9,7 @@
       >
         <template #prefix v-if="modelValue">
           <n-icon :size="18">
-            <component :is="getIconComponent(modelValue)" />
+            <component :is="getIconComponent(modelValue ?? '')" />
           </n-icon>
         </template>
         <template #suffix>
@@ -169,16 +169,6 @@ import {
   ExitOutline,
   ExpandOutline,
   ContractOutline,
-  ChevronUpOutline,
-  ChevronDownOutline,
-  ChevronBackOutline,
-  ChevronForwardOutline,
-  ArrowUpOutline,
-  ArrowDownOutline,
-  ArrowBackOutline,
-  ArrowForwardOutline,
-  SwapHorizontalOutline,
-  SwapVerticalOutline,
   CopyOutline,
   ClipboardOutline,
   CutOutline,
@@ -209,28 +199,15 @@ import {
   MedkitOutline,
   RestaurantOutline,
   CafeOutline,
-  BeerOutline,
-  WineOutline,
-  PizzaOutline,
-  FastFoodOutline,
-  IceCreamOutline,
   LeafOutline,
   FlowerOutline,
   PawOutline,
   FingerPrintOutline,
-  HandLeftOutline,
-  HandRightOutline,
   ThumbsUpOutline,
   ThumbsDownOutline,
   HappyOutline,
   SadOutline,
   AccessibilityOutline,
-  BodyOutline,
-  ManOutline,
-  WomanOutline,
-  MaleOutline,
-  FemaleOutline,
-  TransgenderOutline,
   PlanetOutline,
   EarthOutline,
   CloseOutline,
@@ -243,8 +220,8 @@ import {
 
 defineOptions({ name: 'IconSelect' })
 
-const props = defineProps<{
-  modelValue: string
+defineProps<{
+  modelValue?: string
 }>()
 
 const emit = defineEmits<{

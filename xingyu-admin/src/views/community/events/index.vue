@@ -96,14 +96,13 @@ function formatRange(event:CommunityEvent){return [event.startsAt,event.endsAt].
 async function load(){loading.value=true;try{events.value=await eventApi.list();selectedEvent.value=events.value[0]||null}catch{events.value=[];selectedEvent.value=null;message.error('活动列表暂时无法加载，请检查服务连接后重试')}finally{loading.value=false}}
 function selectEvent(event:CommunityEvent){selectedEvent.value=event}
 function openCreate(){editing.value=null;form.value={title:'',slug:'',body:'',status:'ACTIVE',submissionOpen:true,startsAt:null,endsAt:null};showModal.value=true}
-function openEdit(event:CommunityEvent){editing.value=event;form.value={title:event.title,slug:event.slug,body:event.body||'',status:event.status,submissionOpen:event.submissionOpen,startsAt:toPickerValue(event.startsAt),endsAt:toPickerValue(event.endsAt)};showManage.value=false;showModal.value=true}
+function openEdit(event:CommunityEvent){editing.value=event;form.value={title:event.title,slug:event.slug,body:event.body||'',status:event.status,submissionOpen:event.submissionOpen,startsAt:event.startsAt??null,endsAt:event.endsAt??null};showManage.value=false;showModal.value=true}
 /** Trims an ISO instant to the `yyyy-MM-ddTHH:mm:ssZ` shape the picker round-trips. */
 // 必须返回 null 而不是 ''：n-date-picker 对 formatted-value 的 '' 会走
 // format('') 并抛 RangeError: Invalid time value，导致整个 Modal setup 失败、弹窗打不开。
 function tsOf(value?:string|null):number|null{if(!value)return null;const t=new Date(value).getTime();return Number.isNaN(t)?null:t}
 // DatePicker 的 @update:value 给的是时间戳；回写 ISO 秒精度 UTC 串给后端。
 function isoOf(ts:number|null):string|null{if(ts===null||ts===undefined)return null;return new Date(ts).toISOString().slice(0,19)+'Z'}
-function toPickerValue(value?:string|null){return tsOf(value)}
 async function save(){try{await eventFormRef.value?.validate()}catch{return}
   if(form.value.startsAt&&form.value.endsAt&&form.value.endsAt<=form.value.startsAt){message.error('结束时间必须晚于开始时间');return}
   saving.value=true;try{

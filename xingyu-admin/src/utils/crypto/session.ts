@@ -11,7 +11,6 @@ interface ActiveCryptoSession {
 
 let activeSession: ActiveCryptoSession | null = null
 let handshakePromise: Promise<ActiveCryptoSession | null> | null = null
-let clientPrivateKey: CryptoKey | null = null
 
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64)
@@ -35,7 +34,6 @@ export function getActiveCryptoSession(): ActiveCryptoSession | null {
 
 export function destroyCryptoSession() {
   activeSession = null
-  clientPrivateKey = null
   handshakePromise = null
 }
 
@@ -52,7 +50,6 @@ export async function establishCryptoSession(force = false): Promise<ActiveCrypt
 
   handshakePromise = (async () => {
     const keyPair = await generateEphemeralKeyPair()
-    clientPrivateKey = keyPair.privateKey
     const clientPublicKey = await exportPublicKeySpki(keyPair.publicKey)
     const response = await axios.post('/api/v1/admin/crypto/session/handshake', { clientPublicKey })
     if (response.data?.code !== 200) {

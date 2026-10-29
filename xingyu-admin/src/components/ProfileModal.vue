@@ -23,8 +23,8 @@
       <n-form-item label="邮箱" path="email">
         <n-input v-model:value="formData.email" placeholder="请输入邮箱" />
       </n-form-item>
-      <n-form-item label="手机号" path="mobile">
-        <n-input v-model:value="formData.mobile" placeholder="请输入手机号" />
+      <n-form-item label="手机号" path="phone">
+        <n-input v-model:value="formData.phone" placeholder="请输入手机号" />
       </n-form-item>
       <n-form-item label="头像">
         <n-input v-model:value="formData.avatar" placeholder="请输入头像URL" />
@@ -62,7 +62,7 @@ const formData = ref<Partial<ProfileInfo>>({
   username: '',
   nickname: '',
   email: '',
-  mobile: '',
+  phone: '',
   avatar: ''
 })
 
@@ -73,7 +73,7 @@ const rules: FormRules = {
   email: [
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
   ],
-  mobile: [
+  phone: [
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
   ]
 }
@@ -96,7 +96,7 @@ async function loadProfile() {
       username: data.username,
       nickname: data.nickname,
       email: data.email || '',
-      mobile: data.mobile || '',
+      phone: data.phone || '',
       avatar: data.avatar || ''
     }
   } catch (error) {
@@ -115,7 +115,7 @@ async function handleSubmit() {
     await authApi.updateProfile({
       nickname: formData.value.nickname,
       email: formData.value.email,
-      mobile: formData.value.mobile,
+      phone: formData.value.phone,
       avatar: formData.value.avatar
     })
     window.$message?.success('保存成功')

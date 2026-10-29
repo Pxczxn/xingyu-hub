@@ -130,7 +130,7 @@
               :options="cronPresetOptions"
               style="width: 140px; flex-shrink: 0"
               clearable
-              @update:value="(v: string) => { if (v) { formData.cronExpression = v; cronPresetSelect.value = null } }"
+              @update:value="handleCronPresetChange"
             />
           </n-input-group>
         </n-form-item>
@@ -265,6 +265,13 @@ const tableScroll = tableScrollFromColumns(columns)
 
 
 const cronPresetSelect = ref<string | null>(null)
+
+function handleCronPresetChange(v: string | null) {
+  if (v) {
+    formData.cronExpression = v
+    cronPresetSelect.value = null
+  }
+}
 const modalVisible = ref(false)
 const modalTitle = ref('新增任务')
 const formRef = ref<FormInst | null>(null)
@@ -311,7 +318,7 @@ watch(showLogModal, (val) => {
 async function loadData() {
   loading.value = true
   try {
-    const res = await jobApi.page({ page: pagination.page, pageSize: pagination.pageSize, ...searchForm })
+    const res = await jobApi.page({ page: pagination.page, pageSize: pagination.pageSize, ...searchForm, status: searchForm.status ?? undefined })
     tableData.value = res.list
     pagination.itemCount = res.total
   } finally { loading.value = false }

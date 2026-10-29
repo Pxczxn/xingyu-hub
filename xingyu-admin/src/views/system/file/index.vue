@@ -325,12 +325,12 @@
 </template>
 
 <script setup lang="ts">
-import {ref, reactive, computed, onMounted, h} from 'vue'
+import {ref, reactive, computed, onMounted} from 'vue'
 import {useMessage, useDialog, type UploadCustomRequestOptions} from 'naive-ui'
 import {
   CloudUploadOutline, SearchOutline, ListOutline, GridOutline, FolderOutline,
   AddOutline, EllipsisHorizontalOutline, DocumentOutline, DocumentTextOutline,
-  ImageOutline, VideocamOutline, MusicalNotesOutline, CodeSlashOutline
+  ImageOutline, CodeSlashOutline
 } from '@vicons/ionicons5'
 import {fileApi, fileGroupApi, type SysFile, type SysFileGroup} from '@/api/system'
 import {useUserStore} from '@/stores/user'
@@ -378,7 +378,6 @@ const pagination = reactive({
   pageSize: 20,
   itemCount: 0
 })
-const gotoPage = ref<number | null>(1)
 
 // 分组弹窗
 const showGroupModal = ref(false)
@@ -527,7 +526,7 @@ function handleGroupAction(key: string, group: SysFileGroup) {
   }
 }
 
-function showGroupMenu(e: MouseEvent, group: SysFileGroup) {
+function showGroupMenu(_e: MouseEvent, _group: SysFileGroup) {
   // 右键菜单暂不实现，使用下拉菜单
 }
 

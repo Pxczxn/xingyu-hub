@@ -44,7 +44,7 @@
         </n-form>
       </div>
 
-      <n-data-table v-bind="tableListProps(cacheScroll)" :columns="columns" :data="keys" :loading="keysLoading" :row-key="(row: string) => row" />
+      <n-data-table v-bind="tableListProps(cacheScroll)" :columns="columns" :data="keys as any" :loading="keysLoading" :row-key="(row: string) => row" />
     </n-card>
 
     <n-modal v-model:show="detailVisible" preset="card" title="缓存详情" style="width: 800px">
@@ -70,7 +70,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, h, onMounted, onUnmounted } from 'vue'
-import { NButton, NSpace, NTag, NInput, NForm, NFormItem, NIcon, NCard, NGrid, NGi, NDescriptions, NDescriptionsItem, NDataTable, NModal, NScrollbar, NCode, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
+import { NButton, NTag, NInput, NForm, NFormItem, NIcon, NCard, NGrid, NGi, NDescriptions, NDescriptionsItem, NDataTable, NModal, NScrollbar, NCode, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
 import { SearchOutline, EyeOutline, TrashOutline } from '@vicons/ionicons5'
 import { cacheApi } from '@/api/monitor'
 import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
@@ -211,7 +211,7 @@ async function loadKeys() {
 async function handleView(key: string) {
   detailVisible.value = true
   try {
-    const res = await cacheApi.getValue(key)
+    const res = await cacheApi.getValue(key) as { type?: string; value: string; ttl?: number }
     cacheDetail.value = { key, type: res.type || 'unknown', value: res.value, ttl: res.ttl ?? -1 }
   } catch {
     message.error('获取详情失败')

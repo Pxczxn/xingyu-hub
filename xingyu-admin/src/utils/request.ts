@@ -305,7 +305,7 @@ let isLoggingOut = false
 
 service.interceptors.response.use(
 
-  async (response: AxiosResponse<ApiResponse>) => {
+  async (response: AxiosResponse<ApiResponse>): Promise<any> => {
 
     if (response.config.responseType === 'blob') {
 

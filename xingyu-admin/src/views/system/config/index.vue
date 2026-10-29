@@ -970,7 +970,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch, h } from 'vue'
+import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMessage, type UploadCustomRequestOptions } from 'naive-ui'
 import { ImageOutline, CloseOutline, AddOutline, TrashOutline } from '@vicons/ionicons5'
@@ -1099,12 +1099,6 @@ const storageProviderOptions = [
   { label: 'RustFS', value: 'rustfs' }
 ]
 
-const pushProviderOptions = [
-  { label: '钉钉', value: 'dingtalk' },
-  { label: '飞书', value: 'feishu' },
-  { label: '企业微信', value: 'wechat_work' }
-]
-
 const alipayGatewayOptions = [
   { label: '正式环境', value: 'https://openapi.alipay.com/gateway.do' },
   { label: '沙箱环境', value: 'https://openapi-sandbox.dl.alipaydev.com/gateway.do' }
@@ -1174,7 +1168,7 @@ const smsLogsColumns = [
     }
   },
   { title: '结果信息', key: 'resultMsg', ...colLayout('description') },
-  { title: '发送时间', key: 'createTime', ...colLayout('datetime'), render: row => renderDateTime(row.createTime) }
+  { title: '发送时间', key: 'createTime', ...colLayout('datetime'), render: (row: SmsLog) => renderDateTime(row.createTime) }
 ]
 
 const smsLogsScroll = tableScrollFromColumns(smsLogsColumns)
@@ -1462,7 +1456,7 @@ function deleteCurrentMenu() {
 }
 
 // 菜单类型变更
-function handleMenuTypeChange(type: string) {
+function handleMenuTypeChange(_type: string) {
   if (selectedSubIndex.value >= 0) {
     const menu = menuList.value[selectedMenuIndex.value]
     if (menu.sub_button) {

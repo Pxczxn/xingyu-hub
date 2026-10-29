@@ -351,8 +351,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, h, onMounted } from 'vue'
-import { NButton, NSpace, NIcon, NTag, NSwitch, NSelect, NInput, NText, NList, NListItem, NScrollbar, NAlert, NEmpty, NSpin, NPagination, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
-import { SearchOutline, RefreshOutline, CloudDownloadOutline, CodeSlashOutline, TrashOutline, SettingsOutline, EyeOutline, SyncOutline, CloseCircleOutline, ExpandOutline } from '@vicons/ionicons5'
+import { NButton, NSpace, NIcon, NSwitch, NSelect, NInput, NText, NList, NListItem, NScrollbar, NAlert, NEmpty, NSpin, NPagination, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
+import { SearchOutline, RefreshOutline, CloudDownloadOutline, CodeSlashOutline, TrashOutline, SettingsOutline, EyeOutline, SyncOutline, CloseCircleOutline } from '@vicons/ionicons5'
 import { genApi, type GenTable, type GenTableColumn, type DatabaseTable } from '@/api/gen'
 import { dictTypeApi } from '@/api/org'
 import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
@@ -740,14 +740,6 @@ async function handlePreview(row: GenTable) {
   } catch (error) {
     // 错误已在拦截器处理
   }
-}
-
-// 查看预览效果 - 在弹窗中通过 iframe 渲染页面查看样式布局
-function handleViewPreview() {
-  const table = currentPreviewTable.value
-  if (!table?.moduleName || !table?.businessName) return
-  previewEffectPath.value = `/${table.moduleName}/${table.businessName}`
-  showPreviewEffectModal.value = true
 }
 
 // 生成代码 - 打开选择弹窗

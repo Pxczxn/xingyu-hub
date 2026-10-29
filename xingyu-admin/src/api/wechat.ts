@@ -1,4 +1,4 @@
-import { request, apiRecord, apiValue } from '@/utils/api-request'
+import { request, apiValue } from '@/utils/api-request'
 import { asApiRecord } from '@/utils/api-data'
 
 // ==================== 微信小程序 ====================

@@ -144,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, h, onMounted, computed } from 'vue'
+import { ref, reactive, h, onMounted } from 'vue'
 import { NButton, NTag, NSpace, NPagination, useMessage, useDialog, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { dictTypeApi, dictDataApi, type SysDictType, type SysDictData } from '@/api/org'
@@ -252,7 +252,7 @@ const dictDataScroll = tableScrollFromColumns(dataColumns)
 async function loadData() {
   loading.value = true
   try {
-    const res = await dictTypeApi.page({ page: pagination.page, pageSize: pagination.pageSize, ...searchForm })
+    const res = await dictTypeApi.page({ page: pagination.page, pageSize: pagination.pageSize, ...searchForm, status: searchForm.status ?? undefined })
     tableData.value = res.list
     pagination.itemCount = res.total
   } finally { loading.value = false }

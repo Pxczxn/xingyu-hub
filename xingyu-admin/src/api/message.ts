@@ -1,4 +1,5 @@
 import { request, apiList, apiPage, apiRecord, apiValue } from '@/utils/api-request'
+import { asApiRecord } from '@/utils/api-data'
 import type { PageResult } from './system'
 
 // ==================== 系统通知 ====================
@@ -125,7 +126,7 @@ export interface ChatUser {
 export const chatApi = {
   // 发送消息
   send(data: { receiverId: number; content: string; msgType?: number }): Promise<ChatMessage> {
-    return request({ url: '/sys/chat/send', method: 'post', data }).then((payload) => apiRecord<ChatMessage>(payload))
+    return request({ url: '/sys/chat/send', method: 'post', data }).then((payload) => asApiRecord<ChatMessage>(payload))
   },
   
   // 获取聊天记录

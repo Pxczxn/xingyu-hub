@@ -237,7 +237,7 @@ import { ref, reactive, h, onMounted, computed } from 'vue'
 import { NButton, NTag, NSpace, NPagination, NCheckboxGroup, NCheckbox, NRadioGroup, NRadio, useMessage, useDialog, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { noticeApi, type SysNotice, type NoticeChannelOption, type NoticeSendLog } from '@/api/message'
-import { deptApi, type SysDept } from '@/api/org'
+import { deptApi } from '@/api/org'
 import { userApi } from '@/api/system'
 import { useUserStore } from '@/stores/user'
 import EmptyState from '@/components/EmptyState.vue'
@@ -506,7 +506,7 @@ async function loadUsers() {
 async function loadDepts() {
   try {
     const list = await deptApi.tree()
-    const flatten = (nodes: any[]): { label: string; value: number }[] => {
+    const flatten = (_nodes: any[]): { label: string; value: number }[] => {
       const result: { label: string; value: number }[] = []
       const walk = (items: any[], prefix = '') => {
         for (const n of items || []) {
