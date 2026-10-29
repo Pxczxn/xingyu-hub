@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import top.pxczxn.xingyu.core.event.ReliableEvent;
 import top.pxczxn.xingyu.core.event.ReliableEventConsumer;
+import top.pxczxn.xingyu.core.event.ReliableEventLeaseRecovery;
 import top.pxczxn.xingyu.core.event.ReliableEventMapper;
 
 import java.sql.Timestamp;
@@ -41,7 +42,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>真实消费由 {@link ReliableEventConsumer} 的定时任务驱动；这里把它替换为 mock，
  * 让测试自己控制"何时回收、何时认领"，否则后台 5 秒一次的 poll 会与断言竞争。
- * 验证边界：这证明的是数据库条件更新与 mapper 契约；不证明 handler 的业务副作用幂等
+ * 并发回收的锁冲突由 {@link ReliableEventLeaseRecovery} 有限重试；本类验证重试后
+ * 仍只有一次回收生效。
+ * 验证边界：这证明的是数据库条件更新、重试与 mapper 契约；不证明 handler 的业务副作用幂等
  * （outbox 是 at-least-once，崩溃恢复后 handler 可能被重跑一次）。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -52,6 +55,9 @@ class ReliableEventLeaseRecoveryIntegrationTest {
 
     @Autowired
     private ReliableEventMapper eventMapper;
+
+    @Autowired
+    private ReliableEventLeaseRecovery leaseRecovery;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -77,7 +83,7 @@ class ReliableEventLeaseRecoveryIntegrationTest {
         Instant staleLease = leaseOf(id);
         assertNotNull(staleLease, "fixture 必须带上已过期租约");
 
-        int reclaimed = eventMapper.reclaimExpiredLeases(now, now.plusSeconds(60));
+        int reclaimed = leaseRecovery.reclaimExpiredLeases(now);
         assertEquals(1, reclaimed, "过期租约必须被回收（修复前为 0，事件永久卡死）");
 
         assertEquals("FAILED", statusOf(id));
@@ -101,8 +107,8 @@ class ReliableEventLeaseRecoveryIntegrationTest {
         Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
         long id = insert("active", "PROCESSING", 1, 5, now.plusSeconds(120));
 
-        assertEquals(0, eventMapper.reclaimExpiredLeases(now, now.plusSeconds(60)));
-        assertEquals(0, eventMapper.isolateExpiredLeases(now));
+        assertEquals(0, leaseRecovery.reclaimExpiredLeases(now));
+        assertEquals(0, leaseRecovery.isolateExpiredLeases(now));
         assertEquals("PROCESSING", statusOf(id));
         assertEquals(1, attemptOf(id));
     }
@@ -112,9 +118,9 @@ class ReliableEventLeaseRecoveryIntegrationTest {
         Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
         long id = insert("isolate", "PROCESSING", 4, 5, now.minusSeconds(120));
 
-        assertEquals(0, eventMapper.reclaimExpiredLeases(now, now.plusSeconds(60)),
+        assertEquals(0, leaseRecovery.reclaimExpiredLeases(now),
                 "已用完尝试次数的事件不得被再次排队");
-        assertEquals(1, eventMapper.isolateExpiredLeases(now));
+        assertEquals(1, leaseRecovery.isolateExpiredLeases(now));
 
         assertEquals("ISOLATED", statusOf(id));
         assertEquals(5, attemptOf(id));
@@ -129,7 +135,7 @@ class ReliableEventLeaseRecoveryIntegrationTest {
         Instant staleLease = leaseOf(id);
 
         // 模拟恢复：回收 → 新 worker 认领。
-        assertEquals(1, eventMapper.reclaimExpiredLeases(now, now.plusSeconds(60)));
+        assertEquals(1, leaseRecovery.reclaimExpiredLeases(now));
         Instant newLease = now.plusSeconds(90);
         assertEquals(1, eventMapper.claim(id, newLease, now.plusSeconds(61)));
         Instant ownedLease = leaseOf(id);
@@ -203,7 +209,7 @@ class ReliableEventLeaseRecoveryIntegrationTest {
 
     private int reclaimAfter(CountDownLatch start, Instant now) throws Exception {
         start.await(10, TimeUnit.SECONDS);
-        return eventMapper.reclaimExpiredLeases(now, now.plusSeconds(60));
+        return leaseRecovery.reclaimExpiredLeases(now);
     }
 
     private static ReliableEvent outcome(long id, String status, int attemptCount, Instant now) {

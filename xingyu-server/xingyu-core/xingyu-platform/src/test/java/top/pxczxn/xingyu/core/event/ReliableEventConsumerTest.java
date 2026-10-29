@@ -30,6 +30,9 @@ import static org.mockito.Mockito.when;
 class ReliableEventConsumerTest {
 
     @Mock
+    private ReliableEventLeaseRecovery leaseRecovery;
+
+    @Mock
     private ReliableEventMapper eventMapper;
 
     @Mock
@@ -39,7 +42,7 @@ class ReliableEventConsumerTest {
 
     @BeforeEach
     void setUp() {
-        consumer = new ReliableEventConsumer(eventMapper, objectMapper, List.of());
+        consumer = new ReliableEventConsumer(leaseRecovery, eventMapper, objectMapper, List.of());
     }
 
     @Test
@@ -48,9 +51,9 @@ class ReliableEventConsumerTest {
 
         consumer.poll();
 
-        InOrder order = inOrder(eventMapper);
-        order.verify(eventMapper).isolateExpiredLeases(any());
-        order.verify(eventMapper).reclaimExpiredLeases(any(), any());
+        InOrder order = inOrder(leaseRecovery, eventMapper);
+        order.verify(leaseRecovery).isolateExpiredLeases(any());
+        order.verify(leaseRecovery).reclaimExpiredLeases(any());
         order.verify(eventMapper).findClaimable(any(), eq(ReliableEventConsumer.BATCH_SIZE));
     }
 

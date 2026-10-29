@@ -26,6 +26,7 @@ public class ReliableEventConsumer {
      */
     static final int RECLAIM_RETRY_SECONDS = 60;
 
+    private final ReliableEventLeaseRecovery leaseRecovery;
     private final ReliableEventMapper eventMapper;
     private final ObjectMapper objectMapper;
     private final List<ReliableEventHandler> handlers;
@@ -51,13 +52,12 @@ public class ReliableEventConsumer {
      *
      * <p>Runs before reading claimable rows so a crash from an earlier poll is repaired even
      * when the rest of the batch is empty. Both statements are conditional updates, so running
-     * them from two pollers concurrently is safe; the loser affects 0 rows.
+     * them from two pollers concurrently is safe; the loser affects 0 rows. Lock conflicts are
+     * retried by {@link ReliableEventLeaseRecovery} instead of aborting the poll.
      */
     void reclaimExpiredLeases(Instant now) {
-        int isolated = eventMapper.isolateExpiredLeases(now);
-        int reclaimed = eventMapper.reclaimExpiredLeases(
-                now,
-                now.plusSeconds(RECLAIM_RETRY_SECONDS).truncatedTo(ChronoUnit.SECONDS));
+        int isolated = leaseRecovery.isolateExpiredLeases(now);
+        int reclaimed = leaseRecovery.reclaimExpiredLeases(now);
         if (isolated > 0 || reclaimed > 0) {
             log.warn("reliable event lease recovery: reclaimed={} isolated={}", reclaimed, isolated);
         }
