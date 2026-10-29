@@ -92,13 +92,20 @@ class SchemaMigratorConcurrencyTest {
     }
 
     private static String env(String key) throws Exception {
-        for (String line : Files.readAllLines(
-                Path.of("../../scripts/local-test-db.env").toAbsolutePath().normalize())) {
+        String fromEnv = System.getenv(key);
+        if (fromEnv != null && !fromEnv.isBlank()) {
+            return fromEnv.trim();
+        }
+        Path envFile = Path.of("../../scripts/local-test-db.env").toAbsolutePath().normalize();
+        if (!Files.exists(envFile)) {
+            throw new IllegalStateException("missing " + key + " in environment and " + envFile);
+        }
+        for (String line : Files.readAllLines(envFile)) {
             if (line.startsWith(key + "=")) {
                 return line.substring(key.length() + 1).replace("'", "").trim();
             }
         }
-        throw new IllegalStateException("missing " + key);
+        throw new IllegalStateException("missing " + key + " in " + envFile);
     }
 
     private static void execAdmin(String sql) throws Exception {

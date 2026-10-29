@@ -66,18 +66,28 @@ class DiscoverEdgeBoundaryIntegrationTest {
     @BeforeAll
     void openAdmin() throws Exception {
         Properties db = new Properties();
-        for (String line : Files.readAllLines(
-                Path.of("../../scripts/local-test-db.env").toAbsolutePath().normalize())) {
-            if (line.contains("=") && !line.trim().startsWith("#")) {
-                String key = line.substring(0, line.indexOf('=')).trim();
-                String value = line.substring(line.indexOf('=') + 1).replace("'", "").trim();
-                db.setProperty(key, value);
+        Path envFile = Path.of("../../scripts/local-test-db.env").toAbsolutePath().normalize();
+        if (Files.exists(envFile)) {
+            for (String line : Files.readAllLines(envFile)) {
+                if (line.contains("=") && !line.trim().startsWith("#")) {
+                    String key = line.substring(0, line.indexOf('=')).trim();
+                    String value = line.substring(line.indexOf('=') + 1).replace("'", "").trim();
+                    db.setProperty(key, value);
+                }
             }
+        }
+        String adminUser = System.getenv("TEST_DB_ADMIN_USER");
+        if (adminUser == null || adminUser.isBlank()) {
+            adminUser = db.getProperty("TEST_DB_ADMIN_USER");
+        }
+        String adminPassword = System.getenv("TEST_DB_ADMIN_PASSWORD");
+        if (adminPassword == null || adminPassword.isBlank()) {
+            adminPassword = db.getProperty("TEST_DB_ADMIN_PASSWORD");
         }
         adminConn = DriverManager.getConnection(
                 "jdbc:mysql://127.0.0.1:3306/xingyu_hub_test?allowMultiQueries=true&useUnicode=true"
                         + "&characterEncoding=utf8&serverTimezone=GMT%2B8",
-                db.getProperty("TEST_DB_ADMIN_USER"), db.getProperty("TEST_DB_ADMIN_PASSWORD"));
+                adminUser, adminPassword);
     }
 
     @AfterAll
