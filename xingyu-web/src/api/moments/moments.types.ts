@@ -10,8 +10,10 @@
  * GET  /api/v1/me/moments?limit=N  owner PUBLISHED list (owner-control only)
  * GET  /api/v1/me/insights         InsightsView (session-scoped counters)
  *
- * MomentView has no status / username / likeCount. UNLISTED-style privacy
- * does not apply; trash is observed as GET 404.
+ * MomentView has no status / username. UNLISTED-style privacy
+ * does not apply; trash is observed as GET 404. The engagement counters below
+ * ARE present, but only on the feed (`GET /api/v1/moments`) — see the field
+ * comments on `MomentView`.
  *
  * TWO PARALLEL WRITE PATHS EXIST. `CommunityMomentController` (`/moments`) and
  * `CommunityMeController` (`/me/moments`) both expose PATCH and POST /trash.
@@ -35,6 +37,21 @@ export type MomentView = {
   authorUsername?: string | null;
   authorDisplayName?: string | null;
   createdAt: string;
+  /**
+   * Engagement counters (2026-10-28, additive).
+   *
+   * Optional for the same reason as the author fields: the single-moment
+   * endpoints (getById / publish / update / trash) predate them and return null,
+   * so a card must render `?? 0` rather than assume a number. Only the feed list
+   * fills them, in one batch query server-side rather than one request per row.
+   *
+   * `liked` is nullable on purpose: `null` is "no session, so nobody asked" —
+   * a guest's card. Rendering that as `false` would hide the difference between
+   * "not liked" and "not known", and the card offers 登录后互动 instead of 点赞.
+   */
+  likeCount?: number | null;
+  commentCount?: number | null;
+  liked?: boolean | null;
 };
 
 /**

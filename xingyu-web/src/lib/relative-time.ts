@@ -30,6 +30,25 @@ const FULL_DATE = new Intl.DateTimeFormat("zh-CN", {
   timeZone: "Asia/Shanghai",
 });
 
+/**
+ * 「YYYY/MM/DD HH:mm」 in CST — down to the minute, never the second.
+ *
+ * Seconds are noise on a feed or a detail header: nothing in this product
+ * happens on a second-level boundary, and the old `toLocaleString("zh-CN")`
+ * printed `2026/10/28 22:03:59`, whose last two digits carried no information.
+ * Kept to the minute so the stamp still answers "was this before the 30-minute
+ * edit window closed?".
+ */
+const DATE_TIME = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "Asia/Shanghai",
+});
+
 function toDate(value: string | null | undefined): Date | null {
   if (!value) return null;
   const date = new Date(value);
@@ -65,6 +84,16 @@ export function formatMonthDay(value?: string | null): string | null {
 export function formatFullDate(value?: string | null): string | null {
   const date = toDate(value);
   return date ? FULL_DATE.format(date) : null;
+}
+
+/**
+ * 「YYYY/MM/DD HH:mm」 — the exact instant, for a `title` tooltip beside a
+ * relative age. Callers use it as the accessible/expandable form of a coarse
+ * stamp, not as the visible label.
+ */
+export function formatDateTime(value?: string | null): string | null {
+  const date = toDate(value);
+  return date ? DATE_TIME.format(date) : null;
 }
 
 function formatDay(date: Date): string {

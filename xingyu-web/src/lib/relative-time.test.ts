@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatFullDate, formatMonthDay, formatRelativeTime } from "./relative-time";
+import {
+  formatDateTime,
+  formatFullDate,
+  formatMonthDay,
+  formatRelativeTime,
+} from "./relative-time";
 
 /*
  * Feed timestamps. `now` is always injected so these never depend on the wall
@@ -61,5 +66,26 @@ describe("formatFullDate", () => {
 
   it("returns null for a missing value", () => {
     expect(formatFullDate(null)).toBeNull();
+  });
+});
+
+describe("formatDateTime", () => {
+  /*
+   * The `title` beside a relative age. Minute precision, never seconds: the
+   * string this replaced was `toLocaleString("zh-CN")` on the same instant, and
+   * it printed `2026/12/01 11:00:00` — the trailing `:00` carried nothing.
+   */
+  it("formats YYYY/MM/DD HH:mm in CST", () => {
+    expect(formatDateTime("2026-12-01T03:00:00Z")).toBe("2026/12/01 11:00");
+  });
+
+  it("rounds the display to the minute rather than truncating the instant", () => {
+    // 11:07:45 CST — seconds are dropped from the LABEL, not from the value.
+    expect(formatDateTime("2026-12-01T03:07:45Z")).toBe("2026/12/01 11:07");
+  });
+
+  it("returns null for a missing or unparseable value", () => {
+    expect(formatDateTime(undefined)).toBeNull();
+    expect(formatDateTime("nope")).toBeNull();
   });
 });

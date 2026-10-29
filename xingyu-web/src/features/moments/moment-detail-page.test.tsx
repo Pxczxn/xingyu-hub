@@ -4,6 +4,7 @@ import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { momentsApi } from "@/api/moments/moments.api";
 import { ApiError } from "@/api/client";
 import { useAuth } from "@/features/auth/auth.store";
+import { MOMENT_MEASURE } from "@/features/moments/moment-measure";
 import { MomentDetailPage } from "./pages/MomentDetailPage";
 
 vi.mock("@/api/moments/moments.api", () => ({
@@ -112,6 +113,23 @@ beforeEach(() => {
 });
 
 describe("MomentDetailPage", () => {
+  it("sits on the feed's reading measure", async () => {
+    /*
+      The detail card used to span the shell's full 1234.5px — ~80 Chinese
+      characters per line at 15px, against ~47 in the feed. Reading a moment
+      and tapping back re-wrapped every line.
+      The assertion is against the SHARED constant, not the literal `46rem`:
+      a test that names the number would still pass if someone gave the feed a
+      different one, which is the exact split this is guarding against.
+    */
+    mocked.getById.mockResolvedValue(VIEW);
+    const { container } = renderDetail();
+    await screen.findByText("今晚看见流星");
+    const article = container.querySelector("article");
+    expect(article).not.toBeNull();
+    expect(article).toHaveClass(...MOMENT_MEASURE.split(" "));
+    expect(article).toHaveClass("mx-auto");
+  });
   it("shows loading while the detail request is in flight", () => {
     mocked.getById.mockReturnValue(new Promise(() => {}));
     renderDetail();

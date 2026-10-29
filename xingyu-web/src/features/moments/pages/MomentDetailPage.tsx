@@ -14,6 +14,9 @@ import { ArticleInteractions } from "@/features/article/components/ArticleIntera
 import { CommentSection } from "@/features/article/components/CommentSection";
 import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { useAuth } from "@/features/auth/auth.store";
+import { cn } from "@/lib/cn";
+import { MOMENT_MEASURE } from "@/features/moments/moment-measure";
+import { formatDateTime, formatRelativeTime } from "@/lib/relative-time";
 
 type LoadState =
   | { kind: "loading" }
@@ -29,12 +32,6 @@ function isNotFound(err: unknown): boolean {
 
 function isEditWindowConflict(err: unknown): boolean {
   return err instanceof ApiError && err.problem.status === 409 && err.problem.code === "CONFLICT";
-}
-
-function formatMomentTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("zh-CN");
 }
 
 function editWindowOpen(createdAt: string): boolean {
@@ -179,7 +176,16 @@ export function MomentDetailPage() {
   const windowHint = ownerConfirmed && !editWindowOpen(moment.createdAt);
 
   return (
-    <article className="section-gap">
+    /*
+      Batch 14 — the whole page lives on the feed's measure.
+      The card used to span the shell's full 1234.5px, which put a 15px body at
+      ~80 Chinese characters per line; the feed at the same font size now sits
+      at ~47. Reading a moment here and then tapping back into the list meant
+      the text changed width under you. One column, centred, same 46rem the
+      feed uses — the edits form and the comment thread ride along with it, so
+      the page has one edge instead of three.
+    */
+    <article className={cn("section-gap mx-auto w-full", MOMENT_MEASURE)}>
       <Link to="/moments" className="text-sm text-accent-strong hover:underline">
         返回动态
       </Link>
@@ -222,9 +228,11 @@ export function MomentDetailPage() {
               <span className="font-medium text-foreground-soft">{momentAuthorLabel(moment)}</span>
             )}
             <span aria-hidden>·</span>
-            <time dateTime={moment.createdAt}>{formatMomentTime(moment.createdAt)}</time>
+            <time dateTime={moment.createdAt} title={formatDateTime(moment.createdAt) ?? undefined}>
+              {formatRelativeTime(moment.createdAt) ?? moment.createdAt}
+            </time>
           </span>
-          <p className="mt-2 whitespace-pre-wrap text-card leading-6 text-primary">{moment.body}</p>
+          <p className="mt-2 whitespace-pre-wrap text-card leading-7 text-primary">{moment.body}</p>
           {windowHint ? (
             <p className="mt-2 text-meta text-muted-foreground">已超过可编辑时间</p>
           ) : null}
