@@ -245,11 +245,11 @@ class MessagingCorrectnessIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         String url = json(upload).path("url").asText();
-        assertThat(url).contains("/api/v1/admin/files/community/messages/");
+        assertThat(url).contains("/api/v1/media/private/");
         assertThat(json(upload).path("fileId").asLong()).isPositive();
 
-        // 这条路径以前不带任何 token 就能取到文件（实测 200），现在必须被拒绝
-        mockMvc.perform(get(url)).andExpect(status().isForbidden());
+        // 私有媒体端点：匿名必须被拒绝（社区侧返回真实 401），不能拿到附件字节
+        mockMvc.perform(get(url)).andExpect(status().isUnauthorized());
     }
 
     // ------------------------------------------------------------------ 停用账号

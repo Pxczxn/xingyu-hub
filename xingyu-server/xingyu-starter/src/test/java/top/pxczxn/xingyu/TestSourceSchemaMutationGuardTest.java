@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -28,11 +29,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 测试源码里出现任何建表/改表语句，本测试立即失败。需要结构时应当
  * <b>修迁移并运行 {@code sql/rebuild-test-db.sh} 重建</b>，或调用
  * {@link TestSchemaAssertions} 做只读断言。
+ *
+ * <p>例外：迁移器自身的测试需要直接建/删临时表来验证迁移引擎，属于对被测机制的操作，
+ * 不是"集成测试自愈业务 schema"，因此在 {@link #INFRASTRUCTURE_TEST_FILES} 中显式登记后跳过。
+ * 豁免必须逐个文件登记，不能按目录或通配符放宽。
  */
 class TestSourceSchemaMutationGuardTest {
 
     /** 本文件自身需要书写这些关键字（模式定义与反证用例），因此从扫描中排除。 */
     private static final String SELF_FILE_NAME = "TestSourceSchemaMutationGuardTest.java";
+
+    /**
+     * 迁移器自身的基础设施测试：它们必须建/删临时表来验证迁移引擎。
+     * 只允许逐个登记，新增豁免前先确认“这是对迁移机制的操作，而不是业务 schema 自愈”。
+     */
+    private static final Set<String> INFRASTRUCTURE_TEST_FILES = Set.of(
+            "SchemaMigratorConcurrencyTest.java",
+            "SchemaMigratorStatusTest.java");
 
     /** 被禁止的 schema 修改语句。 */
     private static final Pattern FORBIDDEN_SCHEMA_DDL = Pattern.compile(
@@ -60,6 +73,7 @@ class TestSourceSchemaMutationGuardTest {
                     .filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().endsWith(".java"))
                     .filter(p -> !SELF_FILE_NAME.equals(p.getFileName().toString()))
+                    .filter(p -> !INFRASTRUCTURE_TEST_FILES.contains(p.getFileName().toString()))
                     .sorted()
                     .toList()) {
                 scanned.add(path);
@@ -78,6 +92,9 @@ class TestSourceSchemaMutationGuardTest {
                         集成测试不得创建/修改表、列或索引：结构缺失必须通过修迁移并运行
                         `bash sql/rebuild-test-db.sh` 重建测试库来解决；结构是否正确请用
                         TestSchemaAssertions 做只读断言。
+                        迁移器自身的基础设施测试如确需直接操作 schema，必须在
+                        INFRASTRUCTURE_TEST_FILES 中逐个文件登记并说明必要性；
+                        不得使用通配符或目录级豁免。
                         这样要求的理由是：测试侧自愈会造成"测试全绿但库结构已偏离 baseline"的假绿，
                         开发库的索引/注释漂移正是这么来的。
                         """.formatted(offenders.size(), String.join("\n", offenders)));

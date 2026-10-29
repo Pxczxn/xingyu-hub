@@ -22,6 +22,8 @@ import java.io.ByteArrayOutputStream;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -62,11 +64,18 @@ class AdminFileStorageAccessIntegrationTest {
         JsonNode body = objectMapper.readTree(upload.getResponse().getContentAsString());
         long fileId = body.get("fileId").asLong();
 
+        // admin 端点沿用项目统一响应包络：未登录是 HTTP 200 + body.code=401，
+        // 不是社区媒体端点那种真实 HTTP 401。这里断言 JSON 错误包络，
+        // 同时证明响应体不是文件字节。
         mockMvc.perform(get("/api/v1/admin/sys/file/preview/" + fileId))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.code").value(401));
 
         mockMvc.perform(get("/api/v1/admin/sys/file/download/" + fileId))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.code").value(401));
     }
 
     @Test

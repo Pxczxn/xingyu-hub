@@ -1,10 +1,12 @@
 package top.pxczxn.xingyu.file.support;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class FileContentValidatorTest {
@@ -37,5 +39,26 @@ class FileContentValidatorTest {
     void rejectsFakePngBytes() {
         MockMultipartFile file = new MockMultipartFile("file", "a.png", "image/png", "not an image".getBytes());
         assertThrows(ResponseStatusException.class, () -> FileContentValidator.validateImageUpload(file, 1024 * 1024));
+    }
+
+    @Test
+    void rejectsExecutableMessageAttachmentExtension() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "danger.exe", "application/x-msdownload", new byte[]{1, 2, 3});
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> FileContentValidator.validateAttachmentUpload(
+                        file, FileContentValidator.MESSAGE_ATTACHMENT_EXTENSIONS, 1024 * 1024));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    void acceptsAllowedMessageAttachmentExtension() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "notes.pdf", "application/pdf", new byte[]{1, 2, 3});
+
+        assertDoesNotThrow(() -> FileContentValidator.validateAttachmentUpload(
+                file, FileContentValidator.MESSAGE_ATTACHMENT_EXTENSIONS, 1024 * 1024));
     }
 }

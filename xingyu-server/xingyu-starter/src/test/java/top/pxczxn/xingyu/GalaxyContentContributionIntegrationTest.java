@@ -88,10 +88,12 @@ class GalaxyContentContributionIntegrationTest {
     void setUp() throws Exception {
         CommunityTestSupport.ensureRegistrationOpen(configGroupService);
         long nonce = System.nanoTime();
-        memberToken = seedUserAndLogin("gcc-member-" + nonce);
+        memberToken = seedUserAndLogin(
+                "gcc-member-" + nonce, "gcc-member-space-" + (nonce % 1_000_000_000L));
         memberId = jdbcTemplate.queryForObject(
                 "SELECT id FROM community_user WHERE email = ?", String.class, "gcc-member-" + nonce + "@example.com");
-        outsiderToken = seedUserAndLogin("gcc-outsider-" + nonce);
+        outsiderToken = seedUserAndLogin(
+                "gcc-outsider-" + nonce, "gcc-outsider-space-" + (nonce % 1_000_000_000L));
         String otherAuthorId = jdbcTemplate.queryForObject(
                 "SELECT id FROM community_user WHERE email = ?", String.class, "gcc-outsider-" + nonce + "@example.com");
 
@@ -360,7 +362,7 @@ class GalaxyContentContributionIntegrationTest {
         return articleId;
     }
 
-    private String seedUserAndLogin(String prefix) throws Exception {
+    private String seedUserAndLogin(String prefix, String spaceSlug) throws Exception {
         String email = prefix + "@example.com";
         String userId = UUID.randomUUID().toString();
         userIds.add(userId);
@@ -372,7 +374,7 @@ class GalaxyContentContributionIntegrationTest {
         jdbcTemplate.update("""
                 INSERT INTO community_creation_space (id, user_id, slug, display_name, created_at)
                 VALUES (?, ?, ?, 'gcc-space', NOW())
-                """, UUID.randomUUID().toString(), userId, prefix + "-space");
+                """, UUID.randomUUID().toString(), userId, spaceSlug);
         jdbcTemplate.update("""
                 INSERT INTO community_profile (id, user_id, username, visibility, lock_version, created_at)
                 VALUES (?, ?, ?, 'PUBLIC', 0, NOW())
