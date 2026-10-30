@@ -2,7 +2,6 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { PublicSeriesSummary } from "@/api/series/series.types";
 import { SeriesCover } from "@/components/visual/SeriesCover";
-import { cn } from "@/lib/cn";
 
 /*
  * One series in the plaza's work grid.
@@ -61,19 +60,23 @@ export function SeriesWorkCard({
             </p>
           ) : null}
 
-          <div
-            className={cn(
-              "mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-3 text-meta text-muted-foreground",
-              showAuthor ? "justify-between" : "justify-end",
-            )}
-          >
+          {/*
+            Two anchors, one per side. On the plaza the left slot is the author and
+            the right slot holds length + CTA. On a profile the author is already in
+            the identity band, so the left slot carries the length instead of being
+            left blank — otherwise the whole footer collapses into a lone right-
+            aligned block that reads as detached from the title.
+          */}
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 pt-3 text-meta text-muted-foreground">
             {showAuthor ? (
               <span className="min-w-0 truncate" title={author}>
                 {author}
               </span>
-            ) : null}
-            <span className="flex shrink-0 items-center gap-3">
+            ) : (
               <span className="tabular-nums">{item.chapterCount} 章</span>
+            )}
+            <span className="flex shrink-0 items-center gap-3">
+              {showAuthor ? <span className="tabular-nums">{item.chapterCount} 章</span> : null}
               <span className="flex items-center gap-1 font-medium text-accent-strong">
                 查看系列
                 <ArrowRight

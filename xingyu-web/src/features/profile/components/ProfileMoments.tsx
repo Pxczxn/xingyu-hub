@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Heart, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MomentView } from "@/api/moments/moments.types";
+import { MOMENT_MEASURE } from "@/features/moments/moment-measure";
+import { cn } from "@/lib/cn";
 import { formatDateTime, formatRelativeTime } from "@/lib/relative-time";
 import { staggerDelay } from "@/lib/stagger";
 
@@ -15,6 +17,11 @@ import { staggerDelay } from "@/lib/stagger";
  *
  * The list is paged by the caller. `onLoadMore` is absent once the server says
  * there is no next page, so the control can never promise rows that do not exist.
+ *
+ * The body sits on {@link MOMENT_MEASURE} — the same 46rem the feed and the detail
+ * page use. On a profile card the surface is wider than either, and a 15px line
+ * stretched to the full column carries ~60 Chinese characters: the same "wall"
+ * that constant was introduced to stop, only here.
  */
 export function ProfileMoments({
   moments,
@@ -59,7 +66,12 @@ export function ProfileMoments({
                   {formatRelativeTime(moment.createdAt) ?? moment.createdAt}
                 </time>
               </span>
-              <p className="whitespace-pre-wrap break-words text-card leading-7 text-primary">
+              <p
+                className={cn(
+                  "whitespace-pre-wrap break-words text-card leading-7 text-primary",
+                  MOMENT_MEASURE,
+                )}
+              >
                 {moment.body}
               </p>
               <span className="mt-3 flex flex-wrap items-center gap-4 border-t border-border/60 pt-2 text-[13px] text-muted-foreground">

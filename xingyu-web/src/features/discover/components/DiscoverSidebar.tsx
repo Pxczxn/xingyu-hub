@@ -178,7 +178,7 @@ export function DiscoverSidebar({
                   }
                   className={cn(
                     optionClass(contentType === id),
-                    "disabled:pointer-events-none disabled:opacity-40",
+                    "disabled:pointer-events-none disabled:opacity-50",
                   )}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
