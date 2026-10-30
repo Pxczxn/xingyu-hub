@@ -152,6 +152,27 @@ describe("comments (authenticated)", () => {
     expect(await screen.findByTestId("comments-error")).toBeInTheDocument();
   });
 
+  it("retries a failed comment load without reloading the page", async () => {
+    setStoredToken("tok");
+    mocked.getComments.mockRejectedValueOnce(new Error("500")).mockResolvedValueOnce([
+      {
+        id: "c2",
+        authorId: "u2",
+        authorUsername: "bob",
+        body: "重试后到达的评论",
+        createdAt: "2026-09-01T00:00:00Z",
+      },
+    ]);
+
+    renderSection();
+    await screen.findByTestId("comments-error");
+    await userEvent.click(screen.getByRole("button", { name: "重新加载评论" }));
+
+    expect(await screen.findByText("重试后到达的评论")).toBeInTheDocument();
+    expect(mocked.getComments).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId("comments-error")).not.toBeInTheDocument();
+  });
+
   it("creates a comment and appends it", async () => {
     setStoredToken("tok");
     mocked.getComments.mockResolvedValue([]);

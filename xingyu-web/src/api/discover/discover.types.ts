@@ -7,7 +7,8 @@ import type { CursorInput, PageResult, ContentSummary, SearchHit } from "@/api/c
 
 export type DiscoverInput = CursorInput & {
   topic?: string;
-  type?: "ARTICLE" | "SERIES";
+  /** Server-side object type. `MOMENT` is a first-class discover result (see DiscoverService.nav). */
+  type?: "ARTICLE" | "SERIES" | "MOMENT";
 };
 
 export type DiscoverNavTab = { key: string; label: string; defaultSelected?: boolean };

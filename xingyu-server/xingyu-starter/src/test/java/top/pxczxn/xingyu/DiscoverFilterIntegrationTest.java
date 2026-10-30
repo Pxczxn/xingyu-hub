@@ -76,6 +76,29 @@ class DiscoverFilterIntegrationTest {
         mvc.perform(get("/api/v1/discover").param("type", "INVALID")).andExpect(status().isBadRequest());
     }
 
+    @Test
+    void momentTypeIsAcceptedAndFiltered() throws Exception {
+        String momentId = UUID.randomUUID().toString();
+        jdbc.update("""
+                INSERT INTO search_document (id, object_type, object_id, title, discovery_version, indexed_at)
+                VALUES (?, 'MOMENT', ?, '动态筛选探针', 1, NOW())
+                """, UUID.randomUUID().toString(), momentId);
+        var response = mvc.perform(get("/api/v1/discover").param("type", "MOMENT").param("limit", "50"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+        JsonNode items = json.readTree(response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                .path("items");
+        assertTrue(items.size() > 0, "至少应返回刚插入的动态");
+        boolean found = false;
+        for (JsonNode item : items) {
+            assertEquals("MOMENT", item.path("objectType").asText(), "type=MOMENT 不能混入其它类型");
+            if (momentId.equals(item.path("id").asText())) {
+                found = true;
+            }
+        }
+        assertTrue(found, "刚插入的动态必须出现在 type=MOMENT 结果里");
+    }
+
     private JsonNode fetch(String topic, String type, String cursor) throws Exception {
         var request = get("/api/v1/discover").param("limit", "2").param("topic", topic).param("type", type);
         if (cursor != null) request.param("cursor", cursor);

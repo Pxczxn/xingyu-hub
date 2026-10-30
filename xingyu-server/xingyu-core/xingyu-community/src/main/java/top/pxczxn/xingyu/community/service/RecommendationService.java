@@ -124,7 +124,7 @@ public class RecommendationService {
     }
 
     public PageResultView<ContentCardView> discoverPage(int limit, String cursor, String topicId, String type) {
-        if (type != null && !List.of("ARTICLE", "SERIES").contains(type)) {
+        if (type != null && !List.of("ARTICLE", "SERIES", "MOMENT").contains(type)) {
             throw new FieldContractException("type", "不支持的内容类型");
         }
         if (limit <= 0) {

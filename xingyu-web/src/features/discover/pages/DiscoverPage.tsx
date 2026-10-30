@@ -21,7 +21,7 @@ export function DiscoverPage() {
   const topic = searchParams.get("topic") ?? "";
   const rawType = searchParams.get("type");
   const type: DiscoverInput["type"] =
-    rawType === "ARTICLE" || rawType === "SERIES" ? rawType : undefined;
+    rawType === "ARTICLE" || rawType === "SERIES" || rawType === "MOMENT" ? rawType : undefined;
   const [topics, setTopics] = useState<TopicSummary[]>([]);
   const [topicsError, setTopicsError] = useState(false);
   const [items, setItems] = useState<ContentSummary[]>([]);

@@ -222,6 +222,15 @@
     grid-column: 1;
     grid-row: 1 / span 2;
   }
+  /*
+   * A moment has no directory column, so its body uses the full reader width.
+   * The class is specific enough to beat the rule above; without it the
+   * Tailwind col-span utility loses to `.discover-reader .discover-reading-body`.
+   */
+  .discover-reader .discover-moment-body {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
   .discover-reading-actions {
     grid-column: 2;
     grid-row: 2;

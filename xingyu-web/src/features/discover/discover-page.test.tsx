@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { discoverApi } from "@/api/discover/discover.api";
 import { topicsApi } from "@/api/topics/topics.api";
+import { momentsApi } from "@/api/moments/moments.api";
+import { interactionsApi } from "@/api/interactions/interactions.api";
+import { articlesApi } from "@/api/articles/articles.api";
 import type { ContentSummary } from "@/api/common.types";
+import { setStoredToken } from "@/lib/storage";
 import { AuthProvider } from "@/features/auth/auth.store";
 import { DiscoverPage } from "./pages/DiscoverPage";
 
@@ -19,9 +23,22 @@ import { DiscoverPage } from "./pages/DiscoverPage";
 
 vi.mock("@/api/discover/discover.api", () => ({ discoverApi: { getDiscover: vi.fn() } }));
 vi.mock("@/api/topics/topics.api", () => ({ topicsApi: { getTopics: vi.fn() } }));
+vi.mock("@/api/moments/moments.api", () => ({ momentsApi: { getById: vi.fn() } }));
+vi.mock("@/api/articles/articles.api", () => ({ articlesApi: { getArticle: vi.fn() } }));
+vi.mock("@/api/interactions/interactions.api", () => ({
+  interactionsApi: { getComments: vi.fn(), getCommentPreview: vi.fn() },
+}));
+vi.mock("@/api/auth/auth.api", () => ({
+  authApi: {
+    getMe: vi.fn(async () => ({ email: "a@b.c", emailVerified: true, username: "me_user" })),
+  },
+}));
 
 const discover = vi.mocked(discoverApi.getDiscover);
 const topics = vi.mocked(topicsApi.getTopics);
+const getMoment = vi.mocked(momentsApi.getById);
+const getComments = vi.mocked(interactionsApi.getComments);
+const getArticle = vi.mocked(articlesApi.getArticle);
 
 const article = (
   id: string,
@@ -45,8 +62,10 @@ function renderPage(url = "/discover") {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  localStorage.clear();
   topics.mockResolvedValue([]);
   discover.mockResolvedValue(feed());
+  getComments.mockResolvedValue([]);
 });
 
 describe("discover page", () => {
@@ -168,5 +187,41 @@ describe("discover page", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("renders a MOMENT as 动态 and expands its own body and comment object type", async () => {
+    setStoredToken("tok");
+    discover.mockResolvedValue(
+      feed({
+        id: "m1",
+        title: "一条动态",
+        objectType: "MOMENT",
+        authorName: "林深",
+        summary: "动态摘要",
+      }),
+    );
+    getMoment.mockResolvedValue({
+      id: "m1",
+      body: "这是动态正文。",
+      authorId: "u1",
+      authorUsername: "lin",
+      authorDisplayName: "林深",
+      createdAt: "2026-10-30T00:00:00Z",
+      likeCount: 2,
+      commentCount: 1,
+      liked: false,
+    });
+
+    renderPage();
+
+    const title = await screen.findByText("一条动态");
+    expect(within(title.closest("li")!).getByText("动态")).toBeInTheDocument();
+
+    fireEvent.click(title);
+
+    expect(await screen.findByText("这是动态正文。")).toBeInTheDocument();
+    await waitFor(() => expect(getMoment).toHaveBeenCalledWith("m1"));
+    expect(getComments).toHaveBeenCalledWith("MOMENT", "m1");
+    expect(getArticle).not.toHaveBeenCalled();
   });
 });

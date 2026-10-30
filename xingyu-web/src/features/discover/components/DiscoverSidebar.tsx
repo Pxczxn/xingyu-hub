@@ -1,4 +1,4 @@
-import { Hash, BookOpen, Users, LayoutList, ChevronDown } from "lucide-react";
+import { Hash, BookOpen, Users, LayoutList, MessageSquare, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { DiscoverInput } from "@/api/discover/discover.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
@@ -21,6 +21,7 @@ const CONTENT_TYPES = [
   { id: "ALL", label: "全部内容", icon: LayoutList },
   { id: "ARTICLE", label: "文章", icon: BookOpen },
   { id: "SERIES", label: "系列", icon: Users },
+  { id: "MOMENT", label: "动态", icon: MessageSquare },
 ] as const;
 
 /*

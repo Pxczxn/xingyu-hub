@@ -37,6 +37,7 @@ export function CommentSection({
   const [preview, setPreview] = useState<CommentItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -85,7 +86,7 @@ export function CommentSection({
     return () => {
       active = false;
     };
-  }, [objectType, objectId, isAuthenticated]);
+  }, [objectType, objectId, isAuthenticated, reloadKey]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -189,9 +190,14 @@ export function CommentSection({
           ) : null}
 
           {!loading && error ? (
-            <p role="alert" data-testid="comments-error" className="text-sm text-destructive">
-              评论加载失败
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p role="alert" data-testid="comments-error" className="text-sm text-destructive">
+                评论加载失败
+              </p>
+              <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+                重新加载评论
+              </Button>
+            </div>
           ) : null}
 
           {!loading && !error && comments.length === 0 ? (

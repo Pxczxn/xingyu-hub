@@ -8,14 +8,17 @@ import { cn } from "@/lib/cn";
 import { Heart, MessageSquare, Clock, Loader2 } from "lucide-react";
 import { articlesApi } from "@/api/articles/articles.api";
 import { seriesApi } from "@/api/series/series.api";
+import { momentsApi } from "@/api/moments/moments.api";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import type { ArticleDetail } from "@/api/articles/articles.types";
 import type { PublicSeriesDetail } from "@/api/series/series.types";
+import type { MomentView } from "@/api/moments/moments.types";
 import type { CommentItem } from "@/api/interactions/interactions.types";
 import { useAuth } from "@/features/auth/auth.store";
 import { buildLoginPath } from "@/features/auth/login-return-path";
 import { smoothDamp } from "../smooth-damp";
 import { DiscoverReadingPanel } from "./DiscoverReadingPanel";
+import { DiscoverMomentPanel } from "./DiscoverMomentPanel";
 
 /*
  * DiscoverListItem - 探索页面内容列表项
@@ -51,9 +54,9 @@ export function DiscoverListItem({
   const [commentsLoading, setCommentsLoading] = useState(false);
   const isExpanded = variant === "expanded";
   const isCompact = variant === "compact";
-  const [detailContent, setDetailContent] = useState<ArticleDetail | PublicSeriesDetail | null>(
-    null,
-  );
+  const [detailContent, setDetailContent] = useState<
+    ArticleDetail | PublicSeriesDetail | MomentView | null
+  >(null);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +64,7 @@ export function DiscoverListItem({
   const href = contentHref(item);
   const hasCover = Boolean(item.cover);
   const isSeriesType = item.objectType === "SERIES";
+  const isMomentType = item.objectType === "MOMENT";
 
   // Public content and comments have independent failure states.
   useEffect(() => {
@@ -69,9 +73,11 @@ export function DiscoverListItem({
     setLoading(true);
     setError(null);
     setDetailContent(null);
-    const request = isSeriesType
-      ? seriesApi.getPublicById(item.id)
-      : articlesApi.getArticle(item.id);
+    const request = isMomentType
+      ? momentsApi.getById(item.id)
+      : isSeriesType
+        ? seriesApi.getPublicById(item.id)
+        : articlesApi.getArticle(item.id);
     request
       .then((content) => {
         if (active) setDetailContent(content);
@@ -85,7 +91,7 @@ export function DiscoverListItem({
     return () => {
       active = false;
     };
-  }, [isExpanded, item.id, isSeriesType, retryKey]);
+  }, [isExpanded, item.id, isSeriesType, isMomentType, retryKey]);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -93,9 +99,21 @@ export function DiscoverListItem({
     setCommentsError(false);
     let active = true;
     setCommentsLoading(true);
+    /*
+     * The public comment-preview endpoint only accepts ARTICLE / SERIES. A guest
+     * opening a moment therefore gets the sign-in prompt instead of a doomed
+     * MOMENT preview request; signed-in readers use the real MOMENT comment list.
+     */
+    if (!isAuthenticated && isMomentType) {
+      setCommentsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+    const objectType = isMomentType ? "MOMENT" : isSeriesType ? "SERIES" : "ARTICLE";
     const request = isAuthenticated
-      ? interactionsApi.getComments(isSeriesType ? "SERIES" : "ARTICLE", item.id)
-      : interactionsApi.getCommentPreview(isSeriesType ? "SERIES" : "ARTICLE", item.id);
+      ? interactionsApi.getComments(objectType, item.id)
+      : interactionsApi.getCommentPreview(objectType, item.id);
     request
       .then((items) => {
         if (active) setComments(items);
@@ -109,7 +127,7 @@ export function DiscoverListItem({
     return () => {
       active = false;
     };
-  }, [isExpanded, item.id, isSeriesType, isAuthenticated]);
+  }, [isExpanded, item.id, isSeriesType, isMomentType, isAuthenticated]);
 
   useLayoutEffect(() => {
     if (!isExpanded) return;
@@ -336,7 +354,7 @@ export function DiscoverListItem({
                           : "bg-muted text-muted-foreground",
                       )}
                     >
-                      {isSeriesType ? "系列" : "文章"}
+                      {isMomentType ? "动态" : isSeriesType ? "系列" : "文章"}
                     </span>
 
                     {item.updatedAt ? (
@@ -503,9 +521,15 @@ export function DiscoverListItem({
                         重新加载正文
                       </button>
                     </div>
-                  ) : (
-                    detailContent && <DiscoverReadingPanel content={detailContent} />
-                  )}
+                  ) : detailContent ? (
+                    isMomentType ? (
+                      <DiscoverMomentPanel moment={detailContent as MomentView} />
+                    ) : (
+                      <DiscoverReadingPanel
+                        content={detailContent as ArticleDetail | PublicSeriesDetail}
+                      />
+                    )
+                  ) : null}
                   <div className="discover-reading-actions flex justify-end">
                     <Link
                       to={href}
@@ -549,7 +573,9 @@ export function DiscoverListItem({
                         评论加载失败，请稍后重试。
                       </p>
                     ) : comments.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">暂无评论</p>
+                      <p className="text-sm text-muted-foreground">
+                        {isMomentType && !isAuthenticated ? "登录后查看评论。" : "暂无评论"}
+                      </p>
                     ) : (
                       <>
                         <ul className="grid gap-3 xl:grid-cols-3">
