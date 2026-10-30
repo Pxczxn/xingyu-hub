@@ -72,6 +72,28 @@ describe("momentsApi", () => {
     expect(mockedRequest).toHaveBeenCalledWith("/api/v1/me/moments?limit=1000");
   });
 
+  it("pages the public profile list through GET /users/{username}/moments", async () => {
+    mockedRequest.mockResolvedValue({ items: [VIEW], nextCursor: null });
+
+    const page = await momentsApi.listByUsername("a b/c");
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/users/a%20b%2Fc/moments?limit=20");
+    expect(page.items).toEqual([VIEW]);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("sends the cursor and an explicit limit when loading the next page", async () => {
+    mockedRequest.mockResolvedValue({ items: [], nextCursor: "next" });
+
+    await momentsApi.listByUsername("alice", { cursor: "abc+/=", limit: 5 });
+
+    const url = mockedRequest.mock.calls[0][0] as string;
+    const params = new URLSearchParams(url.split("?")[1]);
+    expect(url.startsWith("/api/v1/users/alice/moments?")).toBe(true);
+    expect(params.get("limit")).toBe("5");
+    expect(params.get("cursor")).toBe("abc+/=");
+  });
+
   it("does not call /api/v1/me/moments/{id} mutation paths", () => {
     const serialized = JSON.stringify(momentsApi);
     expect(serialized).not.toContain("/me/moments/");

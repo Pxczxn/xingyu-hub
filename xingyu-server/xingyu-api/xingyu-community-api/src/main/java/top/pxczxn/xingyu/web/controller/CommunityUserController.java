@@ -80,11 +80,12 @@ public class CommunityUserController {
      * same profile visibility gate as {@code GET /users/{username}}.
      */
     @GetMapping("/{username}/moments")
-    public List<MomentView> moments(
+    public PageResultView<MomentView> moments(
             @PathVariable String username,
             @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor,
             @RequestHeader(value = "satoken", required = false) String token) {
-        return profileService.getPublicMoments(username, resolveViewer(token), limit);
+        return profileService.getPublicMoments(username, resolveViewer(token), limit, cursor);
     }
 
     @PostMapping("/{username}/follow")

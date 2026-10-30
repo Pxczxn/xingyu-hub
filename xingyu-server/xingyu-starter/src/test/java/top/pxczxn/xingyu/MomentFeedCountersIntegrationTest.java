@@ -15,6 +15,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -158,9 +161,11 @@ class MomentFeedCountersIntegrationTest {
                         .param("limit", "20"))
                 .andExpect(status().isOk())
                 .andReturn();
-        JsonNode rows = objectMapper.readTree(listResult.getResponse().getContentAsString());
+        JsonNode listBody = objectMapper.readTree(listResult.getResponse().getContentAsString());
+        JsonNode rows = listBody.path("items");
 
         assertEquals(2, rows.size(), "只应返回两条 PUBLISHED 动态，已删除的不出现");
+        assertTrue(listBody.path("nextCursor").isNull(), "两条都在同一页时不应给出下一页游标");
         JsonNode firstRow = rowById(rows, first);
         assertNotNull(firstRow, "第一条公开动态必须出现在主页动态列表");
         assertEquals(1, firstRow.get("likeCount").asInt());
@@ -175,7 +180,7 @@ class MomentFeedCountersIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         JsonNode fanRow = rowById(
-                objectMapper.readTree(authedList.getResponse().getContentAsString()), first);
+                objectMapper.readTree(authedList.getResponse().getContentAsString()).path("items"), first);
         assertNotNull(fanRow);
         assertTrue(fanRow.get("liked").asBoolean(),
                 "登录访客在主页动态上也要看到自己的已赞状态");
@@ -192,6 +197,30 @@ class MomentFeedCountersIntegrationTest {
     void unknownUsernameMomentsReturns404() throws Exception {
         mockMvc.perform(get("/api/v1/users/no_such_user_" + uniqueSuffix() + "/moments"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("公开用户动态按游标分页：逐页取完不重不漏，末页 nextCursor 为 null")
+    void publicUserMomentsPageByCursor() throws Exception {
+        Account author = registerAccount("umompage");
+        makeProfilePublic(author.token());
+        String first = publishMoment(author.token(), "分页动态一");
+        String second = publishMoment(author.token(), "分页动态二");
+        String third = publishMoment(author.token(), "分页动态三");
+
+        JsonNode page1 = profileMomentsPage(author.username(), 2, null);
+        assertEquals(2, page1.path("items").size(), "limit=2 的第一页应有两行");
+        String cursor = page1.path("nextCursor").asText(null);
+        assertNotNull(cursor, "总共有三条时第一页必须给出下一页游标");
+
+        JsonNode page2 = profileMomentsPage(author.username(), 2, cursor);
+        assertEquals(1, page2.path("items").size(), "第二页只应剩下一行");
+        assertTrue(page2.path("nextCursor").isNull(), "末页的 nextCursor 必须是 null");
+
+        Set<String> ids = new LinkedHashSet<>();
+        page1.path("items").forEach(row -> ids.add(row.path("id").asText()));
+        page2.path("items").forEach(row -> ids.add(row.path("id").asText()));
+        assertEquals(Set.of(first, second, third), ids, "两页合起来必须恰好是三条不同动态，不重复也不遗漏");
     }
 
     // ---------------------------------------------------------------- helpers
@@ -230,6 +259,15 @@ class MomentFeedCountersIntegrationTest {
 
     private String registerAndLogin(String prefix) throws Exception {
         return registerAccount(prefix).token();
+    }
+
+    /** 读取公开主页动态的一页（`{items, nextCursor}`），供分页断言使用。 */
+    private JsonNode profileMomentsPage(String username, int limit, String cursor) throws Exception {
+        MockHttpServletRequestBuilder request = get("/api/v1/users/" + username + "/moments")
+                .param("limit", Integer.toString(limit));
+        if (cursor != null) request = request.param("cursor", cursor);
+        MvcResult result = mockMvc.perform(request).andExpect(status().isOk()).andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 
     private void makeProfilePublic(String token) throws Exception {

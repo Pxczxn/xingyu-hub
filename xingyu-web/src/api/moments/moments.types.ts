@@ -8,6 +8,9 @@
  * PATCH /api/v1/moments/{id}       { body } → 200 / 400 / 404 / 409
  * POST /api/v1/moments/{id}/trash  200 MomentView (no longer publicly readable)
  * GET  /api/v1/me/moments?limit=N  owner PUBLISHED list (owner-control only)
+ * GET  /api/v1/users/{username}/moments?limit=N&cursor=C
+ *                                  PageResultView<MomentView>, keyset on
+ *                                  (created_at DESC, id DESC); 2026-10-30
  * GET  /api/v1/me/insights         InsightsView (session-scoped counters)
  *
  * MomentView has no status / username. UNLISTED-style privacy

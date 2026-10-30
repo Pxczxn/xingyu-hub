@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { usersApi } from "@/api/users/users.api";
@@ -103,6 +103,21 @@ function worksPage(
   return { username: "pxczxn", spaceSlug: "default", owner: false, categories, works };
 }
 
+/** One row of `GET /users/{username}/moments`. */
+function momentView(id: string, body: string) {
+  return {
+    id,
+    body,
+    authorId: "u1",
+    authorUsername: "pxczxn",
+    authorDisplayName: "破星辰",
+    createdAt: "2026-10-30T00:00:00Z",
+    likeCount: 0,
+    commentCount: 0,
+    liked: null,
+  };
+}
+
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
@@ -113,7 +128,7 @@ beforeEach(() => {
     categories: [],
     works: [{ id: "w1", title: "作品一" }],
   });
-  mockedMoments.listByUsername.mockResolvedValue([]);
+  mockedMoments.listByUsername.mockResolvedValue({ items: [], nextCursor: null });
 });
 
 describe("user profile", () => {
@@ -137,19 +152,22 @@ describe("user profile", () => {
 
   it("renders the public moment count and the moment list", async () => {
     mocked.getProfile.mockResolvedValue({ ...PROFILE, momentCount: 1 });
-    mockedMoments.listByUsername.mockResolvedValue([
-      {
-        id: "m1",
-        body: "主页上的公开动态",
-        authorId: "u1",
-        authorUsername: "pxczxn",
-        authorDisplayName: "破星辰",
-        createdAt: "2026-10-30T00:00:00Z",
-        likeCount: 2,
-        commentCount: 1,
-        liked: null,
-      },
-    ]);
+    mockedMoments.listByUsername.mockResolvedValue({
+      items: [
+        {
+          id: "m1",
+          body: "主页上的公开动态",
+          authorId: "u1",
+          authorUsername: "pxczxn",
+          authorDisplayName: "破星辰",
+          createdAt: "2026-10-30T00:00:00Z",
+          likeCount: 2,
+          commentCount: 1,
+          liked: null,
+        },
+      ],
+      nextCursor: null,
+    });
     renderAt("pxczxn");
 
     expect(await screen.findByTestId("profile-moments-list")).toBeInTheDocument();
@@ -159,6 +177,51 @@ describe("user profile", () => {
       "/moments/m1",
     );
     expect(within(screen.getByTestId("profile-stats")).getByText("动态")).toBeInTheDocument();
+  });
+
+  it("retries only the moments block after a failure", async () => {
+    mocked.getProfile.mockResolvedValue({ ...PROFILE, momentCount: 1 });
+    mockedMoments.listByUsername.mockRejectedValueOnce(new Error("offline"));
+    renderAt("pxczxn");
+
+    expect(await screen.findByTestId("profile-moments-error")).toBeInTheDocument();
+    // 动态失败只降级这一块：上面的公开文章必须还在。
+    expect(await screen.findByRole("link", { name: "作品一" })).toBeInTheDocument();
+    expect(mocked.getProfile).toHaveBeenCalledTimes(1);
+
+    mockedMoments.listByUsername.mockResolvedValue({
+      items: [momentView("m1", "重试后恢复的动态")],
+      nextCursor: null,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "重新加载动态" }));
+
+    expect(await screen.findByText("重试后恢复的动态")).toBeInTheDocument();
+    expect(mockedMoments.listByUsername).toHaveBeenCalledTimes(2);
+    // 区块重试不重放整页请求。
+    expect(mocked.getProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it("appends the next page of moments, de-duplicates it, and hides the control at the end", async () => {
+    mocked.getProfile.mockResolvedValue({ ...PROFILE, momentCount: 3 });
+    mockedMoments.listByUsername.mockResolvedValueOnce({
+      items: [momentView("m1", "第一页动态")],
+      nextCursor: "page-2",
+    });
+    renderAt("pxczxn");
+
+    expect(await screen.findByText("第一页动态")).toBeInTheDocument();
+
+    mockedMoments.listByUsername.mockResolvedValueOnce({
+      // 服务端可能把边界行再返回一次：按 id 去重后不应出现两张一样的卡片。
+      items: [momentView("m1", "第一页动态"), momentView("m2", "第二页动态")],
+      nextCursor: null,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "加载更多动态" }));
+
+    expect(await screen.findByText("第二页动态")).toBeInTheDocument();
+    expect(mockedMoments.listByUsername).toHaveBeenLastCalledWith("pxczxn", { cursor: "page-2" });
+    expect(screen.getAllByText("第一页动态")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "加载更多动态" })).not.toBeInTheDocument();
   });
 
   it("shows an empty state for a user with no works", async () => {

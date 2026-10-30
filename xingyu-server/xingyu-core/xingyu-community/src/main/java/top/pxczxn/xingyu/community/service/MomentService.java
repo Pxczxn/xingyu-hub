@@ -5,6 +5,7 @@ import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.dto.MomentView;
+import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.Moment;
@@ -14,6 +15,7 @@ import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.MomentRevisionMapper;
 import top.pxczxn.xingyu.community.config.CommunityProperties;
 import top.pxczxn.xingyu.community.support.CommunityEventSupport;
+import top.pxczxn.xingyu.community.support.CursorCodec;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -61,7 +63,7 @@ public class MomentService {
     }
 
     /**
-     * A public profile's published moments, newest first.
+     * A public profile's published moments, newest first, one keyset page at a time.
      *
      * <p>Same counters and viewer-scoped `liked` flag as the public feed: a profile list is a
      * browse surface, not the owner's write-back view. The caller resolves the username and the
@@ -70,13 +72,46 @@ public class MomentService {
      * <p>The viewer id is passed explicitly rather than read from {@link CommunityAuthContext}:
      * the profile endpoints accept an optional session and resolve it in the controller, so the
      * thread-local context is not guaranteed to be populated on this path.
+     *
+     * <p>Paged rather than capped: the profile renders a count from the profile DTO and a list
+     * from here, so a fixed window would sooner or later show "动态 60" above 20 rows with no way
+     * to reach the rest. The cursor is the same opaque triple the discover feed uses
+     * ({@link top.pxczxn.xingyu.community.support.CursorCodec}), keyed on
+     * {@code (created_at, id)}; a malformed cursor is a client error (400), not a silent reset.
      */
-    public List<MomentView> listPublishedByAuthor(String authorId, int limit, String viewerId) {
+    public PageResultView<MomentView> listPublishedByAuthor(
+            String authorId, int limit, String cursor, String viewerId) {
         if (limit <= 0) {
             limit = 20;
         }
         limit = Math.min(limit, MAX_PUBLIC_LIST_LIMIT);
-        return withViewerMetrics(momentMapper.listByAuthorId(authorId, limit), viewerId);
+        // One extra row probes "is there a next page" — a page that ends exactly on a full
+        // window is otherwise indistinguishable from an exhausted list.
+        int probeLimit = limit + 1;
+        List<Moment> moments;
+        if (cursor != null && !cursor.isBlank()) {
+            String[] parts = CursorCodec.decode(cursor);
+            if (parts == null) {
+                throw new FieldContractException("cursor", "分页游标无效");
+            }
+            moments = momentMapper.listByAuthorIdAfter(
+                    authorId, Instant.ofEpochMilli(Long.parseLong(parts[1])), parts[2], probeLimit);
+        } else {
+            moments = momentMapper.listByAuthorId(authorId, probeLimit);
+        }
+        boolean hasMore = moments.size() > limit;
+        List<Moment> page = hasMore ? moments.subList(0, limit) : moments;
+        // The cursor is the last row actually returned, never the probe row.
+        String nextCursor = hasMore
+                ? CursorCodec.encode(
+                        OBJECT_TYPE,
+                        page.get(page.size() - 1).getCreatedAt(),
+                        page.get(page.size() - 1).getId())
+                : null;
+        return PageResultView.<MomentView>builder()
+                .items(withViewerMetrics(page, viewerId))
+                .nextCursor(nextCursor)
+                .build();
     }
 
     private List<MomentView> withViewerMetrics(List<Moment> moments, String viewerId) {

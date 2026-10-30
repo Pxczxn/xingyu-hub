@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { usersApi } from "@/api/users/users.api";
 import type { ProfileDetail, SpaceWorks } from "@/api/users/users.types";
@@ -61,6 +61,16 @@ export function UserProfilePage() {
   const [worksPending, setWorksPending] = useState(false);
   const [moments, setMoments] = useState<MomentView[] | null>(null);
   const [momentsError, setMomentsError] = useState(false);
+  const [momentsCursor, setMomentsCursor] = useState<string | null>(null);
+  const [momentsLoadingMore, setMomentsLoadingMore] = useState(false);
+  const [momentsLoadMoreError, setMomentsLoadMoreError] = useState<string | null>(null);
+  /* Section-scoped retry, separate from `reloadKey`: replaying the page-level key
+     would also refetch the profile and the works and flash the whole page back to
+     loading, when only this block failed. */
+  const [momentsReloadKey, setMomentsReloadKey] = useState(0);
+  /* Invalidates in-flight "load more" responses when the profile or the first page
+     changes — a slow page 2 for user A must not append onto user B's list. */
+  const momentsVersion = useRef(0);
   /*
    * 当前分类筛选，和「它是在谁的主页上选的」存在一起。
    *
@@ -160,24 +170,61 @@ export function UserProfilePage() {
   /*
    * Moments are a separate public surface with its own endpoint. A failure
    * degrades only this section; the article works above must stay readable.
+   *
+   * Paged rather than a fixed window: the stats row shows the server's
+   * `momentCount`, so "动态 60" above 20 rows with no way to reach the rest is a
+   * visible inconsistency, not a design choice.
    */
   useEffect(() => {
     if (!username) return;
     let active = true;
+    const version = ++momentsVersion.current;
     setMoments(null);
     setMomentsError(false);
+    setMomentsCursor(null);
+    setMomentsLoadingMore(false);
+    setMomentsLoadMoreError(null);
     momentsApi
       .listByUsername(username)
-      .then((data) => {
-        if (active) setMoments(data);
+      .then((page) => {
+        if (!active || version !== momentsVersion.current) return;
+        setMoments(page.items ?? []);
+        setMomentsCursor(page.nextCursor ?? null);
       })
       .catch(() => {
-        if (active) setMomentsError(true);
+        if (active && version === momentsVersion.current) setMomentsError(true);
       });
     return () => {
       active = false;
+      momentsVersion.current += 1;
     };
-  }, [username, reloadKey]);
+  }, [username, momentsReloadKey]);
+
+  function loadMoreMoments() {
+    if (!momentsCursor || momentsLoadingMore) return;
+    const version = momentsVersion.current;
+    setMomentsLoadingMore(true);
+    setMomentsLoadMoreError(null);
+    momentsApi
+      .listByUsername(username, { cursor: momentsCursor })
+      .then((page) => {
+        if (version !== momentsVersion.current) return;
+        setMoments((current) => {
+          const seen = new Set((current ?? []).map((moment) => moment.id));
+          return [
+            ...(current ?? []),
+            ...(page.items ?? []).filter((moment) => !seen.has(moment.id)),
+          ];
+        });
+        setMomentsCursor(page.nextCursor ?? null);
+      })
+      .catch(() => {
+        if (version === momentsVersion.current) setMomentsLoadMoreError("加载更多失败，请重试。");
+      })
+      .finally(() => {
+        if (version === momentsVersion.current) setMomentsLoadingMore(false);
+      });
+  }
 
   const owner = state.kind === "ready" ? state.profile.owner === true : null;
   // Guests and the viewer's own profile get no block control: the backend rejects
@@ -337,11 +384,25 @@ export function UserProfilePage() {
           公开动态
         </h2>
         {momentsError ? (
-          <p role="alert" data-testid="profile-moments-error" className="text-sm text-destructive">
-            动态加载失败
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p
+              role="alert"
+              data-testid="profile-moments-error"
+              className="text-sm text-destructive"
+            >
+              动态加载失败
+            </p>
+            <Button variant="outline" onClick={() => setMomentsReloadKey((key) => key + 1)}>
+              重新加载动态
+            </Button>
+          </div>
         ) : moments ? (
-          <ProfileMoments moments={moments} />
+          <ProfileMoments
+            moments={moments}
+            onLoadMore={momentsCursor ? loadMoreMoments : undefined}
+            loadingMore={momentsLoadingMore}
+            loadMoreError={momentsLoadMoreError}
+          />
         ) : (
           <PageState kind="loading" />
         )}

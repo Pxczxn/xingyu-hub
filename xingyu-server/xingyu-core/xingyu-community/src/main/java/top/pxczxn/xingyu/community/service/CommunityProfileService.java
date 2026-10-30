@@ -13,6 +13,7 @@ import top.pxczxn.xingyu.community.dto.ProfileView;
 import top.pxczxn.xingyu.community.dto.PublicUserView;
 import top.pxczxn.xingyu.community.dto.UserDetailView;
 import top.pxczxn.xingyu.community.dto.MomentView;
+import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityCreationSpace;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
@@ -148,14 +149,15 @@ public class CommunityProfileService {
      * username and a private/unreadable profile both surface as NOT_FOUND from
      * {@link #getPublicProfile}, which is the same answer the profile page gives.
      */
-    public List<MomentView> getPublicMoments(String rawUsername, CommunityUser viewer, int limit) {
+    public PageResultView<MomentView> getPublicMoments(
+            String rawUsername, CommunityUser viewer, int limit, String cursor) {
         PublicUserView publicProfile = getPublicProfile(rawUsername, viewer);
         CommunityProfile profile = resolveProfile(normalizeUsername(publicProfile.getUsername()));
         if (profile == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
         return momentService.listPublishedByAuthor(
-                profile.getUserId(), limit, viewer == null ? null : viewer.getId());
+                profile.getUserId(), limit, cursor, viewer == null ? null : viewer.getId());
     }
 
     public PublicUserView getPublicProfile(String rawUsername, CommunityUser viewer) {
