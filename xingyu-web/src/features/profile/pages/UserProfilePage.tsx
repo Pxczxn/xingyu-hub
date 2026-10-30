@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { usersApi } from "@/api/users/users.api";
 import type { ProfileDetail, SpaceWorks } from "@/api/users/users.types";
 import { momentsApi } from "@/api/moments/moments.api";
 import type { MomentView } from "@/api/moments/moments.types";
+import { seriesApi } from "@/api/series/series.api";
+import type { PublicSeriesSummary } from "@/api/series/series.types";
 import { ApiError } from "@/api/client";
 import { useAuth } from "@/features/auth/auth.store";
 import { ProfileHeader } from "@/features/profile/components/ProfileHeader";
@@ -11,6 +13,8 @@ import { ProfileStats } from "@/features/profile/components/ProfileStats";
 import { ProfileWorks } from "@/features/profile/components/ProfileWorks";
 import { ProfileWorksFilter } from "@/features/profile/components/ProfileWorksFilter";
 import { ProfileMoments } from "@/features/profile/components/ProfileMoments";
+import { ProfileSeries } from "@/features/profile/components/ProfileSeries";
+import { usePagedSection } from "@/features/profile/usePagedSection";
 import { ProfileBlockControl } from "@/features/blocks/components/ProfileBlockControl";
 import { isBlockedUsername, loadBlockedUsers } from "@/features/blocks/blocked-users.store";
 import { PageState } from "@/components/shared/PageState";
@@ -18,8 +22,8 @@ import { Button } from "@/components/ui/button";
 
 /*
  * Public user profile (Phase 1B) — real implementation.
- * Real endpoints: GET /api/v1/users/{username}, /works, POST|DELETE .../follow.
- * Follow genuinely works on this backend (unlike Topic follow).
+ * Real endpoints: GET /api/v1/users/{username}, /works, /series, /moments,
+ * POST|DELETE .../follow. Follow genuinely works on this backend (unlike Topic follow).
  *
  * Phase 2A-2a adds the block entry. Block state is NOT part of the profile DTO —
  * there is no `blocked` field and no status endpoint (contract gap, verified
@@ -27,11 +31,12 @@ import { Button } from "@/components/ui/button";
  * the block list on every profile view.
  *
  * 批次 06（S4 身份详情）：全宽身份头 → 主栏/侧栏（`lg:grid-cols-[minmax(0,1fr)_300px]`，
- * 侧栏下移见方案 §五）。方案 §4.3 写的是「作品流 tab（文章 / 系列 / 动态）」，但用户维度
+ * 侧栏下移见方案 §五）。方案 §4.3 写的是「作品流 tab（文章 / 系列 / 动态）」。当时用户维度
  * 端点只有 /{username}、/{username}/works、/{username}/works/categories、follow 与
- * followers/following（CommunityUserController 逐条核对）—— 没有 series，也没有 moments，
- * 三个 tab 里两个没有数据源。改由真实存在的第二维（创作空间分类）承担筛选，
- * 理由写在 ProfileWorksFilter 里。
+ * followers/following，三个 tab 里两个没有数据源，所以作品流只用创作空间分类做第二维
+ * （理由写在 ProfileWorksFilter 里）。2026-10-30 补齐了 /{username}/moments 与
+ * /{username}/series，主页于是在作品流下方按「系列 → 动态」各成一段，而不是引入 tab
+ * 状态：两段都要能独立失败、独立翻页，塞进一个 tab 反而互相遮挡。
  *
  * 批次 07（视觉改造）：身份头从卡片改成通栏身份带（见 ProfileHeader），统计从侧栏四宫格
  * 改成身份带内联一行（见 ProfileStats），侧栏整列撤掉、主栏吃满宽度。撤侧栏的理由和
@@ -59,18 +64,24 @@ export function UserProfilePage() {
   const [works, setWorks] = useState<SpaceWorks | null>(null);
   const [worksError, setWorksError] = useState(false);
   const [worksPending, setWorksPending] = useState(false);
-  const [moments, setMoments] = useState<MomentView[] | null>(null);
-  const [momentsError, setMomentsError] = useState(false);
-  const [momentsCursor, setMomentsCursor] = useState<string | null>(null);
-  const [momentsLoadingMore, setMomentsLoadingMore] = useState(false);
-  const [momentsLoadMoreError, setMomentsLoadMoreError] = useState<string | null>(null);
-  /* Section-scoped retry, separate from `reloadKey`: replaying the page-level key
-     would also refetch the profile and the works and flash the whole page back to
-     loading, when only this block failed. */
-  const [momentsReloadKey, setMomentsReloadKey] = useState(0);
-  /* Invalidates in-flight "load more" responses when the profile or the first page
-     changes — a slow page 2 for user A must not append onto user B's list. */
-  const momentsVersion = useRef(0);
+  /*
+   * The two paged sections under the works list (系列 / 动态). The loaders are
+   * wrapped so the shared hook's first-page effect sees a stable function; the
+   * hook itself owns the section-local retry, the cursor and the de-duplication.
+   */
+  const loadSeries = useCallback(
+    (name: string, cursor: string | null) =>
+      cursor ? seriesApi.listByUsername(name, { cursor }) : seriesApi.listByUsername(name),
+    [],
+  );
+  const loadMoments = useCallback(
+    (name: string, cursor: string | null) =>
+      cursor ? momentsApi.listByUsername(name, { cursor }) : momentsApi.listByUsername(name),
+    [],
+  );
+  const seriesSection = usePagedSection<PublicSeriesSummary>(username, loadSeries);
+  const momentsSection = usePagedSection<MomentView>(username, loadMoments);
+
   /*
    * 当前分类筛选，和「它是在谁的主页上选的」存在一起。
    *
@@ -168,63 +179,12 @@ export function UserProfilePage() {
   }, [username, categorySlug, reloadKey]);
 
   /*
-   * Moments are a separate public surface with its own endpoint. A failure
-   * degrades only this section; the article works above must stay readable.
-   *
-   * Paged rather than a fixed window: the stats row shows the server's
-   * `momentCount`, so "动态 60" above 20 rows with no way to reach the rest is a
+   * Moments and series are separate public surfaces with their own endpoints. A
+   * failure degrades only that section; the article works above must stay readable.
+   * Both are paged rather than a fixed window: the stats row shows the server's
+   * `momentCount` / `seriesCount`, so a count that the list can never reach is a
    * visible inconsistency, not a design choice.
    */
-  useEffect(() => {
-    if (!username) return;
-    let active = true;
-    const version = ++momentsVersion.current;
-    setMoments(null);
-    setMomentsError(false);
-    setMomentsCursor(null);
-    setMomentsLoadingMore(false);
-    setMomentsLoadMoreError(null);
-    momentsApi
-      .listByUsername(username)
-      .then((page) => {
-        if (!active || version !== momentsVersion.current) return;
-        setMoments(page.items ?? []);
-        setMomentsCursor(page.nextCursor ?? null);
-      })
-      .catch(() => {
-        if (active && version === momentsVersion.current) setMomentsError(true);
-      });
-    return () => {
-      active = false;
-      momentsVersion.current += 1;
-    };
-  }, [username, momentsReloadKey]);
-
-  function loadMoreMoments() {
-    if (!momentsCursor || momentsLoadingMore) return;
-    const version = momentsVersion.current;
-    setMomentsLoadingMore(true);
-    setMomentsLoadMoreError(null);
-    momentsApi
-      .listByUsername(username, { cursor: momentsCursor })
-      .then((page) => {
-        if (version !== momentsVersion.current) return;
-        setMoments((current) => {
-          const seen = new Set((current ?? []).map((moment) => moment.id));
-          return [
-            ...(current ?? []),
-            ...(page.items ?? []).filter((moment) => !seen.has(moment.id)),
-          ];
-        });
-        setMomentsCursor(page.nextCursor ?? null);
-      })
-      .catch(() => {
-        if (version === momentsVersion.current) setMomentsLoadMoreError("加载更多失败，请重试。");
-      })
-      .finally(() => {
-        if (version === momentsVersion.current) setMomentsLoadingMore(false);
-      });
-  }
 
   const owner = state.kind === "ready" ? state.profile.owner === true : null;
   // Guests and the viewer's own profile get no block control: the backend rejects
@@ -345,11 +305,9 @@ export function UserProfilePage() {
           · 创作空间 description —— `CommunityAccountService` 注册时无条件创建空间且
             description 恒为 null，`CommunitySpaceController` 只有两个 GET，没有编辑
             端点，所以这个字段在当前产品里根本填不进来；
-          · 用户维度系列列表 —— 仍没有端点（CommunityUserController 只有 /{username}、
-            /{username}/works、/{username}/works/categories、/{username}/moments、
-            follow、followers/following）；
-          · 动态 —— 2026-10-30 补了公开端点 /{username}/moments，所以在作品流下方
-            单独成区，不再挤进侧栏；
+          · 用户维度系列/动态列表 —— 2026-10-30 补齐了 /{username}/series 与
+            /{username}/moments，但它们是「要能翻页、能独立失败」的内容面，做成主栏
+            下方各自成段更合适，塞进 300px 侧栏只会变成第二个截断的窗口；
           · 「TA 的关注者」 —— `/u/:username/followers` 没有前端路由，且
             canViewFollowLists=false 时后端直接 403，链接会指向死路。
 
@@ -379,11 +337,36 @@ export function UserProfilePage() {
         )}
       </section>
 
+      <section aria-labelledby="series-heading" className="mt-8 min-w-0">
+        <h2 id="series-heading" className="section-heading mb-3">
+          公开系列
+        </h2>
+        {seriesSection.error ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <p role="alert" data-testid="profile-series-error" className="text-sm text-destructive">
+              系列加载失败
+            </p>
+            <Button variant="outline" onClick={seriesSection.retry}>
+              重新加载系列
+            </Button>
+          </div>
+        ) : seriesSection.items ? (
+          <ProfileSeries
+            series={seriesSection.items}
+            onLoadMore={seriesSection.cursor ? seriesSection.loadMore : undefined}
+            loadingMore={seriesSection.loadingMore}
+            loadMoreError={seriesSection.loadMoreError}
+          />
+        ) : (
+          <PageState kind="loading" />
+        )}
+      </section>
+
       <section aria-labelledby="moments-heading" className="mt-8 min-w-0">
         <h2 id="moments-heading" className="section-heading mb-3">
           公开动态
         </h2>
-        {momentsError ? (
+        {momentsSection.error ? (
           <div className="flex flex-wrap items-center gap-2">
             <p
               role="alert"
@@ -392,16 +375,16 @@ export function UserProfilePage() {
             >
               动态加载失败
             </p>
-            <Button variant="outline" onClick={() => setMomentsReloadKey((key) => key + 1)}>
+            <Button variant="outline" onClick={momentsSection.retry}>
               重新加载动态
             </Button>
           </div>
-        ) : moments ? (
+        ) : momentsSection.items ? (
           <ProfileMoments
-            moments={moments}
-            onLoadMore={momentsCursor ? loadMoreMoments : undefined}
-            loadingMore={momentsLoadingMore}
-            loadMoreError={momentsLoadMoreError}
+            moments={momentsSection.items}
+            onLoadMore={momentsSection.cursor ? momentsSection.loadMore : undefined}
+            loadingMore={momentsSection.loadingMore}
+            loadMoreError={momentsSection.loadMoreError}
           />
         ) : (
           <PageState kind="loading" />

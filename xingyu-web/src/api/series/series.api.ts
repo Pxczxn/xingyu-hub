@@ -52,6 +52,24 @@ export const seriesApi = {
   getPublicById: (id: string): Promise<PublicSeriesDetail> =>
     apiRequest<PublicSeriesDetail>(`/api/v1/series/${encodeURIComponent(id)}`),
 
+  /**
+   * One profile's public ACTIVE series, newest-updated first (2026-10-30).
+   *
+   * Lives under the user resource because it is the profile's own surface: the
+   * endpoint applies the same profile visibility gate as `GET /users/{username}`
+   * (a PRIVATE profile 404s), then pages exactly like the plaza catalogue.
+   */
+  listByUsername: (
+    username: string,
+    options: { limit?: number; cursor?: string | null } = {},
+  ): Promise<PublicSeriesPage> => {
+    const params = new URLSearchParams({ limit: String(options.limit ?? 20) });
+    if (options.cursor) params.set("cursor", options.cursor);
+    return apiRequest<PublicSeriesPage>(
+      `/api/v1/users/${encodeURIComponent(username)}/series?${params.toString()}`,
+    );
+  },
+
   getPublicBySlug: (username: string, slug: string): Promise<PublicSeriesDetail> =>
     apiRequest<PublicSeriesDetail>(
       `/api/v1/series/${encodeURIComponent(username)}/${encodeURIComponent(slug)}`,

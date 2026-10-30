@@ -104,6 +104,26 @@ public class SeriesService {
      * 伪造/别的域的 cursor 一律 400，避免静默回到第一页让读者重复浏览。
      */
     public PageResultView<PublicSeriesSummaryView> searchPublic(String query, int limit, String cursor) {
+        return publicPage(query, null, limit, cursor);
+    }
+
+    /**
+     * 一个作者的公开系列（2026-10-30），供个人主页的“公开系列”区块使用。
+     *
+     * <p>可见性与广场完全一致（ACTIVE + 作者有公开档案），由
+     * {@link SeriesMapper#searchPublic} 的同一份 SQL 保证；档案本身的可见性（PRIVATE 仅本人）
+     * 由调用方在解析用户名时先校验，这里只认作者 id。
+     *
+     * <p>不返回 {@code total}：主页面的系列数来自资料 DTO 的 {@code seriesCount}，
+     * 再查一次 COUNT 只会得到同一个数字。
+     */
+    public PageResultView<PublicSeriesSummaryView> listPublicByOwner(
+            String ownerId, int limit, String cursor) {
+        return publicPage(null, ownerId, limit, cursor);
+    }
+
+    private PageResultView<PublicSeriesSummaryView> publicPage(
+            String query, String ownerId, int limit, String cursor) {
         int pageSize = limit <= 0 ? 20 : Math.min(limit, 50);
         String keyword = query == null || query.isBlank() ? null : escapeLikeLiteral(query.trim());
 
@@ -120,7 +140,7 @@ public class SeriesService {
 
         /* 多取一条只用于探测"还有没有下一页"：items.size() == limit 无法区分
            "正好穷尽"与"还有更多"，旧实现因此会在整页倍数处提前收起加载入口。 */
-        List<Series> rows = seriesMapper.searchPublic(keyword, cursorUpdatedAt, cursorId, pageSize + 1);
+        List<Series> rows = seriesMapper.searchPublic(keyword, ownerId, cursorUpdatedAt, cursorId, pageSize + 1);
         boolean hasMore = rows.size() > pageSize;
         List<Series> page = hasMore ? rows.subList(0, pageSize) : rows;
 
@@ -145,7 +165,8 @@ public class SeriesService {
         return PageResultView.<PublicSeriesSummaryView>builder()
                 .items(items)
                 .nextCursor(nextCursor)
-                .total(seriesMapper.countPublic(keyword))
+                // 作者列表不查总数：调用方已有资料里的 seriesCount。
+                .total(ownerId == null ? seriesMapper.countPublic(keyword) : null)
                 .build();
     }
 

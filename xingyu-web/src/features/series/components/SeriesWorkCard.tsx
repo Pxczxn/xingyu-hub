@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { PublicSeriesSummary } from "@/api/series/series.types";
 import { SeriesCover } from "@/components/visual/SeriesCover";
+import { cn } from "@/lib/cn";
 
 /*
  * One series in the plaza's work grid.
@@ -24,7 +25,14 @@ import { SeriesCover } from "@/components/visual/SeriesCover";
  * same row. Height is never fixed: the cover's 3:4 ratio sets the floor and a
  * long blurb grows the card instead of clipping it.
  */
-export function SeriesWorkCard({ item }: { item: PublicSeriesSummary }) {
+export function SeriesWorkCard({
+  item,
+  showAuthor = true,
+}: {
+  item: PublicSeriesSummary;
+  /** The profile page already names the author in its header — repeating it on every card is noise. */
+  showAuthor?: boolean;
+}) {
   const author = item.author.displayName?.trim() || `@${item.author.username}`;
 
   return (
@@ -53,10 +61,17 @@ export function SeriesWorkCard({ item }: { item: PublicSeriesSummary }) {
             </p>
           ) : null}
 
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 pt-3 text-meta text-muted-foreground">
-            <span className="min-w-0 truncate" title={author}>
-              {author}
-            </span>
+          <div
+            className={cn(
+              "mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-3 text-meta text-muted-foreground",
+              showAuthor ? "justify-between" : "justify-end",
+            )}
+          >
+            {showAuthor ? (
+              <span className="min-w-0 truncate" title={author}>
+                {author}
+              </span>
+            ) : null}
             <span className="flex shrink-0 items-center gap-3">
               <span className="tabular-nums">{item.chapterCount} 章</span>
               <span className="flex items-center gap-1 font-medium text-accent-strong">

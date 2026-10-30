@@ -15,6 +15,8 @@
  *   GET  /api/v1/series/search?q=&limit=&cursor= -> PublicSeriesPage        (plaza, 2026-10-18)
  *   GET  /api/v1/series/{seriesId}            -> PublicSeriesDetail
  *   GET  /api/v1/series/{username}/{slug}     -> PublicSeriesDetail
+ *   GET  /api/v1/users/{username}/series?limit=&cursor=
+ *                                             -> PublicSeriesPage  (profile tab, 2026-10-30)
  *
  * `/series/search` is the plaza contract: keyset cursor over
  * (updated_at DESC, id DESC), `q` matches title / description / author over the

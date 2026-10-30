@@ -43,12 +43,18 @@ public interface SeriesMapper extends BaseMapper<Series> {
      *
      * <p>作者关键字匹配 username / display_name，因此必须 JOIN community_profile；
      * 这也正是公开可见性的判据（系列详情接口同样要求档案存在）。
+     *
+     * <p>{@code ownerId}（2026-10-30）让个人主页的“公开系列”复用同一份可见性 SQL：
+     * 只是多一个作者条件，而不是复制一套查询。个人主页的档案可见性由调用方先校验。
      */
     @Select("""
             <script>
             SELECT s.* FROM series s
             INNER JOIN community_profile p ON p.user_id = s.owner_id
             WHERE s.status = 'ACTIVE'
+            <if test="ownerId != null">
+              AND s.owner_id = #{ownerId}
+            </if>
             <if test="keyword != null">
               AND (s.title LIKE CONCAT('%', #{keyword}, '%') ESCAPE '!'
                 OR s.description LIKE CONCAT('%', #{keyword}, '%') ESCAPE '!'
@@ -65,6 +71,7 @@ public interface SeriesMapper extends BaseMapper<Series> {
             """)
     List<Series> searchPublic(
             @Param("keyword") String keyword,
+            @Param("ownerId") String ownerId,
             @Param("cursorUpdatedAt") Instant cursorUpdatedAt,
             @Param("cursorId") String cursorId,
             @Param("limit") int limit);

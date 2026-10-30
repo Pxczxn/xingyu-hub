@@ -5,6 +5,7 @@ import top.pxczxn.xingyu.community.dto.FollowUserView;
 import top.pxczxn.xingyu.community.dto.UserDetailView;
 import top.pxczxn.xingyu.community.dto.MomentView;
 import top.pxczxn.xingyu.community.dto.PageResultView;
+import top.pxczxn.xingyu.community.dto.PublicSeriesSummaryView;
 import top.pxczxn.xingyu.community.dto.SpaceWorksView;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunitySession;
@@ -14,6 +15,7 @@ import top.pxczxn.xingyu.community.mapper.CommunityUserMapper;
 import top.pxczxn.xingyu.community.service.CommunityAccountService;
 import top.pxczxn.xingyu.community.service.CommunityProfileService;
 import top.pxczxn.xingyu.community.service.CreationSpaceService;
+import top.pxczxn.xingyu.community.service.SeriesService;
 import top.pxczxn.xingyu.community.service.SocialService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +40,7 @@ public class CommunityUserController {
     private final CommunityProfileService profileService;
     private final CommunityAccountService accountService;
     private final CreationSpaceService creationSpaceService;
+    private final SeriesService seriesService;
     private final CommunityUserMapper userMapper;
     private final CommunityProfileMapper profileMapper;
     private final SocialService socialService;
@@ -86,6 +89,24 @@ public class CommunityUserController {
             @RequestParam(required = false) String cursor,
             @RequestHeader(value = "satoken", required = false) String token) {
         return profileService.getPublicMoments(username, resolveViewer(token), limit, cursor);
+    }
+
+    /**
+     * Public ACTIVE series of a profile, newest-updated first, one keyset page at a time.
+     *
+     * <p>Same shape and paging as the plaza catalogue ({@code GET /series/search}), scoped to
+     * one author. The profile visibility gate runs first, so a PRIVATE profile 404s here exactly
+     * like its detail, works, moments and follow lists do — the series themselves are not a
+     * separate visibility decision.
+     */
+    @GetMapping("/{username}/series")
+    public PageResultView<PublicSeriesSummaryView> series(
+            @PathVariable String username,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor,
+            @RequestHeader(value = "satoken", required = false) String token) {
+        profileService.requireVisibleProfile(username, resolveViewer(token));
+        return seriesService.listPublicByOwner(resolveUserId(username), limit, cursor);
     }
 
     @PostMapping("/{username}/follow")

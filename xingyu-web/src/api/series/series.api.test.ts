@@ -141,6 +141,26 @@ describe("seriesApi", () => {
     expect(mockedRequest).toHaveBeenCalledWith("/api/v1/series/search?limit=8");
   });
 
+  it("pages a profile's series through GET /users/{username}/series", async () => {
+    mockedRequest.mockResolvedValue({ items: [], nextCursor: "next" });
+
+    await seriesApi.listByUsername("a b/c");
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/v1/users/a%20b%2Fc/series?limit=20");
+  });
+
+  it("sends the profile series cursor back to the server", async () => {
+    mockedRequest.mockResolvedValue({ items: [], nextCursor: null });
+
+    await seriesApi.listByUsername("alice", { cursor: "abc+/=", limit: 6 });
+
+    const url = mockedRequest.mock.calls[0][0] as string;
+    const params = new URLSearchParams(url.split("?")[1]);
+    expect(url.startsWith("/api/v1/users/alice/series?")).toBe(true);
+    expect(params.get("limit")).toBe("6");
+    expect(params.get("cursor")).toBe("abc+/=");
+  });
+
   it("sends the keyword and cursor as query parameters", async () => {
     mockedRequest.mockResolvedValue({ items: [], nextCursor: null, total: 0 });
 

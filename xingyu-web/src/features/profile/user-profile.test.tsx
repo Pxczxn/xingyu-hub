@@ -5,6 +5,7 @@ import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { usersApi } from "@/api/users/users.api";
 import type { SpaceWorkItem, SpaceWorks } from "@/api/users/users.types";
 import { momentsApi } from "@/api/moments/moments.api";
+import { seriesApi } from "@/api/series/series.api";
 import { ApiError } from "@/api/client";
 import { setStoredToken } from "@/lib/storage";
 import { AuthProvider } from "@/features/auth/auth.store";
@@ -42,6 +43,10 @@ vi.mock("@/api/moments/moments.api", () => ({
   momentsApi: { listByUsername: vi.fn() },
 }));
 
+vi.mock("@/api/series/series.api", () => ({
+  seriesApi: { listByUsername: vi.fn() },
+}));
+
 vi.mock("@/api/auth/auth.api", () => ({
   authApi: {
     getMe: vi.fn(async () => ({ email: "a@b.c", emailVerified: true })),
@@ -61,6 +66,7 @@ vi.mock("@/api/auth/auth.api", () => ({
 
 const mocked = vi.mocked(usersApi);
 const mockedMoments = vi.mocked(momentsApi);
+const mockedSeries = vi.mocked(seriesApi);
 
 const PROFILE = {
   username: "pxczxn",
@@ -103,6 +109,18 @@ function worksPage(
   return { username: "pxczxn", spaceSlug: "default", owner: false, categories, works };
 }
 
+/** One row of `GET /users/{username}/series`. */
+function seriesSummary(id: string, title: string) {
+  return {
+    id,
+    title,
+    slug: id,
+    description: null,
+    chapterCount: 3,
+    author: { username: "pxczxn", displayName: "破星辰", avatar: null },
+  };
+}
+
 /** One row of `GET /users/{username}/moments`. */
 function momentView(id: string, body: string) {
   return {
@@ -129,6 +147,7 @@ beforeEach(() => {
     works: [{ id: "w1", title: "作品一" }],
   });
   mockedMoments.listByUsername.mockResolvedValue({ items: [], nextCursor: null });
+  mockedSeries.listByUsername.mockResolvedValue({ items: [], nextCursor: null });
 });
 
 describe("user profile", () => {
@@ -177,6 +196,53 @@ describe("user profile", () => {
       "/moments/m1",
     );
     expect(within(screen.getByTestId("profile-stats")).getByText("动态")).toBeInTheDocument();
+  });
+
+  it("degrades only the series section and retries it in place", async () => {
+    mocked.getProfile.mockResolvedValue({ ...PROFILE, seriesCount: 1 });
+    mockedSeries.listByUsername.mockRejectedValueOnce(new Error("offline"));
+    renderAt("pxczxn");
+
+    expect(await screen.findByTestId("profile-series-error")).toBeInTheDocument();
+    // 系列失败只降级这一块：公开文章与动态必须照常渲染。
+    expect(await screen.findByRole("link", { name: "作品一" })).toBeInTheDocument();
+    expect(mocked.getProfile).toHaveBeenCalledTimes(1);
+
+    mockedSeries.listByUsername.mockResolvedValue({
+      items: [seriesSummary("s1", "公开系列一")],
+      nextCursor: null,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "重新加载系列" }));
+
+    expect(await screen.findByText("公开系列一")).toBeInTheDocument();
+    expect(mocked.getProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it("pages the series section, de-duplicates rows, and hides the author line", async () => {
+    mocked.getProfile.mockResolvedValue({ ...PROFILE, seriesCount: 2 });
+    mockedSeries.listByUsername.mockResolvedValueOnce({
+      items: [seriesSummary("s1", "系列一")],
+      nextCursor: "series-page-2",
+    });
+    renderAt("pxczxn");
+
+    const firstCard = await screen.findByRole("link", { name: /系列一/ });
+    expect(firstCard).toHaveAttribute("href", "/series/s1");
+    // 身份带已经写了作者名，卡片页脚不重复。
+    expect(within(firstCard).queryByText("破星辰")).not.toBeInTheDocument();
+
+    mockedSeries.listByUsername.mockResolvedValueOnce({
+      items: [seriesSummary("s1", "系列一"), seriesSummary("s2", "系列二")],
+      nextCursor: null,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "加载更多系列" }));
+
+    expect(await screen.findByText("系列二")).toBeInTheDocument();
+    expect(mockedSeries.listByUsername).toHaveBeenLastCalledWith("pxczxn", {
+      cursor: "series-page-2",
+    });
+    expect(screen.getAllByText("系列一")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "加载更多系列" })).not.toBeInTheDocument();
   });
 
   it("retries only the moments block after a failure", async () => {

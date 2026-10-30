@@ -119,6 +119,7 @@ class ProfilePrivacyIntegrationTest {
                 "/api/v1/u/" + username,
                 "/api/v1/users/" + username + "/works",
                 "/api/v1/users/" + username + "/works/categories",
+                "/api/v1/users/" + username + "/series",
                 "/api/v1/users/" + username + "/moments",
                 "/api/v1/users/" + username + "/followers",
                 "/api/v1/users/" + username + "/following",
