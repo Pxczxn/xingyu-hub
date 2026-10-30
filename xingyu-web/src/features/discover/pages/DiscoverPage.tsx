@@ -20,8 +20,16 @@ export function DiscoverPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const topic = searchParams.get("topic") ?? "";
   const rawType = searchParams.get("type");
-  const type: DiscoverInput["type"] =
+  const parsedType: DiscoverInput["type"] =
     rawType === "ARTICLE" || rawType === "SERIES" || rawType === "MOMENT" ? rawType : undefined;
+  /*
+   * 话题只归类文章：后端 `listDiscoverFiltered` 在带 topic 时硬编码
+   * `object_type = 'ARTICLE'`（话题关联表只有 `article_topic`），所以
+   * `?topic=x&type=MOMENT` 永远返回空列表。把这种残留组合解释成「该话题内的全部文章」，
+   * 而不是把「数据模型不支持」显示成「暂无符合筛选条件的内容」。
+   */
+  const topicOverridesType = Boolean(topic) && (parsedType === "MOMENT" || parsedType === "SERIES");
+  const type: DiscoverInput["type"] = topicOverridesType ? undefined : parsedType;
   const [topics, setTopics] = useState<TopicSummary[]>([]);
   const [topicsError, setTopicsError] = useState(false);
   const [items, setItems] = useState<ContentSummary[]>([]);
@@ -50,6 +58,20 @@ export function DiscoverPage() {
       active = false;
     };
   }, []);
+
+  // 清掉 URL 里残留的「话题 + 动态/系列」组合：页面已经按“话题内文章”加载，
+  // 地址栏再留着 type 会让分享出去的链接把同一个无效组合带给别人。
+  useEffect(() => {
+    if (!topicOverridesType) return;
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        next.delete("type");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [topicOverridesType, setSearchParams]);
 
   const changeFilter = (key: "topic" | "type", value: string) => {
     const current = key === "topic" ? topic : (type ?? "");

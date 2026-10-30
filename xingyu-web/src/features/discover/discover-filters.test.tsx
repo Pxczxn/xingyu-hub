@@ -86,9 +86,27 @@ it("ignores an old load-more response after the topic changes", async () => {
 });
 it("reports an empty filtered result instead of saying the community has no content", async () => {
   discover.mockResolvedValue({ items: [], nextCursor: null });
-  renderPage("/discover?topic=design&type=SERIES");
+  renderPage("/discover?topic=design");
   expect(await screen.findByText("暂无符合筛选条件的内容")).toBeInTheDocument();
   expect(screen.queryByText("社区还在生长中")).not.toBeInTheDocument();
+});
+
+it("locks moments and series while a topic is active, and normalizes a stale topic+type URL", async () => {
+  renderPage("/discover?topic=design&type=MOMENT");
+  await screen.findByText("全部内容第一篇");
+
+  // 组合无效：按“话题内的全部文章”请求，而不是让后端返回空列表。
+  expect(discover).toHaveBeenLastCalledWith({ limit: 20, topic: "design" });
+  // 地址栏里的 type 被清掉，分享出去的链接不会再把同一个无效组合带给别人。
+  await waitFor(() =>
+    expect(screen.getByTestId("location")).toHaveTextContent("/discover?topic=design"),
+  );
+  expect(screen.getByTestId("location")).not.toHaveTextContent("type=MOMENT");
+
+  expect(screen.getByRole("button", { name: "动态" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "系列" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "文章" })).toBeEnabled();
+  expect(screen.getByTestId("discover-topic-type-hint")).toHaveTextContent("话题只归类文章");
 });
 it("keeps content visible and reports topic loading failure", async () => {
   topics.mockRejectedValue(new Error("offline"));

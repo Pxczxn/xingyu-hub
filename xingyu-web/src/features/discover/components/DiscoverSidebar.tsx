@@ -159,20 +159,43 @@ export function DiscoverSidebar({
           内容类型
         </h2>
         <ul className="flex flex-col gap-0.5">
-          {CONTENT_TYPES.map(({ id, label, icon: Icon }) => (
-            <li key={id}>
-              <button
-                type="button"
-                onClick={() => onContentTypeChange(id)}
-                aria-pressed={contentType === id}
-                className={optionClass(contentType === id)}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
-                {label}
-              </button>
-            </li>
-          ))}
+          {CONTENT_TYPES.map(({ id, label, icon: Icon }) => {
+            /*
+             * 话题只挂在文章上（后端 `article_topic`），带 topic 时后端只会返回文章。
+             * 让「动态 / 系列」在有话题时保持可用，就会得到一个空列表——用户读到的是
+             * 「这个话题没有动态」，而事实是这两类内容没有话题维度。
+             */
+            const lockedByTopic = Boolean(activeTopic) && (id === "MOMENT" || id === "SERIES");
+            return (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => onContentTypeChange(id)}
+                  aria-pressed={contentType === id}
+                  disabled={lockedByTopic}
+                  title={
+                    lockedByTopic ? "话题只归类文章，清空话题后才能筛选动态或系列。" : undefined
+                  }
+                  className={cn(
+                    optionClass(contentType === id),
+                    "disabled:pointer-events-none disabled:opacity-40",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+                  {label}
+                </button>
+              </li>
+            );
+          })}
         </ul>
+        {activeTopic ? (
+          <p
+            data-testid="discover-topic-type-hint"
+            className="mt-2 text-xs leading-5 text-muted-foreground"
+          >
+            话题只归类文章，选中话题时动态与系列不可筛选。
+          </p>
+        ) : null}
       </section>
     </aside>
   );
