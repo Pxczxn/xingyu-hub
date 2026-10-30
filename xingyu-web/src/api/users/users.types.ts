@@ -22,6 +22,8 @@ export type ProfileDetail = {
   spaceDisplayName?: string | null;
   articleCount?: number;
   seriesCount?: number;
+  /** Public PUBLISHED moments, counted server-side on GET /users/{username}. */
+  momentCount?: number;
 };
 
 /*

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { usersApi } from "@/api/users/users.api";
 import type { SpaceWorkItem, SpaceWorks } from "@/api/users/users.types";
+import { momentsApi } from "@/api/moments/moments.api";
 import { ApiError } from "@/api/client";
 import { setStoredToken } from "@/lib/storage";
 import { AuthProvider } from "@/features/auth/auth.store";
@@ -15,8 +16,10 @@ import { UserProfilePage } from "./pages/UserProfilePage";
  * User follow is verified working on the real backend (204 both ways).
  *
  * 批次 06 (S4) adds the category-filter suite at the bottom. The plan's
- * 「作品流 tab（文章 / 系列 / 动态）」 cannot be built — the backend has no user-scoped
- * series or moments list — so the filter bar carries the one real second dimension.
+ * 「作品流 tab（文章 / 系列 / 动态）」 could not be built at the time — the backend had no
+ * user-scoped series or moments list — so the filter bar carries the one real second
+ * dimension. 2026-10-30 added GET /users/{username}/moments; the profile now renders a
+ * separate 公开动态 section, while series remains without a user-scoped endpoint.
  */
 
 vi.mock("@/api/users/users.api", () => ({
@@ -33,6 +36,10 @@ vi.mock("@/api/users/users.api", () => ({
     blockUser: vi.fn(),
     unblockUser: vi.fn(),
   },
+}));
+
+vi.mock("@/api/moments/moments.api", () => ({
+  momentsApi: { listByUsername: vi.fn() },
 }));
 
 vi.mock("@/api/auth/auth.api", () => ({
@@ -53,6 +60,7 @@ vi.mock("@/api/auth/auth.api", () => ({
 }));
 
 const mocked = vi.mocked(usersApi);
+const mockedMoments = vi.mocked(momentsApi);
 
 const PROFILE = {
   username: "pxczxn",
@@ -105,6 +113,7 @@ beforeEach(() => {
     categories: [],
     works: [{ id: "w1", title: "作品一" }],
   });
+  mockedMoments.listByUsername.mockResolvedValue([]);
 });
 
 describe("user profile", () => {
@@ -124,6 +133,32 @@ describe("user profile", () => {
     expect(await screen.findByTestId("profile-stats")).toBeInTheDocument();
     expect(screen.getByTestId("works-list")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "作品一" })).toHaveAttribute("href", "/articles/w1");
+  });
+
+  it("renders the public moment count and the moment list", async () => {
+    mocked.getProfile.mockResolvedValue({ ...PROFILE, momentCount: 1 });
+    mockedMoments.listByUsername.mockResolvedValue([
+      {
+        id: "m1",
+        body: "主页上的公开动态",
+        authorId: "u1",
+        authorUsername: "pxczxn",
+        authorDisplayName: "破星辰",
+        createdAt: "2026-10-30T00:00:00Z",
+        likeCount: 2,
+        commentCount: 1,
+        liked: null,
+      },
+    ]);
+    renderAt("pxczxn");
+
+    expect(await screen.findByTestId("profile-moments-list")).toBeInTheDocument();
+    expect(screen.getByText("主页上的公开动态")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /主页上的公开动态/ })).toHaveAttribute(
+      "href",
+      "/moments/m1",
+    );
+    expect(within(screen.getByTestId("profile-stats")).getByText("动态")).toBeInTheDocument();
   });
 
   it("shows an empty state for a user with no works", async () => {
@@ -220,8 +255,11 @@ describe("user follow", () => {
 });
 
 /*
- * 批次 06（S4）。方案 §4.3 的「作品流 tab（文章 / 系列 / 动态）」建不出来：用户维度端点
+ * 批次 06（S4）。方案 §4.3 的「作品流 tab（文章 / 系列 / 动态）」当时建不出来：用户维度端点
  * 里没有 series 也没有 moments，三个 tab 里两个没有数据源。承担这一维的是创作空间分类。
+ *
+ * 2026-10-30 补了 /users/{username}/moments，所以动态改为作品流下方的独立区块；
+ * series 仍没有用户维度端点，分类筛选继续承担文章的第二维。
  *
  * 第三条用例锁的是整条设计的承重假设 —— 筛选后的响应仍然带全量 `categories`
  * （CreationSpaceService.getPublicWorks 独立构建它，与 `categorySlug` 无关），筛选条

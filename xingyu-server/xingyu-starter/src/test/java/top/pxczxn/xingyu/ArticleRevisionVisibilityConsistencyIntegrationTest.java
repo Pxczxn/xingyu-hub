@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -245,6 +246,13 @@ class ArticleRevisionVisibilityConsistencyIntegrationTest {
                 .andReturn();
         String token = login.getResponse().getHeader("satoken");
         assertNotNull(token);
+        // This suite reads the author's space as a guest; make the profile public so
+        // profile privacy (a different concern) does not turn every space call into 404.
+        mockMvc.perform(patch("/api/v1/me/profile")
+                        .header("satoken", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"visibility\":\"PUBLIC\",\"lockVersion\":0}"))
+                .andExpect(status().isOk());
         return new User(token, userId, email, username);
     }
 

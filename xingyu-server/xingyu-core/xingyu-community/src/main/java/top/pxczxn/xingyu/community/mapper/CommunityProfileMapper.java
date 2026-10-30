@@ -36,6 +36,7 @@ public interface CommunityProfileMapper extends BaseMapper<CommunityProfile> {
     @Select("""
             SELECT * FROM community_profile
             WHERE user_id != #{excludeUserId}
+              AND visibility = 'PUBLIC'
             ORDER BY created_at DESC
             LIMIT #{limit}
             """)
@@ -56,11 +57,16 @@ public interface CommunityProfileMapper extends BaseMapper<CommunityProfile> {
               )
               AND (
                 cp.visibility = 'PUBLIC'
-                OR LOWER(cp.username) = LOWER(TRIM(#{query}))
-                OR EXISTS (
-                  SELECT 1 FROM username_history uh2
-                  WHERE uh2.user_id = cp.user_id
-                    AND LOWER(uh2.username) = LOWER(TRIM(#{query}))
+                OR (
+                  cp.visibility = 'UNLISTED'
+                  AND (
+                    LOWER(cp.username) = LOWER(TRIM(#{query}))
+                    OR EXISTS (
+                      SELECT 1 FROM username_history uh2
+                      WHERE uh2.user_id = cp.user_id
+                        AND LOWER(uh2.username) = LOWER(TRIM(#{query}))
+                    )
+                  )
                 )
               )
             ORDER BY
@@ -90,11 +96,16 @@ public interface CommunityProfileMapper extends BaseMapper<CommunityProfile> {
               )
               AND (
                 cp.visibility = 'PUBLIC'
-                OR LOWER(cp.username) = LOWER(TRIM(#{query}))
-                OR EXISTS (
-                  SELECT 1 FROM username_history uh2
-                  WHERE uh2.user_id = cp.user_id
-                    AND LOWER(uh2.username) = LOWER(TRIM(#{query}))
+                OR (
+                  cp.visibility = 'UNLISTED'
+                  AND (
+                    LOWER(cp.username) = LOWER(TRIM(#{query}))
+                    OR EXISTS (
+                      SELECT 1 FROM username_history uh2
+                      WHERE uh2.user_id = cp.user_id
+                        AND LOWER(uh2.username) = LOWER(TRIM(#{query}))
+                    )
+                  )
                 )
               )
             ORDER BY

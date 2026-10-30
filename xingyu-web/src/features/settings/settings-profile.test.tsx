@@ -371,35 +371,32 @@ describe("SettingsProfilePage — the guard survives a bypassed submit", () => {
 });
 
 /*
- * Visibility must stay honest.
+ * Visibility must mirror the backend (2026-10-30).
  *
- * Live-verified 2026-09-22: the backend's `getPublicProfile` guards with
- * `if (visibility != Visibility.PRIVATE)`, skipping the AccessPolicy deny
- * branch for PRIVATE. A PRIVATE profile is therefore still served to a
- * stranger, and PRIVATE vs UNLISTED responses are byte-identical once the
- * echoed `visibility` string is scrubbed. PRIVATE is also the registration
- * default — so it must NOT appear as a third option promising "仅自己".
+ * PRIVATE is now enforced by `CommunityProfileService.requireVisibleProfile`:
+ * non-owners get 404 on every profile surface. The settings page therefore
+ * exposes it as a real third option labelled 仅自己, and the stored value must
+ * round-trip without being silently rewritten to 不列出.
  */
-describe("SettingsProfilePage — visibility is described truthfully", () => {
-  it("renders the stored PRIVATE default as 不列出, with no third option", async () => {
+describe("SettingsProfilePage — visibility is honest about privacy", () => {
+  it("renders a stored PRIVATE profile as 仅自己", async () => {
     mocked.getMyProfile.mockResolvedValue(profile({ visibility: "PRIVATE" }));
 
     render(<SettingsProfilePage />);
 
-    expect(await screen.findByLabelText("不列出")).toBeChecked();
+    expect(await screen.findByLabelText("仅自己")).toBeChecked();
     expect(screen.getByLabelText("公开")).not.toBeChecked();
-    expect(screen.queryByLabelText("仅自己")).toBeNull();
+    expect(screen.getByLabelText("不列出")).not.toBeChecked();
     expect(screen.queryByLabelText("资料可见性")).toBeNull(); // the old <select> is gone
   });
 
-  it("never shows a privacy promise the backend does not keep", async () => {
+  it("explains that a private profile is visible only to its owner", async () => {
     mocked.getMyProfile.mockResolvedValue(profile({ visibility: "PRIVATE" }));
 
     const { container } = render(<SettingsProfilePage />);
 
-    await screen.findByLabelText("不列出");
-    expect(container.textContent ?? "").not.toContain("仅自己");
-    expect(container.textContent ?? "").not.toContain("仅我");
+    await screen.findByLabelText("仅自己");
+    expect(container.textContent ?? "").toContain("只有你自己");
   });
 
   it("does NOT silently rewrite a stored PRIVATE when only text changed", async () => {

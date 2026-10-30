@@ -2,12 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { usersApi } from "@/api/users/users.api";
 import type { ProfileDetail, SpaceWorks } from "@/api/users/users.types";
+import { momentsApi } from "@/api/moments/moments.api";
+import type { MomentView } from "@/api/moments/moments.types";
 import { ApiError } from "@/api/client";
 import { useAuth } from "@/features/auth/auth.store";
 import { ProfileHeader } from "@/features/profile/components/ProfileHeader";
 import { ProfileStats } from "@/features/profile/components/ProfileStats";
 import { ProfileWorks } from "@/features/profile/components/ProfileWorks";
 import { ProfileWorksFilter } from "@/features/profile/components/ProfileWorksFilter";
+import { ProfileMoments } from "@/features/profile/components/ProfileMoments";
 import { ProfileBlockControl } from "@/features/blocks/components/ProfileBlockControl";
 import { isBlockedUsername, loadBlockedUsers } from "@/features/blocks/blocked-users.store";
 import { PageState } from "@/components/shared/PageState";
@@ -56,6 +59,8 @@ export function UserProfilePage() {
   const [works, setWorks] = useState<SpaceWorks | null>(null);
   const [worksError, setWorksError] = useState(false);
   const [worksPending, setWorksPending] = useState(false);
+  const [moments, setMoments] = useState<MomentView[] | null>(null);
+  const [momentsError, setMomentsError] = useState(false);
   /*
    * 当前分类筛选，和「它是在谁的主页上选的」存在一起。
    *
@@ -151,6 +156,28 @@ export function UserProfilePage() {
       active = false;
     };
   }, [username, categorySlug, reloadKey]);
+
+  /*
+   * Moments are a separate public surface with its own endpoint. A failure
+   * degrades only this section; the article works above must stay readable.
+   */
+  useEffect(() => {
+    if (!username) return;
+    let active = true;
+    setMoments(null);
+    setMomentsError(false);
+    momentsApi
+      .listByUsername(username)
+      .then((data) => {
+        if (active) setMoments(data);
+      })
+      .catch(() => {
+        if (active) setMomentsError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [username, reloadKey]);
 
   const owner = state.kind === "ready" ? state.profile.owner === true : null;
   // Guests and the viewer's own profile get no block control: the backend rejects
@@ -271,8 +298,11 @@ export function UserProfilePage() {
           · 创作空间 description —— `CommunityAccountService` 注册时无条件创建空间且
             description 恒为 null，`CommunitySpaceController` 只有两个 GET，没有编辑
             端点，所以这个字段在当前产品里根本填不进来；
-          · 用户维度系列列表 —— 没有端点（CommunityUserController 只有 /{username}、
-            /{username}/works、/works/categories、follow、followers/following）；
+          · 用户维度系列列表 —— 仍没有端点（CommunityUserController 只有 /{username}、
+            /{username}/works、/{username}/works/categories、/{username}/moments、
+            follow、followers/following）；
+          · 动态 —— 2026-10-30 补了公开端点 /{username}/moments，所以在作品流下方
+            单独成区，不再挤进侧栏；
           · 「TA 的关注者」 —— `/u/:username/followers` 没有前端路由，且
             canViewFollowLists=false 时后端直接 403，链接会指向死路。
 
@@ -297,6 +327,21 @@ export function UserProfilePage() {
           </p>
         ) : works ? (
           <ProfileWorks works={works} filterSlug={categorySlug} pending={worksPending} />
+        ) : (
+          <PageState kind="loading" />
+        )}
+      </section>
+
+      <section aria-labelledby="moments-heading" className="mt-8 min-w-0">
+        <h2 id="moments-heading" className="section-heading mb-3">
+          公开动态
+        </h2>
+        {momentsError ? (
+          <p role="alert" data-testid="profile-moments-error" className="text-sm text-destructive">
+            动态加载失败
+          </p>
+        ) : moments ? (
+          <ProfileMoments moments={moments} />
         ) : (
           <PageState kind="loading" />
         )}

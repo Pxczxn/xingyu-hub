@@ -12,6 +12,7 @@ import top.pxczxn.xingyu.common.contract.ObjectId;
 import top.pxczxn.xingyu.community.dto.ProfileView;
 import top.pxczxn.xingyu.community.dto.PublicUserView;
 import top.pxczxn.xingyu.community.dto.UserDetailView;
+import top.pxczxn.xingyu.community.dto.MomentView;
 import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityCreationSpace;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
@@ -19,6 +20,7 @@ import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.UsernameHistory;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityCreationSpaceMapper;
+import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
@@ -33,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -48,6 +51,8 @@ public class CommunityProfileService {
     private final CommunityCreationSpaceMapper spaceMapper;
     private final ArticleMapper articleMapper;
     private final SeriesMapper seriesMapper;
+    private final MomentMapper momentMapper;
+    private final MomentService momentService;
     private final UsernameHistoryMapper usernameHistoryMapper;
     private final ReservedWordMapper reservedWordMapper;
     private final UserFollowMapper userFollowMapper;
@@ -114,6 +119,7 @@ public class CommunityProfileService {
         long seriesCount = seriesMapper.listByOwnerId(entity.getUserId()).stream()
                 .filter(series -> "ACTIVE".equals(series.getStatus()))
                 .count();
+        long momentCount = momentMapper.countPublishedByAuthorId(entity.getUserId());
         return UserDetailView.builder()
                 .username(profile.getUsername())
                 .displayName(profile.getDisplayName())
@@ -130,7 +136,26 @@ public class CommunityProfileService {
                 .spaceDisplayName(space == null ? null : space.getDisplayName())
                 .articleCount(articleCount)
                 .seriesCount(seriesCount)
+                .momentCount(momentCount)
                 .build();
+    }
+
+    /**
+     * Public moments of a profile, with the same visibility gate as the profile itself.
+     *
+     * <p>Lives here rather than in {@link MomentService} because the username → author id and
+     * visibility rules already live here; the moment service only knows author ids. A missing
+     * username and a private/unreadable profile both surface as NOT_FOUND from
+     * {@link #getPublicProfile}, which is the same answer the profile page gives.
+     */
+    public List<MomentView> getPublicMoments(String rawUsername, CommunityUser viewer, int limit) {
+        PublicUserView publicProfile = getPublicProfile(rawUsername, viewer);
+        CommunityProfile profile = resolveProfile(normalizeUsername(publicProfile.getUsername()));
+        if (profile == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        return momentService.listPublishedByAuthor(
+                profile.getUserId(), limit, viewer == null ? null : viewer.getId());
     }
 
     public PublicUserView getPublicProfile(String rawUsername, CommunityUser viewer) {
@@ -139,28 +164,9 @@ public class CommunityProfileService {
         if (profile == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        CommunityUser owner = new CommunityUser();
-        owner.setId(profile.getUserId());
-        owner.setStatus("ACTIVE");
 
         boolean isOwner = viewer != null && viewer.getId().equals(profile.getUserId());
-        if (!isOwner) {
-            Visibility visibility = Visibility.valueOf(profile.getVisibility());
-            if (visibility != Visibility.PRIVATE) {
-                var decision = AccessPolicy.evaluate(
-                        ResourceAccess.builder()
-                                .exists(true)
-                                .ownerId(ObjectId.of(profile.getUserId()))
-                                .visibility(visibility)
-                                .ownerActive(true)
-                                .resourceActive(true)
-                                .build(),
-                        AccessorContext.anonymous());
-                if (!decision.isAllowed()) {
-                    throw new ContractException(ErrorCode.NOT_FOUND);
-                }
-            }
-        }
+        requireVisibleProfile(profile, viewer);
 
         return PublicUserView.builder()
                 .username(profile.getUsername())
@@ -176,6 +182,44 @@ public class CommunityProfileService {
                 .followerCount(userFollowMapper.countFollowers(profile.getUserId()))
                 .followingCount(userFollowMapper.countFollowing(profile.getUserId()))
                 .build();
+    }
+
+    /**
+     * Username-addressed form of {@link #requireVisibleProfile(CommunityProfile, CommunityUser)}.
+     *
+     * <p>Controllers and services that expose a profile surface (works, followers, space) use this
+     * before reading anything, so the visibility rule has one implementation instead of one copy
+     * per endpoint.
+     */
+    public void requireVisibleProfile(String rawUsername, CommunityUser viewer) {
+        CommunityProfile profile = resolveProfile(normalizeUsername(rawUsername));
+        if (profile == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        requireVisibleProfile(profile, viewer);
+    }
+
+    /**
+     * Enforces the profile's stored visibility. PRIVATE means "only the owner"; UNLISTED is
+     * readable through a direct link and PUBLIC is readable by anyone. A stranger gets 404, not
+     * 403, so a hidden profile is indistinguishable from a missing one.
+     */
+    void requireVisibleProfile(CommunityProfile profile, CommunityUser viewer) {
+        AccessorContext accessor = viewer == null
+                ? AccessorContext.anonymous()
+                : AccessorContext.authenticated(ObjectId.of(viewer.getId()));
+        var decision = AccessPolicy.evaluate(
+                ResourceAccess.builder()
+                        .exists(true)
+                        .ownerId(ObjectId.of(profile.getUserId()))
+                        .visibility(Visibility.valueOf(profile.getVisibility()))
+                        .ownerActive(true)
+                        .resourceActive(true)
+                        .build(),
+                accessor);
+        if (!decision.isAllowed()) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
     }
 
     private CommunityProfile resolveProfile(String username) {

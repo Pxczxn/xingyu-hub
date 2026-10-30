@@ -26,28 +26,17 @@ import type {
 } from "@/api/users/users.types";
 
 /**
- * The backend stores three values (PUBLIC | PRIVATE | UNLISTED) but only TWO
- * behaviours actually exist. Verified live on 2026-09-22 against the real backend:
+ * The backend stores three values and all three now have distinct behaviour
+ * (2026-10-30): PUBLIC is listed and readable by anyone; UNLISTED is absent from
+ * search but readable through a direct link; PRIVATE is readable only by the
+ * owner, and every public profile surface returns 404 to everyone else.
  *
- *   PUBLIC    -> listed in search, readable by anyone
- *   UNLISTED  -> absent from search, still readable through a direct link
- *   PRIVATE   -> absent from search, STILL READABLE through a direct link
- *
- * `CommunityProfileService.getPublicProfile` guards with
- * `if (visibility != Visibility.PRIVATE)`, which *skips* the `AccessPolicy`
- * deny branch for PRIVATE — so PRIVATE never actually blocks a stranger.
- * Scrub the echoed `visibility` string and PRIVATE vs UNLISTED responses are
- * byte-identical (profile detail / works / followers / following all matched).
- *
- * PRIVATE is also what registration writes by default
- * (`CommunityAccountService` sets `visibility = "PRIVATE"`).
- *
- * So the UI must NOT offer it as a third option labelled "仅自己": that label
- * promises privacy the backend does not deliver, and the extra choice would be
- * a distinction with no observable difference. We expose the two real
- * behaviours and fold a stored PRIVATE onto 不列出.
+ * `CommunityProfileService.requireVisibleProfile` evaluates AccessPolicy with the
+ * viewer's identity, so the owner is the only non-404 reader of a PRIVATE profile.
+ * Registration still writes PRIVATE, so new accounts start hidden until the owner
+ * changes this setting.
  */
-export type ProfileVisibilityChoice = "PUBLIC" | "UNLISTED";
+export type ProfileVisibilityChoice = "PUBLIC" | "UNLISTED" | "PRIVATE";
 
 export type ProfileFormValues = {
   displayName: string;
@@ -76,21 +65,25 @@ export const VISIBILITY_OPTIONS: Array<{
   label: string;
   hint: string;
 }> = [
-  { value: "PUBLIC", label: "公开", hint: "会出现在搜索结果里" },
+  { value: "PUBLIC", label: "公开", hint: "会出现在搜索结果里，任何人都能打开你的主页" },
   {
     value: "UNLISTED",
     label: "不列出",
     hint: "不出现在搜索结果里；知道链接的人仍然可以打开你的主页",
   },
+  {
+    value: "PRIVATE",
+    label: "仅自己",
+    hint: "只有你自己能看到你的主页；其他人打开会显示不存在",
+  },
 ];
 
 /**
- * Fold the stored enum onto the two behaviours the UI can honestly describe.
- * PRIVATE and UNLISTED are indistinguishable in practice, and PRIVATE is the
- * registration default, so both render as 不列出.
+ * Keep the stored enum. PRIVATE is a real choice now, not an alias for UNLISTED;
+ * only an unknown value falls back to the safe 不列出 side.
  */
 export function toVisibilityChoice(stored: unknown): ProfileVisibilityChoice {
-  return stored === "PUBLIC" ? "PUBLIC" : "UNLISTED";
+  return stored === "PUBLIC" || stored === "UNLISTED" || stored === "PRIVATE" ? stored : "UNLISTED";
 }
 
 export const FOLLOWERS_VISIBILITY_OPTIONS: Array<{ value: FollowersVisibility; label: string }> = [

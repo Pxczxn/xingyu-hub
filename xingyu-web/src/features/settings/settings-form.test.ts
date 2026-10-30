@@ -57,8 +57,8 @@ describe("toProfileFormValues", () => {
     expect(toProfileFormValues(profile({ visibility: "UNLISTED" })).visibility).toBe("UNLISTED");
   });
 
-  it("folds the stored PRIVATE default onto 不列出 (behaviourally identical)", () => {
-    expect(toProfileFormValues(profile({ visibility: "PRIVATE" })).visibility).toBe("UNLISTED");
+  it("keeps the stored PRIVATE value instead of folding it into 不列出", () => {
+    expect(toProfileFormValues(profile({ visibility: "PRIVATE" })).visibility).toBe("PRIVATE");
   });
 
   it("folds an unrecognised visibility onto the safe 不列出 side, never PUBLIC", () => {
@@ -167,42 +167,30 @@ describe("validateWebsiteUrlInput", () => {
 });
 
 /*
- * The visibility honesty guarantee.
- *
- * Live-verified 2026-09-22: the backend's `getPublicProfile` guards with
- * `if (visibility != Visibility.PRIVATE)`, which skips the AccessPolicy deny
- * branch for PRIVATE. So a PRIVATE profile is still served to strangers, and
- * scrubbing the echoed `visibility` string makes PRIVATE and UNLISTED
- * responses byte-identical (detail / works / followers / following).
- *
- * PRIVATE is also the registration default. Offering it as a third option
- * labelled "仅自己" would promise privacy the backend does not deliver, and
- * the choice would have no observable effect. These tests keep it out.
+ * The visibility options now mirror three real backend behaviours (2026-10-30):
+ * PUBLIC, UNLISTED and PRIVATE (only the owner can read). The old "no dead
+ * distinction" guard existed because PRIVATE used to be readable by strangers;
+ * it is deliberately replaced by tests that require the privacy option to exist
+ * and to keep its stored value.
  */
-describe("visibility options — no dead distinction, no false promise", () => {
-  it("offers exactly the two behaviours that actually differ", () => {
-    expect(VISIBILITY_OPTIONS.map((option) => option.value)).toEqual(["PUBLIC", "UNLISTED"]);
+describe("visibility options — three real behaviours", () => {
+  it("offers PUBLIC, UNLISTED and PRIVATE", () => {
+    expect(VISIBILITY_OPTIONS.map((option) => option.value)).toEqual([
+      "PUBLIC",
+      "UNLISTED",
+      "PRIVATE",
+    ]);
   });
 
-  it("never exposes PRIVATE as a selectable option", () => {
-    // Compare as strings: the type already forbids PRIVATE, so a plain === would
-    // be a compile error. Widening to string keeps this a runtime guard against
-    // someone re-adding the value later.
-    expect(VISIBILITY_OPTIONS.map((option) => String(option.value))).not.toContain("PRIVATE");
+  it("labels PRIVATE as 仅自己", () => {
+    const privateOption = VISIBILITY_OPTIONS.find((option) => option.value === "PRIVATE");
+    expect(privateOption?.label).toBe("仅自己");
+    expect(privateOption?.hint).toContain("只有你自己");
   });
 
-  it("promises nothing about privacy — PRIVATE was the only option that did", () => {
-    const labels = VISIBILITY_OPTIONS.map((option) => `${option.label}${option.hint}`);
-    for (const text of labels) {
-      expect(text).not.toContain("仅自己");
-      expect(text).not.toContain("仅我");
-    }
-  });
-
-  it("describes the real, verified effect: search visibility", () => {
+  it("describes the real effect: search visibility and direct links", () => {
     const unlisted = VISIBILITY_OPTIONS.find((option) => option.value === "UNLISTED");
     expect(unlisted?.hint).toContain("搜索");
-    // and is honest that a direct link still works
     expect(unlisted?.hint).toContain("链接");
   });
 });
@@ -212,8 +200,12 @@ describe("toVisibilityChoice", () => {
     expect(toVisibilityChoice("PUBLIC")).toBe("PUBLIC");
   });
 
-  it("folds PRIVATE onto UNLISTED (indistinguishable in practice)", () => {
-    expect(toVisibilityChoice("PRIVATE")).toBe("UNLISTED");
+  it("keeps PRIVATE private", () => {
+    expect(toVisibilityChoice("PRIVATE")).toBe("PRIVATE");
+  });
+
+  it("keeps UNLISTED unlisted", () => {
+    expect(toVisibilityChoice("UNLISTED")).toBe("UNLISTED");
   });
 
   it("folds null / undefined / junk onto the non-public side", () => {

@@ -21,4 +21,5 @@ public class UserDetailView {
     String spaceDisplayName;
     long articleCount;
     long seriesCount;
+    long momentCount;
 }

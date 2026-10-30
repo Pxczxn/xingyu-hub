@@ -167,6 +167,14 @@ class NotificationContractIntegrationTest {
                 .andExpect(jsonPath("$[0].category").value("FOLLOW"))
                 .andExpect(jsonPath("$[0].actor.username").value(follower.username));
 
+        // Default registration is PRIVATE now; this test is about the notification
+        // target staying navigable, so make the actor's profile public explicitly.
+        mockMvc.perform(patch("/api/v1/me/profile")
+                        .header("satoken", follower.token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"visibility\":\"PUBLIC\",\"lockVersion\":0}"))
+                .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/v1/users/" + follower.username))
                 .andExpect(status().isOk());
     }

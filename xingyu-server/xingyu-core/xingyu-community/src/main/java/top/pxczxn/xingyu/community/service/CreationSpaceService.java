@@ -40,12 +40,14 @@ public class CreationSpaceService {
     private final FormalRevisionMapper formalRevisionMapper;
     private final ArticleMapper articleMapper;
     private final EngagementMetricsService engagementMetricsService;
+    private final CommunityProfileService profileService;
 
     public SpaceWorksView getPublicWorks(String rawUsername, CommunityUser viewer, String categorySlug, int limit) {
         CommunityProfile profile = resolveProfile(rawUsername);
         if (profile == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        profileService.requireVisibleProfile(profile, viewer);
         boolean isOwner = viewer != null && viewer.getId().equals(profile.getUserId());
         CommunityCreationSpace space = spaceMapper.findByUserId(profile.getUserId());
         if (space == null) {
@@ -94,6 +96,7 @@ public class CreationSpaceService {
         if (profile == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        profileService.requireVisibleProfile(profile, viewer);
         boolean isOwner = viewer != null && viewer.getId().equals(space.getUserId());
 
         List<SpaceWorksView.CategorySummary> categories = categoryMapper.listBySpaceId(space.getId()).stream()
@@ -121,6 +124,7 @@ public class CreationSpaceService {
         if (profile == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        profileService.requireVisibleProfile(profile, viewer);
         boolean isOwner = viewer != null && viewer.getId().equals(space.getUserId());
 
         List<CreationSpaceCategory> categories = categoryMapper.listBySpaceId(space.getId()).stream()

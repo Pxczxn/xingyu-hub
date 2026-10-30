@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { ProfileDetail } from "@/api/users/users.types";
 
 /*
- * Profile stats: followers / following / articles / series (all real fields of ProfileDetail).
+ * Profile stats: followers / following / articles / series / moments (all real fields of ProfileDetail).
  *
  * Phase 2I-1: when the viewer IS the owner, 关注者/正在关注 become links to
  * /me/followers and /me/following. Those routes are self-scoped (`/me/*`), so a
@@ -19,7 +19,8 @@ import type { ProfileDetail } from "@/api/users/users.types";
  * 加粗、标签弱化。它挂在简介下方，读者扫一眼就过，不占版面。窄屏自动换行。
  *
  * 侧栏因此没有别的独立内容可放（创作空间的 description 后端恒为 null、用户维度
- * 没有系列/动态端点），所以整列侧栏撤掉了，主栏吃满宽度 —— 见 UserProfilePage。
+ * 没有系列端点；动态在 2026-10-30 补了公开端点，已在作品流下方单独成区），所以整列
+ * 侧栏撤掉了，主栏吃满宽度 —— 见 UserProfilePage。
  */
 export function ProfileStats({ profile }: { profile: ProfileDetail }) {
   const owner = profile.owner === true;
@@ -29,6 +30,7 @@ export function ProfileStats({ profile }: { profile: ProfileDetail }) {
     { label: "正在关注", value: profile.followingCount ?? 0, to: owner ? "/me/following" : null },
     { label: "文章", value: profile.articleCount ?? 0, to: null },
     { label: "系列", value: profile.seriesCount ?? 0, to: null },
+    { label: "动态", value: profile.momentCount ?? 0, to: null },
   ];
 
   return (

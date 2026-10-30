@@ -3,6 +3,7 @@ package top.pxczxn.xingyu.web.controller;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.community.dto.FollowUserView;
 import top.pxczxn.xingyu.community.dto.UserDetailView;
+import top.pxczxn.xingyu.community.dto.MomentView;
 import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.SpaceWorksView;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
@@ -71,6 +72,21 @@ public class CommunityUserController {
         return creationSpaceService.getPublicCategories(username, resolveViewer(token));
     }
 
+    /**
+     * Public published moments for a profile, newest first.
+     *
+     * <p>Deliberately under the user resource rather than {@code /me/moments}: the owner's list
+     * lives at {@code /me/moments}, while this one is the public profile tab and must apply the
+     * same profile visibility gate as {@code GET /users/{username}}.
+     */
+    @GetMapping("/{username}/moments")
+    public List<MomentView> moments(
+            @PathVariable String username,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestHeader(value = "satoken", required = false) String token) {
+        return profileService.getPublicMoments(username, resolveViewer(token), limit);
+    }
+
     @PostMapping("/{username}/follow")
     public ResponseEntity<Void> follow(@PathVariable String username) {
         socialService.followUser(CommunityAuthContext.requireUser(), resolveUserId(username));
@@ -88,7 +104,9 @@ public class CommunityUserController {
             @PathVariable String username,
             @RequestHeader(value = "satoken", required = false) String token,
             @RequestParam(value = "limit", defaultValue = "50") int limit) {
-        return socialService.listFollowersForUser(resolveUserId(username), resolveViewer(token), limit);
+        CommunityUser viewer = resolveViewer(token);
+        profileService.requireVisibleProfile(username, viewer);
+        return socialService.listFollowersForUser(resolveUserId(username), viewer, limit);
     }
 
     @GetMapping("/{username}/following")
@@ -96,7 +114,9 @@ public class CommunityUserController {
             @PathVariable String username,
             @RequestHeader(value = "satoken", required = false) String token,
             @RequestParam(value = "limit", defaultValue = "50") int limit) {
-        return socialService.listFollowingForUser(resolveUserId(username), resolveViewer(token), limit);
+        CommunityUser viewer = resolveViewer(token);
+        profileService.requireVisibleProfile(username, viewer);
+        return socialService.listFollowingForUser(resolveUserId(username), viewer, limit);
     }
 
     private String resolveUserId(String username) {

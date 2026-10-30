@@ -31,7 +31,8 @@ public class MomentView {
     Instant createdAt;
 
     /**
-     * Engagement counters, filled by the feed list only (2026-10-28).
+     * Engagement counters, filled by the feed list and a public profile's moment list (2026-10-28,
+     * profile list 2026-10-30).
      *
      * <p>Added so a moment card can show 点赞 / 评论 on the card itself. Before this the feed had
      * to either issue one `GET /likes/MOMENT/{id}/count` per row — N+1 requests for a page that

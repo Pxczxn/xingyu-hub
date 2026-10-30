@@ -4,6 +4,7 @@
  * VERIFIED live 2026-09-24:
  *   write paths are /api/v1/moments/* (not /me/moments/{id})
  *   GET /me/moments is only for conservative owner-control detection
+ *   GET /users/{username}/moments is the public profile list (2026-10-30)
  */
 import { apiRequest } from "@/api/client";
 import type { InsightsView, MomentBodyPayload, MomentView } from "./moments.types";
@@ -30,6 +31,12 @@ export const momentsApi = {
 
   listMine: (limit: number = OWNER_LIST_LIMIT): Promise<MomentView[]> =>
     apiRequest<MomentView[]>(`/api/v1/me/moments?limit=${limit}`),
+
+  /** A profile's public PUBLISHED moments, newest first. */
+  listByUsername: (username: string, limit: number = FEED_LIMIT): Promise<MomentView[]> =>
+    apiRequest<MomentView[]>(
+      `/api/v1/users/${encodeURIComponent(username)}/moments?limit=${limit}`,
+    ),
 };
 
 /*

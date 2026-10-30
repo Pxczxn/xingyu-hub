@@ -29,4 +29,10 @@ public interface MomentMapper extends BaseMapper<Moment> {
             LIMIT #{limit}
             """)
     List<Moment> listByAuthorId(String authorId, int limit);
+
+    @Select("""
+            SELECT COUNT(*) FROM moment
+            WHERE author_id = #{authorId} AND status = 'PUBLISHED'
+            """)
+    long countPublishedByAuthorId(String authorId);
 }

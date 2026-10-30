@@ -31,6 +31,9 @@ public class MomentService {
     /** The social object type moments are stored under in likes / comments. */
     private static final String OBJECT_TYPE = "MOMENT";
 
+    /** Public list endpoints are browse surfaces; a caller cannot ask for the whole table. */
+    private static final int MAX_PUBLIC_LIST_LIMIT = 50;
+
     private final MomentMapper momentMapper;
     private final CommunityProfileMapper profileMapper;
     private final MomentRevisionMapper momentRevisionMapper;
@@ -52,14 +55,37 @@ public class MomentService {
         if (limit <= 0) {
             limit = 20;
         }
-        List<Moment> moments = momentMapper.listPublished(limit);
+        limit = Math.min(limit, MAX_PUBLIC_LIST_LIMIT);
+        String viewerId = CommunityAuthContext.currentUser().map(CommunityUser::getId).orElse(null);
+        return withViewerMetrics(momentMapper.listPublished(limit), viewerId);
+    }
+
+    /**
+     * A public profile's published moments, newest first.
+     *
+     * <p>Same counters and viewer-scoped `liked` flag as the public feed: a profile list is a
+     * browse surface, not the owner's write-back view. The caller resolves the username and the
+     * profile visibility first; this method only knows the author id.
+     *
+     * <p>The viewer id is passed explicitly rather than read from {@link CommunityAuthContext}:
+     * the profile endpoints accept an optional session and resolve it in the controller, so the
+     * thread-local context is not guaranteed to be populated on this path.
+     */
+    public List<MomentView> listPublishedByAuthor(String authorId, int limit, String viewerId) {
+        if (limit <= 0) {
+            limit = 20;
+        }
+        limit = Math.min(limit, MAX_PUBLIC_LIST_LIMIT);
+        return withViewerMetrics(momentMapper.listByAuthorId(authorId, limit), viewerId);
+    }
+
+    private List<MomentView> withViewerMetrics(List<Moment> moments, String viewerId) {
         if (moments.isEmpty()) {
             return List.of();
         }
         List<String> ids = moments.stream().map(Moment::getId).toList();
         Map<String, Long> likeCounts = engagementMetrics.likeCounts(OBJECT_TYPE, ids);
         Map<String, Long> commentCounts = engagementMetrics.commentCounts(OBJECT_TYPE, ids);
-        String viewerId = CommunityAuthContext.currentUser().map(CommunityUser::getId).orElse(null);
         Set<String> likedIds =
                 viewerId == null
                         ? Set.of()

@@ -174,7 +174,9 @@ export function SettingsProfilePage() {
         <h2 id="settings-profile-heading" className="section-heading">
           资料
         </h2>
-        <p className="lede mt-1.5 max-w-2xl">这些信息会展示在你的公开主页上，右侧是实时预览。</p>
+        <p className="lede mt-1.5 max-w-2xl">
+          这些信息会展示在你的主页上；可见性由下方选项决定，右侧是实时预览。
+        </p>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -355,7 +357,7 @@ export function SettingsProfilePage() {
             className="rounded-xl border border-border/70 bg-card p-4"
             data-testid="profile-preview"
           >
-            <p className="eyebrow mb-3">公开主页预览</p>
+            <p className="eyebrow mb-3">主页预览</p>
 
             <div className="flex items-center gap-3">
               {avatar ? (

@@ -42,8 +42,9 @@ export type MomentView = {
    *
    * Optional for the same reason as the author fields: the single-moment
    * endpoints (getById / publish / update / trash) predate them and return null,
-   * so a card must render `?? 0` rather than assume a number. Only the feed list
-   * fills them, in one batch query server-side rather than one request per row.
+   * so a card must render `?? 0` rather than assume a number. The public feed
+   * (`GET /moments`) and a profile's public list (`GET /users/{username}/moments`)
+   * fill them, in one batch query server-side rather than one request per row.
    *
    * `liked` is nullable on purpose: `null` is "no session, so nobody asked" —
    * a guest's card. Rendering that as `false` would hide the difference between

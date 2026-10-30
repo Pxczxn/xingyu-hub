@@ -18,8 +18,10 @@ import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -130,6 +132,68 @@ class MomentFeedCountersIntegrationTest {
         assertFalse(row.hasNonNull("liked"), "single-moment 端点当前不填 liked");
     }
 
+    @Test
+    @DisplayName("公开用户动态端点只返回 PUBLISHED，并带计数；资料带 momentCount")
+    void publicUserMomentsArePublishedAndCounted() throws Exception {
+        Account author = registerAccount("umomauthor");
+        makeProfilePublic(author.token());
+        String first = publishMoment(author.token(), "公开动态一");
+        String second = publishMoment(author.token(), "公开动态二");
+        String trashed = publishMoment(author.token(), "将被删除的动态");
+        mockMvc.perform(post("/api/v1/moments/" + trashed + "/trash").header("satoken", author.token()))
+                .andExpect(status().isOk());
+
+        Account fan = registerAccount("umomfan");
+        mockMvc.perform(post("/api/v1/likes/MOMENT/" + first).header("satoken", fan.token()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/v1/comments")
+                        .header("satoken", fan.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"objectType":"MOMENT","objectId":"%s","body":"公开主页评论"}
+                                """.formatted(first)))
+                .andExpect(status().isOk());
+
+        MvcResult listResult = mockMvc.perform(get("/api/v1/users/" + author.username() + "/moments")
+                        .param("limit", "20"))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode rows = objectMapper.readTree(listResult.getResponse().getContentAsString());
+
+        assertEquals(2, rows.size(), "只应返回两条 PUBLISHED 动态，已删除的不出现");
+        JsonNode firstRow = rowById(rows, first);
+        assertNotNull(firstRow, "第一条公开动态必须出现在主页动态列表");
+        assertEquals(1, firstRow.get("likeCount").asInt());
+        assertEquals(1, firstRow.get("commentCount").asInt());
+        assertTrue(firstRow.get("liked").isNull(), "游客的 liked 必须是 null");
+        assertNotNull(rowById(rows, second), "第二条公开动态必须出现");
+        assertNull(rowById(rows, trashed), "已删除动态不能出现在公开主页");
+
+        MvcResult authedList = mockMvc.perform(get("/api/v1/users/" + author.username() + "/moments")
+                        .param("limit", "20")
+                        .header("satoken", fan.token()))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode fanRow = rowById(
+                objectMapper.readTree(authedList.getResponse().getContentAsString()), first);
+        assertNotNull(fanRow);
+        assertTrue(fanRow.get("liked").asBoolean(),
+                "登录访客在主页动态上也要看到自己的已赞状态");
+
+        MvcResult profileResult = mockMvc.perform(get("/api/v1/users/" + author.username()))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode profile = objectMapper.readTree(profileResult.getResponse().getContentAsString());
+        assertEquals(2, profile.get("momentCount").asInt(), "资料上的动态计数必须与公开列表一致");
+    }
+
+    @Test
+    @DisplayName("不存在的用户请求公开动态返回 404")
+    void unknownUsernameMomentsReturns404() throws Exception {
+        mockMvc.perform(get("/api/v1/users/no_such_user_" + uniqueSuffix() + "/moments"))
+                .andExpect(status().isNotFound());
+    }
+
     // ---------------------------------------------------------------- helpers
 
     /** 发一条动态并返回它的 id。 */
@@ -165,6 +229,18 @@ class MomentFeedCountersIntegrationTest {
     }
 
     private String registerAndLogin(String prefix) throws Exception {
+        return registerAccount(prefix).token();
+    }
+
+    private void makeProfilePublic(String token) throws Exception {
+        mockMvc.perform(patch("/api/v1/me/profile")
+                        .header("satoken", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"visibility\":\"PUBLIC\",\"lockVersion\":0}"))
+                .andExpect(status().isOk());
+    }
+
+    private Account registerAccount(String prefix) throws Exception {
         String username = prefix + uniqueSuffix();
         String email = username + "@example.com";
         String password = "Test1234!@#ab";
@@ -184,7 +260,19 @@ class MomentFeedCountersIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().exists("satoken"))
                 .andReturn();
-        return login.getResponse().getHeader("satoken");
+        return new Account(username, login.getResponse().getHeader("satoken"));
+    }
+
+    private static JsonNode rowById(JsonNode rows, String id) {
+        for (JsonNode row : rows) {
+            if (id.equals(row.path("id").asText())) {
+                return row;
+            }
+        }
+        return null;
+    }
+
+    private record Account(String username, String token) {
     }
 
     /** Usernames must match [a-z0-9_] and stay unique across runs. */

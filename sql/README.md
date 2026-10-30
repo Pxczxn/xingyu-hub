@@ -32,10 +32,11 @@
 | `V052` | 统一文件存储元数据（`sys_file` 用途/可见性/所有者；`sys_file_config` 公私桶名） |
 | `V053` | 可靠事件租约恢复索引（`reliable_event(status, lease_until)`；见 V053 头部实测数据） |
 | `V054` | 星系内容推荐（`galaxy_content_submission`：成员推荐 → 运营审核 → 上架 `galaxy_content`） |
+| `V055` | PRIVATE 资料语义收紧：历史默认 PRIVATE（`lock_version=0`）迁移为 PUBLIC；新注册仍默认 PRIVATE |
 | `rebuild.ps1` | 一键删库重建（开发环境） |
 
 > 备注：部分迁移（如 `V029`、`V030`、`V031`、`V037`、`V040`、`V052`、`V053`、`V054`）头部标注为「可重复执行」——列/索引/表已存在时会自动跳过，可安全重跑。
-> 当前最新迁移为 **`V054__galaxy_content_submission.sql`**，新增迁移请从 `V055__*.sql` 起。
+> 当前最新迁移为 **`V055__profile_private_visibility_enforcement.sql`**，新增迁移请从 `V056__*.sql` 起。
 
 ## 一键重建（推荐）
 
