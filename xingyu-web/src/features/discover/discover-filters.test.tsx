@@ -105,6 +105,8 @@ it("locks moments and series while a topic is active, and normalizes a stale top
 
   expect(screen.getByRole("button", { name: "动态" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "系列" })).toBeDisabled();
+  // 禁用弱化与代码库主流一致（disabled:opacity-50），不要各页面各调一个灰度。
+  expect(screen.getByRole("button", { name: "动态" })).toHaveClass("disabled:opacity-50");
   expect(screen.getByRole("button", { name: "文章" })).toBeEnabled();
   expect(screen.getByTestId("discover-topic-type-hint")).toHaveTextContent("话题只归类文章");
 });

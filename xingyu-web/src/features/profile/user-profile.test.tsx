@@ -191,6 +191,8 @@ describe("user profile", () => {
 
     expect(await screen.findByTestId("profile-moments-list")).toBeInTheDocument();
     expect(screen.getByText("主页上的公开动态")).toBeInTheDocument();
+    // 正文字宽与 feed/detail 共用同一个 MOMENT_MEASURE（46rem），不能拉满主栏。
+    expect(screen.getByText("主页上的公开动态")).toHaveClass("max-w-[46rem]");
     expect(screen.getByRole("link", { name: /主页上的公开动态/ })).toHaveAttribute(
       "href",
       "/moments/m1",
@@ -230,6 +232,11 @@ describe("user profile", () => {
     expect(firstCard).toHaveAttribute("href", "/series/s1");
     // 身份带已经写了作者名，卡片页脚不重复。
     expect(within(firstCard).queryByText("破星辰")).not.toBeInTheDocument();
+    // 页脚左右各占一个锚点：章节数在左，查看系列在右。
+    const seriesFooter = within(firstCard)
+      .getByText(/查看系列/)
+      .closest("div");
+    expect(seriesFooter?.firstElementChild).toHaveTextContent("3 章");
 
     mockedSeries.listByUsername.mockResolvedValueOnce({
       items: [seriesSummary("s1", "系列一"), seriesSummary("s2", "系列二")],
