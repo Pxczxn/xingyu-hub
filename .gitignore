@@ -99,7 +99,6 @@ temp/
 *.swp
 *.swo
 *~
-xingyu-backend/xingyu-starter/src/main/resources/static/
 
 
 # ---------- 缓存与测试输出 ----------
@@ -167,6 +166,7 @@ prototype-assets/
 mockup/
 wireframe/
 figma/
+design/
 # 验收 / 测试截图（仅按命名匹配，不影响正式品牌/静态资源）
 /p1*-smoke*.png
 **/*-smoke*.png
@@ -176,6 +176,11 @@ figma/
 !**/public/brand/**
 !**/src/assets/**
 !**/static/**
+
+# 旧模块名 xingyu-backend 已更名为 xingyu-server。
+# 必须写在 !**/static/** 之后，否则会被上面的 static 保护规则重新纳入。
+# 该目录里是管理端 Vite 构建产物（哈希 js/css），不是 uniapp 正式插图。
+xingyu-server/xingyu-starter/src/main/resources/static/
 
 # 例外：台账补偿记账的事实来源必须入库
 !maintenance/reconciliation/*.md
