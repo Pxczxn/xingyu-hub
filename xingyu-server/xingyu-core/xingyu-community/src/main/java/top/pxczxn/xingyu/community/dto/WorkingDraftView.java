@@ -22,4 +22,6 @@ public class WorkingDraftView {
     long lockVersion;
     Instant updatedAt;
     Instant scheduledPublishAt;
+    /** OWNER = 文章主人；EDITOR = 协作者。送审/回收站仍只有 OWNER。 */
+    String collaborationRole;
 }

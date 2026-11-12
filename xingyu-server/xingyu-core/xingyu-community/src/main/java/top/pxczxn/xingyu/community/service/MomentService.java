@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -125,8 +127,18 @@ public class MomentService {
                 viewerId == null
                         ? Set.of()
                         : engagementMetrics.likedObjectIds(viewerId, OBJECT_TYPE, ids);
+        Map<String, MomentRevision> revisions = latestRevisions(moments);
+        Map<String, CommunityProfile> profiles = authorProfiles(moments);
         return moments.stream()
-                .map(moment -> withMetrics(moment, likeCounts, commentCounts, likedIds, viewerId != null))
+                .map(moment -> toListedView(
+                        moment,
+                        revisions.get(moment.getId()),
+                        profiles.get(moment.getAuthorId()),
+                        likeCounts.getOrDefault(moment.getId(), 0L),
+                        commentCounts.getOrDefault(moment.getId(), 0L),
+                        // A guest must stay null, not Boolean.FALSE. Boxing contains() is only safe
+                        // after the viewer check; otherwise the feed renders an un-liked button.
+                        viewerId == null ? null : likedIds.contains(moment.getId())))
                 .toList();
     }
 
@@ -134,8 +146,20 @@ public class MomentService {
         if (limit <= 0) {
             limit = 20;
         }
-        return momentMapper.listByAuthorId(user.getId(), limit).stream()
-                .map(this::toView)
+        List<Moment> moments = momentMapper.listByAuthorId(user.getId(), limit);
+        if (moments.isEmpty()) {
+            return List.of();
+        }
+        Map<String, MomentRevision> revisions = latestRevisions(moments);
+        Map<String, CommunityProfile> profiles = authorProfiles(moments);
+        return moments.stream()
+                .map(moment -> toListedView(
+                        moment,
+                        revisions.get(moment.getId()),
+                        profiles.get(moment.getAuthorId()),
+                        null,
+                        null,
+                        null))
                 .toList();
     }
 
@@ -243,45 +267,56 @@ public class MomentService {
     // Package-private, not private, so the author resolution can be unit-tested
     // with mocked mappers — no database required.
     MomentView toView(Moment moment) {
-        return toView(moment, null, null, null);
-    }
-
-    private MomentView withMetrics(
-            Moment moment,
-            Map<String, Long> likeCounts,
-            Map<String, Long> commentCounts,
-            Set<String> likedIds,
-            boolean signedIn) {
-        /*
-         * The ternary is not decoration. `signedIn && likedIds.contains(id)` is a PRIMITIVE
-         * boolean, so it autoboxes to Boolean.FALSE for a guest — and the guest's `null` ("we
-         * never asked") silently becomes `false` ("asked, not liked"), which would render the
-         * 登录后互动 link as an un-liked button. Caught by
-         * MomentFeedCountersIntegrationTest#guestGetsNullLikedRatherThanFalse.
-         */
-        Boolean liked = signedIn ? likedIds.contains(moment.getId()) : null;
-        return toView(
+        return toListedView(
                 moment,
-                likeCounts.getOrDefault(moment.getId(), 0L),
-                commentCounts.getOrDefault(moment.getId(), 0L),
-                liked);
+                momentRevisionMapper.findLatestByMomentId(moment.getId()),
+                profileMapper.findByUserId(moment.getAuthorId()),
+                null,
+                null,
+                null);
     }
 
-    private MomentView toView(Moment moment, Long likeCount, Long commentCount, Boolean liked) {
-        MomentRevision revision = momentRevisionMapper.findLatestByMomentId(moment.getId());
-        /*
-         * Resolve the author here rather than leaving it to the client.
-         *
-         * `authorId` was the only author information on this DTO, so a moment
-         * feed could not say who wrote anything without one extra request per
-         * row — and the feed shows many rows. One profile lookup per moment is
-         * the cheaper trade, and it matches how ConversationService resolves a
-         * direct conversation's counterpart.
-         *
-         * A missing profile yields nulls, not blanks: the client decides what to
-         * print for an unknown author.
-         */
-        CommunityProfile profile = profileMapper.findByUserId(moment.getAuthorId());
+    private Map<String, MomentRevision> latestRevisions(List<Moment> moments) {
+        List<String> momentIds = new ArrayList<>();
+        for (Moment moment : moments) {
+            if (moment.getId() != null && !momentIds.contains(moment.getId())) {
+                momentIds.add(moment.getId());
+            }
+        }
+        if (momentIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, MomentRevision> revisions = new HashMap<>();
+        for (MomentRevision revision : momentRevisionMapper.listLatestByMomentIds(momentIds)) {
+            revisions.putIfAbsent(revision.getMomentId(), revision);
+        }
+        return revisions;
+    }
+
+    private Map<String, CommunityProfile> authorProfiles(List<Moment> moments) {
+        List<String> authorIds = new ArrayList<>();
+        for (Moment moment : moments) {
+            if (moment.getAuthorId() != null && !authorIds.contains(moment.getAuthorId())) {
+                authorIds.add(moment.getAuthorId());
+            }
+        }
+        if (authorIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, CommunityProfile> profiles = new HashMap<>();
+        for (CommunityProfile profile : profileMapper.findByUserIds(authorIds)) {
+            profiles.putIfAbsent(profile.getUserId(), profile);
+        }
+        return profiles;
+    }
+
+    private MomentView toListedView(
+            Moment moment,
+            MomentRevision revision,
+            CommunityProfile profile,
+            Long likeCount,
+            Long commentCount,
+            Boolean liked) {
         return MomentView.builder()
                 .id(moment.getId())
                 .body(revision == null ? null : revision.getBody())

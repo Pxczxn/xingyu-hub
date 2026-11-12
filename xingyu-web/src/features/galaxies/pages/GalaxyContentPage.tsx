@@ -6,6 +6,7 @@ import type { MyArticleSummary } from "@/api/articles/articles.types";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxyContent, GalaxyContentSubmission } from "@/api/galaxies/galaxies.types";
 import { contentHref } from "@/components/shared/ContentCard";
+import { ArchetypeFrame, BleedBand } from "@/components/layout";
 import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
@@ -41,11 +42,30 @@ export function GalaxyContentPage() {
   return (
     <GalaxyShell activeTab="content">
       {(galaxy) => (
-        <>
+        /*
+         * SK3 控制台 · H 壳 / D 松 / R 出（A §3 的 GalaxyContent 行）。
+         *
+         *   skeleton="SK3"    → 控制台栅格；不传 `rail`（本页右轨没有内容可放，
+         *                       硬加一条 280px 空轨只会把主列压窄）。
+         *   header="shell"    → H=壳：标题由 `GalaxyShell` 出（`GalaxyShell.tsx:363`）。
+         *                       A 类壳（A §7.2）→ **页内不得再出 h1**：本文件没有 h1，
+         *                       第一级标题是出血带里的 `<h2>关联内容</h2>`。
+         *   density="loose"   → D=松：每条关联内容是独立卡面（见下面的行卡）。
+         *   R=出             → 首屏一条整幅出血带：`BleedBand` 把「关联内容」标题、
+         *                       条数与筛选条一起推到内容列外缘，其后的内容卡格回到
+         *                       内容列。出血带只抵消 `.content-shell` 的内边距，
+         *                       而壳层身份头与页签在它**之上**、仍是整幅 —— 页头不会
+         *                       被推出画框。
+         *
+         * 顺序上把「推荐我的作品 / 我的推荐」放到内容流**之后**：SK3 的首屏必须是
+         * 量化带 + 结构化主区（A §1），而 R=出 要求第一条就是出血带；推荐是成员侧的
+         * 附加动作，不该抢在页面主题前面。状态机、请求、提交后重读全部未改。
+         */
+        <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
+          <GalaxyContentFeed slug={galaxy.slug} />
           {/* joined 为 viewer-scoped 三态：只有 true 才可能通过成员校验。 */}
           {galaxy.joined === true ? <GalaxyContributionSection slug={galaxy.slug} /> : null}
-          <GalaxyContentFeed slug={galaxy.slug} />
-        </>
+        </ArchetypeFrame>
       )}
     </GalaxyShell>
   );
@@ -103,81 +123,98 @@ function GalaxyContentFeed({ slug }: { slug: string }) {
     );
   }
 
+  const pinnedCount = rawItems.filter((item) => item.pinned).length;
+
   return (
-    <PageSection id="galaxy-content" title="关联内容" description={`共 ${rawItems.length} 条`}>
-      {rawItems.length === 0 ? (
-        <PageState kind="empty" title="暂无内容" description="运营关联的内容会展示在这里。" />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            {GALAXY_CONTENT_FILTERS.map((option) => (
-              <Button
-                key={option.label}
-                variant={filter === option.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
-            <Button
-              variant={pinnedOnly ? "default" : "outline"}
-              size="sm"
-              aria-pressed={pinnedOnly}
-              onClick={() => setPinnedOnly((value) => !value)}
-            >
-              仅看置顶
-            </Button>
+    <>
+      <BleedBand
+        labelledBy="galaxy-content-heading"
+        tone="sunken"
+        motif="mesh"
+        contentClassName="px-4 py-6 md:px-6 md:py-8"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+            <h2 id="galaxy-content-heading" className="section-heading">
+              关联内容
+            </h2>
+            <p className="text-meta tabular-nums text-muted-foreground">
+              共 {rawItems.length} 条 · 置顶 {pinnedCount} 条
+            </p>
           </div>
 
-          {visible.length === 0 ? (
-            <PageState
-              kind="empty"
-              title="暂无匹配内容"
-              description="当前筛选条件下没有可展示的内容。"
-            />
-          ) : (
-            /*
-              `key` carries BOTH controls, because to the reader the type chips
-              and 仅看置顶 are one filter: a key that tracked only one of them
-              would replay for half the switches and not the other half. A new
-              key unmounts the list, so the rows animate in for the filter just
-              applied — same mechanism as MyEventsPage, same reason (a filter
-              that swaps content with no motion reads as a filter that did
-              nothing). Delays are inline because `animate-rise-in` is the
-              `animation` shorthand and resets `animation-delay` (stagger.ts).
-            */
-            <ul
-              key={`filter=${filter ?? "all"}&pinned=${pinnedOnly}`}
-              className="mt-3 divide-y divide-border rounded-lg border border-border bg-card"
-            >
-              {visible.map((item, index) => (
-                <li
-                  key={item.id}
-                  className="animate-rise-in flex flex-wrap items-center gap-3 px-4 py-3"
-                  style={{ animationDelay: staggerDelay(index) }}
+          {rawItems.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {GALAXY_CONTENT_FILTERS.map((option) => (
+                <Button
+                  key={option.label}
+                  variant={filter === option.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilter(option.value)}
                 >
-                  <Link
-                    to={contentHref({ id: item.objectId, objectType: item.objectType })}
-                    className="text-sm font-medium hover:text-accent-strong"
-                  >
-                    {item.title}
-                  </Link>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    {galaxyContentTypeLabel(item.objectType)}
-                  </span>
-                  {item.pinned ? (
-                    <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent-strong">
-                      置顶
-                    </span>
-                  ) : null}
-                </li>
+                  {option.label}
+                </Button>
               ))}
-            </ul>
-          )}
-        </>
+              <Button
+                variant={pinnedOnly ? "default" : "outline"}
+                size="sm"
+                aria-pressed={pinnedOnly}
+                onClick={() => setPinnedOnly((value) => !value)}
+              >
+                仅看置顶
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </BleedBand>
+
+      {rawItems.length === 0 ? (
+        <PageState kind="empty" title="暂无内容" description="运营关联的内容会展示在这里。" />
+      ) : visible.length === 0 ? (
+        <PageState
+          kind="empty"
+          title="暂无匹配内容"
+          description="当前筛选条件下没有可展示的内容。"
+        />
+      ) : (
+        /*
+          `key` carries BOTH controls, because to the reader the type chips
+          and 仅看置顶 are one filter: a key that tracked only one of them
+          would replay for half the switches and not the other half. A new
+          key unmounts the list, so the rows animate in for the filter just
+          applied — same mechanism as MyEventsPage, same reason (a filter
+          that swaps content with no motion reads as a filter that did
+          nothing). Delays are inline because `animate-rise-in` is the
+          `animation` shorthand and resets `animation-delay` (stagger.ts).
+        */
+        <ul key={`filter=${filter ?? "all"}&pinned=${pinnedOnly}`} className="grid gap-[var(--density-grid-gap)]">
+          {visible.map((item, index) => (
+            <li
+              key={item.id}
+              className="animate-rise-in"
+              style={{ animationDelay: staggerDelay(index) }}
+            >
+              <div className="flex flex-wrap items-center gap-3 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]">
+                <Link
+                  to={contentHref({ id: item.objectId, objectType: item.objectType })}
+                  className="focus-ring rounded-sm text-card font-semibold text-primary transition-colors hover:text-accent-strong"
+                >
+                  {item.title}
+                </Link>
+                <span className="rounded-full border border-border bg-card px-2 py-0.5 text-caption text-muted-foreground">
+                  {galaxyContentTypeLabel(item.objectType)}
+                </span>
+                {item.pinned ? (
+                  <span className="rounded-full bg-accent/10 px-2 py-0.5 text-caption text-accent-strong">
+                    置顶
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
-    </PageSection>
+    </>
   );
 }
 

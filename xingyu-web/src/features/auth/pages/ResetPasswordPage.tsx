@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
+import { ArchetypeFrame } from "@/components/layout";
+import { AuthActionBar } from "@/features/auth/components/AuthActionBar";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import {
@@ -13,13 +15,26 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { getPublicConfig } from "@/lib/public-config";
-import { passwordRulesHint, validatePasswordClient } from "@/lib/password-rules";
+import {
+  PASSWORD_POLICY_FALLBACK_NOTICE,
+  passwordRulesHint,
+  usingFallbackPasswordPolicy,
+  validatePasswordClient,
+} from "@/lib/password-rules";
 import type { PasswordPolicy } from "@/api/auth/auth.types";
 import { useEffect } from "react";
 
 /**
  * Reset password (Phase 1A).
  * Real contract: POST /api/v1/auth/password-reset { token, password }.
+ *
+ * --- 2026-11-10 批次 C：SK5 · 幅 / 紧 / 出 -------------------------------
+ * 幅：`AuthCard variant="banner"` —— 标题落在一块带 `motif-orbit` 母题的面（B §6）。
+ * 出：`bleed` —— 横幅左右各越出内容列 16/24px（= `.content-shell` 的 `px-4`/`md:px-6`），
+ *     因此它是本页**唯一**比其它块宽的块，其后字段与操作条回到窄栏。两种状态都保持
+ *     同一个 H 与同一个 R，失效链接不会换成一个"居中小卡"。
+ * 紧：`density="compact"` + `contentClassName="gap-3"`（两个字段之间不留说明段落）。
+ * 校验（两次输入一致 / 密码策略）与提交逻辑一行未动，只换了外壳与按钮位置。
  */
 export function ResetPasswordPage() {
   const [params] = useSearchParams();
@@ -33,11 +48,16 @@ export function ResetPasswordPage() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [passwordRules, setPasswordRules] = useState<PasswordPolicy | undefined>();
+  // policy 拉不到时不再静默：页面在规则提示下方明说「正在用默认规则」。
+  const [passwordPolicyFallback, setPasswordPolicyFallback] = useState(false);
 
   useEffect(() => {
     getPublicConfig()
-      .then((config) => setPasswordRules(config.password))
-      .catch(() => undefined);
+      .then((config) => {
+        setPasswordRules(config.password);
+        setPasswordPolicyFallback(usingFallbackPasswordPolicy(config.password));
+      })
+      .catch(() => setPasswordPolicyFallback(true));
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -81,73 +101,90 @@ export function ResetPasswordPage() {
       something to fill in.
     */
     return (
-      <AuthStatusPanel
-        icon={<LinkIcon className="h-5 w-5" />}
-        disc="bg-destructive/10 text-destructive"
-        title="链接无效"
-        body="当前链接缺少 token，请回到邮箱点击完整链接。重置链接有时效，过期后需要重新申请。"
-        action={
-          <Link to="/forgot-password" className={authStatusPrimaryClass}>
-            重新申请重置链接
-          </Link>
-        }
-      />
+      <ArchetypeFrame skeleton="SK5" header="shell" density="compact">
+        <AuthStatusPanel
+          variant="banner"
+          className="-mx-4 md:-mx-6"
+          icon={<LinkIcon className="h-5 w-5" />}
+          disc="bg-destructive/10 text-destructive"
+          title="链接无效"
+          body="当前链接缺少 token，请回到邮箱点击完整链接。重置链接有时效，过期后需要重新申请。"
+          action={
+            <Link to="/forgot-password" className={authStatusPrimaryClass}>
+              重新申请重置链接
+            </Link>
+          }
+        />
+      </ArchetypeFrame>
     );
   }
 
   return (
-    <AuthCard
-      title="设置新密码"
-      footer={
-        <Link to="/login" className="text-accent-strong hover:underline">
-          返回登录
-        </Link>
-      }
-    >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="password">新密码</Label>
-          <PasswordInput
-            id="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <p className="text-meta text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
-        </div>
+    <ArchetypeFrame skeleton="SK5" header="shell" density="compact">
+      <AuthCard
+        variant="banner"
+        bleed
+        title="设置新密码"
+        description="新密码需要满足页面下方的规则提示；保存后会用新密码登录。"
+        contentClassName="gap-3"
+        footer={
+          <Link to="/login" className="text-accent-strong hover:underline">
+            返回登录
+          </Link>
+        }
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="password">新密码</Label>
+            <PasswordInput
+              id="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <p className="text-meta text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
+            {passwordPolicyFallback ? (
+              <p role="status" className="text-meta text-warning">
+                {PASSWORD_POLICY_FALLBACK_NOTICE}
+              </p>
+            ) : null}
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="confirm">确认新密码</Label>
-          <PasswordInput
-            id="confirm"
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(e) => {
-              setConfirm(e.target.value);
-              setConfirmError(null);
-            }}
-            aria-invalid={confirmError ? true : undefined}
-            aria-describedby={confirmError ? "confirm-error" : undefined}
-            required
-          />
-          {confirmError ? (
-            <p id="confirm-error" role="alert" className="text-meta text-destructive">
-              {confirmError}
-            </p>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="confirm">确认新密码</Label>
+            <PasswordInput
+              id="confirm"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => {
+                setConfirm(e.target.value);
+                setConfirmError(null);
+              }}
+              aria-invalid={confirmError ? true : undefined}
+              aria-describedby={confirmError ? "confirm-error" : undefined}
+              required
+            />
+            {confirmError ? (
+              <p id="confirm-error" role="alert" className="text-meta text-destructive">
+                {confirmError}
+              </p>
+            ) : null}
+          </div>
+
+          {error ? (
+            <AuthFormError testId="reset-password-error" focusOnMount>
+              {error}
+            </AuthFormError>
           ) : null}
-        </div>
 
-        {error ? (
-          <AuthFormError testId="reset-password-error" focusOnMount>
-            {error}
-          </AuthFormError>
-        ) : null}
-
-        <Button type="submit" disabled={submitting}>
-          {submitting ? "提交中…" : "重置密码"}
-        </Button>
-      </form>
-    </AuthCard>
+          <AuthActionBar>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "提交中…" : "重置密码"}
+            </Button>
+          </AuthActionBar>
+        </form>
+      </AuthCard>
+    </ArchetypeFrame>
   );
 }

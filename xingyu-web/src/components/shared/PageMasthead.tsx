@@ -107,9 +107,22 @@ export function PageMasthead({
                * flag: with an eyebrow the title is the page's display line, and
                * without one (a returning reader) it IS the whole masthead, so it
                * drops to the title step instead of shouting.
+               *
+               * WEIGHT (B v2 §1): a page title is 600. 700 is reserved for the
+               * hero step and for data metrics — at 36px on white, a 700 CJK
+               * title sets as a solid ink block, which is the defect batch A
+               * measured here. `font-bold` used to sit on this branch; it is now
+               * 600. The size (`text-display`) and the leading/tracking that come
+               * with it are untouched — this is a weight fix, not a re-step.
                */
-              eyebrow ? "mt-2.5 text-display font-bold" : "text-title font-semibold",
-              isFeatured && "text-5xl font-extrabold md:text-6xl",
+              eyebrow ? "mt-2.5 text-display font-semibold" : "text-title font-semibold",
+              /*
+               * `featured` is the one guest-facing masthead that does sell the
+               * page, so it keeps the hero weight — but 700, not 800: B v2 §1
+               * caps the display step at `fontWeight: 700` (an 800 title is not
+               * in the ladder at all).
+               */
+              isFeatured && "text-5xl font-bold md:text-6xl",
             )}
           >
             {title}

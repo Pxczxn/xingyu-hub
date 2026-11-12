@@ -2,9 +2,8 @@ import { Link } from "react-router-dom";
 import { Bookmark, Heart } from "lucide-react";
 import type { SpaceWorkItem, SpaceWorks } from "@/api/users/users.types";
 import { cn } from "@/lib/cn";
-import { Card, CardContent } from "@/components/ui/card";
+import { FeedRow } from "@/components/layout";
 import { ContentVisual } from "@/components/visual/ContentVisual";
-import { staggerDelay } from "@/lib/stagger";
 import { formatFullDate } from "@/lib/relative-time";
 
 /*
@@ -67,6 +66,25 @@ import { formatFullDate } from "@/lib/relative-time";
  *      `hover:shadow-md`（`0 2px 6px -1px`，比基类深一档）。
  *      注：`components/shared/ContentCard.tsx` 有同一处空转，属全站共享组件，
  *      本轮未动。
+ *
+ * 批次 W2（骨架迁移）：卡格 → 行式流。
+ * ------------------------------------
+ * 个人主页在映射表里是 **SK6 信息流 · H=幅 / D=紧 / R=齐** 的「幅」特例：身份带保留
+ * 横幅形态（`ProfileHeader` 出 h1），但作品列表是**行**不是**格**。改前三列等权卡格
+ * （`sm:grid-cols-2 xl:grid-cols-3` + `Card` 卡面 + 等高 `mt-auto`）把主页读成了第二个
+ * 发现页 —— 而 SK6 与 SK2 的分界正是「行 vs 格」。
+ *
+ * 因此这里改用 `FeedRow`：条目不承载卡面，靠发丝线分隔，整行是连续读数。三项随之调整：
+ *
+ *   1. 封面从卡顶 2.6:1 大图变成固定 104px 的缩略位（`variant="compact"`）。行高由文字
+ *      决定，封面只回答「这篇有没有图」。
+ *   2. 分类标签从贴底 chip 变成行尾 meta（`FeedRow` 的 `meta` 槽），`mt-auto` 的等高
+ *      对齐整套消失 —— 行不需要等高。
+ *   3. 错峰入场去掉：逐行延迟是为「一格一格落下的卡格」准备的，行流是连续读数，逐行
+ *      延迟只会让人等；整页入场仍由 AppLayout 的 `animate-page-enter` 负责。
+ *
+ * 两条被测试钉住的行为**逐字保留**：混排时无封面行补装饰板、整片无封面时不补（批次 09
+ * 的判据），以及筛选在途时旧列表留在原地降到 60% 不透明度（`works-list` + `opacity-60`）。
  */
 
 /** A count that is only worth drawing when it says something. */
@@ -133,7 +151,7 @@ export function ProfileWorks({
       data-testid="works-empty"
       aria-busy={pending || undefined}
       className={cn(
-        "rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground",
+        "rounded-card border border-border/70 bg-card p-4 text-meta text-muted-foreground",
         pendingClass,
       )}
     >
@@ -145,78 +163,62 @@ export function ProfileWorks({
     </p>
   ) : (
     <ul
-      /* `key` 挂在列表上，不只是重渲染：React 会复用两批数据里 key 相同的 <li>，
-         所以「筛选前后都在」的文章会保留已经跑完的 `animate-rise-in`，邻居飞入时
-         它纹丝不动。按筛选重挂 <ul> 才能让整片网格重放错峰入场 —— 这就是这一页
-         的「切换动效」。 */
+      /* `key` 仍然按筛选重挂：它让切换分类时整片列表重建，而不是让 React 复用旧行
+         （复用的行会保留上一批的 DOM 状态）。这一页不再做错峰入场，见下方注释。 */
       key={filterSlug ?? "all"}
       aria-busy={pending || undefined}
-      /* 等高网格，剩余空间落在摘要与「分类 + 元信息」之间。
-         试过 `items-start`（按内容高度排列）：卡片内部是紧凑了，但网格第二行会
-         从上一行最高卡片的下沿开始，实测 1440px 下第二行被推到 580px 处，中间留下
-         一个跨两列的空洞 —— 比等高的空白更糟。作品流是要顺着往下扫的，断开的行
-         会让读者以为列表结束了。
-         等高之后，内容少的那张卡片在摘要下方多出空白，这是卡片网格的常规代价；
-         把「分类 + 元信息」用 `mt-auto` 贴底，空白就落在阅读顺序的末尾，不打断
-          标题→摘要→元信息的连续。 */
-      className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", pendingClass)}
       data-testid="works-list"
+      className={cn("flex flex-col border-t border-border/60", pendingClass)}
     >
-      {works.works.map((work, index) => {
+      {works.works.map((work) => {
         const categoryLabel = work.categorySlug
           ? (categoryNames.get(work.categorySlug) ?? work.categorySlug)
           : null;
 
         return (
-          <li
+          <FeedRow
             key={work.id}
-            className="animate-rise-in min-w-0"
-            /* Inline, not a class: `animate-rise-in` is the `animation` shorthand
-               and resets `animation-delay` (see lib/stagger.ts). */
-            style={{ animationDelay: staggerDelay(index) }}
-          >
-            <Card className="h-full transition-[border-color,box-shadow] hover:border-accent-line hover:shadow-md">
-              <CardContent className="flex h-full flex-col gap-3 p-4">
-                {work.coverUrl || hasAnyCover ? (
+            className="animate-rise-in"
+            /*
+             * 有封面就出图；混排时无封面的那张补装饰板，使标题落在同一基线
+             * （判据见文件头「批次 09」第 1 条，`user-profile.test.tsx` 钉着
+             * 「混排 1 张装饰板 + 1 张图 / 整片无封面 0 张装饰板」）。
+             * 行式流里它变成固定宽度的缩略位，不再是卡顶的 2.6:1 大图 ——
+             * 行的高度由文字决定，封面只提供「这篇有没有图」这一个信息。
+             */
+            lead={
+              work.coverUrl || hasAnyCover ? (
+                <div className="w-[104px]">
                   <ContentVisual
                     stableKey={work.id}
                     objectType="ARTICLE"
                     cover={work.coverUrl ?? undefined}
-                    variant="card"
+                    variant="compact"
                   />
-                ) : null}
-
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <Link
-                    to={`/articles/${work.id}`}
-                    className="focus-ring line-clamp-2 text-card font-semibold text-primary transition-colors hover:text-accent-strong"
-                  >
-                    {work.title}
-                  </Link>
-                  {work.summary ? (
-                    <p className="line-clamp-2 text-meta leading-5 text-muted-foreground">
-                      {work.summary}
-                    </p>
-                  ) : null}
                 </div>
-
-                {/*
-                  分类 chip 与元信息组成一个贴底的内容组（`mt-auto` 在组上，不在组内
-                  某一项上）。放在组内单项上会让被同行拉高的卡片把它们撕成两半 ——
-                  chip 紧跟摘要、元信息贴底，中间空出一大片。网格等高卡片必然要分配
-                  剩余空间，剩下的那一段应该留在摘要与「chip + 元信息」之间。
-                */}
-                <div className="mt-auto flex flex-col gap-2">
-                  {categoryLabel ? (
-                    <span className="w-fit rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium leading-4 text-accent-strong">
-                      {categoryLabel}
-                    </span>
-                  ) : null}
-                  <WorkMetaRow work={work} />
-                </div>
-              </CardContent>
-            </Card>
-          </li>
+              ) : null
+            }
+            meta={
+              categoryLabel ? (
+                <span className="text-caption text-muted-foreground">{categoryLabel}</span>
+              ) : null
+            }
+          >
+            <Link
+              to={`/articles/${work.id}`}
+              className="focus-ring line-clamp-2 text-h3 text-primary transition-colors hover:text-accent-strong"
+            >
+              {work.title}
+            </Link>
+            {work.summary ? (
+              <p className="mt-1 line-clamp-2 text-meta leading-5 text-muted-foreground">
+                {work.summary}
+              </p>
+            ) : null}
+            <div className="mt-2">
+              <WorkMetaRow work={work} />
+            </div>
+          </FeedRow>
         );
       })}
     </ul>

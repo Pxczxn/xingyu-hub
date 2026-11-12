@@ -17,4 +17,5 @@ public class SeriesView {
     long lockVersion;
     List<SeriesChapterView> chapters;
     Instant updatedAt;
+    String collaborationRole;
 }

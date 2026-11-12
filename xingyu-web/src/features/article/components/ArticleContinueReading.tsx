@@ -4,8 +4,8 @@ import type { ArticleDetail } from "@/api/articles/articles.types";
 import type { ContentSummary } from "@/api/common.types";
 import { seriesApi } from "@/api/series/series.api";
 import { topicsApi } from "@/api/topics/topics.api";
-import { TopicContentItem } from "@/features/topics/components/TopicContentItem";
-import { cn } from "@/lib/cn";
+import { FeedRow } from "@/components/layout";
+import { contentHref } from "@/components/shared/ContentCard";
 
 /*
  * 「继续阅读」— the exit at the bottom of an article.
@@ -142,8 +142,13 @@ export function ArticleContinueReading({ article }: { article: ArticleDetail }) 
         继续阅读
       </h2>
 
+      {/*
+        Row rhythm, not a card wall (2026-11-10 user correction: 「继续阅读」
+        要跟全站 SK6 一致). `FeedRow` is the shared SK6 row: hairline
+        separators, no per-item surface, the whole row is the link target.
+      */}
       {hasSeriesNav && series ? (
-        <div className="rounded-xl border border-border/70 bg-card p-4">
+        <div>
           <p className="text-meta text-muted-foreground">
             本系列
             <Link
@@ -153,53 +158,47 @@ export function ArticleContinueReading({ article }: { article: ArticleDetail }) 
               {series.title}
             </Link>
           </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <ul className="mt-2 list-none p-0">
             {series.prev ? (
-              <Link
-                to={`/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(series.prev.articleId)}`}
-                className={cn(
-                  "focus-ring group flex flex-col gap-1 rounded-lg border border-border/70 px-3 py-2.5 transition-colors hover:border-accent-line hover:bg-muted/40",
-                  /* A lone neighbour takes the whole row: half a row of empty
-                     space next to a truncated chapter title helps nobody. */
-                  series.next ? "" : "sm:col-span-2",
-                )}
-              >
-                <span className="text-[11px] text-muted-foreground">上一章</span>
-                <span className="line-clamp-2 text-sm font-medium text-foreground group-hover:text-accent-strong sm:line-clamp-1">
+              <FeedRow meta={<span className="text-[11px] text-muted-foreground">上一章</span>}>
+                <Link
+                  to={`/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(series.prev.articleId)}`}
+                  className="focus-ring line-clamp-2 rounded-sm text-sm font-medium text-foreground transition-colors hover:text-accent-strong"
+                >
                   {chapterLabel(series.prev)}
-                </span>
-              </Link>
+                </Link>
+              </FeedRow>
             ) : null}
             {series.next ? (
-              <Link
-                to={`/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(series.next.articleId)}`}
-                className={cn(
-                  "focus-ring group flex flex-col gap-1 rounded-lg border border-border/70 px-3 py-2.5 transition-colors hover:border-accent-line hover:bg-muted/40",
-                  /* A lone neighbour takes the whole row: half a row of empty
-                     space next to a truncated chapter title helps nobody. */
-                  series.prev ? "sm:col-start-2" : "sm:col-span-2",
-                )}
-              >
-                <span className="text-[11px] text-muted-foreground">下一章</span>
-                <span className="line-clamp-2 text-sm font-medium text-foreground group-hover:text-accent-strong sm:line-clamp-1">
+              <FeedRow meta={<span className="text-[11px] text-muted-foreground">下一章</span>}>
+                <Link
+                  to={`/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(series.next.articleId)}`}
+                  className="focus-ring line-clamp-2 rounded-sm text-sm font-medium text-foreground transition-colors hover:text-accent-strong"
+                >
                   {chapterLabel(series.next)}
-                </span>
-              </Link>
+                </Link>
+              </FeedRow>
             ) : null}
-          </div>
+          </ul>
         </div>
       ) : null}
 
       {hasRelated ? (
-        <ul className="list-none divide-y divide-border/60 rounded-xl border border-border/70 bg-card p-0">
-          {state.related.map((item, index) => (
-            <li key={item.id}>
-              <TopicContentItem
-                item={item}
-                className="px-4 py-3 transition-colors hover:bg-muted/40"
-                style={{ animationDelay: `${index * 60}ms` }}
-              />
-            </li>
+        <ul className="list-none p-0">
+          {state.related.map((item) => (
+            <FeedRow key={item.id}>
+              <Link
+                to={contentHref(item)}
+                className="focus-ring block rounded-sm text-sm font-medium text-foreground transition-colors hover:text-accent-strong"
+              >
+                {item.title}
+              </Link>
+              {item.summary ? (
+                <p className="mt-1 line-clamp-2 text-meta leading-5 text-muted-foreground">
+                  {item.summary}
+                </p>
+              ) : null}
+            </FeedRow>
           ))}
         </ul>
       ) : null}

@@ -42,6 +42,21 @@ public interface ContentLikeMapper extends BaseMapper<ContentLike> {
     @Select("SELECT COUNT(*) FROM content_like WHERE user_id = #{userId}")
     long countByUserId(String userId);
 
+    /**
+     * 落在该用户文章、动态、系列上的点赞，含自己点自己的内容。
+     * 创作台「获得喜欢」用这个口径，不用 {@link #countByUserId}。
+     */
+    @Select("""
+            SELECT COUNT(*) FROM content_like cl
+            WHERE (cl.object_type = 'ARTICLE' AND EXISTS (
+                    SELECT 1 FROM article a WHERE a.id = cl.object_id AND a.owner_id = #{ownerId}))
+               OR (cl.object_type = 'MOMENT' AND EXISTS (
+                    SELECT 1 FROM moment m WHERE m.id = cl.object_id AND m.author_id = #{ownerId}))
+               OR (cl.object_type = 'SERIES' AND EXISTS (
+                    SELECT 1 FROM series s WHERE s.id = cl.object_id AND s.owner_id = #{ownerId}))
+            """)
+    long countReceivedByOwner(@Param("ownerId") String ownerId);
+
     @Select("""
             <script>
             SELECT object_id AS objectId, COUNT(*) AS count

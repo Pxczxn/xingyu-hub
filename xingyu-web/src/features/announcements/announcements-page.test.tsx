@@ -127,6 +127,36 @@ describe("AnnouncementsPage", () => {
     renderList();
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
   });
+
+  /*
+   * SK2 发现带的排序条是**纯客户端**的两态（`AnnouncementsPage.tsx` 顶部的
+   * SORT_OPTIONS 注释）：它只重排已经取回的数组，不重新请求，也不碰
+   * loading/error/items 那台数据状态机。
+   *
+   * 这条测试钉的正是「不重新请求」这一点 —— 一旦有人把它接到 api 参数上
+   * （`list({ sort })`），请求次数会变成 2，这里立刻失败。
+   */
+  it("reorders the loaded items without re-requesting the list", async () => {
+    mocked.list.mockResolvedValue([
+      { id: "new", title: "新公告", publishedAt: "2026-09-20T00:00:00Z" },
+      { id: "old", title: "旧公告", publishedAt: "2026-09-01T00:00:00Z" },
+    ]);
+    renderList();
+
+    await screen.findByRole("heading", { name: "新公告" });
+    const oldestFirst = screen.getByRole("button", { name: "最早发布" });
+    expect(oldestFirst).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(oldestFirst);
+
+    const titles = screen.getAllByRole("heading", { level: 2 }).map((node) => node.textContent);
+    expect(titles).toEqual(["旧公告", "新公告"]);
+    expect(screen.getByRole("button", { name: "最早发布" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(mocked.list).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("AnnouncementDetailPage", () => {

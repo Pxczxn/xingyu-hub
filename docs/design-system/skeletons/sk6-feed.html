@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SK6 信息流 · 桌面 1440 / 移动 390 | 星语骨架原型</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* ---- SK6 信息流：线页头（无面）→ 行式流 1fr + 300 右栏 ---- */
+
+      /* 「线」页头：无底纹、无边框，标题贴内容列左缘，动作落在基线尾 */
+      .a4-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 10px 24px;
+        padding: 32px var(--pad) 16px;
+      }
+
+      .a4-head .display {
+        max-width: 13em;
+        margin-top: 8px;
+        font-size: 38px;
+      }
+
+      .a4-head .sub {
+        margin-top: 10px;
+        max-width: 34em;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--ink-3);
+      }
+
+      .a4-head .acts {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 4px;
+      }
+
+      /* tabs：不是胶囊按钮组，是一条贴着内容流的分段线 */
+      .a4-tabs {
+        display: flex;
+        gap: 22px;
+        padding: 0 var(--pad);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .a4-tabs a {
+        position: relative;
+        padding: 13px 0 12px;
+        font-size: 15px;
+        color: var(--ink-3);
+      }
+
+      .a4-tabs a[aria-selected="true"] {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .a4-tabs a[aria-selected="true"]::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 2px;
+        background: var(--accent);
+      }
+
+      .a4-tabs .today {
+        margin-left: auto;
+        align-self: center;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+
+      .a4-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 0 44px;
+        padding: 0 var(--pad);
+        align-items: start;
+      }
+
+      /* 主栏：一条精选 + 一列行，行与行之间只有发丝线 */
+      .a4-lead {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 208px;
+        gap: 20px;
+        padding: 26px 0 24px;
+        border-bottom: 1px solid var(--line-2);
+      }
+
+      .a4-lead .kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+
+      .a4-lead h3 {
+        font-family: var(--display);
+        font-size: 27px;
+        line-height: 1.4;
+        letter-spacing: -0.01em;
+        margin-top: 10px;
+      }
+
+      .a4-lead p {
+        margin-top: 10px;
+        font-size: 14px;
+        line-height: 1.8;
+        color: var(--ink-2);
+        max-width: 28em;
+      }
+
+      .a4-thumb {
+        aspect-ratio: 4 / 3;
+        border-radius: 10px;
+      }
+
+      .a4-list li {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 132px;
+        gap: 18px;
+        padding: 18px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .a4-list h3 {
+        font-size: 17px;
+        line-height: 1.55;
+        font-weight: 600;
+      }
+
+      .a4-list h3 a:hover {
+        color: var(--ink-2);
+      }
+
+      .a4-list p {
+        margin-top: 6px;
+        font-size: 13.5px;
+        line-height: 1.75;
+        color: var(--ink-3);
+        max-width: 34em;
+      }
+
+      .a4-list .foot-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 9px;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+
+      .a4-list .thumb {
+        aspect-ratio: 4 / 3;
+        border-radius: 8px;
+      }
+
+      /* 侧栏：三个模块靠间距分开，不套卡片 */
+      .a4-rail {
+        padding: 26px 0 0 24px;
+        border-left: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+
+      .a4-rail h2 {
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+
+      .a4-topics li {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        padding: 7px 0;
+        font-size: 14px;
+      }
+
+      .a4-topics li + li {
+        border-top: 1px solid var(--line);
+      }
+
+      .a4-topics .n {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-3);
+        width: 14px;
+        flex: 0 0 auto;
+      }
+
+      .a4-topics li:nth-child(-n + 3) .n {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .a4-topics .cnt {
+        margin-left: auto;
+        font-size: 11.5px;
+        color: var(--ink-3);
+      }
+
+      .a4-creators li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 0;
+      }
+
+      .a4-creators li + li {
+        border-top: 1px solid var(--line);
+      }
+
+      .a4-creators .nm {
+        font-size: 13.5px;
+        font-weight: 600;
+      }
+
+      .a4-events li {
+        padding: 9px 0;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .a4-events li + li {
+        border-top: 1px solid var(--line);
+      }
+
+      /* 动态：不等高三块，第一块吃两列 */
+      .a4-moments {
+        padding: 34px var(--pad) 40px;
+        border-top: 1px solid var(--line);
+      }
+
+      .a4-moments > header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      /* 动态条目同样无卡面：靠发丝线分隔，不做不等高卡格 */
+      .a4-mgrid {
+        display: flex;
+        flex-direction: column;
+        margin-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+
+      .a4-m {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .a4-m p {
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--ink-2);
+        max-width: 34em;
+      }
+
+      .a4-m .who {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        color: var(--ink-3);
+      }
+
+      /* 移动：页头收薄，侧栏沉到主栏之后 */
+      .frame[data-width="390"] .a4-head {
+        padding: 22px var(--pad) 12px;
+      }
+
+      .frame[data-width="390"] .a4-head .display {
+        font-size: 26px;
+        max-width: none;
+      }
+
+      .frame[data-width="390"] .a4-tabs {
+        gap: 18px;
+      }
+
+      .frame[data-width="390"] .a4-tabs a {
+        font-size: 14px;
+      }
+
+      .frame[data-width="390"] .a4-body {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+      }
+
+      .frame[data-width="390"] .a4-lead {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+      }
+
+      .frame[data-width="390"] .a4-lead h3 {
+        font-size: 21px;
+      }
+
+      .frame[data-width="390"] .a4-thumb {
+        display: none;
+      }
+
+      .frame[data-width="390"] .a4-list li {
+        grid-template-columns: minmax(0, 1fr) 88px;
+        gap: 12px;
+        padding: 15px 0;
+      }
+
+      .frame[data-width="390"] .a4-list h3 {
+        font-size: 15.5px;
+      }
+
+      .frame[data-width="390"] .a4-list p {
+        display: none;
+      }
+
+      .frame[data-width="390"] .a4-rail {
+        border-left: 0;
+        padding: 26px 0 0;
+        border-top: 1px solid var(--line);
+        margin-top: 8px;
+      }
+
+      .frame[data-width="390"] .a4-mgrid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+
+      .frame[data-width="390"] .a4-m--wide {
+        grid-column: auto;
+      }
+    </style>
+  </head>
+  <body data-sk="SK6">
+    <input id="zfit" class="sr-only" type="radio" name="zoom" checked />
+    <input id="z1" class="sr-only" type="radio" name="zoom" />
+
+    <header class="ghead">
+      <a class="gback" href="index.html">← 返回总览</a>
+      <div class="grow">
+        <span class="gnum">SK6</span>
+        <h1>信息流</h1>
+      </div>
+      <p class="gsub gpages">
+        <b>真实页面</b>（A §3，共 2 例以上）：<br />
+        <code>xingyu-web/src/features/home/pages/HomePage.tsx</code>
+        <code>xingyu-web/src/features/bookshelf/pages/BookshelfPage.tsx</code>
+        <code>xingyu-web/src/features/profile/pages/UserProfilePage.tsx</code>
+        <code>xingyu-web/src/features/topics/pages/TopicDetailPage.tsx</code>
+      </p>
+      <p class="gsub">
+        首页 / 我的各类列表 / 话题流 / 个人主页（14 页）。构图：<b>线页头</b>（无面、无底纹，标题贴内容列左缘，
+        动作落在基线尾，也可完全退化为一行）→ <b>[1fr 行式流 | 300 右栏]</b>，
+        条目<b>没有卡面</b>、靠发丝线分隔 → 右栏常驻 2–3 个模块（热门话题 / 推荐创作者 / 社区活动）。
+        区别：SK2 是「格」，这一屏是「行」；也是唯一允许页头退化的原型。
+      </p>
+      <div class="gmeta">
+        <span class="chip">行式流 · 无卡面</span>
+        <span class="chip">双栏 · 1fr + 300</span>
+        <span class="chip">线页头</span>
+      </div>
+      <div class="gtool">
+        <span>缩放</span>
+        <div class="seg" role="group" aria-label="桌面原型缩放">
+          <label for="zfit">适应宽度 58%</label>
+          <label for="z1">1:1 原尺寸</label>
+        </div>
+      </div>
+      <nav class="gswitcher" aria-label="原型切换">
+        <a href="sk1-reading.html">SK1 阅读栏</a>
+        <a href="sk2-gallery.html">SK2 画廊</a>
+        <a href="sk3-console.html">SK3 控制台</a>
+        <a href="sk4-inbox.html">SK4 收件箱</a>
+        <a href="sk5-flow.html">SK5 流程</a>
+        <a href="sk6-feed.html" aria-current="page">SK6 信息流</a>
+        <a href="sk7-reader.html">SK7 阅读器</a>
+        <a href="sk8-canvas.html">SK8 创作台</a>
+      </nav>
+    </header>
+
+    <main class="stage" id="main">
+      <!-- ================= 桌面 1440 ================= -->
+      <figure class="shot">
+        <figcaption>
+          <strong>1440</strong> 桌面
+          <em>· 出血头条 / 2:1 双栏 / 不等高动态</em>
+        </figcaption>
+        <div class="frame" data-sk="SK6" data-width="1440" role="group" aria-label="桌面原型，1440 宽">
+          <header class="topbar">
+            <a class="brand" href="index.html">星语</a>
+            <nav class="nav" aria-label="主导航">
+              <a href="#" aria-current="page">首页</a>
+              <a href="#">探索</a>
+              <a href="#">话题</a>
+              <a href="#">系列</a>
+              <a href="#">星系</a>
+              <a href="#">动态</a>
+              <a href="#">指南</a>
+            </nav>
+            <p class="search">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="9" cy="9" r="5.5" />
+                <path d="m13.5 13.5 3 3" />
+              </svg>
+              搜索文章、话题或作者
+            </p>
+            <div class="dock">
+              <button class="btn btn--ink btn--sm" type="button">创作</button>
+              <button class="icon" type="button" aria-label="通知（3 条未读）">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M10 3.2a5 5 0 0 0-5 5v3.3L4 14.2h12l-1-2.7V8.2a5 5 0 0 0-5-5Z" />
+                  <path d="M8.2 16.4a1.9 1.9 0 0 0 3.6 0" />
+                </svg>
+                <span class="dot">3</span>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <div class="a4-head">
+            <div>
+              <p class="eyebrow">2026年11月10日 · 周一</p>
+              <h1 class="display">在这里，遇见好内容，和同频的人。</h1>
+              <p class="sub">14 篇新文章、3 个连载中的系列、2 场本周活动 —— 已有 1,238 位作者在这里写作。</p>
+            </div>
+            <div class="acts">
+              <a class="btn btn--outline btn--sm" href="#">浏览全部内容</a>
+            </div>
+          </div>
+
+          <div class="a4-tabs" role="tablist" aria-label="首页内容流">
+            <a href="#" role="tab" aria-selected="true" aria-controls="a4-feed-d">推荐</a>
+            <a href="#" role="tab" aria-selected="false" aria-controls="a4-feed-d">关注</a>
+            <span class="today">今日新增 14 篇</span>
+          </div>
+
+          <div class="a4-body" id="a4-feed-d" role="tabpanel" aria-label="推荐内容流">
+            <div>
+              <article class="a4-lead">
+                <div>
+                  <span class="kicker">精选</span>
+                  <h3><a href="sk1-reading.html">在县城的旧书店里，我重新学会慢下来</a></h3>
+                  <p>
+                    一个下午，我在县城最老的街上找到一家没有招牌的旧书店。它不卖畅销书，
+                    只把六万册旧书按自己的脾气堆到天花板。
+                  </p>
+                  <div class="foot-row">
+                    <span class="avatar" aria-hidden="true" style="width: 20px; height: 20px; font-size: 10px">林</span>
+                    <span>林晚</span>
+                    <span aria-hidden="true">·</span>
+                    <time datetime="2026-11-03">11月3日</time>
+                    <span aria-hidden="true">·</span>
+                    <span>喜欢 128</span>
+                    <span aria-hidden="true">·</span>
+                    <span>评论 12</span>
+                  </div>
+                </div>
+                <div class="a4-thumb cover" aria-hidden="true"></div>
+              </article>
+
+              <ul class="a4-list" aria-label="推荐文章">
+                <li>
+                  <div>
+                    <h3><a href="#">县城的早市为什么在七点半就散了</a></h3>
+                    <p>散场不是结束，是一场没有人宣布、但所有人都遵守的默契。</p>
+                    <div class="foot-row">
+                      <span>周野</span><span aria-hidden="true">·</span>
+                      <time datetime="2026-11-09">11月9日</time><span aria-hidden="true">·</span>
+                      <span>喜欢 86</span><span aria-hidden="true">·</span><span>评论 9</span>
+                    </div>
+                  </div>
+                  <div class="thumb cover" aria-hidden="true"></div>
+                </li>
+                <li>
+                  <div>
+                    <h3><a href="#">我在地图上找不到的那条河</a></h3>
+                    <p>它在我小时候的作文里流过，在现在的行政图上，只剩一条虚线。</p>
+                    <div class="foot-row">
+                      <span>阿禾</span><span aria-hidden="true">·</span>
+                      <time datetime="2026-11-08">11月8日</time><span aria-hidden="true">·</span>
+                      <span>喜欢 61</span><span aria-hidden="true">·</span><span>评论 4</span>
+                    </div>
+                  </div>
+                  <div class="thumb cover" aria-hidden="true"></div>
+                </li>
+                <li>
+                  <div>
+                    <h3><a href="#">车站旁边的裁缝铺，和一台还在用的缝纫机</a></h3>
+                    <p>她说这台机器比她大两岁，比她在这个县城的时间还长。</p>
+                    <div class="foot-row">
+                      <span>林晚</span><span aria-hidden="true">·</span>
+                      <time datetime="2026-11-06">11月6日</time><span aria-hidden="true">·</span>
+                      <span>喜欢 44</span><span aria-hidden="true">·</span><span>评论 6</span>
+                    </div>
+                  </div>
+                  <div class="thumb cover" aria-hidden="true"></div>
+                </li>
+                <li>
+                  <div>
+                    <h3><a href="#">写给第一次投稿的人：编辑到底在看什么</a></h3>
+                    <p>不是文笔，是你有没有把一件小事讲成只有你能讲的样子。</p>
+                    <div class="foot-row">
+                      <span>星语编辑组</span><span aria-hidden="true">·</span>
+                      <time datetime="2026-11-05">11月5日</time><span aria-hidden="true">·</span>
+                      <span>喜欢 212</span><span aria-hidden="true">·</span><span>评论 31</span>
+                    </div>
+                  </div>
+                  <div class="thumb cover" aria-hidden="true"></div>
+                </li>
+              </ul>
+            </div>
+
+            <aside class="a4-rail" aria-label="侧栏">
+              <section aria-labelledby="a4-topic-d">
+                <h2 id="a4-topic-d">热门话题</h2>
+                <ul class="a4-topics">
+                  <li><span class="n" aria-hidden="true">01</span><a href="#">#县城生活</a><span class="cnt">128 篇</span></li>
+                  <li><span class="n" aria-hidden="true">02</span><a href="#">#非虚构写作</a><span class="cnt">96 篇</span></li>
+                  <li><span class="n" aria-hidden="true">03</span><a href="#">#旧书店</a><span class="cnt">54 篇</span></li>
+                  <li><span class="n" aria-hidden="true">04</span><a href="#">#慢下来</a><span class="cnt">37 篇</span></li>
+                  <li><span class="n" aria-hidden="true">05</span><a href="#">#给编辑的信</a><span class="cnt">21 篇</span></li>
+                </ul>
+              </section>
+
+              <section aria-labelledby="a4-creator-d">
+                <h2 id="a4-creator-d">推荐创作者</h2>
+                <ul class="a4-creators">
+                  <li>
+                    <span class="avatar avatar--soft" aria-hidden="true" style="width: 30px; height: 30px; font-size: 11px">林</span>
+                    <span style="min-width: 0"><span class="nm">林晚</span><br /><span class="micro">城市观察 · 246 关注者</span></span>
+                    <button class="btn btn--outline btn--sm" type="button" style="margin-left: auto">关注</button>
+                  </li>
+                  <li>
+                    <span class="avatar" aria-hidden="true" style="width: 30px; height: 30px; font-size: 11px">周</span>
+                    <span style="min-width: 0"><span class="nm">周野</span><br /><span class="micro">早市与人群 · 132 关注者</span></span>
+                    <button class="btn btn--outline btn--sm" type="button" style="margin-left: auto">关注</button>
+                  </li>
+                  <li>
+                    <span class="avatar" aria-hidden="true" style="width: 30px; height: 30px; font-size: 11px">禾</span>
+                    <span style="min-width: 0"><span class="nm">阿禾</span><br /><span class="micro">水系与地名 · 89 关注者</span></span>
+                    <button class="btn btn--outline btn--sm" type="button" style="margin-left: auto">关注</button>
+                  </li>
+                </ul>
+              </section>
+
+              <section aria-labelledby="a4-event-d">
+                <h2 id="a4-event-d">社区活动</h2>
+                <ul class="a4-events">
+                  <li>
+                    <b style="font-family: var(--mono); color: var(--ink); font-size: 12px">11/16</b>
+                    线下写作工作坊 · 县城观察笔记
+                  </li>
+                  <li>
+                    <b style="font-family: var(--mono); color: var(--ink); font-size: 12px">11/23</b>
+                    主题征稿截止 · 我住的那条街
+                  </li>
+                </ul>
+              </section>
+            </aside>
+          </div>
+
+          <section class="a4-moments" aria-labelledby="a4-moment-d">
+            <header>
+              <h2 class="h3" id="a4-moment-d">动态</h2>
+              <a class="meta" href="#">查看全部</a>
+            </header>
+            <div class="a4-mgrid">
+              <article class="a4-m">
+                <p>
+                  今天在旧书店翻到一本 1987 年的地方志，夹着一张手写借书条。
+                  借书的人姓陈，日期是 1991 年 3 月 12 日。不知道他后来还了没有。
+                </p>
+                <div class="who">
+                  <span class="avatar" aria-hidden="true" style="width: 22px; height: 22px; font-size: 10px">林</span>
+                  林晚 · 2 小时前 · 喜欢 24 · 评论 5
+                </div>
+              </article>
+              <article class="a4-m">
+                <p>早市散场的时候，卖豆花的那个摊子总是最后收。他说锅还热着，不着急。</p>
+                <div class="who">
+                  <span class="avatar" aria-hidden="true" style="width: 22px; height: 22px; font-size: 10px">周</span>
+                  周野 · 5 小时前
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <footer class="foot">
+            <span>星语</span>
+            <a href="#">公告</a>
+            <a href="#">社区活动</a>
+            <a href="#">探索创作者</a>
+            <a href="#">社区规则</a>
+            <span style="margin-left: auto">© 2026 星语社区</span>
+          </footer>
+        </div>
+      </figure>
+
+      <!-- ================= 移动 390 ================= -->
+      <figure class="shot">
+        <figcaption>
+          <strong>390</strong> 移动
+          <em>· 头条收薄 / 侧栏沉底 / 动态单列</em>
+        </figcaption>
+        <div class="frame" data-sk="SK6" data-width="390" role="group" aria-label="移动原型，390 宽">
+          <header class="topbar">
+            <button class="icon" type="button" aria-label="打开导航菜单" aria-expanded="false">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="M3 6h14M3 10h14M3 14h14" />
+              </svg>
+            </button>
+            <a class="brand" href="index.html">星语</a>
+            <div class="dock">
+              <button class="icon" type="button" aria-label="搜索">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <circle cx="9" cy="9" r="5.5" />
+                  <path d="m13.5 13.5 3 3" />
+                </svg>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <div class="a4-head">
+            <div>
+              <p class="eyebrow">2026年11月10日 · 周一</p>
+              <h1 class="display">在这里，遇见好内容，和同频的人。</h1>
+            </div>
+          </div>
+
+          <div class="a4-tabs" role="tablist" aria-label="首页内容流">
+            <a href="#" role="tab" aria-selected="true" aria-controls="a4-feed-m">推荐</a>
+            <a href="#" role="tab" aria-selected="false" aria-controls="a4-feed-m">关注</a>
+          </div>
+
+          <div class="a4-body" id="a4-feed-m" role="tabpanel" aria-label="推荐内容流">
+            <div>
+              <article class="a4-lead">
+                <div>
+                  <span class="kicker">精选</span>
+                  <h3><a href="sk1-reading.html">在县城的旧书店里，我重新学会慢下来</a></h3>
+                  <p>它不卖畅销书，只把六万册旧书按自己的脾气堆到天花板。</p>
+                  <div class="foot-row">
+                    <span>林晚</span><span aria-hidden="true">·</span>
+                    <time datetime="2026-11-03">11月3日</time><span aria-hidden="true">·</span><span>喜欢 128</span>
+                  </div>
+                </div>
+              </article>
+
+              <ul class="a4-list" aria-label="推荐文章">
+                <li>
+                  <div>
+                    <h3><a href="#">县城的早市为什么在七点半就散了</a></h3>
+                    <div class="foot-row">
+                      <span>周野</span><span aria-hidden="true">·</span><span>喜欢 86</span>
+                    </div>
+                  </div>
+                  <div class="thumb cover" aria-hidden="true"></div>
+                </li>
+                <li>
+                  <div>
+                    <h3><a href="#">我在地图上找不到的那条河</a></h3>
+                    <div class="foot-row">
+                      <span>阿禾</span><span aria-hidden="true">·</span><span>喜欢 61</span>
+                    </div>
+                  </div>
+                  <div class="thumb cover" aria-hidden="true"></div>
+                </li>
+                <li>
+                  <div>
+                    <h3><a href="#">写给第一次投稿的人：编辑到底在看什么</a></h3>
+                    <div class="foot-row">
+                      <span>星语编辑组</span><span aria-hidden="true">·</span><span>喜欢 212</span>
+                    </div>
+                  </div>
+                  <div class="thumb cover" aria-hidden="true"></div>
+                </li>
+              </ul>
+            </div>
+
+            <aside class="a4-rail" aria-label="侧栏">
+              <section aria-labelledby="a4-topic-m">
+                <h2 id="a4-topic-m">热门话题</h2>
+                <ul class="a4-topics">
+                  <li><span class="n" aria-hidden="true">01</span><a href="#">#县城生活</a><span class="cnt">128 篇</span></li>
+                  <li><span class="n" aria-hidden="true">02</span><a href="#">#非虚构写作</a><span class="cnt">96 篇</span></li>
+                  <li><span class="n" aria-hidden="true">03</span><a href="#">#旧书店</a><span class="cnt">54 篇</span></li>
+                </ul>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </figure>
+    </main>
+
+    <footer class="gfoot">
+      真实字段来源：<code>HomePage.tsx:234-305</code>（<code>EnhancedHero</code> →
+      <code>HomeFeedTabs</code> role=tablist「推荐 / 关注」→ 内容流 + <code>HomeSidebar</code>
+      「热门话题 / 推荐创作者 / 社区活动」）；条目字段来自
+      <code>HomeFeedItem.tsx:444-473</code>（<code>title / authorName / likeCount / commentCount</code>）；
+      动态字段来自 <code>MomentsPage.tsx:183-212</code>（<code>body</code>、字数提示、
+      「发布后立即公开可见，30 分钟内可编辑」）。
+    </footer>
+  </body>
+</html>

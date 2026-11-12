@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Bookmark, Heart, MessageSquare } from "lucide-react";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import { contentHref } from "@/components/shared/ContentCard";
 import { ContentCoverImage } from "@/components/shared/OptimizedImage";
+import { buildLoginPath } from "@/features/auth/login-return-path";
 import { cn } from "@/lib/cn";
 import type { ContentSummary } from "@/api/common.types";
 
@@ -68,9 +69,9 @@ function HomeFeedVisual({ item, href }: { item: ContentSummary; href: string }) 
       to={href}
       tabIndex={-1}
       aria-hidden
-      className="hidden shrink-0 overflow-hidden rounded-xl sm:block"
+      className="hidden shrink-0 overflow-hidden rounded-control sm:block"
     >
-      <div className="h-[104px] w-[168px] overflow-hidden rounded-xl transition-transform duration-300 group-hover:scale-[1.02]">
+      <div className="h-[104px] w-[168px] overflow-hidden rounded-control transition-transform duration-300 group-hover:scale-[1.02]">
         <ContentCoverImage src={item.cover} alt="" className="h-[104px] w-[168px] object-cover" />
       </div>
     </Link>
@@ -112,6 +113,19 @@ export function HomeFeedItem({
   const type = (item.objectType ?? "").toUpperCase();
   const typeLabel = TYPE_LABELS[type] || "";
   const href = contentHref(item);
+
+  /*
+   * Guest login link for the like count.
+   *
+   * It used to be hardcoded `to="/login?redirect=/home"`, which was wrong twice:
+   * `LoginPage` reads `returnTo` (not `redirect`, so the value was ignored) and
+   * `/home` is not a route at all. The result was "log in and always land on /".
+   * `buildLoginPath` is the same helper the discover / article / topic links use:
+   * it returns a bare `/login` for the home route and carries `returnTo` on deep
+   * routes, and it refuses to aim at an auth page.
+   */
+  const location = useLocation();
+  const loginPath = buildLoginPath(`${location.pathname}${location.search}`);
 
   const author = item.authorName;
 
@@ -291,7 +305,13 @@ export function HomeFeedItem({
     <article
       className={cn(
         "group relative",
-        "grid items-start gap-y-3 px-5 py-6 sm:px-6",
+        /*
+         * D=紧（A §3 的 Home 行）：行式条目，行为由发丝线分隔，条目自己没有卡面。
+         * 行内上下 padding 收到 16px（`py-4`）、左右 8px，让首屏能放下更多行 ——
+         * 与同为 SK6 的 TopicDetail 相比，这一页的密度靠「行更矮、元信息在行底」
+         * 表达，而不是靠缩字体。
+         */
+        "grid items-start gap-y-2 px-2 py-4",
         /*
          * 只有真封面在场时才分两栏。
          *
@@ -307,12 +327,12 @@ export function HomeFeedItem({
       <div className="col-start-1 row-start-1 min-w-0">
         <Link
           to={href}
-          className="focus-ring mb-1.5 block line-clamp-2 text-[17px] font-bold leading-7 text-foreground md:text-[19px]"
+          className="focus-ring mb-1.5 block line-clamp-2 text-h3 text-primary transition-colors hover:text-accent-strong"
         >
           {item.title}
         </Link>
         {item.summary ? (
-          <p className="mb-2.5 line-clamp-2 max-w-[62ch] text-[15px] leading-7 text-muted-foreground">
+          <p className="mb-2 line-clamp-2 max-w-[62ch] text-meta leading-6 text-foreground-soft">
             {item.summary}
           </p>
         ) : null}
@@ -451,7 +471,7 @@ export function HomeFeedItem({
               </button>
             ) : hasLikes ? (
               <Link
-                to="/login?redirect=/home"
+                to={loginPath}
                 className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
                 aria-label={`${likeCount ?? 0} 次点赞`}
                 title="登录后点赞"

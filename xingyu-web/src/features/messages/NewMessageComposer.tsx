@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { messagesApi } from "@/api/messages/messages.api";
+import type { Conversation } from "@/api/messages/messages.types";
 import { Button } from "@/components/ui/button";
 
 /*
@@ -17,9 +18,17 @@ import { Button } from "@/components/ui/button";
  *   400 「不能与自己发起私信」 · 409 「无法向该用户发送私信」 (either side blocked) ·
  *   404 unknown user.
  */
-export function NewMessageComposer() {
+export function NewMessageComposer({
+  onStarted,
+  startOpen = false,
+}: {
+  /** Stay on the current page and hand the new conversation to the caller. */
+  onStarted?: (conversation: Conversation) => void;
+  /** The card already chose "new message"; skip the closed button. */
+  startOpen?: boolean;
+} = {}) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +44,10 @@ export function NewMessageComposer() {
       const conversation = await messagesApi.openDirect(target);
       setUsername("");
       setOpen(false);
+      if (onStarted) {
+        onStarted(conversation);
+        return;
+      }
       // Land on the thread. `replace: false` so Back returns to the mailbox.
       navigate(`/messages/${encodeURIComponent(conversation.id)}`);
     } catch (err: unknown) {

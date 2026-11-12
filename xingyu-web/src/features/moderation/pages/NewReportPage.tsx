@@ -5,6 +5,8 @@ import { ApiError } from "@/api/client";
 import { reportsApi } from "@/api/moderation/moderation.api";
 import type { ReportTargetView } from "@/api/moderation/moderation.types";
 import { reportReasonLabel } from "@/api/moderation/moderation.types";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AuthFormError } from "@/features/auth/components/AuthFormError";
@@ -184,49 +186,50 @@ export function NewReportPage() {
   const authorName = view.authorDisplayName?.trim() || view.authorUsername || "未知作者";
   const authorHref = view.authorUsername ? `/u/${encodeURIComponent(view.authorUsername)}` : null;
 
+  /*
+    SK5 流程 · H=线 / D=松 / R=齐（`.team/design/A-archetypes.md` §3 的 NewReport 行）。
+
+    这一页只有**一个终点动作**（提交举报），所以它是 SK5 而不是 SK3：
+
+      H=线：`PageMasthead` 无面页头，替掉手写的 `<header>` + `text-2xl`（A §4 点名的 30 处之一）。
+      D=松：两块（「举报对象」预览 + 表单）各是一张独立卡面，块间由 `density-loose` 给间距。
+      R=齐：窄栏之内所有块同宽同边，没有侧轨、没有出血带。
+      单步流程取 640 而不是 SK5 的默认 720（`className` 覆写 `SOLO.SK5` 的上限）—— 一个
+        下拉 + 一个 textarea 撑到 720 只会让字段拉得过长。
+
+    粘底操作条：`StepFlow` 把子内容硬编码成 `density-compact`（`StepFlow.tsx:111`），会抹掉本页
+    声明的 D=松，所以这里只沿用它那条配方（`sticky bottom-0 z-rail` + 上发丝线 + 半透明 +
+    `backdrop-blur`，同 SettingsReauthenticatePage 与 SeriesNewPage）。提交/取消两个控件仍在
+    `<form>` 之内、仍是原来的 `<button type="submit">` 与 `<Link>`，校验与提交逻辑一行未动。
+  */
   return (
-    <div className="section-gap">
-      <p>
-        <Link
-          to="/reports"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-strong"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-          返回我的举报
-        </Link>
-      </p>
-
-      {/*
-        页头（2026-10-13，批次 08c）—— 与 /reports、/appeals 同形：去卡片、去图标、
-        改分隔线式。完整判据见 MyReportsPage 的注释，这里不重复。
-
-        这一页另有本批两处可用性修复，都落在「细节可用性」这个批次目标上：
-
-        1) 原因下拉与补充说明这两个手写控件原本**没有任何焦点指示** —— 没有
-           `focus-visible:ring`，也没有 `.focus-ring`。整张表单里 Tab 进去看不出
-           光标落在哪，与 08b 在 onboarding 修掉的是同一个缺陷（那里是简介
-           textarea）。加 `.focus-ring` 是最小干预：不动 border 色、不动 bg、也不
-           换成 ui/ 表单组件 —— 本域没有 ui/ 表单组件的既有语境，换组件会顺带改掉
-           三样视觉，超出「修缺陷」的范围。
-
-        2) 提交失败原本是裸 `<p className="text-sm text-destructive">`。这正是
-           AuthFormError 头部注释逐字点名要消灭的三种漂移形态之一（`Login /
-           ResetPassword / Register` 那一行），而同一段注释声明框式是「the one that
-           becomes the standard」。这里是**表单级**失败（提交动作失败，不是某个字段
-           校验错），所以取 `focusOnMount`：错误渲染在表单底部，长表单里不聚焦用户
-           看不到。08b 已在 onboarding 建好跨域复用的先例。
-      */}
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">提交举报</h1>
-        <p className="lede mt-2 max-w-2xl">
-          请基于事实填写。举报提交后，可在「我的举报」中查看处理进度。
-        </p>
-      </header>
-
+    <ArchetypeFrame
+      skeleton="SK5"
+      header="line"
+      density="loose"
+      className="max-w-[640px]"
+      headerSlot={
+        <div className="flex flex-col gap-4">
+          <p>
+            <Link
+              to="/reports"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-sm text-meta text-muted-foreground hover:text-accent-strong"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              返回我的举报
+            </Link>
+          </p>
+          <PageMasthead
+            title="提交举报"
+            description="请基于事实填写。举报提交后，可在「我的举报」中查看处理进度。"
+          />
+        </div>
+      }
+    >
       {/* The target, as the SERVER sees it. No UUID is shown or editable. */}
-      <section className="rounded-xl border border-border/70 bg-card p-5">
+      <section className="rounded-card border border-border/70 bg-card p-5">
         <h2 className="section-heading">举报对象</h2>
-        <dl className="mt-3 flex flex-col gap-4 text-sm">
+        <dl className="mt-3 flex flex-col gap-4 text-body">
           <div>
             <dt className="text-muted-foreground">内容类型</dt>
             <dd className="mt-1 text-foreground">{objectTypeLabel(view.objectType)}</dd>
@@ -257,23 +260,23 @@ export function NewReportPage() {
           </div>
         </dl>
         {view.alreadyReported ? (
-          <p role="status" className="mt-4 text-xs text-muted-foreground">
+          <p role="status" className="mt-4 text-meta text-muted-foreground">
             你已经举报过这条内容，再次提交不会重复创建记录。
           </p>
         ) : null}
       </section>
 
-      <form onSubmit={submit} className="rounded-xl border border-border/70 bg-card p-5">
+      <form onSubmit={submit} className="rounded-card border border-border/70 bg-card p-5">
         <div className="flex flex-col gap-4">
           <div>
-            <label htmlFor="report-reason" className="text-sm font-medium text-foreground">
+            <label htmlFor="report-reason" className="text-body font-medium text-foreground">
               举报原因
             </label>
             <select
               id="report-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="focus-ring mt-2 w-full rounded-md border border-border bg-background p-2 text-sm text-foreground"
+              className="focus-ring mt-2 w-full rounded-control border border-input bg-background p-2 text-body text-foreground"
             >
               {REASON_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -284,7 +287,7 @@ export function NewReportPage() {
           </div>
 
           <div>
-            <label htmlFor="report-detail" className="text-sm font-medium text-foreground">
+            <label htmlFor="report-detail" className="text-body font-medium text-foreground">
               补充说明（可选）
             </label>
             <textarea
@@ -293,13 +296,14 @@ export function NewReportPage() {
               value={detail}
               onChange={(e) => setDetail(e.target.value)}
               rows={4}
-              className="focus-ring mt-2 w-full rounded-md border border-border bg-background p-3 text-sm text-foreground"
+              className="focus-ring mt-2 w-full rounded-control border border-input bg-background p-3 text-body text-foreground"
             />
           </div>
 
           {error ? <AuthFormError focusOnMount>{error}</AuthFormError> : null}
 
-          <div className="flex flex-wrap gap-3">
+          {/* SK5 的粘底操作条：终端动作永远在视口底部，不随字段长度跑走。 */}
+          <div className="sticky bottom-0 z-rail -mx-5 -mb-5 flex flex-wrap items-center gap-3 rounded-b-card border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
             <button
               type="submit"
               disabled={submitting}
@@ -313,6 +317,6 @@ export function NewReportPage() {
           </div>
         </div>
       </form>
-    </div>
+    </ArchetypeFrame>
   );
 }

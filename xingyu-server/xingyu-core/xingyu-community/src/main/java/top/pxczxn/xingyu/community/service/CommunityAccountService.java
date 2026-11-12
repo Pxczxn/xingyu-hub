@@ -1,6 +1,5 @@
 package top.pxczxn.xingyu.community.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
@@ -448,12 +447,7 @@ public class CommunityAccountService {
 
     @Transactional
     public void revokeOtherSessions(CommunityUser user, String currentToken) {
-        for (CommunitySession session : sessionMapper.listByUserId(user.getId())) {
-            if (!session.getTokenValue().equals(currentToken) && session.getRevokedAt() == null) {
-                session.setRevokedAt(Instant.now());
-                sessionMapper.updateById(session);
-            }
-        }
+        sessionMapper.revokeOtherSessions(user.getId(), currentToken, Instant.now());
     }
 
     public Map<String, Object> sendRegisterSmsCode(String phone) {
@@ -867,16 +861,8 @@ public class CommunityAccountService {
         securityEventMapper.insert(userId, eventType, detail, null, Instant.now());
     }
 
-    private void invalidatePendingTokens(String userId, String purpose) {
-        List<EmailVerificationToken> tokens = tokenMapper.selectList(new LambdaQueryWrapper<EmailVerificationToken>()
-                .eq(EmailVerificationToken::getUserId, userId)
-                .eq(EmailVerificationToken::getPurpose, purpose)
-                .isNull(EmailVerificationToken::getConsumedAt));
-        Instant now = Instant.now();
-        for (EmailVerificationToken token : tokens) {
-            token.setConsumedAt(now);
-            tokenMapper.updateById(token);
-        }
+    void invalidatePendingTokens(String userId, String purpose) {
+        tokenMapper.consumePending(userId, purpose, Instant.now());
     }
 
     private boolean sendVerificationMail(String email, String rawToken, String subject) {
@@ -891,14 +877,8 @@ public class CommunityAccountService {
         }
     }
 
-    private void revokeActiveSessions(String userId) {
-        Instant now = Instant.now();
-        for (CommunitySession session : sessionMapper.listByUserId(userId)) {
-            if (session.getRevokedAt() == null) {
-                session.setRevokedAt(now);
-                sessionMapper.updateById(session);
-            }
-        }
+    void revokeActiveSessions(String userId) {
+        sessionMapper.revokeActiveSessions(userId, Instant.now());
     }
 
     private String mustChangePasswordKey(String userId) {

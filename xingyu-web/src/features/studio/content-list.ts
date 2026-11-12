@@ -157,6 +157,7 @@ export function countByStatus(items: MyArticleSummary[]): ContentCounters {
  * so the UI must not offer the action. Published and draft pieces are both fine.
  */
 export function canTrash(article: MyArticleSummary): boolean {
+  if (article.collaborationRole === "EDITOR") return false;
   return !isReviewing(article.status);
 }
 

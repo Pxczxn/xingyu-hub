@@ -105,8 +105,10 @@ export function SavedMessagesPage() {
   if (state.kind === "loading") return <PageState kind="loading" />;
 
   if (state.kind === "error") {
+    /* 不是路由页壳：本页只有一个列表，所以错误态只是一段堆叠，不加 `.section-gap`
+       那种页面级节奏（它比这里需要的间距大一倍）。 */
     return (
-      <div className="section-gap">
+      <div className="flex flex-col gap-4">
         <PageState
           kind="error"
           title="加载失败"
@@ -135,14 +137,25 @@ export function SavedMessagesPage() {
 
   const { items } = state;
 
+  /*
+   * SK4 收件箱 · H=壳 / D=松 / R=齐（A §3 的 /messages/* 域 SavedMessages 行）。
+   *
+   * 这是 SK4 家族里唯一「松」的一页：收藏条目高度差一个数量级（一张图 / 一行文件名 /
+   * 一段正文），所以它保持 CSS 多列瀑布流而不是行式列表 —— 这是 D=松 在这里的具体
+   * 含义，也是它和 Mailbox / SearchMessages（紧）一眼可分的地方。卡内留白与卡与卡的
+   * 间距走 `--density-card-pad` / `--density-grid-gap`（B §2 的松档），不再手写 16/12。
+   *
+   * H=壳（B 类壳，A §7.5：本页没有壳层 heading）：页内必须恰有 1 个 `<h1>`，
+   * 这里 `sr-only` —— 壳语义要求首屏第一块即内容，而不是一条标题横幅；可见的第一块
+   * 是一句说明，然后是卡片。
+   * R=齐：一栏、与内容列同宽同边，没有侧轨也没有出血带。本页没有可并排的详情面板
+   * （取消收藏是行内动作），所以它不用 `SplitPane` 的定高双栏 —— 那会造出一个永远
+   * 空着的右栏。单栏 + 测量列是 SK4 在这个页面上的合法形态。
+   */
   return (
-    <div className="section-gap">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">收藏的私信</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          你在私信里收藏的消息会出现在这里。删除收藏不会删除原消息。
-        </p>
-      </header>
+    <div className="density-loose">
+      <h1 className="sr-only">收藏的私信</h1>
+      <p className="lede">你在私信里收藏的消息会出现在这里。删除收藏不会删除原消息。</p>
 
       {/*
         2026-10-13 (batch 07c): `text-red-600` was the ONLY hard-coded colour left in
@@ -174,7 +187,7 @@ export function SavedMessagesPage() {
         */
         <ul
           aria-label="收藏的私信"
-          className="columns-1 gap-3 sm:columns-2 xl:columns-3"
+          className="columns-1 gap-[var(--density-grid-gap)] sm:columns-2 xl:columns-3"
           data-testid="saved-message-rows"
         >
           {items.map((item) => {
@@ -187,7 +200,7 @@ export function SavedMessagesPage() {
             return (
               <li
                 key={item.messageId}
-                className="mb-3 break-inside-avoid rounded-xl border border-border/70 bg-card p-4"
+                className="mb-[var(--density-grid-gap)] break-inside-avoid rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
                 data-testid="saved-message-row"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -227,7 +240,7 @@ export function SavedMessagesPage() {
                                 <img
                                   src={url}
                                   alt={item.attachmentName ?? "图片"}
-                                  className="max-h-56 max-w-full rounded"
+                                  className="max-h-56 max-w-full rounded-chip"
                                 />
                               </a>
                             )}

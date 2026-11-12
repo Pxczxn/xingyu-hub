@@ -62,7 +62,11 @@ vi.mock("@/api/home/home.api", () => ({
 }));
 
 vi.mock("@/api/messages/messages.api", () => ({
-  messagesApi: { listConversations: vi.fn(async () => []) },
+  messagesApi: {
+    listConversations: vi.fn(async () => []),
+    listMedia: vi.fn(async () => []),
+    listFiles: vi.fn(async () => []),
+  },
 }));
 
 // 2026-10-06: the chat socket moved into a provider above the router; the stub
@@ -146,6 +150,28 @@ describe("/messages/saved (real route table)", () => {
     await screen.findByText("被收藏的消息");
     // MailboxPage's empty state would appear if the param route had won.
     expect(screen.queryByText("还没有会话")).toBeNull();
+  });
+});
+
+describe("message pages that stay beside the card", () => {
+  it("opens the card's search instead of the search page", async () => {
+    const { router } = renderAt("/messages/search");
+    expect(await screen.findByRole("heading", { name: "搜索消息" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "展开搜索" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "搜索消息" })).toBeNull();
+    expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("keeps a conversation's images on their own route", async () => {
+    const { router } = renderAt("/messages/c1/media");
+    expect(await screen.findByRole("heading", { name: "图片" })).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/messages/c1/media");
+  });
+
+  it("keeps a conversation's files on their own route", async () => {
+    const { router } = renderAt("/messages/c1/files");
+    expect(await screen.findByRole("heading", { name: "文件" })).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/messages/c1/files");
   });
 });
 

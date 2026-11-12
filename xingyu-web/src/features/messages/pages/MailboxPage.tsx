@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
+import { SplitPane } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { useChatSocket } from "@/features/chat/chat-socket.context";
@@ -109,81 +110,72 @@ export function MailboxPage() {
 
   const items = conversations;
 
+  /*
+   * SK4 收件箱 · H=壳 / D=紧 / R=错（A §3 的 /messages/* 域 Mailbox 行）。
+   *
+   * 骨架 = `SplitPane`，也就是 A §4 要求的「自 MailboxPage 抽出」的那一个：
+   * `[320 列表 | 1fr 详情]` 定高、**页面自身不滚、两栏各自滚**。抽出后这里只剩
+   * 两件事：左边是什么、右边是什么。三个被实测过的细节（不要 `items-start`、
+   * 行是 `minmax(0,1fr)`、两栏都 `min-h-0`）现在只在 `SplitPane` 里写一次。
+   *
+   * H=壳（B 类壳，A §7.5：本页没有壳层 heading）：页内必须恰有 1 个 `<h1>`，
+   * 这里用 `sr-only` —— 壳语义要的是「首屏第一块即内容」，而本页的内容是会话列表，
+   * 不是一条标题横幅；可见的一行只留控件（搜索入口 + 新建私信）。
+   *
+   * D=紧：左边是行式会话卡（每行自带未读与 hover，所以是独立卡面而不是 `divide-y`），
+   * 间距走 `--density-list-gap`，与 SavedMessages 的「松 + 瀑布流」区分。
+   * R=错：主列 + 详情列，两栏定高各滚 —— 这是 SK4 与 SK1 唯一的区别（SK1 整页滚）。
+   *
+   * 移动端（<lg）一次只显示一栏：`mobileView` 由 `threadOpen` 决定，回来的路是
+   * 会话自己的「返回会话列表」。
+   */
   return (
-    <div className="section-gap">
-      {/*
-        Page header — MAILBOX responsibility only.
+    <div className="flex flex-col gap-4">
+      {/* 页内唯一的 h1；放在 header 之外，这样移动端隐藏标题行时标题仍在无障碍树里。 */}
+      <h1 className="sr-only">私信</h1>
 
-        On mobile the thread takes over the pane, so the big 「私信 / N 条未读 / 新建私信」
-        header is hidden while a conversation is open: otherwise the reader sees the
-        mailbox title and the conversation title stacked on top of each other.
-        2026-10-06.
-      */}
       {/*
-        2026-10-06 — two cuts here, both from measured evidence:
-          1. The 「N 条未读」 line is GONE. The number already appears on the header
-             badge (account total) and on each row badge (per conversation); a third
-             copy under the page title said the same thing a third time.
-          2. 「搜索消息」 is a quiet text link next to 「新建私信」, not a toolbar of its
-             own. It is an auxiliary tool and must not out-shout the conversation list
-             or the conversation itself.
+        Page toolbar — MAILBOX responsibility only.
+
+        On mobile the thread takes over the pane, so the mailbox's own control row
+        is hidden while a conversation is open: otherwise the reader sees the
+        mailbox's controls above the conversation.
+        2026-10-06: the 「N 条未读」 line is GONE (the header badge and each row
+        badge already say it), and 「搜索消息」 is a quiet text link next to
+        「新建私信」 rather than a toolbar of its own.
       */}
       <header
         className={cn(
-          "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between",
+          "flex items-center justify-end gap-3",
           threadOpen && "max-lg:hidden",
         )}
       >
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">私信</h1>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/messages/search"
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
-          >
-            <Search className="h-4 w-4" aria-hidden />
-            搜索消息
-          </Link>
-          <NewMessageComposer />
-        </div>
+        <Link
+          to="/messages/search"
+          className="focus-ring flex items-center gap-1 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground hover:underline"
+        >
+          <Search className="h-4 w-4" aria-hidden />
+          搜索消息
+        </Link>
+        <NewMessageComposer />
       </header>
 
-      {/*
-        Master / detail.
-        ============================================================
-        2026-10-06 (workspace): the two panes are now INDEPENDENT scroll areas at
-        >= lg, and the thread is a flex column whose message viewport is the only
-        thing that scrolls. Before this, the thread's auto-scroll used
-        `bottomRef.scrollIntoView()`, which scrolls the DOCUMENT — measured: opening
-        a conversation moved the page 345px, pushing the page header and the entire
-        left column off screen.
-
-        < lg stays one pane at a time: opening a conversation replaces the list (the
-        thread's own 「返回会话列表」 is the way back), because a 390px viewport has no
-        room for two columns.
-      */}
-      <div
-        className={cn(
-          "lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-6",
-          // Bounded desktop panes, each scrolling on its own.
-          //
-          // Two details are load-bearing, and both were measured as failures:
-          //  - no `items-start`: it sizes the grid row by content, so a child's
-          //    `h-full` resolves against an auto-height row and the pane grows with
-          //    the conversation instead of scrolling;
-          //  - `grid-rows-[minmax(0,1fr)]`: the row must itself be bounded, and
-          //    `minmax(0,…)` (not `1fr`) is what lets it shrink below content.
-          // Paired with `min-h-0` on both panes, this is the difference between
-          // "the message list scrolls" and "the whole page scrolls".
-          "lg:h-[calc(100vh-12rem)] lg:grid-rows-[minmax(0,1fr)]",
-        )}
-      >
-        <div
-          className={cn(
-            "min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1",
-            threadOpen && "max-lg:hidden",
-          )}
-        >
-          {items.length === 0 ? (
+      <SplitPane
+        listLabel="会话栏"
+        detailLabel="会话内容"
+        /*
+         * A pane with nothing selected must never be an empty box: one quiet
+         * statement, no illustration, no feature education, no suggested contacts.
+         */
+        detailEmpty={
+          <p className="grid h-full place-items-center px-6 text-center text-meta text-muted-foreground">
+            选择一个会话开始聊天
+          </p>
+        }
+        mobileView={threadOpen ? "detail" : "list"}
+        listWidth={320}
+        list={
+          items.length === 0 ? (
             <PageState
               kind="empty"
               illustration={false}
@@ -192,7 +184,7 @@ export function MailboxPage() {
               description="可以通过用户名发起新的对话。"
             />
           ) : (
-            <ul aria-label="会话列表" className="flex list-none flex-col gap-2 p-0">
+            <ul aria-label="会话列表" className="flex list-none flex-col gap-[var(--density-list-gap)] p-0">
               {items.map((conversation, index) => (
                 <ConversationRow
                   key={conversation.id}
@@ -202,25 +194,10 @@ export function MailboxPage() {
                 />
               ))}
             </ul>
-          )}
-        </div>
-
-        <div className={cn("min-w-0 lg:h-full lg:min-h-0", !threadOpen && "hidden lg:block")}>
-          {threadOpen ? (
-            <ConversationThreadPage />
-          ) : (
-            /*
-              2026-10-06: the 808×149 dashed placeholder box is gone. It read as a
-              temporary skeleton sitting in a 540px pane, and it said nothing. The pane
-              now carries the empty state itself — one quiet line, no illustration, no
-              feature education, no suggested contacts.
-            */
-            <p className="grid h-full place-items-center px-6 text-center text-meta text-muted-foreground">
-              选择一个会话开始聊天
-            </p>
-          )}
-        </div>
-      </div>
+          )
+        }
+        detail={threadOpen ? <ConversationThreadPage /> : null}
+      />
     </div>
   );
 }

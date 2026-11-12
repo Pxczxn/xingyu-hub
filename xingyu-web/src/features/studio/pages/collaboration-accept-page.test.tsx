@@ -12,11 +12,8 @@ import { CollaborationAcceptPage } from "./CollaborationAcceptPage";
 /*
  * /studio/collaboration/accept?token=... (Phase 2M).
  *
- * The two things that MUST hold:
- *   1. The success view discloses that no permission was granted — it says
- *      「已确认邀请」, never Legacy's 「已接受协作邀请」/「查看协作空间」.
- *   2. The follow-up link is `/u/:username`, NOT Legacy's `/u/:username/works`
- *      (which is not a V2 route and 404s).
+ * Success copy says the accepter joined. The follow-up link is `/u/:username`,
+ * not Legacy's `/u/:username/works`.
  */
 
 vi.mock("@/api/collaboration/collaboration.api", () => ({
@@ -86,7 +83,7 @@ describe("collaboration accept page", () => {
     renderAt("?token=tok-abc");
 
     expect(await screen.findByTestId("accept-boundary")).toHaveTextContent(
-      "不会因此获得任何协作权限",
+      "编辑对方的文章草稿",
     );
   });
 
@@ -124,7 +121,7 @@ describe("collaboration accept page", () => {
     expect(await screen.findByTestId("accept-inviter")).toHaveTextContent("一位创作者");
   });
 
-  it("says 已确认邀请 — not 已加入协作 — after accepting", async () => {
+  it("says 已加入协作 after accepting", async () => {
     mockedApi.resolveInvite.mockResolvedValue(resolved());
     mockedApi.acceptInvite.mockResolvedValue(accepted());
     renderAt("?token=tok-abc");
@@ -132,8 +129,7 @@ describe("collaboration accept page", () => {
     fireEvent.click(await screen.findByTestId("accept-confirm"));
 
     const headline = await screen.findByTestId("accept-headline");
-    expect(headline).toHaveTextContent("已确认");
-    expect(headline).not.toHaveTextContent("加入");
+    expect(headline).toHaveTextContent("已加入");
     expect(document.body.textContent).not.toContain("已接受协作邀请");
   });
 
@@ -145,7 +141,7 @@ describe("collaboration accept page", () => {
     fireEvent.click(await screen.findByTestId("accept-confirm"));
 
     expect(await screen.findByTestId("accept-boundary")).toHaveTextContent(
-      "不会因此获得任何协作权限",
+      "编辑对方的文章草稿",
     );
   });
 

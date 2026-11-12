@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { AlertTriangle, MinusCircle, ShieldAlert } from "lucide-react";
 import { accountApi } from "@/api/account/account.api";
 import { ApiError } from "@/api/client";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageSection } from "@/components/shared/PageSection";
 import { Button } from "@/components/ui/button";
 import {
   ACCOUNT_DEACTIVATION_CONFIRM_LABEL,
@@ -69,6 +71,14 @@ import { setStoredToken } from "@/lib/storage";
  *
  * This is the one settings page that should NOT look like the other eight. That
  * is the point.
+ *
+ * --- 2026-11-10 批次 C：SK3 · 壳 / 松 / 齐 -------------------------------
+ * 壳：标题仍由 `SettingsLayout` 的 h1 提供，本页只出 `PageSection` 的 h2「停用账号」。
+ * 松：整页只有一块（危险面板），所以"松"落在这一块内部 —— 卡内边距 24px、事实行
+ *     `py-3.5` + `leading-6`、说明与确认分三段。危险页应当比其它设置页读得更慢，
+ *     这正是它与「表」密度页（API Token / 邮箱）的差别。
+ * 齐：无侧栏，所有块与主列同宽。
+ * 请求、grant 生命周期、确认短语逻辑一行未动。
  * ---------------------------------------------------------------------------
  */
 
@@ -120,120 +130,122 @@ export function SettingsDeleteAccountPage() {
 
   if (requested) {
     return (
-      <div className="section-gap">
+      <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
         <div
-          className="rounded-xl border border-border/70 bg-card p-6 text-center"
+          className="rounded-card border border-border/70 bg-card p-8 text-center"
           data-testid="delete-account-done"
         >
           <span
-            className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-surface-sunken text-muted-foreground"
+            className="mx-auto grid h-11 w-11 place-items-center rounded-pill bg-surface-sunken text-muted-foreground"
             aria-hidden
           >
             <MinusCircle className="h-5 w-5" />
           </span>
-          <h2 className="mt-3 text-card font-semibold text-primary">账号已停用</h2>
-          <p className="mx-auto mt-1.5 max-w-md text-meta text-muted-foreground">
+          <h2 className="mt-3 text-h3 text-primary">账号已停用</h2>
+          <p className="mx-auto mt-1.5 max-w-md text-meta leading-6 text-muted-foreground">
             你的账号已停用，将无法继续登录。当前版本没有提供自助恢复入口，如需重新启用请联系管理员。
           </p>
         </div>
-      </div>
+      </ArchetypeFrame>
     );
   }
 
   const canConfirm = typed.trim() === CONFIRM_PHRASE && !busy && hasGrant;
 
   return (
-    <div className="section-gap">
-      <section aria-labelledby="delete-heading">
-        <h2 id="delete-heading" className="section-heading">
-          停用账号
-        </h2>
-      </section>
-
-      {!hasGrant ? (
-        <div
-          className="flex flex-col gap-2 rounded-xl border border-border/70 bg-surface-sunken/50 p-4 sm:flex-row sm:items-center sm:justify-between"
-          data-testid="delete-account-need-reauth"
-        >
-          <p className="flex items-center gap-2 text-meta text-foreground">
-            <ShieldAlert className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-            停用账号前需要先用当前密码验证身份。
-          </p>
-          <Link
-            to="/settings/security/re-authenticate?returnTo=/settings/data/delete-account"
-            className="focus-ring w-fit shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+    <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
+      <PageSection id="delete-heading" title="停用账号">
+        {!hasGrant ? (
+          <div
+            className="mb-5 flex flex-col gap-2 rounded-card border border-border/70 bg-surface-sunken/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+            data-testid="delete-account-need-reauth"
           >
-            去验证身份
-          </Link>
+            <p className="flex items-center gap-2 text-meta text-foreground">
+              <ShieldAlert className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              停用账号前需要先用当前密码验证身份。
+            </p>
+            <Link
+              to="/settings/security/re-authenticate?returnTo=/settings/data/delete-account"
+              className="focus-ring w-fit shrink-0 rounded-control bg-primary px-3 py-2 text-meta font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              去验证身份
+            </Link>
+          </div>
+        ) : null}
+
+        {/*
+          D=松：本页只有一个块，所以"松"体现在这一块的内部 —— 24px 卡内边距、更大的
+          行距、说明行单独占一行，而不是把四件事压成四条 12px 的清单。危险页应当
+          读起来比其它设置页更慢，这是它与 /settings/api-tokens 那种"表"密度页的
+          主要区别。
+        */}
+        <div className="overflow-hidden rounded-card border border-destructive/30 bg-destructive/[0.03]">
+          <div className="flex items-start gap-3 border-b border-destructive/20 px-6 py-5">
+            <span
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-chip bg-destructive/10 text-destructive"
+              aria-hidden
+            >
+              <AlertTriangle className="h-4 w-4" />
+            </span>
+            <p
+              role="alert"
+              data-testid="delete-account-warning"
+              className="text-card font-medium leading-6 text-destructive"
+            >
+              {ACCOUNT_DEACTIVATION_WARNING}
+            </p>
+          </div>
+
+          <ul
+            className="list-none divide-y divide-destructive/10 p-0"
+            data-testid="delete-account-facts"
+          >
+            {FACTS.map((fact) => (
+              <li key={fact} className="px-6 py-3.5 text-meta leading-6 text-muted-foreground">
+                {fact}
+              </li>
+            ))}
+          </ul>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canConfirm) void onConfirm();
+            }}
+            className="flex flex-col gap-3 border-t border-destructive/20 bg-destructive/[0.04] px-6 py-5 sm:flex-row sm:items-end"
+            data-testid="delete-account-form"
+          >
+            <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-meta text-foreground-soft">
+              请输入「{CONFIRM_PHRASE}」以确认
+              <input
+                type="text"
+                value={typed}
+                onChange={(event) => setTyped(event.target.value)}
+                className="focus-ring h-9 rounded-control border border-input bg-card px-3 text-sm text-foreground"
+              />
+            </label>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={!canConfirm}
+              data-testid="delete-account-confirm"
+              className="shrink-0"
+            >
+              {busy ? "处理中…" : ACCOUNT_DEACTIVATION_CONFIRM_LABEL}
+            </Button>
+          </form>
         </div>
-      ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-destructive/30 bg-destructive/[0.03]">
-        <div className="flex items-start gap-3 border-b border-destructive/20 px-4 py-4">
-          <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-destructive/10 text-destructive"
-            aria-hidden
-          >
-            <AlertTriangle className="h-4 w-4" />
-          </span>
+        {error ? (
           <p
             role="alert"
-            data-testid="delete-account-warning"
-            className="text-card font-medium leading-6 text-destructive"
+            data-testid="delete-account-error"
+            className="mt-5 rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
           >
-            {ACCOUNT_DEACTIVATION_WARNING}
+            {error}
           </p>
-        </div>
-
-        <ul
-          className="list-none divide-y divide-destructive/10 p-0"
-          data-testid="delete-account-facts"
-        >
-          {FACTS.map((fact) => (
-            <li key={fact} className="px-4 py-3 text-meta text-muted-foreground">
-              {fact}
-            </li>
-          ))}
-        </ul>
-
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (canConfirm) void onConfirm();
-          }}
-          className="flex flex-col gap-3 border-t border-destructive/20 bg-destructive/[0.04] px-4 py-4 sm:flex-row sm:items-end"
-          data-testid="delete-account-form"
-        >
-          <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-meta text-foreground-soft">
-            请输入「{CONFIRM_PHRASE}」以确认
-            <input
-              type="text"
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-              className="focus-ring h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground"
-            />
-          </label>
-          <Button
-            type="submit"
-            variant="destructive"
-            disabled={!canConfirm}
-            data-testid="delete-account-confirm"
-            className="shrink-0"
-          >
-            {busy ? "处理中…" : ACCOUNT_DEACTIVATION_CONFIRM_LABEL}
-          </Button>
-        </form>
-      </div>
-
-      {error ? (
-        <p
-          role="alert"
-          data-testid="delete-account-error"
-          className="rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
-    </div>
+        ) : null}
+      </PageSection>
+    </ArchetypeFrame>
   );
 }

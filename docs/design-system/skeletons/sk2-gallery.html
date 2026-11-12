@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SK2 画廊 · 桌面 1440 / 移动 390 | 星语骨架原型</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* ===== SK2 画廊：无卡面发现带 + 等权卡格（卡即链接）+ 可选右栏 320 ===== */
+
+      /* 发现带：没有面、没有边框，只有一条底线；eyebrow+标题+一句 */
+      .d-band {
+        padding: 34px var(--pad) 0;
+      }
+
+      .d-band h1 {
+        font-family: var(--display);
+        font-size: var(--fs-display);
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+        font-weight: 700;
+        margin-top: 10px;
+        max-width: 20em;
+      }
+
+      .d-band .sub {
+        margin-top: 10px;
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--ink-2);
+        max-width: 34em;
+      }
+
+      /* 筛选排序条：一条横向行，吸顶与否由壳层决定 */
+      .d-bar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px var(--pad);
+        margin-top: 20px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .d-filters {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .d-filters::-webkit-scrollbar {
+        display: none;
+      }
+
+      .d-filters a {
+        padding: 5px 12px;
+        border-radius: var(--r-pill);
+        border: 1px solid var(--line-2);
+        font-size: 12.5px;
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+
+      .d-filters a[aria-current="true"] {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--on-dark);
+      }
+
+      .d-sort {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-left: auto;
+        font-size: 12.5px;
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+
+      .d-sort a[aria-current="true"] {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* 等权卡格（卡即链接，卡面只有 1px 边）+ 可选右栏 320「精选」：
+         页面级是 1fr + 320 的非对称两列，格子里仍然人人同权。 */
+      .d-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 0 40px;
+        align-items: start;
+        padding: 26px var(--pad) 44px;
+      }
+
+      .d-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px;
+        padding: 0;
+      }
+
+      .d-card {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--line);
+        border-radius: var(--r-card);
+        background: var(--surface);
+        box-shadow: var(--shadow-1);
+        overflow: hidden;
+        transition: transform var(--t), box-shadow var(--t);
+      }
+
+      .d-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-2);
+      }
+
+      .d-card .cover {
+        aspect-ratio: 16 / 9;
+      }
+
+      .d-card .b {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1 1 auto;
+      }
+
+      .d-card .kind {
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+
+      .d-card h2 {
+        font-size: var(--fs-card);
+        line-height: 1.55;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+      }
+
+      .d-card p {
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--ink-3);
+        max-width: 30em;
+      }
+
+      .d-card .m {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: auto;
+        padding-top: 8px;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+
+      /* 右栏「精选」：两三条，靠发丝线与间距分开，不套卡片 */
+      .d-rail {
+        padding-left: 24px;
+        border-left: 1px solid var(--line);
+      }
+
+      .d-rail h2 {
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+
+      .d-pick {
+        display: flex;
+        gap: 12px;
+        padding: 14px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .d-pick:first-of-type {
+        border-top: 0;
+        padding-top: 12px;
+      }
+
+      .d-pick .cover {
+        display: block;
+        width: 64px;
+        height: 64px;
+        flex: 0 0 auto;
+        border-radius: 8px;
+      }
+
+      .d-pick h3 {
+        font-size: 13.5px;
+        line-height: 1.55;
+        font-weight: 600;
+      }
+
+      .d-pick p {
+        margin-top: 3px;
+        font-size: 11.5px;
+        line-height: 1.6;
+        color: var(--ink-3);
+      }
+
+      /* 移动：单列，发现带收薄，筛选条横向滚 */
+      .frame[data-width="390"] .d-band {
+        padding: 22px var(--pad) 0;
+      }
+
+      .frame[data-width="390"] .d-band h1 {
+        font-size: 26px;
+      }
+
+      .frame[data-width="390"] .d-bar {
+        padding: 12px var(--pad);
+        margin-top: 14px;
+        gap: 10px;
+      }
+
+      .frame[data-width="390"] .d-sort span {
+        display: none;
+      }
+
+      .frame[data-width="390"] .d-layout {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 18px var(--pad) 30px;
+      }
+
+      .frame[data-width="390"] .d-rail {
+        display: none;
+      }
+
+      .frame[data-width="390"] .d-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+      }
+
+      .frame[data-width="390"] .d-card {
+        flex-direction: row;
+      }
+
+      .frame[data-width="390"] .d-card .cover {
+        width: 104px;
+        flex: 0 0 auto;
+        aspect-ratio: auto;
+      }
+
+      .frame[data-width="390"] .d-card .b {
+        padding: 12px;
+        gap: 4px;
+      }
+
+      .frame[data-width="390"] .d-card p {
+        display: none;
+      }
+    </style>
+  </head>
+  <body data-sk="SK2">
+    <input id="zfit" class="sr-only" type="radio" name="zoom" checked />
+    <input id="z1" class="sr-only" type="radio" name="zoom" />
+
+    <header class="ghead">
+      <a class="gback" href="index.html">← 返回总览</a>
+      <div class="grow">
+        <span class="gnum">SK2</span>
+        <h1>画廊</h1>
+      </div>
+      <p class="gsub gpages">
+        <b>真实页面</b>（A §3，共 2 例以上）：<br />
+        <code>xingyu-web/src/features/discover/pages/DiscoverPage.tsx</code>
+        <code>xingyu-web/src/features/topics/pages/TopicsPage.tsx</code>
+        <code>xingyu-web/src/features/galaxies/pages/GalaxyListPage.tsx</code>
+        <code>xingyu-web/src/features/discover/pages/SearchPage.tsx</code>
+      </p>
+      <p class="gsub">
+        发现 / 话题 / 星系 / 活动 / 合集 / 创作者 / 搜索（17 页）。构图：
+        <b>无卡面的发现带</b>（eyebrow + 标题 + 一句 + 筛选排序条，只有一条底线，没有边框没有底纹）→
+        <b>等权卡格</b>（3 列，卡即链接，卡与卡完全同权）+ <b>可选右栏 320「编辑精选」</b>，
+        页面级是 1fr + 320 的非对称两列 → 移动端 1 列、右栏隐藏、筛选条横向滚。<br />
+        区别：首屏全是格子、没有正文段落，也没有量化带 —— 这一屏是「逛」。
+      </p>
+      <div class="gmeta">
+        <span class="chip">发现带 · 无卡面</span>
+        <span class="chip">等权卡格 · 3 列</span>
+        <span class="chip">非对称 · 1fr + 320 精选</span>
+        <span class="chip">卡即链接</span>
+      </div>
+      <div class="gtool">
+        <span>缩放</span>
+        <div class="seg" role="group" aria-label="桌面原型缩放">
+          <label for="zfit">适应宽度 58%</label>
+          <label for="z1">1:1 原尺寸</label>
+        </div>
+      </div>
+      <nav class="gswitcher" aria-label="原型切换">
+        <a href="sk1-reading.html">SK1 阅读栏</a>
+        <a href="sk2-gallery.html" aria-current="page">SK2 画廊</a>
+        <a href="sk3-console.html">SK3 控制台</a>
+        <a href="sk4-inbox.html">SK4 收件箱</a>
+        <a href="sk5-flow.html">SK5 流程</a>
+        <a href="sk6-feed.html">SK6 信息流</a>
+        <a href="sk7-reader.html">SK7 阅读器</a>
+        <a href="sk8-canvas.html">SK8 创作台</a>
+      </nav>
+    </header>
+
+    <main class="stage" id="main">
+      <figure class="shot">
+        <figcaption>
+          <strong>1440</strong> 桌面
+          <em>· 发现带 + 3 列等权卡格</em>
+        </figcaption>
+        <div class="frame" data-sk="SK2" data-width="1440" role="group" aria-label="桌面原型，1440 宽">
+          <header class="topbar">
+            <a class="brand" href="index.html">星语</a>
+            <nav class="nav" aria-label="主导航">
+              <a href="#">首页</a>
+              <a href="#" aria-current="page">探索</a>
+              <a href="#">话题</a>
+              <a href="#">系列</a>
+              <a href="#">星系</a>
+              <a href="#">动态</a>
+              <a href="#">指南</a>
+            </nav>
+            <p class="search">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="9" cy="9" r="5.5" />
+                <path d="m13.5 13.5 3 3" />
+              </svg>
+              搜索文章、话题或作者
+            </p>
+            <div class="dock">
+              <button class="btn btn--ink btn--sm" type="button">创作</button>
+              <button class="icon" type="button" aria-label="通知（3 条未读）">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M10 3.2a5 5 0 0 0-5 5v3.3L4 14.2h12l-1-2.7V8.2a5 5 0 0 0-5-5Z" />
+                  <path d="M8.2 16.4a1.9 1.9 0 0 0 3.6 0" />
+                </svg>
+                <span class="dot">3</span>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <div class="page">
+            <div class="d-band">
+              <p class="eyebrow">探索</p>
+              <h1>正在发生的事</h1>
+              <p class="sub">14 篇新文章、3 个连载中的系列、2 场本周活动 —— 按你的兴趣排过序。</p>
+            </div>
+
+            <div class="d-bar">
+              <nav class="d-filters" aria-label="内容类型">
+                <a href="#" aria-current="true">全部</a>
+                <a href="#">文章</a>
+                <a href="#">系列</a>
+                <a href="#">话题</a>
+                <a href="#">活动</a>
+                <a href="#">创作者</a>
+              </nav>
+              <div class="d-sort" role="group" aria-label="排序">
+                <span>排序</span>
+                <a href="#" aria-current="true">推荐</a>
+                <a href="#">最新</a>
+                <a href="#">最热</a>
+              </div>
+            </div>
+
+            <div class="d-layout">
+            <div class="d-grid">
+              <a class="d-card" href="sk1-reading.html">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">文章</span>
+                  <h2>在县城的旧书店里，我重新学会慢下来</h2>
+                  <p>它不卖畅销书，只把六万册旧书按自己的脾气堆到天花板。</p>
+                  <div class="m"><span>林晚</span><span aria-hidden="true">·</span><span>喜欢 128</span><span aria-hidden="true">·</span><span>11月3日</span></div>
+                </div>
+              </a>
+
+              <a class="d-card" href="#">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">文章</span>
+                  <h2>县城的早市为什么在七点半就散了</h2>
+                  <p>散场不是结束，是一场没有人宣布、但所有人都遵守的默契。</p>
+                  <div class="m"><span>周野</span><span aria-hidden="true">·</span><span>喜欢 86</span><span aria-hidden="true">·</span><span>11月9日</span></div>
+                </div>
+              </a>
+
+              <a class="d-card" href="sk6-feed.html">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">系列</span>
+                  <h2>城市观察笔记</h2>
+                  <p>写一个县城如何被时间慢慢改动，每章一件事。</p>
+                  <div class="m"><span>林晚</span><span aria-hidden="true">·</span><span>共 8 章</span><span aria-hidden="true">·</span><span>订阅 92</span></div>
+                </div>
+              </a>
+
+              <a class="d-card" href="#">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">话题</span>
+                  <h2># 县城生活</h2>
+                  <p>在小地方生活的人，都在写什么。</p>
+                  <div class="m"><span>128 篇文章</span><span aria-hidden="true">·</span><span>本周 +12</span></div>
+                </div>
+              </a>
+
+              <a class="d-card" href="#">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">文章</span>
+                  <h2>我在地图上找不到的那条河</h2>
+                  <p>它在我小时候的作文里流过，在行政图上只剩一条虚线。</p>
+                  <div class="m"><span>阿禾</span><span aria-hidden="true">·</span><span>喜欢 61</span><span aria-hidden="true">·</span><span>11月8日</span></div>
+                </div>
+              </a>
+
+              <a class="d-card" href="#">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">活动</span>
+                  <h2>线下写作工作坊 · 县城观察笔记</h2>
+                  <p>十一月十六日，带一篇 800 字的草稿来，我们只改开头。</p>
+                  <div class="m"><span>11/16 14:00</span><span aria-hidden="true">·</span><span>剩 6 个名额</span></div>
+                </div>
+              </a>
+            </div>
+
+            <aside class="d-rail" aria-label="编辑精选">
+              <h2>编辑精选</h2>
+              <a class="d-pick" href="sk1-reading.html">
+                <span class="cover" aria-hidden="true"></span>
+                <div>
+                  <h3>在县城的旧书店里，我重新学会慢下来</h3>
+                  <p>林晚 · 喜欢 128</p>
+                </div>
+              </a>
+              <a class="d-pick" href="#">
+                <span class="cover" aria-hidden="true"></span>
+                <div>
+                  <h3>写给第一次投稿的人：编辑到底在看什么</h3>
+                  <p>星语编辑组 · 喜欢 212</p>
+                </div>
+              </a>
+              <a class="d-pick" href="sk7-reader.html">
+                <span class="cover" aria-hidden="true"></span>
+                <div>
+                  <h3>城市观察笔记 · 第 3 章</h3>
+                  <p>系列 · 共 8 章 · 订阅 92</p>
+                </div>
+              </a>
+            </aside>
+            </div>
+          </div>
+
+          <footer class="foot">
+            <span>星语</span>
+            <a href="#">公告</a>
+            <a href="#">社区活动</a>
+            <a href="#">探索创作者</a>
+            <a href="#">社区规则</a>
+            <span style="margin-left: auto">© 2026 星语社区</span>
+          </footer>
+        </div>
+      </figure>
+
+      <figure class="shot">
+        <figcaption>
+          <strong>390</strong> 移动
+          <em>· 发现带收薄 / 筛选条横滚 / 单列横卡</em>
+        </figcaption>
+        <div class="frame" data-sk="SK2" data-width="390" role="group" aria-label="移动原型，390 宽">
+          <header class="topbar">
+            <button class="icon" type="button" aria-label="打开导航菜单" aria-expanded="false">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="M3 6h14M3 10h14M3 14h14" />
+              </svg>
+            </button>
+            <a class="brand" href="index.html">星语</a>
+            <div class="dock">
+              <button class="icon" type="button" aria-label="搜索">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <circle cx="9" cy="9" r="5.5" />
+                  <path d="m13.5 13.5 3 3" />
+                </svg>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <div class="page">
+            <div class="d-band">
+              <p class="eyebrow">探索</p>
+              <h1>正在发生的事</h1>
+            </div>
+
+            <div class="d-bar">
+              <nav class="d-filters" aria-label="内容类型">
+                <a href="#" aria-current="true">全部</a>
+                <a href="#">文章</a>
+                <a href="#">系列</a>
+                <a href="#">话题</a>
+              </nav>
+              <div class="d-sort"><a href="#" aria-current="true">推荐</a></div>
+            </div>
+
+            <div class="d-grid">
+              <a class="d-card" href="sk1-reading.html">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">文章</span>
+                  <h2>在县城的旧书店里，我重新学会慢下来</h2>
+                  <div class="m"><span>林晚 · 喜欢 128</span></div>
+                </div>
+              </a>
+              <a class="d-card" href="#">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">文章</span>
+                  <h2>县城的早市为什么在七点半就散了</h2>
+                  <div class="m"><span>周野 · 喜欢 86</span></div>
+                </div>
+              </a>
+              <a class="d-card" href="sk6-feed.html">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">系列</span>
+                  <h2>城市观察笔记</h2>
+                  <div class="m"><span>共 8 章 · 订阅 92</span></div>
+                </div>
+              </a>
+              <a class="d-card" href="#">
+                <div class="cover" aria-hidden="true"></div>
+                <div class="b">
+                  <span class="kind">话题</span>
+                  <h2># 县城生活</h2>
+                  <div class="m"><span>128 篇文章</span></div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </main>
+
+    <footer class="gfoot">
+      真实字段来源：<code>DiscoverPage</code> / <code>SearchPage</code> / <code>TopicsPage</code> /
+      <code>GalaxyListPage</code> / <code>EventsPage</code> / <code>CollectionsPage</code> / <code>CreatorsPage</code>
+      共用的条目摘要：<code>title / summary / authorName / likeCount / chapterCount / startAt</code>
+      （与 SK6 同一套 <code>HomeFeedItem</code> 字段）；类型标签对应 <code>objectType</code>。
+    </footer>
+  </body>
+</html>

@@ -218,17 +218,22 @@ describe("MomentsPage", () => {
   });
 
   /*
-   * The rail. 「关于动态」 used to sit BELOW the feed as a footer section, which
-   * on a 20-card page meant nobody reached it. It is context about the page, not
-   * content on it, so it moves to the side column — hidden below `lg`, where it
-   * would only add scrolling.
+   * 关于动态（2026-11-10 · 批次 W1 改判）。
+   *
+   * 这条用例原来断言「关于动态」在一条 `hidden lg:block` 的 `complementary` 侧轨里。
+   * 阶段三把本页的轴定为 SK2 · 线/紧/**齐**（A §3 的 /moments 行），而 R=齐 的定义是
+   * 「全部区块与内容列同宽同边」—— 保留一条 sticky 侧轨会同时违反 R=齐 与 A §2 的
+   * 四元组判定。所以这一块回到内容流末尾，成为页脚说明。
+   *
+   * 被有意改变的只有**视觉结构**这一条：标题仍是「关于动态」，正文一字未改。
+   * 断言的意图（这条说明必须存在于页面上并且有名字）保持，只是把「在侧轨里」
+   * 换成「在流里、且页面没有侧轨」。
    */
-  it("moves the notes into a labelled side rail", async () => {
+  it("keeps the notes in the flow instead of a side rail", async () => {
     mocked.list.mockResolvedValue([]);
     renderFeed();
-    const rail = await screen.findByRole("complementary", { name: "关于动态" });
-    expect(rail).toHaveClass("hidden", "lg:block");
-    expect(screen.getByRole("heading", { name: "关于动态" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "关于动态" })).toBeInTheDocument();
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
   it("sends a guest who tries to publish to login with returnTo=/moments", async () => {

@@ -4,6 +4,8 @@ import { Lock, Sparkles } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { badgesApi } from "@/api/badges/badges.api";
 import type { BadgeView } from "@/api/badges/badges.types";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageHero } from "@/components/shared/PageHero";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -38,6 +40,19 @@ import {
  *
  * Locked badges keep the server's criterion text as the description — it says
  * what to do. We never replace it with friendlier prose that drops the bar.
+ *
+ * 骨架（A §3 `/me/*` 表 · AchievementBadges = SK2 · 幅/松/齐）
+ * ---------------------------------------------------------
+ * H=幅：`PageHero` 横幅（有面、带边框，标题 600）。空态分支也用同一个横幅 ——
+ *       H 是页面身份而不是「有数据时才出现的装饰」，读不到数据时页头不该消失。
+ * D=松：每个徽章是一块独立小卡面（状态 chip + 名称 + 判定条件），首屏至多三块。
+ * R=齐：没有 rail —— 本页与收藏夹列表（同为 幅/松/齐）的区分不在页头而在条目
+ *       内部：这里是「方形徽章块，无缩略图、无第二链接」，收藏夹是「双链接卡」。
+ * 母题只用 0 处：这一页的视觉锚点是徽章本身的点亮/未点亮态，再叠一层背景纹理会
+ * 抢走「已点亮」这个唯一的状态信号（B §7 R8 的锚点由 Sparkles/Lock 图标承担）。
+ *
+ * 行为与文案未变：`badgesApi.list()`、`reloadKey` 重试、三态、`徽章列表` landmark、
+ * `data-testid`（badge-* / badge-state-* / badge-unknown-note）逐条保留。
  */
 
 type LoadState =
@@ -120,16 +135,18 @@ export function AchievementBadgesPage() {
     // happens, say so plainly rather than implying "you have earned nothing" —
     // the difference matters, and the user cannot tell them apart otherwise.
     return (
-      <div className="section-gap">
-        <header className="border-b border-border/70 pb-5">
-          <h1 className="text-2xl font-semibold tracking-tight text-primary">徽章成就</h1>
-        </header>
+      <ArchetypeFrame
+        skeleton="SK2"
+        header="banner"
+        density="loose"
+        headerSlot={<PageHero title="徽章成就" />}
+      >
         <PageState
           kind="empty"
           title="没有读到徽章"
           description="徽章列表由系统统一提供，这里没有读到任何条目。这通常意味着数据异常，而不是你尚未点亮任何徽章。"
         />
-      </div>
+      </ArchetypeFrame>
     );
   }
 
@@ -137,34 +154,42 @@ export function AchievementBadgesPage() {
   const earnedCount = countEarned(badges);
 
   return (
-    <div className="section-gap">
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">徽章成就</h1>
-        <p className="lede mt-2 max-w-2xl">
-          徽章由你的社区行为实时判定：创作、关注、完善资料都会改变它们的状态。
-        </p>
-      </header>
-
-      <section className="rounded-xl border border-border/70 bg-card p-5">
-        <h2 className="section-heading">当前进度</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          当前已点亮 <strong className="text-primary">{earnedCount}</strong> 枚，共{" "}
-          <strong className="text-foreground">{badges.length}</strong> 枚徽章。
+    <ArchetypeFrame
+      skeleton="SK2"
+      header="banner"
+      density="loose"
+      headerSlot={
+        <PageHero
+          title="徽章成就"
+          description="徽章由你的社区行为实时判定：创作、关注、完善资料都会改变它们的状态。"
+        />
+      }
+    >
+      <section aria-labelledby="badges-progress-heading" className="min-w-0">
+        <div className="flex items-baseline justify-between gap-4 border-b border-border/70 pb-2">
+          <h2 id="badges-progress-heading" className="section-heading">
+            当前进度
+          </h2>
+          <span className="text-caption tabular-nums text-muted-foreground">
+            已点亮 {earnedCount} / {badges.length}
+          </span>
+        </div>
+        <p className="mt-3 text-body text-muted-foreground">
+          当前已点亮 <strong className="tabular-nums text-primary">{earnedCount}</strong> 枚，共{" "}
+          <strong className="tabular-nums text-foreground">{badges.length}</strong> 枚徽章。
         </p>
         {/* No progress bar as a "level": there is no backend level concept and
             the total is a fixed five, so a bar would be decoration with a
             science-fiction denominator. */}
       </section>
 
-      <section className="rounded-xl border border-border/70 bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="section-heading">全部徽章</h2>
-          <span className="text-xs text-muted-foreground">
-            已点亮 {earnedCount} / {badges.length}
-          </span>
-        </div>
-
-        <ul aria-label="徽章列表" className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
+      <section aria-label="全部徽章" className="min-w-0">
+        <h2 className="section-heading">全部徽章</h2>
+        {/* D=松：等权卡格。两列在中屏、三列在宽屏；卡面与间距全部走密度变量。 */}
+        <ul
+          aria-label="徽章列表"
+          className="mt-3 grid gap-[var(--density-grid-gap)] sm:grid-cols-2 lg:grid-cols-3"
+        >
           {displayed.map((badge) => {
             const tone = badgeTone(badge);
             const earned = tone === "earned";
@@ -173,8 +198,8 @@ export function AchievementBadgesPage() {
                 key={badge.id}
                 data-testid={`badge-${badge.id}`}
                 className={cn(
-                  "flex flex-col gap-2 rounded-lg border p-4",
-                  earned ? "border-accent/50 bg-accent/5" : "border-border bg-card opacity-80",
+                  "flex flex-col gap-2 rounded-card border p-[var(--density-card-pad)]",
+                  earned ? "border-border-strong bg-card" : "border-border bg-card",
                 )}
               >
                 <div className="flex items-center justify-between">
@@ -186,24 +211,24 @@ export function AchievementBadgesPage() {
                   <span
                     data-testid={`badge-state-${badge.id}`}
                     className={cn(
-                      "rounded-full border px-2 py-0.5 text-xs",
+                      "rounded-pill border px-2 py-0.5 text-caption",
                       earned
-                        ? "border-accent/50 text-accent-strong"
+                        ? "border-border-strong text-primary"
                         : "border-border text-muted-foreground",
                     )}
                   >
                     {tone === "unknown" ? "状态未知" : earned ? "已点亮" : "未点亮"}
                   </span>
                 </div>
-                <h3 className="text-sm font-semibold text-foreground">{badgeTitle(badge)}</h3>
-                <p className="text-xs text-muted-foreground">{badgeDescription(badge)}</p>
+                <h3 className="text-h3 text-primary">{badgeTitle(badge)}</h3>
+                <p className="text-caption text-muted-foreground">{badgeDescription(badge)}</p>
               </li>
             );
           })}
         </ul>
 
         {hasUnknownBadges(badges) ? (
-          <p className="px-5 pb-5 text-xs text-muted-foreground" data-testid="badge-unknown-note">
+          <p className="mt-3 text-caption text-muted-foreground" data-testid="badge-unknown-note">
             列表里有本页还不认识的徽章，已原样展示。页面更新后可显示完整说明。
           </p>
         ) : null}
@@ -214,6 +239,6 @@ export function AchievementBadgesPage() {
           去创作中心
         </Link>
       </p>
-    </div>
+    </ArchetypeFrame>
   );
 }

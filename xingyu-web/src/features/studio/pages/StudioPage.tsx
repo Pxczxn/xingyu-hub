@@ -12,6 +12,7 @@ import {
   submissionStatusLabel,
   submissionTitle,
 } from "@/api/submissions/submissions.types";
+import { ArchetypeFrame } from "@/components/layout";
 import { useAuth } from "@/features/auth/auth.store";
 import { formatArticleTime } from "@/features/studio/content-list";
 import { staggerDelay } from "@/lib/stagger";
@@ -21,26 +22,21 @@ import { staggerDelay } from "@/lib/stagger";
  * Access is protected by the RequireAuth guard in the router (raised to the
  * pathless parent in 批次 06), so this page only renders for signed-in users.
  *
- * Phase 3G removed the last placeholder here. The article editor was shipped in
- * Phase 1C, but nothing linked to it — this hub pointed at a dead "已发布占位"
- * string because `/studio/content` (the list route) did not exist. That route
- * now exists, so the hub offers real entries: 新建文章 / 我的内容 / 我的系列.
+ * 骨架迁移（批次 D）：SK3 控制台 · H 壳 / D 松 / R 齐
+ * ------------------------------------------------
+ *   SK3  `ArchetypeFrame skeleton="SK3"` 给出控制台栅格。这一页不传 `rail`，
+ *        于是 frame 走 `SOLO.SK3`（单列、与内容列同宽同边）—— 那就是 R=齐。
+ *   H=壳  `WorkbenchShell.tsx:15-29` 明写它只渲染 `[StudioNav | Outlet]`、
+ *        **不输出任何 heading**（并被 `studio-2n-routes.test.tsx` 的反向断言钉住）。
+ *        因此本页不能靠壳层拿标题，必须自己给恰好 1 个 `h1`；而 B 类壳的意义
+ *        是「首块即内容」，视觉上不设大标题位，所以这个 h1 是 `sr-only`
+ *        （A §7.2 / A §7.4 判定 5′，样板见 `StudioAnalyticsPage.tsx:164`）。
+ *   D=松  每个可独立理解的东西是一张独立卡面，首屏不超过 3 块；卡内 padding 与
+ *        卡间距走 `--density-card-pad` / `--density-list-gap`，由 frame 的
+ *        `density="loose"` 重新指向 24 / 16 —— 也就是说 D 轴是这套变量在生效，
+ *        不是各页各写一套数字（B §2 三档表是唯一来源）。
  *
- * 2026-10-03 structure pass — ORDERED BY FREQUENCY, not by equal weight.
- *
- * 2026-10-13 (批次 06, 设计方案 §3.6) — TASK-DRIVEN, not a card matrix.
- *
- * The page used to be a welcome banner followed by SIX identical cards, one per
- * destination. Two problems, both recorded in the design doc:
- *
- *   1. A studio hub is opened to DO something. The most common intent is
- *      "write something" and the second is "go back to what I was writing" —
- *      both were competing with cards about analytics and invite links that a
- *      creator needs a few times a year.
- *   2. Six equal cards is a menu, not an answer. It moved the decision ("which
- *      of these six do I want?") onto the reader, on every single visit.
- *
- * Now the page is ordered by what the reader came to do:
+ * 页面结构（P0 → P3）保持不变，这一批只改呈现层：
  *
  *   P0  继续创作 (most recent draft) + 写新文章  — same band, side by side
  *   P1  待处理事项 — compact rows, only when there is something waiting
@@ -58,10 +54,26 @@ import { staggerDelay } from "@/lib/stagger";
  * be read. Folding the two together would make "you have nothing" and "we could
  * not find out" look identical, which is the exact Legacy failure the analytics
  * page was rewritten to fix.
+ *
+ * 2026-10-13 (批次 06, 设计方案 §3.6) — TASK-DRIVEN, not a card matrix. The page
+ * used to be a welcome banner followed by SIX identical cards, one per
+ * destination; a studio hub is opened to DO something, so it is ordered by what
+ * the reader came to do and the six destinations stay in `StudioNav`.
  */
 
 /** A remote read in one of exactly three states. See the degradation note above. */
 type Remote<T> = { kind: "loading" } | { kind: "error" } | { kind: "ready"; data: T };
+
+/** 数据概览的四格。放在量化带上而不是六张卡：同一把尺子才可比（SK3 的量化带）。 */
+const OVERVIEW: ReadonlyArray<{ key: keyof InsightsView; label: string; unit?: string }> = [
+  // 口径：articleCount 只算 PUBLISHED（draftCount 才是 DRAFT，且含回收站），
+  // 所以这里不摆草稿数 —— 同一页里出现两个不同口径的「文章数」比少一个数字更糟。
+  // 完整六个数字在 /studio/analytics。
+  { key: "articleCount", label: "已发布文章", unit: "篇" },
+  { key: "likeCount", label: "获得喜欢" },
+  { key: "commentCount", label: "收到评论" },
+  { key: "followerCount", label: "粉丝" },
+];
 
 /**
  * Empty-string titles are real: `HomeService` falls back to 「未命名草稿」 only
@@ -71,6 +83,9 @@ type Remote<T> = { kind: "loading" } | { kind: "error" } | { kind: "ready"; data
 function draftTitle(draft: ContentSummary): string {
   return draft.title?.trim() || "未命名草稿";
 }
+
+/** 松档卡面：白底 + 1px 发丝线，E0 无阴影（B §3 判据 2/3 —— 文档流内的卡永远不带 E1）。 */
+const SURFACE = "rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]";
 
 export function StudioPage() {
   const { user } = useAuth();
@@ -131,30 +146,29 @@ export function StudioPage() {
     pending.kind === "ready" ? pending.data.filter((item) => isSubmissionPending(item.status)) : [];
 
   return (
-    <div className="section-gap">
-      {/* ── P0 · 继续创作 + 新建 ─────────────────────────────────────────── */}
-      <section className="flex flex-col gap-5" aria-labelledby="studio-title">
-        <header className="flex flex-col gap-1.5">
-          <p className="eyebrow">STUDIO</p>
-          <h1 id="studio-title" className="text-2xl font-semibold tracking-tight text-primary">
-            创作中心
-          </h1>
-          <p className="max-w-prose text-meta leading-6 text-muted-foreground">
-            {user?.username ? `${user.username}，欢迎回来。` : "欢迎回来。"}
-            在这里管理你的文章、系列与投稿。
-          </p>
-        </header>
+    <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
+      {/* B 类壳：壳层没有 heading，页内必须恰好 1 个。视觉首块仍然是内容。 */}
+      <h1 id="studio-title" className="sr-only">
+        创作中心
+      </h1>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,272px)]">
+      {/* ── P0 · 继续创作 + 新建 ─────────────────────────────────────────── */}
+      <section className="flex flex-col gap-[var(--density-list-gap)]" aria-labelledby="studio-title">
+        <p className="max-w-prose text-meta leading-6 text-muted-foreground">
+          {user?.username ? `${user.username}，欢迎回来。` : "欢迎回来。"}
+          在这里管理你的文章、系列与投稿。
+        </p>
+
+        <div className="grid gap-[var(--density-grid-gap)] lg:grid-cols-[minmax(0,1fr)_minmax(0,272px)]">
           {draft.kind === "loading" ? (
-            <div className="flex flex-col justify-center rounded-xl border border-border/70 bg-card p-5">
+            <div className={`flex flex-col justify-center ${SURFACE}`}>
               <p className="text-meta text-muted-foreground" role="status">
                 正在读取草稿…
               </p>
             </div>
           ) : draft.kind === "error" ? (
             <div
-              className="flex flex-col justify-center gap-1.5 rounded-xl border border-border/70 bg-card p-5"
+              className={`flex flex-col justify-center gap-1.5 ${SURFACE}`}
               data-testid="draft-unavailable"
             >
               <p className="eyebrow">继续创作</p>
@@ -166,34 +180,29 @@ export function StudioPage() {
             // Whole card is the target. The action inside is a <span> styled as a
             // button — an <a> cannot nest inside an <a>.
             //
-            // `card-lift` is honest here, but its own `:hover{border-color: --border}`
-            // must not win: this card is gold at rest (`accent-soft` fill,
-            // `accent-line/50` edge), so its hover has to sharpen the gold, not
-            // neutralise it. `hover:border-accent-line` is emitted in the utilities
-            // layer, which comes after the component layer `.card-lift` lives in, so
-            // it does win. Deleting it would turn the card grey on hover.
+            // 这一张卡是整屏唯一「可点/继续」的独立卡面，所以给它唯一的强调面
+            // （`bg-muted` 底 + 更实的边），而不是给页头调色。B §4：强调只做
+            // 功能性的指示，不做整块彩色。
             <Link
               to={`/studio/content/${encodeURIComponent(recentDraft.id)}`}
-              className="group card-lift focus-ring flex flex-col justify-between gap-4 rounded-xl border border-accent-line/50 bg-accent-soft/40 p-5 hover:border-accent-line"
+              className="group card-lift focus-ring flex flex-col justify-between gap-4 rounded-card border border-border-strong/40 bg-muted/60 p-[var(--density-card-pad)] transition-colors hover:border-border-strong/70"
             >
               <div className="flex min-w-0 flex-col gap-1.5">
                 <p className="eyebrow">继续创作</p>
-                <p className="text-lg font-semibold leading-7 text-primary">
-                  {draftTitle(recentDraft)}
-                </p>
+                <p className="text-h3 break-words text-primary">{draftTitle(recentDraft)}</p>
                 {draftUpdatedAt ? (
                   <p className="text-meta text-muted-foreground">
                     最近更新于 {formatArticleTime(draftUpdatedAt)}
                   </p>
                 ) : null}
               </div>
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-md border border-accent-line bg-card px-3 py-1.5 text-meta font-medium text-accent-strong">
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-chip border border-border-strong/50 bg-card px-3 py-1.5 text-meta font-medium text-primary">
                 继续编辑
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </span>
             </Link>
           ) : (
-            <div className="flex flex-col justify-center gap-1.5 rounded-xl border border-dashed border-border bg-card/50 p-5">
+            <div className={`flex flex-col justify-center gap-1.5 border-dashed ${SURFACE}`}>
               <p className="eyebrow">继续创作</p>
               <p className="text-meta leading-6 text-muted-foreground">
                 还没有草稿。写下第一篇文章，它会出现在这里。
@@ -201,13 +210,13 @@ export function StudioPage() {
             </div>
           )}
 
-          <div className="flex flex-col justify-center gap-4 rounded-xl border border-border/70 bg-card p-5">
+          <div className={`flex flex-col justify-center gap-4 ${SURFACE}`}>
             <p className="text-meta leading-6 text-muted-foreground">
               从一张空白页开始，写好后再决定什么时候提交。
             </p>
             <Link
               to="/studio/content/new"
-              className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2.5 text-meta font-medium text-accent-foreground transition-opacity hover:opacity-90"
+              className="focus-ring inline-flex items-center justify-center gap-2 rounded-control bg-primary px-4 py-2.5 text-meta font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
             >
               <PenLine className="h-4 w-4" aria-hidden />
               写新文章
@@ -222,15 +231,21 @@ export function StudioPage() {
           暂时无法读取审核进度，因此这里不显示待处理事项。
         </p>
       ) : waiting.length > 0 ? (
-        <section className="flex flex-col gap-3" aria-labelledby="studio-pending-title">
+        <section
+          className="flex flex-col gap-[var(--density-heading-gap)]"
+          aria-labelledby="studio-pending-title"
+        >
           <h2 id="studio-pending-title" className="section-heading">
             待处理事项
           </h2>
-          <ul aria-label="待处理事项" className="flex list-none flex-col gap-2 p-0">
+          <ul
+            aria-label="待处理事项"
+            className="flex list-none flex-col gap-[var(--density-list-gap)] p-0"
+          >
             {waiting.map((item, index) => (
               <li
                 key={item.id}
-                className="animate-rise-in flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border/70 bg-card px-4 py-3"
+                className="animate-rise-in flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-control border border-border/70 bg-card px-4 py-3"
                 /* Inline, not a class: `animate-rise-in` resets `animation-delay`
                    whenever both land on the same element (lib/stagger.ts). */
                 style={{ animationDelay: staggerDelay(index) }}
@@ -238,8 +253,8 @@ export function StudioPage() {
                 <span className="min-w-0 truncate text-meta text-primary">
                   {submissionTitle(item)}
                 </span>
-                <span className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                  <span className="rounded-full border border-border px-2 py-0.5">
+                <span className="flex shrink-0 items-center gap-3 text-caption text-muted-foreground">
+                  <span className="rounded-pill border border-border px-2 py-0.5">
                     {submissionStatusLabel(item.status)}
                   </span>
                   <Link
@@ -256,44 +271,36 @@ export function StudioPage() {
       ) : null}
 
       {/* ── P2 · 数据概览 ───────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3" aria-labelledby="studio-insights-title">
+      <section
+        className="flex flex-col gap-[var(--density-heading-gap)]"
+        aria-labelledby="studio-insights-title"
+      >
         <h2 id="studio-insights-title" className="section-heading">
           数据概览
         </h2>
         {insights.kind === "ready" ? (
-          <ul
-            aria-label="数据概览"
-            className="flex list-none flex-wrap items-center gap-x-6 gap-y-2 p-0 text-meta text-muted-foreground"
-          >
-            {/* 口径：articleCount 只算 PUBLISHED（draftCount 才是 DRAFT，且含回收站），
-                所以这里不摆草稿数 —— 同一页里出现两个不同口径的「文章数」比少一个数字更糟。
-                完整六个数字在 /studio/analytics。 */}
-            <li>
-              已发布文章{" "}
-              <span className="text-base font-semibold text-primary">
-                {insights.data.articleCount}
-              </span>{" "}
-              篇
-            </li>
-            <li>
-              获得喜欢{" "}
-              <span className="text-base font-semibold text-primary">
-                {insights.data.likeCount}
-              </span>
-            </li>
-            <li>
-              收到评论{" "}
-              <span className="text-base font-semibold text-primary">
-                {insights.data.commentCount}
-              </span>
-            </li>
-            <li>
-              粉丝{" "}
-              <span className="text-base font-semibold text-primary">
-                {insights.data.followerCount}
-              </span>
-            </li>
-          </ul>
+          /* SK3 的量化带：一个面、被发丝线切开的格子（`gap-px` 压在边框色的底上，
+             列数怎么变都不用逐格补边），而不是四张各自悬浮的卡。 */
+          <div className="overflow-hidden rounded-card border border-border/70 bg-border/60">
+            <ul aria-label="数据概览" className="grid grid-cols-2 gap-px sm:grid-cols-4">
+              {OVERVIEW.map((metric) => (
+                <li
+                  key={metric.key}
+                  className="bg-card px-4 py-3"
+                >
+                  <p className="text-meta text-muted-foreground">{metric.label}</p>
+                  <p className="mt-1 flex items-baseline gap-1">
+                    <span className="text-h2 tabular-nums text-primary">
+                      {insights.data[metric.key]}
+                    </span>
+                    {metric.unit ? (
+                      <span className="text-caption text-muted-foreground">{metric.unit}</span>
+                    ) : null}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : insights.kind === "error" ? (
           <p className="text-meta text-muted-foreground" data-testid="insights-unavailable">
             暂时无法读取数据概览。
@@ -315,9 +322,7 @@ export function StudioPage() {
         Listing them again here would be the same information a second time, and
         would give the two copies identical accessible names ("我的系列" twice),
         which is both a duplicate-link annoyance for screen readers and an
-        ambiguity for any role-based query. The rule that produced this decision
-        is the one the design doc states for the shell: navigation lives in the
-        shell, the page answers one question.
+        ambiguity for any role-based query.
       */}
       <Link
         to="/"
@@ -325,6 +330,6 @@ export function StudioPage() {
       >
         返回首页
       </Link>
-    </div>
+    </ArchetypeFrame>
   );
 }

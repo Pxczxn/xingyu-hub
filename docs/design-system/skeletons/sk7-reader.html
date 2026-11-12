@@ -1,0 +1,520 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SK7 阅读器 · 桌面 1440 / 移动 390 | 星语骨架原型</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* ===== SK7 阅读器：吸顶工具条 + 全幅头图 + [256 目录 | measure] 居中 =====
+         壳层让位（更窄的内容边距），阅读器自己决定边距与工具条。 */
+
+      .r-bar {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        height: 52px;
+        padding: 0 40px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: saturate(140%) blur(6px);
+      }
+
+      .r-bar .where {
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .r-bar .where b {
+        font-size: 13.5px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .r-bar .where span {
+        font-size: 12px;
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+
+      .r-progress {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+        font-size: 11.5px;
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+
+      .r-progress .meter {
+        width: 96px;
+      }
+
+      .r-tools {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding-left: 12px;
+        border-left: 1px solid var(--line);
+      }
+
+      .r-tools button {
+        display: grid;
+        place-items: center;
+        min-width: 28px;
+        height: 26px;
+        padding: 0 6px;
+        border: 1px solid var(--line-2);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--ink-2);
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .r-tools button:hover {
+        border-color: var(--ink-3);
+        color: var(--ink);
+      }
+
+      /* 全幅出血头图：这一屏唯一允许的出血区 */
+      .r-hero {
+        position: relative;
+        height: 240px;
+        overflow: hidden;
+        background:
+          radial-gradient(110% 90% at 82% 10%, rgba(17, 24, 39, 0.05), transparent 58%),
+          radial-gradient(90% 80% at 12% 96%, rgba(17, 24, 39, 0.04), transparent 60%),
+          linear-gradient(158deg, #eef0f2 0%, #e3e6e9 62%, #dbdee2 100%);
+      }
+
+      .r-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -10% -70% 38%;
+        height: 130%;
+        border-radius: 50%;
+        border: 1px solid rgba(17, 24, 39, 0.08);
+        transform: rotate(-12deg);
+      }
+
+      .r-hero .cap {
+        position: absolute;
+        left: 40px;
+        bottom: 20px;
+        right: 40px;
+        color: var(--ink);
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+      }
+
+      /* 双栏：[目录 256 sticky | measure 居中] —— 整体在画布里居中 */
+      .r-body {
+        display: grid;
+        grid-template-columns: 256px minmax(0, 68ch);
+        gap: 0 56px;
+        justify-content: center;
+        padding: 40px 40px 0;
+        align-items: start;
+      }
+
+      .r-toc {
+        position: sticky;
+        top: 76px;
+      }
+
+      .r-toc h2 {
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+
+      .r-toc ol {
+        margin-top: 12px;
+        counter-reset: ch;
+      }
+
+      .r-toc li {
+        counter-increment: ch;
+        padding: 8px 0 8px 14px;
+        border-left: 1px solid var(--line);
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-3);
+      }
+
+      .r-toc li::before {
+        content: counter(ch, decimal-leading-zero) "  ";
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--ink-3);
+      }
+
+      .r-toc li[aria-current="true"] {
+        border-left: 2px solid var(--accent);
+        color: var(--ink);
+        font-weight: 600;
+        padding-left: 13px;
+      }
+
+      .r-toc li[aria-current="true"]::before {
+        color: var(--ink);
+      }
+
+      .r-toc .note {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+        font-size: 12px;
+        line-height: 1.7;
+        color: var(--ink-3);
+      }
+
+      .r-main {
+        min-width: 0;
+      }
+
+      .r-main .kicker {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+
+      .r-main h1 {
+        font-family: var(--display);
+        font-size: 34px;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+        font-weight: 700;
+        margin-top: 10px;
+      }
+
+      .r-main .byline {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--ink-3);
+      }
+
+      .r-main .read {
+        margin-top: 24px;
+      }
+
+      .r-next {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin: 32px 0 44px;
+        padding-top: 20px;
+        border-top: 1px solid var(--line);
+      }
+
+      /* 移动：工具条单行、目录入 details、头图降高 */
+      .frame[data-width="390"] .r-bar {
+        height: 48px;
+        padding: 0 16px;
+        gap: 8px;
+      }
+
+      .frame[data-width="390"] .r-bar .where b {
+        font-size: 13px;
+      }
+
+      .frame[data-width="390"] .r-bar .where span,
+      .frame[data-width="390"] .r-progress span {
+        display: none;
+      }
+
+      .frame[data-width="390"] .r-progress .meter {
+        width: 48px;
+      }
+
+      .frame[data-width="390"] .r-tools {
+        padding-left: 8px;
+        gap: 4px;
+      }
+
+      .frame[data-width="390"] .r-hero {
+        height: 150px;
+      }
+
+      .frame[data-width="390"] .r-hero .cap {
+        left: 20px;
+        right: 20px;
+        bottom: 12px;
+      }
+
+      .frame[data-width="390"] .r-body {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        padding: 0 20px;
+      }
+
+      .frame[data-width="390"] .r-toc {
+        position: static;
+        order: -1;
+        border-bottom: 1px solid var(--line);
+        padding: 4px 0;
+      }
+
+      .frame[data-width="390"] .r-toc summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .frame[data-width="390"] .r-toc summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .frame[data-width="390"] .r-toc summary::after {
+        content: "共 8 章 ▾";
+        font-family: var(--sans);
+        font-weight: 400;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+
+      .frame[data-width="390"] .r-toc[open] summary::after {
+        content: "收起 ▴";
+      }
+
+      .frame[data-width="390"] .r-toc h2,
+      .frame[data-width="390"] .r-toc .note {
+        display: none;
+      }
+
+      .frame[data-width="390"] .r-toc ol {
+        padding-bottom: 8px;
+      }
+
+      .frame[data-width="390"] .r-main h1 {
+        font-size: 26px;
+      }
+
+      .frame[data-width="390"] .r-main .read {
+        margin-top: 18px;
+      }
+    </style>
+  </head>
+  <body data-sk="SK7">
+    <input id="zfit" class="sr-only" type="radio" name="zoom" checked />
+    <input id="z1" class="sr-only" type="radio" name="zoom" />
+
+    <header class="ghead">
+      <a class="gback" href="index.html">← 返回总览</a>
+      <div class="grow">
+        <span class="gnum">SK7</span>
+        <h1>阅读器</h1>
+      </div>
+      <p class="gsub gpages">
+        <b>真实页面</b>（A §3，共 2 例以上）：<br />
+        <code>xingyu-web/src/features/series/pages/PublicSeriesReadPage.tsx</code>
+        <code>xingyu-web/src/features/rules/pages/RulesPage.tsx</code>
+      </p>
+      <p class="gsub">
+        系列阅读 / 规则条款（2 页）。构图：<b>吸顶阅读工具条</b>（系列位置 + 进度 + 字号/布局/目录）→
+        <b>全幅出血头图</b> → <code style="font-family: var(--mono); font-size: 12px">[256 目录 | measure]</code> 整体居中，
+        目录 sticky 跟随。区别：SK1 是「读一篇文章」，SK7 是「读一本书」—— 工具条与头图是它独有的。
+      </p>
+      <div class="gmeta">
+        <span class="chip">吸顶工具条</span>
+        <span class="chip">出血区 · 全幅头图</span>
+        <span class="chip">双栏 · 256 + measure</span>
+      </div>
+      <div class="gtool">
+        <span>缩放</span>
+        <div class="seg" role="group" aria-label="桌面原型缩放">
+          <label for="zfit">适应宽度 58%</label>
+          <label for="z1">1:1 原尺寸</label>
+        </div>
+      </div>
+      <nav class="gswitcher" aria-label="原型切换">
+        <a href="sk1-reading.html">SK1 阅读栏</a>
+        <a href="sk2-gallery.html">SK2 画廊</a>
+        <a href="sk3-console.html">SK3 控制台</a>
+        <a href="sk4-inbox.html">SK4 收件箱</a>
+        <a href="sk5-flow.html">SK5 流程</a>
+        <a href="sk6-feed.html">SK6 信息流</a>
+        <a href="sk7-reader.html" aria-current="page">SK7 阅读器</a>
+        <a href="sk8-canvas.html">SK8 创作台</a>
+      </nav>
+    </header>
+
+    <main class="stage" id="main">
+      <figure class="shot">
+        <figcaption>
+          <strong>1440</strong> 桌面
+          <em>· 工具条吸顶 / 出血头图 / 目录粘左</em>
+        </figcaption>
+        <div class="frame" data-sk="SK7" data-width="1440" role="group" aria-label="桌面原型，1440 宽">
+          <div class="r-bar">
+            <a class="meta" href="#" style="white-space: nowrap">← 系列</a>
+            <div class="where">
+              <b>城市观察笔记</b>
+              <span>· 第 3 章</span>
+            </div>
+            <div class="r-progress">
+              <span>已读</span>
+              <div class="meter" role="progressbar" aria-valuemin="1" aria-valuemax="8" aria-valuenow="3" aria-label="已读到第 3 章，共 8 章">
+                <i style="width: 37.5%"></i>
+              </div>
+              <span>3/8</span>
+            </div>
+            <div class="r-tools" role="group" aria-label="阅读工具">
+              <button type="button" aria-label="缩小字号">A−</button>
+              <button type="button" aria-label="放大字号">A＋</button>
+              <button type="button" aria-label="版式（单栏 / 双栏）">版式</button>
+              <button type="button" aria-label="文章目录">目录</button>
+            </div>
+          </div>
+
+          <div class="r-hero" role="img" aria-label="系列头图：县城街道（CSS 渐变占位）">
+            <div class="cap">
+              <span class="eyebrow" style="color: var(--ink-2)">城市观察笔记 · 第 03 章</span>
+              <span class="micro" style="color: var(--ink-2)">共 8 章</span>
+            </div>
+          </div>
+
+          <div class="r-body" style="display: grid">
+            <nav class="r-toc" aria-label="系列目录">
+              <h2>目录</h2>
+              <ol>
+                <li>从车站走到老街的十七分钟</li>
+                <li>六万册书和一面按心情排的墙</li>
+                <li aria-current="true">在县城的旧书店里，我重新学会慢下来</li>
+                <li>早市为什么在七点半就散了</li>
+                <li>车站旁边的裁缝铺</li>
+                <li>一台还在用的缝纫机</li>
+                <li>第三个冬天还会来</li>
+                <li>附：六家值得坐一下午的旧书店</li>
+              </ol>
+              <p class="note">阅读偏好（字号、版式）会记在这台设备上，下次打开直接恢复。</p>
+            </nav>
+
+            <article class="r-main">
+              <p class="kicker">第 3 章</p>
+              <h1>在县城的旧书店里，我重新学会慢下来</h1>
+              <div class="byline">
+                <span class="avatar avatar--soft" aria-hidden="true" style="width: 24px; height: 24px; font-size: 10px">林</span>
+                <span>林晚</span>
+                <span aria-hidden="true">·</span>
+                <time datetime="2026-11-03">2026年11月3日</time>
+              </div>
+
+              <div class="read">
+                <p>
+                  推开门的时候，先闻到的是纸。不是新书那种油墨味，是旧纸在潮气里放了很多年之后
+                  才会有的、带一点甜的气味。店里没有开大灯，只有靠窗一排书架上方悬着一盏黄光的
+                  灯泡，照见灰尘在光柱里慢慢地转。
+                </p>
+                <p>
+                  老板娘姓许，五十多岁，正把一摞《收获》按年份插回书架。她说这些杂志是上个月从
+                  隔壁县的旧货市场拉回来的，一共三百多本，缺了七年和十一年。
+                </p>
+                <h3>一、书架是按脾气排的</h3>
+                <p>
+                  我问她为什么不用分类号。她指了指最里面那面墙：「那儿是按心情排的，你要找的东西
+                  不在那儿，得看你现在是什么心情。」
+                </p>
+                <blockquote>一个书店最好的部分，往往不是它有什么，而是它愿意为了什么而空缺。</blockquote>
+                <p>
+                  我忽然明白，「慢」不是把动作放慢，而是把判断变重。你不再需要快速决定要不要，
+                  因为你并不急着离开。
+                </p>
+              </div>
+
+              <div class="r-next">
+                <span class="meta">第 3 章 · 已读完 41%</span>
+                <button class="btn btn--ink btn--sm" type="button">下一章：早市为什么在七点半就散了</button>
+                <a class="btn btn--quiet btn--sm" href="#">回到目录</a>
+              </div>
+            </article>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="shot">
+        <figcaption>
+          <strong>390</strong> 移动
+          <em>· 工具条单行 / 目录折进 details</em>
+        </figcaption>
+        <div class="frame" data-sk="SK7" data-width="390" role="group" aria-label="移动原型，390 宽">
+          <div class="r-bar">
+            <a class="meta" href="#" aria-label="返回系列">←</a>
+            <div class="where"><b>城市观察笔记</b></div>
+            <div class="r-progress">
+              <div class="meter" role="progressbar" aria-valuemin="1" aria-valuemax="8" aria-valuenow="3" aria-label="已读到第 3 章，共 8 章">
+                <i style="width: 37.5%"></i>
+              </div>
+            </div>
+            <div class="r-tools" role="group" aria-label="阅读工具">
+              <button type="button" aria-label="字号与版式">Aa</button>
+            </div>
+          </div>
+
+          <div class="r-hero" role="img" aria-label="系列头图：县城街道（CSS 渐变占位）">
+            <div class="cap"><span class="eyebrow" style="color: var(--ink-2)">第 03 章</span></div>
+          </div>
+
+          <div class="r-body" style="display: grid">
+            <details class="r-toc">
+              <summary>目录</summary>
+              <ol>
+                <li>从车站走到老街的十七分钟</li>
+                <li>六万册书和一面按心情排的墙</li>
+                <li aria-current="true">在县城的旧书店里，我重新学会慢下来</li>
+                <li>早市为什么在七点半就散了</li>
+              </ol>
+            </details>
+
+            <article class="r-main">
+              <p class="kicker">第 3 章</p>
+              <h1>在县城的旧书店里，我重新学会慢下来</h1>
+              <div class="byline">
+                <span>林晚</span><span aria-hidden="true">·</span>
+                <time datetime="2026-11-03">11月3日</time>
+              </div>
+              <div class="read">
+                <p>
+                  推开门的时候，先闻到的是纸。不是新书那种油墨味，是旧纸在潮气里放了很多年之后
+                  才会有的、带一点甜的气味。
+                </p>
+                <p>
+                  老板娘姓许，五十多岁，正把一摞《收获》按年份插回书架。她说这些杂志是上月从
+                  隔壁县的旧货市场拉回来的。
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </figure>
+    </main>
+
+    <footer class="gfoot">
+      真实字段来源：<code>PublicSeriesReadPage</code> + <code>PublicSeriesDetailPage.tsx:247-396</code> ——
+      进度 <code>resumeIndex / chapterCount</code>（<code>aria-label="已读到第 X 章，共 Y 章"</code>）、
+      章节 <code>chapter.title</code>、<code>series.title</code>；正文与目录沿用 SK1 的
+      <code>ArticleOutline</code> 逻辑。「字号 / 版式 / 目录」工具条是 SK7 的构图要求（A 文档 §1 SK7）。
+    </footer>
+  </body>
+</html>

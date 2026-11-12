@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "@/api/client";
 import { usersApi } from "@/api/users/users.api";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +57,17 @@ import {
  * the server copy, and it is aria-hidden because a screen reader would otherwise
  * hear every field twice.
  * ---------------------------------------------------------------------------
+ *
+ * --- 2026-11-10 批次 C：SK3 · 壳 / 松 / 齐 -------------------------------
+ * 壳：h1「设置」由 `SettingsLayout` 出；页内两个 h2 是兄弟块（`AvatarEditor` 的
+ *     「头像」与 `PageSection` 的「资料」），不嵌套、不新增 h1。
+ * 松：三块各自成面（头像 / 字段卡 / 预览），块间 40px（`.density-loose`），字段卡内
+ *     24px 边距、字段之间一条发丝线 —— 这是本域四张「松」页里唯一带表单的，所以
+ *     "松"落在字段之间的呼吸上，而不是卡的数量上。
+ * 齐：**取消**上面写的 `TWO-COLUMN` 构图 —— 并排是 R=错，而本页在映射表里是「齐」
+ *     （错给了隐私与屏蔽）。实时预览移到正文下方、占满内容宽，仍是实时值（`values`），
+ *     只是不再与表单争宽。
+ * 保存 / 409 冲突 / 清空拦截 / dirty 与 saved 的状态机一行未动。
  */
 
 type LoadState = "loading" | "error" | "ready";
@@ -146,17 +159,23 @@ export function SettingsProfilePage() {
     }
   }, [baseline, values, lockVersion]);
 
-  if (loadState === "loading") return <PageState kind="loading" />;
+  if (loadState === "loading") {
+    return (
+      <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
+        <PageState kind="loading" />
+      </ArchetypeFrame>
+    );
+  }
   if (loadState === "error" || !baseline || !values) {
     return (
-      <div className="section-gap">
+      <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
         <PageState kind="error" title="资料加载失败" description="请稍后重试。" />
         <div>
           <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
             重新加载
           </Button>
         </div>
-      </div>
+      </ArchetypeFrame>
     );
   }
 
@@ -169,75 +188,88 @@ export function SettingsProfilePage() {
     VISIBILITY_OPTIONS.find((option) => option.value === values.visibility)?.label ?? "—";
 
   return (
-    <div className="section-gap">
-      <section aria-labelledby="settings-profile-heading">
-        <h2 id="settings-profile-heading" className="section-heading">
-          资料
-        </h2>
-        <p className="lede mt-1.5 max-w-2xl">
-          这些信息会展示在你的主页上；可见性由下方选项决定，右侧是实时预览。
-        </p>
-      </section>
+    <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
+      {/*
+        --- 2026-11-10 批次 C：SK3 · 壳 / 松 / 齐 ---------------------------
+        壳  h1「设置」由 `SettingsLayout` 出；本页的两个 h2（头像、资料）是兄弟块，
+            不再往上加一级标题。
+        松  每项是一块独立的面：头像一块、字段卡一块（卡内 24px 边距 + 字段间发丝线）、
+            预览一块；块与块之间由 `.density-loose` 的 40px 承担。首屏只有这三块。
+        齐  **原来的 `lg:grid-cols-[1fr_280px]` 双列被取消** —— 并排是 R=错 的构图，
+            而映射表把本页定为「齐」、把「错」给了隐私与屏蔽。实时预览因此从右轨移到
+            正文下方、占满内容宽：它仍然是实时值（渲染 `values`，不是服务器副本），
+            只是不再与表单争宽。
+        保存 / 冲突 / 清空拦截 / 预览数据来源一行未动；`<form>` 仍然只有一个。
+      */}
+      <AvatarEditor
+        avatar={avatar}
+        fallbackText={values.displayName || username}
+        onAvatarSaved={setAvatar}
+      />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="flex min-w-0 flex-col gap-6">
-          <AvatarEditor
-            avatar={avatar}
-            fallbackText={values.displayName || username}
-            onAvatarSaved={setAvatar}
-          />
-
-          <form
-            className="section-gap"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void save();
-            }}
-          >
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="settings-username">用户名</Label>
-              <Input id="settings-username" value={username} readOnly disabled />
-              <p className="text-meta text-muted-foreground">
-                用户名修改（含 30 天冷却）将在后续阶段开放。
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="settings-displayName">昵称</Label>
-              <Input
-                id="settings-displayName"
-                value={values.displayName}
-                onChange={(event) => setField("displayName", event.target.value)}
-                disabled={saving}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="settings-bio">简介</Label>
-              <textarea
-                id="settings-bio"
-                rows={4}
-                value={values.bio}
-                onChange={(event) => setField("bio", event.target.value)}
-                disabled={saving}
-                className="focus-ring w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="settings-websiteUrl">个人网站</Label>
-              <Input
-                id="settings-websiteUrl"
-                value={values.websiteUrl}
-                onChange={(event) => setField("websiteUrl", event.target.value)}
-                disabled={saving}
-                aria-invalid={websiteError !== null}
-              />
-              {websiteError ? (
-                <p role="alert" data-testid="website-error" className="text-meta text-destructive">
-                  {websiteError}
+      <PageSection
+        id="settings-profile-heading"
+        title="资料"
+        description="这些信息会展示在你的主页上；可见性由下方选项决定，页面底部是实时预览。"
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+          className="flex flex-col gap-5"
+        >
+          <div className="overflow-hidden rounded-card border border-border/70 bg-card">
+            <div className="flex flex-col p-6">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="settings-username">用户名</Label>
+                <Input id="settings-username" value={username} readOnly disabled />
+                <p className="text-meta text-muted-foreground">
+                  用户名修改（含 30 天冷却）将在后续阶段开放。
                 </p>
-              ) : null}
+              </div>
+
+              <div className="mt-5 flex flex-col gap-1.5 border-t border-border/60 pt-5">
+                <Label htmlFor="settings-displayName">昵称</Label>
+                <Input
+                  id="settings-displayName"
+                  value={values.displayName}
+                  onChange={(event) => setField("displayName", event.target.value)}
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="mt-5 flex flex-col gap-1.5 border-t border-border/60 pt-5">
+                <Label htmlFor="settings-bio">简介</Label>
+                <textarea
+                  id="settings-bio"
+                  rows={4}
+                  value={values.bio}
+                  onChange={(event) => setField("bio", event.target.value)}
+                  disabled={saving}
+                  className="focus-ring w-full rounded-control border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+
+              <div className="mt-5 flex flex-col gap-1.5 border-t border-border/60 pt-5">
+                <Label htmlFor="settings-websiteUrl">个人网站</Label>
+                <Input
+                  id="settings-websiteUrl"
+                  value={values.websiteUrl}
+                  onChange={(event) => setField("websiteUrl", event.target.value)}
+                  disabled={saving}
+                  aria-invalid={websiteError !== null}
+                />
+                {websiteError ? (
+                  <p
+                    role="alert"
+                    data-testid="website-error"
+                    className="text-meta text-destructive"
+                  >
+                    {websiteError}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             {/*
@@ -247,19 +279,19 @@ export function SettingsProfilePage() {
               The hint belongs to the option, and the current choice has to be
               legible at a glance.
             */}
-            <fieldset className="flex flex-col gap-2" disabled={saving}>
+            <fieldset className="flex flex-col gap-2 border-t border-border/60 p-6 pt-5" disabled={saving}>
               <legend className="text-meta font-medium text-foreground-soft">资料可见性</legend>
-              <div className="flex flex-col gap-1.5">
+              <div className="mt-2 flex flex-col gap-2">
                 {VISIBILITY_OPTIONS.map((option) => {
                   const selected = values.visibility === option.value;
                   return (
                     <div
                       key={option.value}
                       className={[
-                        "flex items-start gap-3 rounded-lg border p-3 transition-colors",
+                        "flex items-start gap-3 rounded-control border p-3 transition-colors",
                         selected
-                          ? "border-accent-line bg-accent-soft/60"
-                          : "border-border/70 bg-card hover:bg-surface-sunken/50",
+                          ? "border-accent-line bg-surface-sunken"
+                          : "border-border/70 bg-card hover:bg-surface-sunken/60",
                         saving ? "opacity-60" : "",
                       ].join(" ")}
                     >
@@ -294,82 +326,80 @@ export function SettingsProfilePage() {
                 })}
               </div>
             </fieldset>
+          </div>
 
-            {clearAttempts.length > 0 ? (
-              <p role="alert" data-testid="clear-blocked" className="text-meta text-destructive">
-                以下字段暂不支持清空，请填写内容后再保存：
-                {clearAttempts.map((field) => PROFILE_FIELD_LABELS[field]).join("、")}
-              </p>
+          {clearAttempts.length > 0 ? (
+            <p role="alert" data-testid="clear-blocked" className="text-meta text-destructive">
+              以下字段暂不支持清空，请填写内容后再保存：
+              {clearAttempts.map((field) => PROFILE_FIELD_LABELS[field]).join("、")}
+            </p>
+          ) : null}
+
+          {saveError ? (
+            <p role="alert" data-testid="profile-save-error" className="text-meta text-destructive">
+              {saveError}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="submit"
+              variant={dirty && !blocked ? "default" : "outline"}
+              disabled={!dirty || blocked || saving}
+            >
+              {saving ? "保存中…" : "保存"}
+            </Button>
+
+            {dirty && !saving ? (
+              <span data-testid="profile-dirty" className="text-meta text-muted-foreground">
+                有未保存的修改
+              </span>
             ) : null}
-
-            {saveError ? (
-              <p
-                role="alert"
-                data-testid="profile-save-error"
-                className="text-meta text-destructive"
+            {saveState === "saved" ? (
+              <span
+                role="status"
+                data-testid="profile-saved"
+                className="text-meta font-medium text-accent-strong"
               >
-                {saveError}
-              </p>
+                已保存
+              </span>
             ) : null}
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="submit"
-                variant={dirty && !blocked ? "default" : "outline"}
-                disabled={!dirty || blocked || saving}
-              >
-                {saving ? "保存中…" : "保存"}
+            {conflict ? (
+              <Button variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
+                重新加载
               </Button>
+            ) : null}
+          </div>
+        </form>
+      </PageSection>
 
-              {dirty && !saving ? (
-                <span data-testid="profile-dirty" className="text-meta text-muted-foreground">
-                  有未保存的修改
-                </span>
-              ) : null}
-              {saveState === "saved" ? (
-                <span
-                  role="status"
-                  data-testid="profile-saved"
-                  className="text-meta font-medium text-accent-strong"
-                >
-                  已保存
-                </span>
-              ) : null}
-              {conflict ? (
-                <Button variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
-                  重新加载
-                </Button>
-              ) : null}
-            </div>
-          </form>
-        </div>
+      {/*
+        Live public-page preview.
+        aria-hidden on purpose: every value shown here is already announced by
+        the control that edits it, so exposing it would make a screen reader
+        read each field twice. It renders `values` (the unsaved local state),
+        never the server copy — that is the whole point of having it.
+      */}
+      <aside>
+        <div
+          aria-hidden
+          className="rounded-card border border-border/70 bg-card p-5"
+          data-testid="profile-preview"
+        >
+          <p className="eyebrow mb-3">主页预览</p>
 
-        {/*
-          Live public-page preview.
-          aria-hidden on purpose: every value shown here is already announced by
-          the control that edits it, so exposing it would make a screen reader
-          read each field twice. It renders `values` (the unsaved local state),
-          never the server copy — that is the whole point of having it.
-        */}
-        <aside className="lg:sticky lg:top-24 lg:h-fit">
-          <div
-            aria-hidden
-            className="rounded-xl border border-border/70 bg-card p-4"
-            data-testid="profile-preview"
-          >
-            <p className="eyebrow mb-3">主页预览</p>
-
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+            <div className="flex min-w-0 items-center gap-3 sm:w-56 sm:shrink-0">
               {avatar ? (
                 <img
                   src={avatar}
                   alt=""
-                  className="h-12 w-12 shrink-0 rounded-full object-cover"
+                  className="h-12 w-12 shrink-0 rounded-pill object-cover"
                   loading="lazy"
                   decoding="async"
                 />
               ) : (
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary text-base font-semibold text-primary-foreground">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-primary text-base font-semibold text-primary-foreground">
                   {(values.displayName || username || "?").slice(0, 1).toUpperCase()}
                 </span>
               )}
@@ -383,20 +413,22 @@ export function SettingsProfilePage() {
               </div>
             </div>
 
-            <p className="mt-3 line-clamp-4 text-meta leading-6 text-muted-foreground">
-              {values.bio || "（还没有填写简介）"}
-            </p>
+            <div className="min-w-0 flex-1">
+              <p className="line-clamp-3 text-meta leading-6 text-muted-foreground">
+                {values.bio || "（还没有填写简介）"}
+              </p>
 
-            {values.websiteUrl ? (
-              <p className="mt-2 truncate text-meta text-accent-strong">{values.websiteUrl}</p>
-            ) : null}
+              {values.websiteUrl ? (
+                <p className="mt-2 truncate text-meta text-accent-strong">{values.websiteUrl}</p>
+              ) : null}
 
-            <p className="mt-4 border-t border-border/60 pt-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground/70">
-              {visibilityLabel}
-            </p>
+              <p className="mt-3 text-caption uppercase tracking-[0.12em] text-muted-foreground">
+                {visibilityLabel}
+              </p>
+            </div>
           </div>
-        </aside>
-      </div>
-    </div>
+        </div>
+      </aside>
+    </ArchetypeFrame>
   );
 }

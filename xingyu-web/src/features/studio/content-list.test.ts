@@ -258,6 +258,11 @@ describe("canTrash", () => {
     expect(canTrash(article({ status: "REVIEW" }))).toBe(false);
     expect(canTrash(article({ status: "REVIEWING" }))).toBe(false);
   });
+
+  it("refuses a collaborator draft — trash stays with the author", () => {
+    expect(canTrash(article({ status: "DRAFT", collaborationRole: "EDITOR" }))).toBe(false);
+    expect(canTrash(article({ status: "DRAFT", collaborationRole: "OWNER" }))).toBe(true);
+  });
 });
 
 describe("splitTrash", () => {

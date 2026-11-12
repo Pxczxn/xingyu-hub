@@ -101,8 +101,22 @@ function isNotFound(err: unknown): boolean {
   return err instanceof ApiError && err.problem.status === 404;
 }
 
-export function ConversationThreadPage() {
-  const { conversationId } = useParams<{ conversationId: string }>();
+export function ConversationThreadPage({
+  conversationId: conversationIdProp,
+  embedded = false,
+  initialLocator = null,
+  onReady,
+}: {
+  /** When set, the thread is not tied to `/messages/:conversationId`. */
+  conversationId?: string;
+  /** Card chrome already has the title and the way back to the list. */
+  embedded?: boolean;
+  /** Search hit to scroll to when the thread is not reading the URL. */
+  initialLocator?: { id: string; sequence: number } | null;
+  onReady?: (conversation: Conversation) => void;
+} = {}) {
+  const { conversationId: conversationIdParam } = useParams<{ conversationId: string }>();
+  const conversationId = conversationIdProp ?? conversationIdParam;
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -113,8 +127,10 @@ export function ConversationThreadPage() {
      error branch below. The effect keeps its per-run `active` guard. */
   const [reloadKey, setReloadKey] = useState(0);
 
-  const { myUserId, subscribe, watchConversation, connection, refreshConversations } =
+  const { myUserId, subscribe, watchConversation, connection, backfill, refreshConversations } =
     useChatSocket();
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
   const [searchParams] = useSearchParams();
   /** The scrolling element for the message list — never the document. */
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -124,12 +140,56 @@ export function ConversationThreadPage() {
   const stickToBottomRef = useRef(true);
   /** Where we were on the page before the thread scrolled it (restored on the way out). */
   const entryScrollRef = useRef(0);
+  /** Coalesces a burst of live/backfill messages into one mark-read. */
+  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markReadGenerationRef = useRef(0);
+  /**
+   * 这一次「草稿 → 发送」的幂等键（2026-11-10，审计 A3）。
+   *
+   * 后端契约（`api/messages/messages.types.ts:336-341`）是：重放同一个
+   * (conversationId, senderId, clientMessageId) 三元组时返回**已有的那条**消息。
+   * 因此 key 的生命周期必须等于「一次发送尝试」，而不是「一次点击」——
+   * 修之前这里是每次点击 `newClientMessageId()`，于是「请求超时但其实已经落库」
+   * 之后再点一次 = 新 key = 服务端当成第二条消息，对方收到两条。
+   *
+   * 记下 `body` 是为了让 key 成为草稿内容的函数：内容没变的重试复用它，
+   * 内容变了就是另一条消息，换新的 key。
+   */
+  const clientMessageIdRef = useRef<{ body: string; id: string } | null>(null);
   /**
    * Where we arrived from a search result: the message id (stable locator) plus its
    * sequence (so the window can be fetched in ONE request — never paged back until we
    * hit it). `null` when the thread was opened normally.
    */
   const [locator, setLocator] = useState<{ id: string; sequence: number } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      markReadGenerationRef.current += 1;
+      if (markReadTimerRef.current) {
+        clearTimeout(markReadTimerRef.current);
+        markReadTimerRef.current = null;
+      }
+    };
+  }, [conversationId]);
+
+  const queueMarkRead = useCallback(
+    (id: string) => {
+      if (markReadTimerRef.current) return;
+      const generation = markReadGenerationRef.current;
+      markReadTimerRef.current = setTimeout(() => {
+        markReadTimerRef.current = null;
+        if (markReadGenerationRef.current !== generation) return;
+        void messagesApi
+          .markRead(id)
+          .then(() => refreshConversations())
+          .catch(() => {
+            // A read receipt is not worth an error banner; the next message retries.
+          });
+      }, 50);
+    },
+    [refreshConversations],
+  );
 
   // Load the conversation. GROUP and DIRECT have different detail endpoints even
   // though the payload is the same shape, and there is no "get by id" route that
@@ -140,12 +200,18 @@ export function ConversationThreadPage() {
     setState({ kind: "loading" });
     setActionError(null);
     setDraft("");
+    // 换会话 = 换草稿：上一次会话没发出去的尝试不能把 key 带过来。
+    clientMessageIdRef.current = null;
     // 记住进来之前页面在哪，离开时还原 —— 移动端我们可能要滚文档（见 scrollToLatest），
     // 走的时候不能把列表页留在一个莫名其妙的位置。
     entryScrollRef.current = typeof window === "undefined" ? 0 : window.scrollY;
     // 搜索落点：?m=<messageId>&s=<sequence>。id 是稳定标识，sequence 用来一次取回窗口。
-    const locatorId = searchParams.get(MESSAGE_LOCATOR_PARAM);
-    const locatorSequence = Number(searchParams.get(MESSAGE_SEQUENCE_PARAM));
+    const locatorId = embedded
+      ? (initialLocator?.id ?? null)
+      : searchParams.get(MESSAGE_LOCATOR_PARAM);
+    const locatorSequence = embedded
+      ? (initialLocator?.sequence ?? Number.NaN)
+      : Number(searchParams.get(MESSAGE_SEQUENCE_PARAM));
     setLocator(
       locatorId && Number.isFinite(locatorSequence) && locatorSequence > 0
         ? { id: locatorId, sequence: locatorSequence }
@@ -187,6 +253,7 @@ export function ConversationThreadPage() {
           messages: sortBySequence(conversation.messages ?? []),
           nextCursor: null,
         });
+        onReadyRef.current?.(conversation);
         // Opening the thread means "I have seen this".
         void markReadAndReconcile();
       })
@@ -201,7 +268,7 @@ export function ConversationThreadPage() {
     // refreshConversations is stable (useCallback with no deps) — re-running on it
     // would refetch the thread on every list refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, reloadKey]);
+  }, [conversationId, embedded, initialLocator?.id, initialLocator?.sequence, reloadKey]);
 
   /*
    * Search landing (2026-10-06).
@@ -291,12 +358,9 @@ export function ConversationThreadPage() {
           // mergeMessages de-duplicates by id, so this is safe either way.
           return { ...current, messages: mergeMessages(current.messages, [event.message]) };
         });
-        // It is on screen, so it is read. Reconcile the shared list so the badge and
-        // the row agree with the server.
-        void messagesApi
-          .markRead(conversationId)
-          .then(() => refreshConversations())
-          .catch(() => {});
+        // A burst of live and backfilled messages shares one receipt. markRead
+        // without a sequence already covers the whole conversation.
+        queueMarkRead(conversationId);
         return;
       }
       if (event.kind === "recall") {
@@ -309,7 +373,7 @@ export function ConversationThreadPage() {
       // `read`: someone else advanced their cursor. Nothing renders per-member read
       // state yet, so this stays a no-op rather than a silent guess.
     });
-  }, [conversationId, subscribe, refreshConversations]);
+  }, [conversationId, queueMarkRead, subscribe]);
 
   /**
    * Keep the newest message in view — and do it in the scroller that is actually
@@ -375,13 +439,29 @@ export function ConversationThreadPage() {
     stickToBottomRef.current = distance < 48;
   }, []);
 
+  /**
+   * The idempotency key for THIS draft content.
+   *
+   * Same trimmed body + same attempt → same key, so a retry after a timeout that
+   * actually reached the server is answered with the message it already created
+   * instead of posting a second one. A different body is a different message and
+   * gets a different key.
+   */
+  function clientMessageIdFor(body: string): string {
+    const attempt = clientMessageIdRef.current;
+    if (attempt && attempt.body === body) return attempt.id;
+    const id = newClientMessageId();
+    clientMessageIdRef.current = { body, id };
+    return id;
+  }
+
   async function onSend(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.trim();
     if (!body || sending || state.kind !== "ready") return;
 
     const conversation = state.conversation;
-    const clientMessageId = newClientMessageId();
+    const clientMessageId = clientMessageIdFor(body);
     setSending(true);
     setActionError(null);
 
@@ -395,9 +475,13 @@ export function ConversationThreadPage() {
           : current,
       );
       setDraft("");
+      // 这条消息已经落地：下一次是另一条消息，必须用新的 key（否则内容相同的
+      // 第二条会被后端当成第一条的重放，用户看到的就是「点了发送没反应」）。
+      clientMessageIdRef.current = null;
       // lastMessage / updatedAt moved server-side; the shared list must follow.
       void refreshConversations();
     } catch (err: unknown) {
+      // 失败**不**清 key、也**不**清草稿：这就是用户接下来「重试」的那一次尝试。
       setActionError(
         err instanceof ApiError && err.problem.detail ? err.problem.detail : SEND_FAILED,
       );
@@ -461,8 +545,14 @@ export function ConversationThreadPage() {
   if (state.kind === "loading") return <PageState kind="loading" />;
 
   if (state.kind === "error") {
+    /*
+     * No page shell here: this component is the DETAIL PANE of the mailbox's
+     * `SplitPane` (SK4 · R=错), so it must not wrap itself in `.section-gap` —
+     * that is the page-level rhythm of a standalone route and it would add a
+     * second page margin inside a pane that already has one.
+     */
     return (
-      <div className="section-gap">
+      <div className="flex flex-col gap-4">
         <PageState
           kind="error"
           title={state.notFound ? "会话不存在" : "加载失败"}
@@ -506,13 +596,25 @@ export function ConversationThreadPage() {
   const knownUserId = myUserId;
 
   return (
-    // The thread is a COLUMN: header (fixed) / message viewport (the only scroller) /
-    // composer (fixed). `min-h-0` on the middle is what actually lets it shrink
-    // instead of pushing the page taller.
+    // SK4 收件箱 · H=线 / D=紧 / R=错（A §3 的 /messages/* 域 ConversationThread 行）。
+    //
+    // 它是信箱右栏的**内容**，不是一条路由页：没有页壳、没有 `.section-gap`、
+    // 也没有自己的 `<h1>`（A §7.5：SK4 双栏里详情面板的条目标题不得是 h1，一个
+    // 路由只有一个 h1）。H=线 就体现在这条 header 上 —— 无面、无边框、标题贴左缘，
+    // 后面跟着同一行的状态与导航。
+    //
+    // D=紧：消息是行，不是卡。
+    // R=错：主列（消息）+ 右栏（会话列表）由外层 `SplitPane` 提供；在栏内这里只负责
+    // 「header（固定）/ 消息区（唯一滚动）/ composer（固定）」这三段。
+    // `min-h-0` on the middle is what actually lets it shrink instead of pushing
+    // the page taller.
     <div className="flex h-full min-h-0 flex-col gap-3">
       <header className="flex shrink-0 flex-col gap-1">
+        {embedded && !isGroup && connection !== "reconnecting" && backfill !== "behind" ? null : (
         <div className="flex items-center gap-2">
-          <h2 className="section-heading">{conversationLabel(conversation)}</h2>
+          {embedded ? null : (
+            <h2 className="text-h2 text-primary">{conversationLabel(conversation)}</h2>
+          )}
           {isGroup ? (
             // 2026-10-13 (batch 07c): 10px -> 11px, matching the 「群聊」 pill on the
             // mailbox row. The same label in two places must not be two sizes.
@@ -529,8 +631,13 @@ export function ConversationThreadPage() {
             <span className="text-[11px] text-muted-foreground" role="status">
               连接中断，正在重连…
             </span>
+          ) : backfill === "behind" ? (
+            <span className="text-[11px] text-muted-foreground" role="status">
+              有消息没能补齐，正在重试…
+            </span>
           ) : null}
         </div>
+        )}
         {isGroup && conversation.announcement ? (
           /*
             2026-10-13 (batch 07c): `text-xs` -> `text-meta`. An announcement is prose —
@@ -547,18 +654,23 @@ export function ConversationThreadPage() {
           </p>
         ) : null}
         <nav className="flex items-center gap-3 text-sm">
-          <Link to="/messages" className="text-accent-strong hover:underline lg:hidden">
-            返回会话列表
-          </Link>
+          {embedded ? null : (
+            <Link
+              to="/messages"
+              className="focus-ring rounded-sm text-accent-strong hover:underline lg:hidden"
+            >
+              返回会话列表
+            </Link>
+          )}
           <Link
             to={`/messages/${encodeURIComponent(conversation.id)}/media`}
-            className="text-muted-foreground hover:text-foreground hover:underline"
+            className="focus-ring rounded-sm text-muted-foreground hover:text-foreground hover:underline"
           >
             图片
           </Link>
           <Link
             to={`/messages/${encodeURIComponent(conversation.id)}/files`}
-            className="text-muted-foreground hover:text-foreground hover:underline"
+            className="focus-ring rounded-sm text-muted-foreground hover:text-foreground hover:underline"
           >
             文件
           </Link>
@@ -654,7 +766,16 @@ export function ConversationThreadPage() {
           aria-label="消息内容"
           placeholder="输入消息…"
           rows={2}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setDraft(next);
+            /*
+             * 草稿内容变了 → 这是另一条消息，下一次提交必须换 key（审计 A3）。
+             * 只改首尾空白不算：发送前会 trim，那种情况沿用 key 才保得住幂等。
+             */
+            const attempt = clientMessageIdRef.current;
+            if (attempt && attempt.body !== next.trim()) clientMessageIdRef.current = null;
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();

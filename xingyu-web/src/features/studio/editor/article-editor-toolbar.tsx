@@ -3,6 +3,12 @@ import { cn } from "@/lib/cn";
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ArticleBodyMode } from "@/lib/article-body-convert";
 import { ArticleEditorLinkControl } from "./article-editor-link-control";
 import type { EditorFormatAction } from "@/lib/article-editor-body-controller";
@@ -57,28 +63,34 @@ function useNarrowToolbar() {
   return narrow;
 }
 
-function useDismissOnOutside(
-  open: boolean,
-  onClose: () => void,
-  rootRef: React.RefObject<HTMLElement | null>,
-) {
-  useEffect(() => {
-    if (!open) return;
-    function handlePointerDown(event: PointerEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        onClose();
+/*
+ * Radix opens a dropdown menu from `pointerdown`, while the toolbar buttons
+ * have always opened theirs from `click` (the whole editor surface prevents
+ * `mousedown` to keep the text selection alive). The helpers below reconcile
+ * the two without double-toggling:
+ *
+ *  - `onPointerDown` records that Radix's own opener is about to run;
+ *  - `onClick` swallows the follow-up click of that pointer sequence, and only
+ *    toggles the menu itself for a bare click (keyboard/programmatic activation,
+ *    and what the test environment dispatches).
+ *
+ * The hand-written outside-pointer/Escape dismissal that used to live here was
+ * deleted in the same pass: Radix owns it now.
+ */
+function useMenuTriggerHandlers(toggle: () => void) {
+  const pointerDownRef = useRef(false);
+  return {
+    onPointerDown: () => {
+      pointerDownRef.current = true;
+    },
+    onClick: () => {
+      if (pointerDownRef.current) {
+        pointerDownRef.current = false;
+        return;
       }
-    }
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [onClose, open, rootRef]);
+      toggle();
+    },
+  };
 }
 
 function FormatButton({
@@ -122,60 +134,64 @@ function BlockTypeDropdown({
   onFormat: (action: EditorFormatAction) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerHandlers = useMenuTriggerHandlers(() => setOpen((current) => !current));
   const currentBlockType = formatState?.blockType ?? "paragraph";
   const currentOption =
     TOOLBAR_BLOCK_TYPE_OPTIONS.find((option) => option.blockType === currentBlockType) ??
     TOOLBAR_BLOCK_TYPE_OPTIONS[0];
 
-  useDismissOnOutside(open, () => setOpen(false), rootRef);
-
   return (
-    <div ref={rootRef} className={cn(styles.formatBarDropdown)}>
-      <button
-        type="button"
-        title={`块类型：${currentOption.label}`}
-        disabled={disabled}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={`块类型：${currentOption.label}`}
-        className={cn(
-          styles.formatBarBlockTypeTrigger,
-          "cursor-pointer",
-          currentBlockType !== "paragraph" && styles.isActive,
-        )}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <currentOption.icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
-        <ChevronDown className={cn(styles.formatBarChevron)} aria-hidden="true" />
-      </button>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title={`块类型：${currentOption.label}`}
+          disabled={disabled}
+          aria-label={`块类型：${currentOption.label}`}
+          className={cn(
+            styles.formatBarBlockTypeTrigger,
+            "cursor-pointer",
+            currentBlockType !== "paragraph" && styles.isActive,
+          )}
+          onMouseDown={(event) => event.preventDefault()}
+          {...triggerHandlers}
+        >
+          <currentOption.icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
+          <ChevronDown className={cn(styles.formatBarChevron)} aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
 
-      {open ? (
-        <div className={cn(styles.formatDropdownMenu)} role="menu" aria-label="块类型">
-          {TOOLBAR_BLOCK_TYPE_OPTIONS.map(({ blockType, action, label, icon: Icon }) => {
-            const active = currentBlockType === blockType;
-            return (
-              <button
-                key={blockType}
-                type="button"
-                role="menuitemradio"
-                aria-checked={active}
-                className={cn(styles.formatDropdownMenuItem, active && styles.isActive)}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  onFormat(action);
-                  setOpen(false);
-                }}
-              >
-                <Icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
-                <span>{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
+      <DropdownMenuContent
+        align="start"
+        sideOffset={4}
+        collisionPadding={8}
+        className="min-w-[9.5rem] rounded-lg border-border bg-card p-1 shadow-[0_8px_24px_hsl(var(--foreground)/0.12)]"
+      >
+        {TOOLBAR_BLOCK_TYPE_OPTIONS.map(({ blockType, action, label, icon: Icon }) => {
+          const active = currentBlockType === blockType;
+          return (
+            <DropdownMenuItem
+              key={blockType}
+              // Keep the radiogroup semantics the hand-written menu exposed:
+              // Radix still owns focus/selection, only the announced role and
+              // checked state are pinned to the existing contract.
+              role="menuitemradio"
+              aria-checked={active}
+              className={cn(
+                styles.formatDropdownMenuItem,
+                "focus:bg-muted focus:text-foreground",
+                active && styles.isActive,
+              )}
+              onMouseDown={(event) => event.preventDefault()}
+              onSelect={() => onFormat(action)}
+            >
+              <Icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
+              <span>{label}</span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -197,13 +213,11 @@ function ToolbarMenu({
   onLinkOpen?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerHandlers = useMenuTriggerHandlers(() => setOpen((current) => !current));
   const fileInputRef = useRef<HTMLInputElement>(null);
   const items = getToolbarMenuItems(segment, narrow);
   const active = items.some((key) => Boolean(TOOLBAR_ACTIONS[key].isActive?.(formatState)));
   const TriggerIcon = segment.icon;
-
-  useDismissOnOutside(open, () => setOpen(false), rootRef);
 
   function handleItemClick(key: ToolbarActionKey) {
     if (key === "imageUpload") {
@@ -221,45 +235,53 @@ function ToolbarMenu({
   }
 
   return (
-    <div ref={rootRef} className={cn(styles.formatBarDropdown)}>
-      <button
-        type="button"
-        title={segment.title}
-        disabled={disabled}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={segment.title}
-        className={cn(styles.formatBarMenuTrigger, "cursor-pointer", active && styles.isActive)}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <TriggerIcon className={cn(styles.formatBarIcon)} aria-hidden="true" />
-        <ChevronDown className={cn(styles.formatBarChevron)} aria-hidden="true" />
-      </button>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title={segment.title}
+          disabled={disabled}
+          aria-label={segment.title}
+          className={cn(styles.formatBarMenuTrigger, "cursor-pointer", active && styles.isActive)}
+          onMouseDown={(event) => event.preventDefault()}
+          {...triggerHandlers}
+        >
+          <TriggerIcon className={cn(styles.formatBarIcon)} aria-hidden="true" />
+          <ChevronDown className={cn(styles.formatBarChevron)} aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
 
-      {open ? (
-        <div className={cn(styles.formatDropdownMenu)} role="menu" aria-label={segment.title}>
-          {items.map((key) => {
-            const item = TOOLBAR_ACTIONS[key];
-            const itemActive = Boolean(item.isActive?.(formatState));
-            return (
-              <button
-                key={key}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={itemActive}
-                className={cn(styles.formatDropdownMenuItem, itemActive && styles.isActive)}
-                data-xy-link-trigger={key === "link" ? "true" : undefined}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => handleItemClick(key)}
-              >
-                <item.icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
-                <span>{item.title}</span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+      <DropdownMenuContent
+        align="start"
+        sideOffset={4}
+        collisionPadding={8}
+        className="min-w-[9.5rem] rounded-lg border-border bg-card p-1 shadow-[0_8px_24px_hsl(var(--foreground)/0.12)]"
+      >
+        {items.map((key) => {
+          const item = TOOLBAR_ACTIONS[key];
+          const itemActive = Boolean(item.isActive?.(formatState));
+          return (
+            <DropdownMenuItem
+              key={key}
+              // Same rule as the block-type menu: keep the checkbox semantics
+              // this toolbar has always exposed; Radix owns focus/selection.
+              role="menuitemcheckbox"
+              aria-checked={itemActive}
+              className={cn(
+                styles.formatDropdownMenuItem,
+                "focus:bg-muted focus:text-foreground",
+                itemActive && styles.isActive,
+              )}
+              data-xy-link-trigger={key === "link" ? "true" : undefined}
+              onMouseDown={(event) => event.preventDefault()}
+              onSelect={() => handleItemClick(key)}
+            >
+              <item.icon className={cn(styles.formatBarIcon)} aria-hidden="true" />
+              <span>{item.title}</span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
 
       {onImageSelect && items.includes("imageUpload") ? (
         <input
@@ -275,7 +297,7 @@ function ToolbarMenu({
           }}
         />
       ) : null}
-    </div>
+    </DropdownMenu>
   );
 }
 

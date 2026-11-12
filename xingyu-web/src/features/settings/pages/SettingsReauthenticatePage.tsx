@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import { accountApi } from "@/api/account/account.api";
 import { ApiError } from "@/api/client";
+import { ArchetypeFrame, BleedBand } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { PageState } from "@/components/shared/PageState";
 import { checkPasswordForReauth } from "@/features/settings/account-security";
@@ -39,10 +40,17 @@ import { setStoredRecentAuth } from "@/features/settings/recent-auth";
  * when it interrupts you — with the shield mark, one field and one action. The
  * width is the message: there is nothing else to do here.
  *
- * NOTE: the page still renders INSIDE the settings shell, so the area nav is
- * visible. Moving it out of the shell is a route-table change (it currently sits
- * under the SettingsLayout branch) and is tracked as a follow-up rather than
- * bundled into this structure pass.
+ * NOTE (2026-11-10 更正): 上一段写的"仍然渲染在 settings 壳内"已经过期 ——
+ * `routes.tsx:1044-1051` 已经把本页从 `SettingsLayout` 那一组里提出来了（组在
+ * `:1027` 收口），所以本页**没有壳层 h1**，必须自己出恰好 1 个 h1（A §7.2 的 B 类壳）。
+ *
+ * --- 2026-11-10 批次 C：SK5 · 线 / 松 / 出 -------------------------------
+ * 线：masthead 不带卡面（eyebrow + 图标 + h1 + 说明行），靠出血带的上下发丝线收边。
+ * 出：`BleedBand` 让这一条比页内其它块都宽（`-mx-4/md:-mx-6` 抵消 `.content-shell`
+ *     的 `px-4/md:px-6`），其后内容回到 640px 窄栏。带本身是 canvas 底，不是彩色横幅，
+ *     所以它是"整幅节奏"而不是 H=幅。
+ * 松：字段卡内 24px 边距、块间 40px。
+ * 提交与 grant 存储逻辑一行未动。
  * ---------------------------------------------------------------------------
  */
 
@@ -102,89 +110,110 @@ export function SettingsReauthenticatePage() {
 
   if (done && !returnTo) {
     return (
-      <div className="section-gap">
-        <div className="mx-auto w-full max-w-md">
-          <PageState
-            kind="empty"
-            title="身份验证成功"
-            description="验证结果 15 分钟内有效，现在可以修改邮箱或停用账号了。"
-          />
-          <p className="mt-3 text-center">
-            <Link
-              to="/settings/security/email"
-              className="focus-ring rounded-sm text-meta text-accent-strong hover:underline"
-            >
-              去修改邮箱
-            </Link>
-          </p>
-        </div>
-      </div>
+      <ArchetypeFrame skeleton="SK5" header="shell" density="loose">
+        <PageState
+          kind="empty"
+          title="身份验证成功"
+          description="验证结果 15 分钟内有效，现在可以修改邮箱或停用账号了。"
+        />
+        <p className="text-center">
+          <Link
+            to="/settings/security/email"
+            className="focus-ring rounded-sm text-meta text-accent-strong hover:underline"
+          >
+            去修改邮箱
+          </Link>
+        </p>
+      </ArchetypeFrame>
     );
   }
 
   return (
-    <div className="section-gap">
-      <div className="mx-auto w-full max-w-md">
-        <div className="rounded-xl border border-border/70 bg-card p-6">
-          <span
-            className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-accent-soft text-accent-strong"
-            aria-hidden
-          >
-            <ShieldCheck className="h-5 w-5" />
-          </span>
+    <ArchetypeFrame skeleton="SK5" header="shell" density="loose">
+      {/*
+        H=线：标题不带卡面，落在出血带里的内容列左缘；R=出：这条带比页内任何块都宽
+        （`BleedBand` 的 `-mx-4/md:-mx-6` 正好抵消 `.content-shell` 的 `px-4/6`），
+        带本身用 canvas 底 + 上下发丝线 —— 有"整幅"的节奏，没有"横幅"的面色，
+        所以它不是 H=幅。其后所有块回到 640px 窄栏（SK5）。
+      */}
+      <BleedBand labelledBy="reauth-heading">
+        <div className="mx-auto w-full max-w-[40rem]">
+          <p className="eyebrow">账号安全</p>
+          <div className="mt-2 flex items-start gap-3">
+            <span
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-pill bg-surface-sunken text-foreground-soft"
+              aria-hidden
+            >
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              {/*
+               An h1, not the h2 it used to be. When this page lived inside
+               SettingsLayout that shell supplied the page heading, so an h2 was
+               correct. Standalone, it is the only heading on the screen and an
+               outline that starts at level 2 is a broken outline.
+             */}
+              <h1
+                id="reauth-heading"
+                className="text-2xl font-semibold tracking-tight text-primary"
+              >
+                身份再验证
+              </h1>
+              <p className="mt-1.5 max-w-[36rem] text-meta leading-6 text-muted-foreground">
+                为保护账号，修改邮箱或停用账号前需要先用当前密码验证身份，验证结果 15
+                分钟内有效。
+              </p>
+            </div>
+          </div>
+        </div>
+      </BleedBand>
 
-          {/*
-             An h1, not the h2 it used to be. When this page lived inside
-             SettingsLayout that shell supplied the page heading, so an h2 was
-             correct. Standalone, it is the only heading on the screen and an
-             outline that starts at level 2 is a broken outline.
-           */}
-          <h1
-            id="reauth-heading"
-            className="mt-3 text-center text-xl font-semibold tracking-tight text-primary"
-          >
-            身份再验证
-          </h1>
-          <p className="mx-auto mt-1.5 max-w-sm text-center text-meta text-muted-foreground">
-            为保护账号，修改邮箱或停用账号前需要先用当前密码验证身份，验证结果 15 分钟内有效。
-          </p>
-
+      <form
+        onSubmit={onSubmit}
+        className="mx-auto flex w-full max-w-[40rem] flex-col gap-5"
+        data-testid="reauth-form"
+      >
+        <div className="rounded-card border border-border/70 bg-card p-6">
           {submitError ? (
             <p
               role="alert"
               data-testid="reauth-error"
-              className="mt-4 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-meta text-destructive"
+              className="mb-4 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-meta text-destructive"
             >
               {submitError}
             </p>
           ) : null}
 
-          <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-3" data-testid="reauth-form">
-            <label className="flex flex-col gap-1.5 text-meta text-foreground-soft">
-              当前密码
-              <input
-                type="password"
-                value={password}
-                autoComplete="current-password"
-                aria-invalid={fieldError ? true : undefined}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setFieldError(null);
-                }}
-                className="focus-ring h-9 rounded-md border border-input bg-surface-sunken/60 px-3 text-sm text-foreground"
-              />
-            </label>
-            {fieldError ? (
-              <p role="alert" className="text-meta text-destructive">
-                {fieldError}
-              </p>
-            ) : null}
-            <Button type="submit" disabled={busy} data-testid="reauth-submit" className="w-full">
+          <label className="flex flex-col gap-1.5 text-meta text-foreground-soft">
+            当前密码
+            <input
+              type="password"
+              value={password}
+              autoComplete="current-password"
+              aria-invalid={fieldError ? true : undefined}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setFieldError(null);
+              }}
+              className="focus-ring h-9 rounded-control border border-input bg-card px-3 text-sm text-foreground"
+            />
+          </label>
+          {fieldError ? (
+            <p role="alert" className="mt-2 text-meta text-destructive">
+              {fieldError}
+            </p>
+          ) : null}
+        </div>
+
+        {/* SK5 的粘底操作条（`StepFlow` 的同一条配方：上发丝线 + 半透明 + backdrop-blur）。 */}
+        <div className="sticky bottom-0 z-rail border-t border-border/70 bg-card/95 py-3 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <Button type="submit" disabled={busy} data-testid="reauth-submit">
               {busy ? "验证中…" : "验证身份"}
             </Button>
-          </form>
+          </div>
         </div>
-      </div>
-    </div>
+      </form>
+    </ArchetypeFrame>
   );
 }

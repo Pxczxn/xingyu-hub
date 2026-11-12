@@ -111,7 +111,8 @@ public class CommunityAuthInterceptor implements HandlerInterceptor {
                 // 必须在有 token 时带上身份；游客照常放行（following=null）。
                 || uri.startsWith("/api/v1/topics")
                 || uri.startsWith("/api/v1/series")
-                || uri.startsWith("/api/v1/galaxies");
+                || uri.startsWith("/api/v1/galaxies")
+                || uri.startsWith("/api/v1/collaboration/invites/resolve");
     }
 
     private boolean isPasswordChangeAllowed(HttpServletRequest request) {

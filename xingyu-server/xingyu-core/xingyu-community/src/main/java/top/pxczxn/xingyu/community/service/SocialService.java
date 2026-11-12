@@ -31,6 +31,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -169,9 +172,7 @@ public class SocialService {
 
     public List<CommentView> listComments(String objectType, String objectId) {
         validateObjectType(objectType);
-        return commentMapper.listVisibleByObject(objectType, objectId).stream()
-                .map(this::toView)
-                .toList();
+        return commentViews(commentMapper.listVisibleByObject(objectType, objectId));
     }
 
     public List<CommentView> listCommentPreview(String objectType, String objectId) {
@@ -181,9 +182,7 @@ public class SocialService {
             case "SERIES" -> seriesService.getPublicById(objectId);
             default -> throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        return commentMapper.listPreviewByObject(objectType, objectId).stream()
-                .map(this::toView)
-                .toList();
+        return commentViews(commentMapper.listPreviewByObject(objectType, objectId));
     }
 
     public CommentDetailView getComment(String commentId) {
@@ -235,12 +234,10 @@ public class SocialService {
         if (limit <= 0) {
             limit = 20;
         }
-        List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(user.getId());
-        List<FollowUserView> items = followeeIds.stream()
+        List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(user.getId()).stream()
                 .limit(limit)
-                .map(followeeId -> toFollowUserView(user.getId(), followeeId, true))
-                .filter(Objects::nonNull)
                 .toList();
+        List<FollowUserView> items = followViews(user.getId(), followeeIds, true);
         return PageResultView.<FollowUserView>builder()
                 .items(items)
                 .nextCursor(null)
@@ -258,10 +255,7 @@ public class SocialService {
             limit = 20;
         }
         List<String> followerIds = userFollowMapper.listFollowerIdsByFollowee(targetUserId, limit);
-        List<FollowUserView> items = followerIds.stream()
-                .map(followerId -> toFollowUserView(followerId, targetUserId, false))
-                .filter(Objects::nonNull)
-                .toList();
+        List<FollowUserView> items = followViews(targetUserId, followerIds, false);
         return PageResultView.<FollowUserView>builder()
                 .items(items)
                 .nextCursor(null)
@@ -274,12 +268,10 @@ public class SocialService {
         if (limit <= 0) {
             limit = 20;
         }
-        List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(targetUserId);
-        List<FollowUserView> items = followeeIds.stream()
+        List<String> followeeIds = userFollowMapper.listFolloweeIdsByFollower(targetUserId).stream()
                 .limit(limit)
-                .map(followeeId -> toFollowUserView(targetUserId, followeeId, true))
-                .filter(Objects::nonNull)
                 .toList();
+        List<FollowUserView> items = followViews(targetUserId, followeeIds, true);
         return PageResultView.<FollowUserView>builder()
                 .items(items)
                 .nextCursor(null)
@@ -291,8 +283,12 @@ public class SocialService {
         if (limit <= 0) {
             limit = 20;
         }
-        return commentMapper.listByAuthorId(user.getId(), limit).stream()
-                .map(this::toMyCommentView)
+        List<Comment> comments = commentMapper.listByAuthorId(user.getId(), limit);
+        Map<String, SearchDocument> documents = documentsFor(comments.stream()
+                .map(comment -> new ObjectRef(comment.getObjectType(), comment.getObjectId()))
+                .toList());
+        return comments.stream()
+                .map(comment -> toMyCommentView(comment, documents.get(documentKey(comment.getObjectType(), comment.getObjectId()))))
                 .toList();
     }
 
@@ -300,28 +296,57 @@ public class SocialService {
         if (limit <= 0) {
             limit = 20;
         }
-        return likeMapper.listByUserId(user.getId(), limit).stream()
-                .map(this::toMyLikeView)
+        List<ContentLike> likes = likeMapper.listByUserId(user.getId(), limit);
+        Map<String, SearchDocument> documents = documentsFor(likes.stream()
+                .map(like -> new ObjectRef(like.getObjectType(), like.getObjectId()))
+                .toList());
+        return likes.stream()
+                .map(like -> toMyLikeView(like, documents.get(documentKey(like.getObjectType(), like.getObjectId()))))
                 .toList();
     }
 
-    private FollowUserView toFollowUserView(String followerId, String followeeId, boolean followingList) {
-        String targetUserId = followingList ? followeeId : followerId;
-        CommunityProfile profile = profileMapper.findByUserId(targetUserId);
-        if (profile == null) {
-            return null;
+    private List<FollowUserView> followViews(String fixedUserId, List<String> otherIds, boolean followingList) {
+        if (otherIds.isEmpty()) {
+            return List.of();
         }
-        UserFollow follow = userFollowMapper.findByFollowerAndFollowee(followerId, followeeId);
-        return FollowUserView.builder()
-                .userId(targetUserId)
-                .username(profile.getUsername())
-                .displayName(profile.getDisplayName())
-                .followedAt(follow == null ? null : follow.getCreatedAt())
-                .build();
+        Map<String, CommunityProfile> profiles = new HashMap<>();
+        for (CommunityProfile profile : profileMapper.findByUserIds(otherIds)) {
+            profiles.putIfAbsent(profile.getUserId(), profile);
+        }
+        List<String> presentIds = otherIds.stream().filter(profiles::containsKey).toList();
+        Map<String, UserFollow> follows = followRows(fixedUserId, presentIds, followingList);
+        List<FollowUserView> items = new ArrayList<>();
+        for (String otherId : otherIds) {
+            CommunityProfile profile = profiles.get(otherId);
+            if (profile == null) {
+                continue;
+            }
+            UserFollow follow = follows.get(otherId);
+            items.add(FollowUserView.builder()
+                    .userId(otherId)
+                    .username(profile.getUsername())
+                    .displayName(profile.getDisplayName())
+                    .followedAt(follow == null ? null : follow.getCreatedAt())
+                    .build());
+        }
+        return items;
     }
 
-    private MyCommentView toMyCommentView(Comment comment) {
-        SearchDocument document = searchDocumentMapper.findByObject(comment.getObjectType(), comment.getObjectId());
+    private Map<String, UserFollow> followRows(String fixedUserId, List<String> otherIds, boolean followingList) {
+        if (otherIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, UserFollow> follows = new HashMap<>();
+        List<UserFollow> rows = followingList
+                ? userFollowMapper.listByFollowerAndFollowees(fixedUserId, otherIds)
+                : userFollowMapper.listByFolloweeAndFollowers(fixedUserId, otherIds);
+        for (UserFollow follow : rows) {
+            follows.putIfAbsent(followingList ? follow.getFolloweeId() : follow.getFollowerId(), follow);
+        }
+        return follows;
+    }
+
+    private MyCommentView toMyCommentView(Comment comment, SearchDocument document) {
         return MyCommentView.builder()
                 .id(comment.getId())
                 .body(comment.getBody())
@@ -332,14 +357,40 @@ public class SocialService {
                 .build();
     }
 
-    private MyLikeView toMyLikeView(ContentLike like) {
-        SearchDocument document = searchDocumentMapper.findByObject(like.getObjectType(), like.getObjectId());
+    private MyLikeView toMyLikeView(ContentLike like, SearchDocument document) {
         return MyLikeView.builder()
                 .objectType(like.getObjectType())
                 .objectId(like.getObjectId())
                 .title(document == null ? like.getObjectId() : document.getTitle())
                 .createdAt(like.getCreatedAt())
                 .build();
+    }
+
+    private Map<String, SearchDocument> documentsFor(List<ObjectRef> refs) {
+        if (refs.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<String>> idsByType = new LinkedHashMap<>();
+        for (ObjectRef ref : refs) {
+            List<String> ids = idsByType.computeIfAbsent(ref.type(), key -> new ArrayList<>());
+            if (!ids.contains(ref.id())) {
+                ids.add(ref.id());
+            }
+        }
+        Map<String, SearchDocument> documents = new HashMap<>();
+        for (Map.Entry<String, List<String>> entry : idsByType.entrySet()) {
+            for (SearchDocument document : searchDocumentMapper.listByTypeAndIds(entry.getKey(), entry.getValue())) {
+                documents.putIfAbsent(documentKey(document.getObjectType(), document.getObjectId()), document);
+            }
+        }
+        return documents;
+    }
+
+    private static String documentKey(String objectType, String objectId) {
+        return objectType + "\u0001" + objectId;
+    }
+
+    private record ObjectRef(String type, String id) {
     }
 
     private CommentDetailView toDetailView(Comment comment) {
@@ -360,16 +411,36 @@ public class SocialService {
                 .build();
     }
 
-    private CommentView toView(Comment comment) {
-        String authorUsername = null;
-        CommunityProfile profile = profileMapper.findByUserId(comment.getAuthorId());
-        if (profile != null) {
-            authorUsername = profile.getUsername();
+    private List<CommentView> commentViews(List<Comment> comments) {
+        if (comments.isEmpty()) {
+            return List.of();
         }
+        List<String> authorIds = new ArrayList<>();
+        for (Comment comment : comments) {
+            if (comment.getAuthorId() != null && !authorIds.contains(comment.getAuthorId())) {
+                authorIds.add(comment.getAuthorId());
+            }
+        }
+        Map<String, CommunityProfile> profiles = new HashMap<>();
+        if (!authorIds.isEmpty()) {
+            for (CommunityProfile profile : profileMapper.findByUserIds(authorIds)) {
+                profiles.putIfAbsent(profile.getUserId(), profile);
+            }
+        }
+        return comments.stream()
+                .map(comment -> toView(comment, profiles.get(comment.getAuthorId())))
+                .toList();
+    }
+
+    private CommentView toView(Comment comment) {
+        return toView(comment, profileMapper.findByUserId(comment.getAuthorId()));
+    }
+
+    private CommentView toView(Comment comment, CommunityProfile profile) {
         return CommentView.builder()
                 .id(comment.getId())
                 .authorId(comment.getAuthorId())
-                .authorUsername(authorUsername)
+                .authorUsername(profile == null ? null : profile.getUsername())
                 .parentId(comment.getParentId())
                 .body(comment.getBody())
                 .createdAt(comment.getCreatedAt())

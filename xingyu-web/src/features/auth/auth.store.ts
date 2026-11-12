@@ -5,12 +5,20 @@
  * Status model:
  *   initializing  — session restore still in flight
  *   authenticated — token present and /api/v1/me resolved
- *   unauthenticated — no token, or restore failed
+ *   unauthenticated — no token, or the backend explicitly rejected the token
+ *   error         — token still stored, but the restore failed for a reason that
+ *                   is NOT "this token is dead" (network drop, 5xx, timeout).
+ *                   The session is kept and the restore can be retried; pages
+ *                   must not treat it as signed out.
  *
  * 2026-10-22: the token store is the transport layer's property (api/client.ts
- * clears it on any 401). This provider subscribes to AUTH_CHANGED_EVENT and the
+ * clears it on a 401). This provider subscribes to AUTH_CHANGED_EVENT and the
  * cross-tab `storage` event, so a dead session, a logout in another tab, or a
  * different account signing in elsewhere is reflected without a reload.
+ *
+ * 2026-11-10 (audit A2): the restore `catch` used to sign the user out on EVERY
+ * failure — a dropped connection or a 502 deleted a perfectly valid token. Only
+ * an explicit 401/403 may clear it now; anything else leaves `error`.
  *
  * 2026-10-22 (follow-up): every token change bumps a session epoch. A slow /me
  * for an older token must never overwrite the newer session — otherwise the UI
@@ -29,9 +37,23 @@ import {
 } from "react";
 import { authApi } from "@/api/auth/auth.api";
 import type { LoginPayload, LoginResult, MeAccount } from "@/api/auth/auth.types";
+import { ApiError } from "@/api/client";
 import { getStoredToken, onAuthChanged, setStoredToken, TOKEN_KEY } from "@/lib/storage";
 
-export type AuthStatus = "initializing" | "authenticated" | "unauthenticated";
+export type AuthStatus = "initializing" | "authenticated" | "unauthenticated" | "error";
+
+/**
+ * Did the backend explicitly reject the token (401/403), as opposed to the
+ * request never reaching it (network drop, timeout, 5xx)?
+ *
+ * Only the former proves the session is dead. Treating the latter as a sign-out
+ * deleted valid tokens whenever the proxy hiccuped (audit A2, 2026-11-10).
+ */
+function isTokenRejected(error: unknown): boolean {
+  return (
+    error instanceof ApiError && (error.problem.status === 401 || error.problem.status === 403)
+  );
+}
 
 type AuthContextValue = {
   status: AuthStatus;
@@ -81,14 +103,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(expectedToken);
         setStatus("authenticated");
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (epoch !== epochRef.current) return;
         if (getStoredToken() !== expectedToken) return;
-        // The token no longer authenticates: drop it and clear the session.
-        setStoredToken(null);
+        if (isTokenRejected(error)) {
+          // The backend refused THIS token: drop it and clear the session.
+          setStoredToken(null);
+          setUser(null);
+          setToken(null);
+          setStatus("unauthenticated");
+          return;
+        }
+        // Network drop / timeout / 5xx: the token was never proven dead, so keep
+        // it. `error` is distinguishable from "signed out" and retryable.
         setUser(null);
-        setToken(null);
-        setStatus("unauthenticated");
+        setToken(expectedToken);
+        setStatus("error");
       })
       .finally(() => {
         if (pendingTokenRef.current === expectedToken && epoch === epochRef.current) {

@@ -2,6 +2,7 @@ package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.CollectionEntry;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -19,8 +20,22 @@ public interface CollectionEntryMapper extends BaseMapper<CollectionEntry> {
             """)
     List<CollectionEntry> listByCollectionId(String collectionId);
 
+    @Delete("DELETE FROM collection_entry WHERE collection_id = #{collectionId}")
+    int deleteByCollectionId(String collectionId);
+
     @Select("SELECT COUNT(*) FROM collection_entry WHERE collection_id = #{collectionId}")
     long countByCollectionId(String collectionId);
+
+    @Select("""
+            <script>
+            SELECT collection_id AS objectId, COUNT(*) AS count
+            FROM collection_entry
+            WHERE collection_id IN
+            <foreach collection='collectionIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            GROUP BY collection_id
+            </script>
+            """)
+    List<ObjectCountRow> countByCollectionIds(@Param("collectionIds") List<String> collectionIds);
 
     /**
      * Whether this owner has this object in ANY of their collections.
@@ -42,6 +57,16 @@ public interface CollectionEntryMapper extends BaseMapper<CollectionEntry> {
             LIMIT 1
             """)
     CollectionEntry findByOwnerAndObject(String ownerId, String objectType, String objectId);
+
+    @Select("""
+            SELECT * FROM collection_entry
+            WHERE collection_id = #{collectionId}
+              AND object_type = #{objectType}
+              AND object_id = #{objectId}
+            LIMIT 1
+            """)
+    CollectionEntry findByCollectionAndObject(
+            String collectionId, String objectType, String objectId);
 
     @Select("""
             SELECT COUNT(*) FROM collection_entry

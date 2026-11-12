@@ -25,8 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -176,8 +178,37 @@ public class ReviewService {
         if (limit <= 0) {
             limit = 20;
         }
-        return submissionMapper.listBySubmittedBy(user.getId(), limit).stream()
-                .map(submission -> toDetailView(submission))
+        List<ReviewSubmission> submissions = submissionMapper.listBySubmittedBy(user.getId(), limit);
+        if (submissions.isEmpty()) {
+            return List.of();
+        }
+        List<String> revisionIds = submissions.stream()
+                .map(ReviewSubmission::getFormalRevisionId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        Map<String, FormalRevision> revisions = new HashMap<>();
+        if (!revisionIds.isEmpty()) {
+            for (FormalRevision revision : formalRevisionMapper.listByIds(revisionIds)) {
+                revisions.putIfAbsent(revision.getId(), revision);
+            }
+        }
+        List<String> submissionIds = submissions.stream()
+                .map(ReviewSubmission::getId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        Map<String, ReviewDecision> decisions = new HashMap<>();
+        if (!submissionIds.isEmpty()) {
+            for (ReviewDecision decision : decisionMapper.listBySubmissionIds(submissionIds)) {
+                decisions.putIfAbsent(decision.getSubmissionId(), decision);
+            }
+        }
+        return submissions.stream()
+                .map(submission -> toDetailView(
+                        submission,
+                        revisions.get(submission.getFormalRevisionId()),
+                        decisions.get(submission.getId())))
                 .toList();
     }
 
@@ -301,8 +332,14 @@ public class ReviewService {
     }
 
     private ReviewSubmissionDetailView toDetailView(ReviewSubmission submission) {
-        FormalRevision revision = formalRevisionMapper.selectById(submission.getFormalRevisionId());
-        ReviewDecision decision = decisionMapper.findBySubmissionId(submission.getId());
+        return toDetailView(
+                submission,
+                formalRevisionMapper.selectById(submission.getFormalRevisionId()),
+                decisionMapper.findBySubmissionId(submission.getId()));
+    }
+
+    private ReviewSubmissionDetailView toDetailView(
+            ReviewSubmission submission, FormalRevision revision, ReviewDecision decision) {
         return ReviewSubmissionDetailView.builder()
                 .id(submission.getId())
                 .articleId(submission.getArticleId())

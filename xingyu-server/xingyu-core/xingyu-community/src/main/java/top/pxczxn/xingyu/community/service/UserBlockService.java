@@ -16,7 +16,10 @@ import top.pxczxn.xingyu.community.mapper.UserBlockMapper;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -37,9 +40,25 @@ public class UserBlockService {
         if (limit <= 0) {
             limit = 50;
         }
-        return userBlockMapper.listByBlocker(user.getId(), limit).stream()
+        List<UserBlock> blocks = userBlockMapper.listByBlocker(user.getId(), limit);
+        if (blocks.isEmpty()) {
+            return List.of();
+        }
+        List<String> blockedIds = new ArrayList<>();
+        for (UserBlock block : blocks) {
+            if (block.getBlockedId() != null && !blockedIds.contains(block.getBlockedId())) {
+                blockedIds.add(block.getBlockedId());
+            }
+        }
+        Map<String, CommunityProfile> profiles = new HashMap<>();
+        if (!blockedIds.isEmpty()) {
+            for (CommunityProfile profile : profileMapper.findByUserIds(blockedIds)) {
+                profiles.putIfAbsent(profile.getUserId(), profile);
+            }
+        }
+        return blocks.stream()
                 .map(block -> {
-                    CommunityProfile profile = profileMapper.findByUserId(block.getBlockedId());
+                    CommunityProfile profile = profiles.get(block.getBlockedId());
                     return BlockedUserView.builder()
                             .userId(block.getBlockedId())
                             .username(profile == null ? block.getBlockedId() : profile.getUsername())

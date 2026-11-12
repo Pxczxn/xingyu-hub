@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { articlesApi } from "@/api/articles/articles.api";
 import { ApiError } from "@/api/client";
@@ -191,17 +191,55 @@ describe("article detail", () => {
     await screen.findByRole("heading", { name: "真实文章标题" });
 
     // The column wrapper and the body it holds must agree on the measure; the
-    // grid's first track is what actually caps the body's width.
+    // main track is what actually caps the body's width.
     const column = container.querySelector(".article-body")?.parentElement;
     expect(column?.className).toContain("max-w-[var(--reading-measure)]");
-    // Select by the track definition, not `.grid`: the author avatar is also
-    // `grid` (a 24px disc), and it comes first in document order.
-    const grid = container.querySelector(
-      '[class*="lg:grid-cols-[minmax(0,var(--reading-measure))_220px]"]',
-    );
-    expect(grid).not.toBeNull();
+    /*
+     * 有意改变的结构（C-reader 三轨 + 用户 2026-11-10 修正）：原来断言的是
+     * `ArchetypeFrame` 的两栏栅格 `[...measure..._220px]`；现在正文列是三轨
+     * `ReaderFrame` 的 main 轨，左右两轨只填原本的空白。改为按验收钩子
+     * `data-reader-track` 断言三轨存在，且正文在 main 轨内 —— 栅格类别名会随
+     * 骨架实现改名，验收钩子不会。
+     */
+    expect(container.querySelectorAll("[data-reader-track]")).toHaveLength(3);
+    expect(
+      container.querySelector('[data-reader-track="main"] .article-body'),
+    ).not.toBeNull();
     // A literal `68ch` here would silently reintroduce the 16px-vs-18px split.
     expect(container.querySelector('[class*="68ch"]')).toBeNull();
+  });
+
+  /*
+   * 用户 2026-11-10 修正：右栏必须永远有内容（工具 → 目录/本文信息 → 进度）。
+   * 没有 h2/h3 时目录跳过，但工具与「本文信息」必须替换上来，不能出现空栏。
+   */
+  it("keeps the right track full when the article has no outline", async () => {
+    mocked.getArticle.mockResolvedValue({
+      ...ARTICLE,
+      body: "只有一段正文。\n\n第二段。",
+    });
+    const { container } = renderAt("a1");
+
+    await screen.findByRole("heading", { name: "真实文章标题" });
+
+    expect(screen.getByRole("group", { name: "阅读工具" })).toBeInTheDocument();
+    expect(screen.getByText(/本文共 2 段/)).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "阅读进度" })).toBeInTheDocument();
+    expect(container.querySelectorAll("[data-reader-track]")).toHaveLength(3);
+  });
+
+  it("applies the reading tools to the real body", async () => {
+    mocked.getArticle.mockResolvedValue(ARTICLE);
+    const { container } = renderAt("a1");
+
+    await screen.findByRole("heading", { name: "真实文章标题" });
+
+    fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    fireEvent.click(screen.getByRole("button", { name: "宽" }));
+
+    const column = container.querySelector(".article-body")?.parentElement as HTMLElement | null;
+    expect(column?.style.getPropertyValue("--reading-body-size")).toBe("20px");
+    expect(column?.style.getPropertyValue("--reader-line-height")).toBe("2");
   });
 
   it("keeps the shared body size off the outline and the tail", async () => {

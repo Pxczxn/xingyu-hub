@@ -1,7 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
-import { useState } from "react";
 import type { ContentSummary } from "@/api/common.types";
 import { DiscoverListItem } from "./DiscoverListItem";
 
@@ -39,12 +38,10 @@ beforeEach(() => {
   mocks.preview.mockResolvedValue(comments.slice(0, 3));
 });
 function Row({ item }: { item: ContentSummary }) {
-  const [expanded, setExpanded] = useState(false);
   return (
     <DiscoverListItem
       item={item}
-      variant={expanded ? "expanded" : "normal"}
-      onToggleExpand={() => setExpanded((value) => !value)}
+      onToggleExpand={() => {}}
     />
   );
 }

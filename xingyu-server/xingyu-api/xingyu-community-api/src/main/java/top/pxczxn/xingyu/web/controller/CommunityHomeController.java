@@ -47,8 +47,10 @@ public class CommunityHomeController {
             @RequestParam(value = "limit", defaultValue = "20") int limit,
             @RequestParam(value = "cursor", required = false) String cursor,
             @RequestParam(value = "topic", required = false) String topic,
-            @RequestParam(value = "type", required = false) String type) {
-        return homeService.discover(limit, cursor, topic, type);
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "sort", required = false) String sort,
+            @RequestHeader(value = "satoken", required = false) String token) {
+        return homeService.discover(limit, cursor, topic, type, sort, resolveViewer(token));
     }
 
     private CommunityUser resolveViewer(String token) {

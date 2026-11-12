@@ -1,9 +1,13 @@
-import styles from "./editor-workspace.module.css";
-import { cn } from "@/lib/cn";
-
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useBlocker } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /*
  * Unsaved-changes protection (Phase 1C-2).
@@ -21,10 +25,19 @@ import { Button } from "@/components/ui/button";
  * `useBlocker` only reports that a navigation is pending; the app owns the UI.
  * That is why this renders its own confirmation dialog instead of relying on a
  * native `window.confirm` — which also makes the behaviour testable in jsdom.
+ *
+ * 浮层统一（第四轮）：模态改用 `components/ui/dialog`（Radix）——Portal、焦点陷阱、
+ * Esc 关闭、滚动锁、关闭后焦点归位都由基础件提供，不再手写 fixed 覆盖层与
+ * z-200 的层级。Esc / 点击遮罩走的都是 `onOpenChange(false)` => `blocker.reset()`
+ * （“留在本页”），与显式点“留在本页”等价；“放弃修改并离开”是唯一的破坏性出口，
+ * 所以它用 `variant="destructive"` 且排在右侧。可访问名保持原 `aria-label`
+ * （`未保存的修改`），标题文案不变 —— 现有编辑页测试按这个名字定位弹窗。
  */
 
 export function EditorLeaveGuard({ when }: { when: boolean }) {
   const blocker = useBlocker(when);
+  const stayRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!when) return;
@@ -40,24 +53,43 @@ export function EditorLeaveGuard({ when }: { when: boolean }) {
   if (blocker.state !== "blocked") return null;
 
   return (
-    <div
-      className={cn(styles.leaveGuard)}
-      role="alertdialog"
-      aria-modal="true"
-      aria-label="未保存的修改"
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) blocker.reset?.();
+      }}
     >
-      <div className={cn(styles.leaveGuardCard)}>
-        <h2>有未保存的修改</h2>
-        <p>离开当前页面会丢失这些修改，确定要离开吗？</p>
-        <div className={cn(styles.leaveGuardActions)}>
-          <Button type="button" variant="outline" onClick={() => blocker.reset?.()}>
+      <DialogContent
+        role="alertdialog"
+        // 让可访问名沿用既有 `aria-label`，同时仍然渲染可见的 DialogTitle。
+        aria-label="未保存的修改"
+        aria-labelledby={undefined}
+        className="max-w-sm rounded-xl bg-card"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          previousFocusRef.current =
+            document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          stayRef.current?.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (previousFocusRef.current?.isConnected) previousFocusRef.current.focus();
+        }}
+        onPointerDownOutside={(event) => event.preventDefault()}
+      >
+        <DialogTitle className="text-base font-semibold text-primary">有未保存的修改</DialogTitle>
+        <DialogDescription className="text-sm leading-6 text-muted-foreground">
+          离开当前页面会丢失这些修改，确定要离开吗？
+        </DialogDescription>
+        <DialogFooter className="gap-2">
+          <Button ref={stayRef} type="button" variant="outline" onClick={() => blocker.reset?.()}>
             留在本页
           </Button>
-          <Button type="button" onClick={() => blocker.proceed?.()}>
+          <Button type="button" variant="destructive" onClick={() => blocker.proceed?.()}>
             放弃修改并离开
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -3,6 +3,7 @@ package top.pxczxn.xingyu.community.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.ConversationMember;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -21,6 +22,15 @@ public interface ConversationMemberMapper extends BaseMapper<ConversationMember>
             WHERE conversation_id = #{conversationId}
             """)
     List<ConversationMember> listByConversationId(String conversationId);
+
+    @Select("""
+            <script>
+            SELECT * FROM conversation_member
+            WHERE conversation_id IN
+            <foreach collection='conversationIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            </script>
+            """)
+    List<ConversationMember> listByConversationIds(@Param("conversationIds") List<String> conversationIds);
 
     @Select("""
             SELECT m1.conversation_id FROM conversation_member m1

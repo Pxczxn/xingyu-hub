@@ -5,18 +5,27 @@
 
 import type { CursorInput, PageResult, ContentSummary, SearchHit } from "@/api/common.types";
 
+export type DiscoverSort = "latest" | "featured" | "interest";
+
 export type DiscoverInput = CursorInput & {
   topic?: string;
   /** Server-side object type. `MOMENT` is a first-class discover result (see DiscoverService.nav). */
   type?: "ARTICLE" | "SERIES" | "MOMENT";
+  /**
+   * Omitted means latest. `featured` is the editorial keyset.
+   * `interest` keeps the same recency cursor and only includes articles tagged
+   * to the signed-in user's selected explore domains. Guests get 401.
+   * `hot` is rejected: like counts are not a stable cursor.
+   */
+  sort?: DiscoverSort;
 };
 
 export type DiscoverNavTab = { key: string; label: string; defaultSelected?: boolean };
 
 /**
  * Verified live response of GET /api/v1/discover/nav.
- * `domainTabs` / `sortTabs` are returned but are NOT honored by
- * /api/v1/discover on the current backend, so they are not used as filters.
+ * `domainTabs` / `sortTabs` still describe more sorts than /discover implements.
+ * The page only sends `latest` (default) and `featured`.
  */
 export type ExploreNav = {
   mode?: string;

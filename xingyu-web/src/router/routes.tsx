@@ -4,8 +4,9 @@ import { AppLayout } from "@/layouts/AppLayout";
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { HomePage } from "@/features/home/pages/HomePage";
 import { NotFound } from "@/components/shared/NotFound";
-import { RequireAuth } from "./guards";
+import { GuestOnly, RequireAuth } from "./guards";
 import { LEGACY_REDIRECTS, LegacyRedirectRoute } from "./redirects";
+import { OpenMessageCardPage } from "@/features/messages/OpenMessageCardPage";
 
 /*
  * P1-1: the two heaviest hosts, split in Phase 1C-1 and kept explicit here.
@@ -77,10 +78,9 @@ const EditorPage = lazy(() =>
  *                      Routes at the resource root to match the write endpoints)
  * Phase 2L:            /studio/analytics, /studio/content/:articleId/versions
  * Phase 2M:            /studio/collaboration, /studio/collaboration/accept
- *                      (RequireAuth; invite link create + confirm. NOTE: the
- *                      backend has NO collaboration relationship — accept writes
- *                      nothing. The UI discloses this rather than implying a
- *                      permission grant.)
+ *                      (RequireAuth. Accept writes collaboration_member: the
+ *                      accepter can edit that author's drafts. Submit and trash
+ *                      stay with the author.)
  * Phase 2N:            /studio/categories (RequireAuth; creation-space category
  *                      CRUD. NOT a migration — the backend API existed and was
  *                      never surfaced by Legacy. Archive and delete are separate
@@ -477,21 +477,9 @@ const NotificationsPage = lazy(() =>
   })),
 );
 
-const MailboxPage = lazy(() =>
-  import("@/features/messages/pages/MailboxPage").then((module) => ({
-    default: module.MailboxPage,
-  })),
-);
-
 const ConversationAssetsPage = lazy(() =>
   import("@/features/messages/pages/ConversationAssetsPage").then((module) => ({
     default: module.ConversationAssetsPage,
-  })),
-);
-
-const SearchMessagesPage = lazy(() =>
-  import("@/features/messages/pages/SearchMessagesPage").then((module) => ({
-    default: module.SearchMessagesPage,
   })),
 );
 
@@ -922,15 +910,13 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />{" "}
-        {/* Phase 2I-3: the private message centre. Both hosts need a session —
-            every /api/v1/messages endpoint is scoped by the community session.
-            Declared as two flat routes (not a nested index/child pair) because
-            MailboxPage renders the thread slot itself from the param. */}
+        {/* The mailbox lives in the header card. These two URLs only open it,
+            then leave. Search, saved, media and files stay real pages. */}
         <Route
           path="/messages"
           element={
             <RequireAuth>
-              <MailboxPage />
+              <OpenMessageCardPage />
             </RequireAuth>
           }
         />
@@ -938,7 +924,7 @@ export function AppRoutes() {
           path="/messages/:conversationId"
           element={
             <RequireAuth>
-              <MailboxPage />
+              <OpenMessageCardPage />
             </RequireAuth>
           }
         />
@@ -956,7 +942,7 @@ export function AppRoutes() {
           path="/messages/search"
           element={
             <RequireAuth>
-              <SearchMessagesPage />
+              <OpenMessageCardPage mode="search" />
             </RequireAuth>
           }
         />
@@ -1097,12 +1083,7 @@ export function AppRoutes() {
               of data the API already exposes (listRevisions / me/insights). */}
           <Route path="/studio/analytics" element={<StudioAnalyticsPage />} />
           <Route path="/studio/content/:articleId/versions" element={<ArticleVersionsPage />} />
-          {/* Phase 2M: collaboration invites. The invite format is a strictly
-              POST-a-session operation (`POST /me/collaboration-invites`).
-
-              ⚠️ Neither page implies a working collaboration handshake: the
-              backend has no relationship table and accept writes nothing. See
-              collaboration.types.ts. */}
+          {/* Phase 2M: collaboration invites. Accept writes collaboration_member. */}
           <Route path="/studio/collaboration" element={<CollaborationInvitePage />} />
           {/* Phase 2N: creation-space categories. Not a migration — the backend
               CRUD (`/me/creation-space/categories`) was fully implemented while
@@ -1167,8 +1148,26 @@ export function AppRoutes() {
         Path matching is unchanged — the same seven paths resolve to the same
         seven elements, just under two parents instead of one.
       */}
+      {/*
+        Guest-only screens (audit A1, 2026-11-10). /login and /register are the
+        two pages that exist only for people who are NOT signed in, so they are
+        wrapped in GuestOnly: an authenticated reader is sent on to `returnTo`
+        (or "/") instead of being allowed to submit a login form while already
+        logged in. The other auth screens stay unwrapped on purpose — a guest
+        who is mid-flow (verify email / reset password) has no session anyway,
+        and a signed-in reader may legitimately open them.
+
+        Path matching is unchanged; only the element gained a wrapper.
+      */}
       <Route element={<AuthLayout width="narrow" />}>
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={
+            <GuestOnly>
+              <LoginPage />
+            </GuestOnly>
+          }
+        />
         <Route path="/register/pending-audit" element={<PendingAuditPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -1177,7 +1176,14 @@ export function AppRoutes() {
       </Route>
 
       <Route element={<AuthLayout width="wide" />}>
-        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/register"
+          element={
+            <GuestOnly>
+              <RegisterPage />
+            </GuestOnly>
+          }
+        />
       </Route>
 
       {LEGACY_REDIRECTS.map((redirect) => (

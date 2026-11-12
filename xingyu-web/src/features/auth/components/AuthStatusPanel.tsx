@@ -25,6 +25,20 @@ import { cn } from "@/lib/cn";
  * than "glyph + conclusion + actions" (pending-audit's three-step timeline, for
  * instance) should build its own instead of stretching this one.
  */
+/*
+ * H 轴（2026-11-10，批次 C）—— 和 `AuthCard` 同一套取值，理由写在那个文件里。
+ *   `card`   默认：白卡 + 发丝线（旧形状，未迁移的调用点不受影响）
+ *   `line`   无面：状态结论直接落在内容列上，靠一条发丝线与下面分开
+ *   `banner` 有面横幅：底色 + 母题，用于映射表里 H=幅 的认证页
+ */
+export type AuthStatusPanelVariant = "card" | "line" | "banner";
+
+const PANEL_SURFACE: Record<AuthStatusPanelVariant, string> = {
+  card: "rounded-card border border-border/70 bg-card",
+  line: "border-b border-border/70",
+  banner: "motif-orbit relative isolate overflow-hidden rounded-card border border-border/70 bg-surface-sunken",
+};
+
 export function AuthStatusPanel({
   icon,
   disc,
@@ -32,6 +46,7 @@ export function AuthStatusPanel({
   body,
   action,
   live = false,
+  variant = "card",
   className,
 }: {
   icon: ReactNode;
@@ -42,19 +57,28 @@ export function AuthStatusPanel({
   action?: ReactNode;
   /** Announce changes to assistive tech — use for a state that resolves async. */
   live?: boolean;
+  variant?: AuthStatusPanelVariant;
   className?: string;
 }) {
   return (
     <div
-      className={cn("rounded-xl border border-border/70 bg-card px-6 py-7 text-center", className)}
+      className={cn(
+        "px-6 py-7 text-center",
+        variant === "line" ? "rounded-none pb-6" : "rounded-card",
+        PANEL_SURFACE[variant],
+        className,
+      )}
       {...(live ? { role: "status", "aria-live": "polite" as const } : {})}
     >
-      <span
-        className={cn("mx-auto grid h-12 w-12 place-items-center rounded-full", disc)}
-        aria-hidden
-      >
-        {icon}
-      </span>
+      {/* 母题（`.motif-orbit` 的两条环）是定位伪元素，会画在静态文字之上；
+          内容一律进 `relative z-10`，与 `AuthCard` 的 banner 分支同一处理。 */}
+      <div className="relative z-10">
+        <span
+          className={cn("mx-auto grid h-12 w-12 place-items-center rounded-full", disc)}
+          aria-hidden
+        >
+          {icon}
+        </span>
       {/*
         20px —— 认证域（S8）的 L1 档。
 
@@ -78,9 +102,12 @@ export function AuthStatusPanel({
         （24px）：它是域内唯一有第二份工作的页面（表单旁边要放价值主张），而且与
         任何 20px 标题之间隔着一次导航，不会同屏出现。
       */}
-      <h1 className="mt-3 text-xl font-semibold tracking-tight text-primary">{title}</h1>
-      <div className="mx-auto mt-2 max-w-sm text-meta leading-6 text-muted-foreground">{body}</div>
-      {action ? <div className="mt-5 flex flex-col items-center gap-3">{action}</div> : null}
+        <h1 className="mt-3 text-xl font-semibold tracking-tight text-primary">{title}</h1>
+        <div className="mx-auto mt-2 max-w-sm text-meta leading-6 text-muted-foreground">
+          {body}
+        </div>
+        {action ? <div className="mt-5 flex flex-col items-center gap-3">{action}</div> : null}
+      </div>
     </div>
   );
 }

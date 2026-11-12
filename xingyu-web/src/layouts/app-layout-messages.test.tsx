@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { notificationsApi } from "@/api/notifications/notifications.api";
 import type { ChatMessage, Conversation } from "@/api/messages/messages.types";
@@ -97,16 +98,19 @@ beforeEach(() => {
 });
 
 describe("AppLayout — message entry", () => {
-  it("links to /messages", async () => {
+  it("opens a card that can start a conversation", async () => {
+    const user = userEvent.setup();
     givenUnread(0);
     renderShell();
-    expect(await screen.findByRole("link", { name: "私信" })).toHaveAttribute("href", "/messages");
+    await user.click(await screen.findByRole("button", { name: "私信" }));
+    expect(await screen.findByRole("button", { name: "新建" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "打开信箱" })).not.toBeInTheDocument();
   });
 
   it("shows no badge when nothing is unread", async () => {
     givenUnread(0);
     renderShell();
-    const link = await screen.findByRole("link", { name: "私信" });
+    const link = await screen.findByRole("button", { name: "私信" });
     expect(link.textContent).toBe("");
   });
 
@@ -117,20 +121,20 @@ describe("AppLayout — message entry", () => {
   it("reads the badge from the shared conversation list", async () => {
     givenUnread(4);
     renderShell();
-    expect(await screen.findByRole("link", { name: "私信（4 条未读）" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "私信（4 条未读）" })).toBeInTheDocument();
   });
 
   it("draws no badge while the count is still unknown", async () => {
     givenUnread(null);
     renderShell();
-    const link = await screen.findByRole("link", { name: "私信" });
+    const link = await screen.findByRole("button", { name: "私信" });
     expect(link.textContent).toBe("");
   });
 
   it("caps the badge at 99+", async () => {
     givenUnread(150);
     renderShell();
-    const link = await screen.findByRole("link", { name: "私信（150 条未读）" });
+    const link = await screen.findByRole("button", { name: "私信（150 条未读）" });
     expect(link.textContent).toContain("99+");
   });
 
@@ -139,34 +143,46 @@ describe("AppLayout — message entry", () => {
     givenUnread(7);
     renderShell();
 
-    expect(await screen.findByRole("link", { name: "通知（4 条未读）" })).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "私信（7 条未读）" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "通知（4 条未读）" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "私信（7 条未读）" })).toBeInTheDocument();
   });
 
   it("stays badge-less when the count request fails, rather than shouting about it", async () => {
     mockedNotifications.getUnreadCount.mockRejectedValue(new Error("offline"));
     renderShell();
 
-    expect(await screen.findByRole("link", { name: "通知" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "通知" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps the last notification count when a later refresh fails", async () => {
+    mockedNotifications.getUnreadCount.mockResolvedValueOnce(4);
+    renderShell();
+    expect(await screen.findByRole("button", { name: "通知（4 条未读）" })).toBeInTheDocument();
+
+    mockedNotifications.getUnreadCount.mockRejectedValue(new Error("offline"));
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => expect(mockedNotifications.getUnreadCount).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "通知（4 条未读）" })).toBeInTheDocument();
   });
 
   it("applies a notification unread change without a reload", async () => {
     renderShell();
-    await screen.findByRole("link", { name: "通知" });
+    await screen.findByRole("button", { name: "通知" });
     notifyUnreadChanged(3);
-    expect(await screen.findByRole("link", { name: "通知（3 条未读）" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "通知（3 条未读）" })).toBeInTheDocument();
   });
 
   it("ignores a malformed notification count instead of showing a guess", async () => {
     mockedNotifications.getUnreadCount.mockResolvedValue(4);
     renderShell();
-    await screen.findByRole("link", { name: "通知（4 条未读）" });
+    await screen.findByRole("button", { name: "通知（4 条未读）" });
 
     notifyUnreadChanged(Number.NaN);
     notifyUnreadChanged(-1);
 
-    expect(screen.getByRole("link", { name: "通知（4 条未读）" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "通知（4 条未读）" })).toBeInTheDocument();
   });
 });
 
@@ -186,7 +202,7 @@ describe("AppLayout — live message toast", () => {
     givenUnread(0);
     chatSocket.myUserId = "user-me";
     renderShellWithToasts();
-    await screen.findByRole("link", { name: "私信" });
+    await screen.findByRole("button", { name: "私信" });
 
     emitChatEvent({ kind: "message", conversationId: "c1", message: incoming() });
 
@@ -197,7 +213,7 @@ describe("AppLayout — live message toast", () => {
     givenUnread(0);
     chatSocket.myUserId = "user-me";
     renderShellWithToasts();
-    await screen.findByRole("link", { name: "私信" });
+    await screen.findByRole("button", { name: "私信" });
 
     emitChatEvent({
       kind: "message",

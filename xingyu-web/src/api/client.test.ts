@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiRequest } from "@/api/client";
+import { authApi } from "@/api/auth/auth.api";
 import { getStoredToken, setStoredToken, TOKEN_KEY } from "@/lib/storage";
 
 /**
@@ -112,6 +113,30 @@ describe("api client", () => {
 
     await expect(apiRequest("/api/v1/me")).rejects.toThrow(ApiError);
     expect(getStoredToken()).toBeNull();
+  });
+
+  /*
+   * A1 regression (audit 2026-11-10): "401" is not one thing.
+   * `POST /auth/login` answers 401 when the *credentials* are wrong — the caller
+   * is a guest typing a password on /login, and that outcome says NOTHING about
+   * the session this browser already holds (another tab may be signed in, and
+   * /login has no "already signed in" redirect). Treating that 401 as "session
+   * dead" signed the whole browser out of a perfectly valid session.
+   */
+  it("keeps an existing session when a login attempt is rejected with 401", async () => {
+    setStoredToken("tab-a-session");
+    fetchMock.mockImplementation(async () =>
+      jsonResponse(
+        { status: 401, code: "UNAUTHORIZED", detail: "账号或密码错误" },
+        { status: 401 },
+      ),
+    );
+
+    await expect(authApi.login({ login: "alice", password: "wrong" })).rejects.toThrow(ApiError);
+
+    // The credential rejection must not touch the session the browser already had.
+    expect(getStoredToken()).toBe("tab-a-session");
+    expect(localStorage.getItem(TOKEN_KEY)).toBe("tab-a-session");
   });
 
   it("does not clear a newer token when a stale request returns 401", async () => {

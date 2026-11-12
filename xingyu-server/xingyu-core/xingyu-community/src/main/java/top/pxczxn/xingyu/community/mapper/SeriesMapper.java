@@ -20,6 +20,25 @@ public interface SeriesMapper extends BaseMapper<Series> {
             """)
     List<Series> listByOwnerId(String ownerId);
 
+    @Select("""
+            <script>
+            SELECT * FROM series
+            WHERE owner_id IN
+            <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            ORDER BY updated_at DESC
+            </script>
+            """)
+    List<Series> listByOwnerIds(@Param("ownerIds") List<String> ownerIds);
+
+    @Select("""
+            <script>
+            SELECT * FROM series
+            WHERE id IN
+            <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            </script>
+            """)
+    List<Series> listByIds(@Param("ids") List<String> ids);
+
     /** Every series that belongs in the public index (bulk form, for a rebuild). */
     @Select("SELECT id FROM series WHERE status = 'ACTIVE'")
     List<String> listIndexableIds();

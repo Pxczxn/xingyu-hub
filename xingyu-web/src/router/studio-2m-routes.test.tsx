@@ -61,6 +61,20 @@ vi.mock("@/api/collaboration/collaboration.api", () => ({
       expiresAt: "2026-10-05T10:00:00Z",
     })),
     acceptInvite: vi.fn(),
+    // The invite page loads BOTH member lists on mount (`reloadMemberships` in
+    // CollaborationInvitePage). A factory that omits these makes that effect
+    // throw, AppLayout's PageErrorBoundary swaps the whole page for its fallback,
+    // and the failure then surfaces as "heading not found" instead of a
+    // TypeError. Keep this factory in step with the real module surface.
+    // Both endpoints return `CollaborationParticipant[]`; `[]` is what a new
+    // account sees, so the page renders its empty-state copy.
+    listEditors: vi.fn(async () => []),
+    listHosts: vi.fn(async () => []),
+    // Row actions: not exercised here, but present so the mock always mirrors
+    // the real exports. `removeEditor(memberId)` / `leaveHost(ownerId)` resolve
+    // to void.
+    removeEditor: vi.fn(async () => undefined),
+    leaveHost: vi.fn(async () => undefined),
   },
 }));
 
@@ -84,6 +98,13 @@ describe("phase 2M route resolution", () => {
   it("routes /studio/collaboration to the invite page", async () => {
     renderAt("/studio/collaboration", true);
     expect(await screen.findByRole("heading", { name: "邀请协作" })).toBeInTheDocument();
+    // Regression pin: the page's mount effect loads both member lists. If the
+    // collaboration mock ever drops `listEditors`/`listHosts` again, that effect
+    // throws and PageErrorBoundary replaces the page, so the two empty states
+    // below disappear. Asserting them proves the effect RESOLVED (state was set
+    // from the mock) rather than merely that some heading rendered.
+    expect(screen.getByText("还没有人接受邀请。")).toBeInTheDocument();
+    expect(screen.getByText("你还没有加入别人的创作。")).toBeInTheDocument();
   });
 
   it("routes /studio/collaboration/accept to the accept page, not the invite page", async () => {

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import type { BlockedUser } from "@/api/users/users.types";
 import { loadBlockedUsers, unblockUser } from "@/features/blocks/blocked-users.store";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,12 @@ import { Button } from "@/components/ui/button";
  * table header because there are only three columns' worth of content and a
  * header row would add more ink than the data it labels.
  * ---------------------------------------------------------------------------
+ *
+ * --- 2026-11-10 批次 C：SK3 · 壳 / 紧 / 错 -------------------------------
+ * 壳：h1 仍由 `SettingsLayout` 出，本页只出 h2「屏蔽管理」（`PageSection`）。
+ * 紧：每行从"一张独立卡（`rounded-xl` + `p-3.5`）"改成一张容器内的发丝线行
+ *     （`divide-y` + `px-4 py-3`）。行式没有逐项卡面，与「松」的隐私页反过来。
+ * 错：传 `rail`，lg 起 `[1fr | 280]`；说明段落搬进侧轨，主列只剩人和动作。
  */
 
 type LoadState = "loading" | "error" | "ready";
@@ -99,91 +107,129 @@ export function SettingsBlocksPage() {
     }
   }, []);
 
-  if (loadState === "loading") return <PageState kind="loading" />;
+  if (loadState === "loading") {
+    return (
+      <ArchetypeFrame skeleton="SK3" header="shell" density="compact">
+        <PageState kind="loading" />
+      </ArchetypeFrame>
+    );
+  }
   if (loadState === "error") {
     return (
-      <div className="section-gap">
+      <ArchetypeFrame skeleton="SK3" header="shell" density="compact">
         <PageState kind="error" title="屏蔽列表加载失败" description="请稍后重试。" />
         <div>
           <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
             重新加载
           </Button>
         </div>
-      </div>
+      </ArchetypeFrame>
     );
   }
 
   return (
-    <div className="section-gap">
-      <section aria-labelledby="settings-blocks-heading">
-        <div className="flex items-baseline gap-2.5">
-          <h2 id="settings-blocks-heading" className="section-heading">
-            屏蔽管理
-          </h2>
-          <span className="text-meta tabular-nums text-muted-foreground">{users.length}</span>
+    <ArchetypeFrame
+      skeleton="SK3"
+      header="shell"
+      density="compact"
+      railLabel="屏蔽说明"
+      rail={
+        /*
+          R=错：主列 + 280 侧轨。侧轨承接原本堆在页头下面那段说明 —— 屏蔽会做什么、
+          解除为什么不用确认 —— 于是主列只剩「人」和「解除」两件事，行更短。
+        */
+        <div className="flex flex-col gap-4 rounded-card border border-border/70 bg-card p-4">
+          <div>
+            <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
+              屏蔽会做什么
+            </p>
+            <p className="mt-1 text-meta leading-6 text-muted-foreground">
+              会解除你们之间的关注关系，且双方无法互发私信。
+            </p>
+          </div>
+          <div>
+            <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
+              解除为什么不用确认
+            </p>
+            <p className="mt-1 text-meta leading-6 text-muted-foreground">
+              解除不是破坏性操作：它不会恢复被屏蔽时解除的关注，也可以随时再屏蔽。
+            </p>
+          </div>
         </div>
-        <p className="lede mt-1.5 max-w-2xl">
-          你屏蔽的用户。屏蔽会解除你们之间的关注关系，且双方无法互发私信。
-        </p>
-      </section>
+      }
+    >
+      <PageSection
+        id="settings-blocks-heading"
+        title="屏蔽管理"
+        count={users.length}
+        description="你屏蔽的用户。"
+      >
+        {actionError ? (
+          <p
+            role="alert"
+            data-testid="blocks-action-error"
+            className="mb-3 rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
+          >
+            {actionError}
+          </p>
+        ) : null}
 
-      {actionError ? (
-        <p
-          role="alert"
-          data-testid="blocks-action-error"
-          className="rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
-        >
-          {actionError}
-        </p>
-      ) : null}
-
-      {users.length === 0 ? (
-        <PageState kind="empty" title="还没有屏蔽任何用户" />
-      ) : (
-        <ul data-testid="blocks-list" className="flex list-none flex-col gap-2 p-0">
-          {users.map((user) => (
-            <li
-              key={user.userId || user.username}
-              data-testid={`blocked-${user.username}`}
-              className="flex items-center gap-4 rounded-xl border border-border/70 bg-card p-3.5"
-            >
-              <Avatar className="h-10 w-10 shrink-0">
-                <AvatarFallback className="bg-surface-sunken text-meta font-medium text-foreground-soft">
-                  {initialOf(user)}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-card font-medium text-primary">
-                  {user.displayName ?? user.username}
-                </p>
-                <p className="truncate text-meta text-muted-foreground">@{user.username}</p>
-              </div>
-
-              <p className="hidden shrink-0 text-meta text-muted-foreground sm:block">
-                屏蔽于{" "}
-                <span
-                  data-testid={`blocked-at-${user.username}`}
-                  className="tabular-nums text-foreground-soft"
-                >
-                  {formatInstant(user.blockedAt)}
-                </span>
-              </p>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                disabled={pendingUsername !== null}
-                data-testid={`unblock-${user.username}`}
-                onClick={() => void unblock(user.username)}
+        {users.length === 0 ? (
+          <PageState kind="empty" title="还没有屏蔽任何用户" />
+        ) : (
+          /*
+            D=紧：人是一行一行读的，所以每行没有独立卡面，靠发丝线分隔；头像领行，
+            三个数据点压成两段文字，右侧一个动作。与 /settings/sessions 的「表」
+            （对齐列 + 表头）刻意不同形。
+          */
+          <ul
+            data-testid="blocks-list"
+            className="list-none divide-y divide-border/60 overflow-hidden rounded-card border border-border/70 bg-card p-0"
+          >
+            {users.map((user) => (
+              <li
+                key={user.userId || user.username}
+                data-testid={`blocked-${user.username}`}
+                className="flex items-center gap-4 px-4 py-3"
               >
-                {pendingUsername === user.username ? "处理中" : "解除屏蔽"}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                <Avatar className="h-9 w-9 shrink-0">
+                  <AvatarFallback className="bg-surface-sunken text-meta font-medium text-foreground-soft">
+                    {initialOf(user)}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-card font-medium text-primary">
+                    {user.displayName ?? user.username}
+                  </p>
+                  <p className="truncate text-meta text-muted-foreground">@{user.username}</p>
+                </div>
+
+                <p className="hidden shrink-0 text-meta text-muted-foreground sm:block">
+                  屏蔽于{" "}
+                  <span
+                    data-testid={`blocked-at-${user.username}`}
+                    className="tabular-nums text-foreground-soft"
+                  >
+                    {formatInstant(user.blockedAt)}
+                  </span>
+                </p>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={pendingUsername !== null}
+                  data-testid={`unblock-${user.username}`}
+                  onClick={() => void unblock(user.username)}
+                >
+                  {pendingUsername === user.username ? "处理中" : "解除屏蔽"}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PageSection>
+    </ArchetypeFrame>
   );
 }

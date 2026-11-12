@@ -17,6 +17,7 @@ import type {
   PublicSeriesSummary,
   SeriesReadingProgress,
 } from "@/api/series/series.types";
+import { ArchetypeFrame } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { SeriesCover } from "@/components/visual/SeriesCover";
@@ -281,23 +282,175 @@ export function PublicSeriesDetailPage() {
   const authorName = authorLabel(series);
   const authorInitial = authorName.replace(/^@/, "").charAt(0).toUpperCase();
 
+  /*
+   * SK1 阅读栏 · H=线 / D=松 / R=错（A §3 的 /series/* 域 PublicSeriesDetail 行）。
+   *
+   * 骨架由 `ArchetypeFrame skeleton="SK1"` 给出 `[measure | 220 侧轨]`：主列被
+   * `--reading-measure` 锁住——那是 SK1 的定义特征（正文宽度固定、是页面主角），
+   * 侧轨交给 `SectionRail` 粘住（`lg:sticky lg:self-start` + 有界 `max-h`）。
+   * 这两件事原来写在 `series-detail.css` 的 `.series-detail-grid`
+   * （`minmax(0,1fr) 351px`、不粘）里，所以本页当时和一个普通两栏页没有区别。
+   *
+   * H=线：页头槽只放面包屑这条**无面**的线；可见标题仍是内容列首块的那个 `<h1>`
+   * （SK1 §1「标题是正文首块、位于内容列上，不作横幅」），也是本路由唯一的 h1。
+   * D=松：`density="loose"` 只负责「作品头 → 章节目录」这一段块间节奏（两个块
+   * 各自已经是独立表面，不需要再加卡面）。
+   * R=错：主列 + 侧轨，侧轨在 `lg` 起粘住并独立滚动。
+   *
+   * 侧轨从页面内的 `<aside className="series-detail-side">` 改成 frame 的 `rail`，
+   * 因为它现在由 `SectionRail` 自己出 landmark（`<aside aria-labelledby>` +
+   * sr-only h2），页面里再套一个 `<aside>` 会让「延伸发现」在无障碍树里出现两次。
+   */
   return (
     <article className="series-detail-page">
-      <nav aria-label="面包屑" className="series-detail-crumb text-muted-foreground">
-        <Link
-          to="/series"
-          className="focus-ring rounded-sm transition-colors hover:text-accent-strong"
-        >
-          系列广场
-        </Link>
-        <span aria-hidden className="text-border">
-          /
-        </span>
-        <span className="text-foreground">{series.title}</span>
-      </nav>
+      <ArchetypeFrame
+        skeleton="SK1"
+        header="line"
+        density="loose"
+        railLabel="延伸发现"
+        headerSlot={
+          <nav aria-label="面包屑" className="series-detail-crumb text-muted-foreground">
+            <Link
+              to="/series"
+              className="focus-ring rounded-sm transition-colors hover:text-accent-strong"
+            >
+              系列广场
+            </Link>
+            <span aria-hidden className="text-border">
+              /
+            </span>
+            <span className="text-foreground">{series.title}</span>
+          </nav>
+        }
+        rail={
+          <div className="series-detail-side">
+            <section className="series-detail-panel" aria-labelledby="series-author-panel">
+              <div className="series-detail-panel-head">
+                <h2
+                  id="series-author-panel"
+                  className="flex items-center gap-2 text-h3 text-primary"
+                >
+                  <PenLine aria-hidden className="h-4 w-4 text-accent-strong" />
+                  创作者的更多系列
+                </h2>
+                <Link
+                  to={`/u/${encodeURIComponent(series.author.username)}`}
+                  className="focus-ring shrink-0 rounded-sm text-[12px] text-accent-strong hover:underline"
+                >
+                  创作者主页 ↗
+                </Link>
+              </div>
 
-      <div className="series-detail-grid">
-        <div className="series-detail-main">
+              <div className="mt-[17px] flex items-center gap-3">
+                {series.author.avatar ? (
+                  <img
+                    src={series.author.avatar}
+                    alt=""
+                    className="h-11 w-11 shrink-0 rounded-full border-2 border-card object-cover ring-1 ring-border"
+                  />
+                ) : (
+                  <span
+                    aria-hidden
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-card bg-primary text-[21px] font-bold text-primary-foreground ring-1 ring-border"
+                  >
+                    {authorInitial}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold text-primary">{authorName}</div>
+                  <p className="mt-1 text-[12px] leading-6 text-muted-foreground">
+                    当前系列创作者 · 更多分享与个人介绍
+                  </p>
+                </div>
+              </div>
+
+              <div aria-live="polite">
+                {discover.kind === "loading" ? (
+                  <p className="mt-4 text-[12px] text-muted-foreground">正在读取其他系列…</p>
+                ) : discover.kind === "failed" ? (
+                  <EmptyPanel
+                    icon={<AlertCircle className="h-[18px] w-[18px]" />}
+                    tone="error"
+                    title="暂时无法加载，请重试。"
+                    description="创作者信息仍可正常查看。"
+                    onRetry={() => setDiscoverKey((key) => key + 1)}
+                  />
+                ) : others.length === 0 ? (
+                  <EmptyPanel
+                    icon={<Library className="h-[18px] w-[18px]" />}
+                    title="暂时还没有其他公开系列"
+                    description="也可以前往创作者主页，了解更多分享。"
+                  />
+                ) : (
+                  <div className="series-detail-panel-list">
+                    {others.map((item) => (
+                      <WorkRow key={item.id} item={item} subtitle={`共 ${item.chapterCount} 章`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="series-detail-panel" aria-labelledby="series-related-panel">
+              <div className="series-detail-panel-head items-start">
+                <div className="min-w-0">
+                  <h2
+                    id="series-related-panel"
+                    className="flex items-center gap-2 text-h3 text-primary"
+                  >
+                    <Sparkles aria-hidden className="h-4 w-4 text-accent-strong" />
+                    继续探索
+                  </h2>
+                  {/*
+                    The blurb says what this panel actually is. It reads the public
+                    series list and splits it by author, so there is no relevance
+                    ranking behind the door and the copy must not imply one.
+                  */}
+                  <p className="mt-1 text-[12px] leading-6 text-muted-foreground">
+                    发现更多值得阅读的系列。
+                  </p>
+                </div>
+                <Link
+                  to="/series"
+                  className="focus-ring mt-0.5 shrink-0 rounded-sm text-[12px] text-accent-strong hover:underline"
+                >
+                  全部系列 ↗
+                </Link>
+              </div>
+
+              <div aria-live="polite">
+                {discover.kind === "loading" ? (
+                  <p className="mt-4 text-[12px] text-muted-foreground">正在读取公开系列…</p>
+                ) : discover.kind === "failed" ? (
+                  <EmptyPanel
+                    icon={<AlertCircle className="h-[18px] w-[18px]" />}
+                    tone="error"
+                    title="暂时无法加载，请重试。"
+                    description="不影响当前系列的阅读。"
+                    onRetry={() => setDiscoverKey((key) => key + 1)}
+                  />
+                ) : related.length === 0 ? (
+                  <EmptyPanel
+                    icon={<Compass className="h-[18px] w-[18px]" />}
+                    title="暂时没有更多公开系列"
+                    description="可以返回系列列表继续浏览。"
+                  />
+                ) : (
+                  <div className="series-detail-panel-list">
+                    {related.map((item) => (
+                      <WorkRow
+                        key={item.id}
+                        item={item}
+                        subtitle={`${authorLabel(item)} · 共 ${item.chapterCount} 章`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        }
+      >
           {/*
             One band, three columns: the jacket, the facts, the illustration.
             The illustration is the third column only while there is room for
@@ -490,140 +643,7 @@ export function PublicSeriesDetailPage() {
               </p>
             ) : null}
           </section>
-        </div>
-
-        {/*
-          The rail is an offer, not a requirement: every panel states its own
-          health and can be retried on its own. Nothing here may block the work,
-          which is why the failure copy says so out loud.
-        */}
-        <aside className="series-detail-side" aria-label="延伸发现">
-          <section className="series-detail-panel" aria-labelledby="series-author-panel">
-            <div className="series-detail-panel-head">
-              <h2
-                id="series-author-panel"
-                className="flex items-center gap-2 text-[17px] font-bold text-primary"
-              >
-                <PenLine aria-hidden className="h-4 w-4 text-accent-strong" />
-                创作者的更多系列
-              </h2>
-              <Link
-                to={`/u/${encodeURIComponent(series.author.username)}`}
-                className="focus-ring shrink-0 rounded-sm text-[12px] text-accent-strong hover:underline"
-              >
-                创作者主页 ↗
-              </Link>
-            </div>
-
-            <div className="mt-[17px] flex items-center gap-3">
-              {series.author.avatar ? (
-                <img
-                  src={series.author.avatar}
-                  alt=""
-                  className="h-11 w-11 shrink-0 rounded-full border-2 border-card object-cover ring-1 ring-border"
-                />
-              ) : (
-                <span
-                  aria-hidden
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-card bg-primary text-[21px] font-bold text-primary-foreground ring-1 ring-border"
-                >
-                  {authorInitial}
-                </span>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold text-primary">{authorName}</div>
-                <p className="mt-1 text-[12px] leading-6 text-muted-foreground">
-                  当前系列创作者 · 更多分享与个人介绍
-                </p>
-              </div>
-            </div>
-
-            <div aria-live="polite">
-              {discover.kind === "loading" ? (
-                <p className="mt-4 text-[12px] text-muted-foreground">正在读取其他系列…</p>
-              ) : discover.kind === "failed" ? (
-                <EmptyPanel
-                  icon={<AlertCircle className="h-[18px] w-[18px]" />}
-                  tone="error"
-                  title="暂时无法加载，请重试。"
-                  description="创作者信息仍可正常查看。"
-                  onRetry={() => setDiscoverKey((key) => key + 1)}
-                />
-              ) : others.length === 0 ? (
-                <EmptyPanel
-                  icon={<Library className="h-[18px] w-[18px]" />}
-                  title="暂时还没有其他公开系列"
-                  description="也可以前往创作者主页，了解更多分享。"
-                />
-              ) : (
-                <div className="series-detail-panel-list">
-                  {others.map((item) => (
-                    <WorkRow key={item.id} item={item} subtitle={`共 ${item.chapterCount} 章`} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="series-detail-panel" aria-labelledby="series-related-panel">
-            <div className="series-detail-panel-head items-start">
-              <div className="min-w-0">
-                <h2
-                  id="series-related-panel"
-                  className="flex items-center gap-2 text-[17px] font-bold text-primary"
-                >
-                  <Sparkles aria-hidden className="h-4 w-4 text-accent-strong" />
-                  继续探索
-                </h2>
-                {/*
-                  The blurb says what this panel actually is. It reads the public
-                  series list and splits it by author, so there is no relevance
-                  ranking behind the door and the copy must not imply one.
-                */}
-                <p className="mt-1 text-[12px] leading-6 text-muted-foreground">
-                  发现更多值得阅读的系列。
-                </p>
-              </div>
-              <Link
-                to="/series"
-                className="focus-ring mt-0.5 shrink-0 rounded-sm text-[12px] text-accent-strong hover:underline"
-              >
-                全部系列 ↗
-              </Link>
-            </div>
-
-            <div aria-live="polite">
-              {discover.kind === "loading" ? (
-                <p className="mt-4 text-[12px] text-muted-foreground">正在读取公开系列…</p>
-              ) : discover.kind === "failed" ? (
-                <EmptyPanel
-                  icon={<AlertCircle className="h-[18px] w-[18px]" />}
-                  tone="error"
-                  title="暂时无法加载，请重试。"
-                  description="不影响当前系列的阅读。"
-                  onRetry={() => setDiscoverKey((key) => key + 1)}
-                />
-              ) : related.length === 0 ? (
-                <EmptyPanel
-                  icon={<Compass className="h-[18px] w-[18px]" />}
-                  title="暂时没有更多公开系列"
-                  description="可以返回系列列表继续浏览。"
-                />
-              ) : (
-                <div className="series-detail-panel-list">
-                  {related.map((item) => (
-                    <WorkRow
-                      key={item.id}
-                      item={item}
-                      subtitle={`${authorLabel(item)} · 共 ${item.chapterCount} 章`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        </aside>
-      </div>
+      </ArchetypeFrame>
     </article>
   );
 }

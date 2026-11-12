@@ -87,6 +87,14 @@ describe("getPasswordRuleChecks", () => {
   });
 });
 
+describe("policy unavailable (audit A4)", () => {
+  it("still enforces a floor when the policy could not be loaded", () => {
+    // 复现：/api/v1/public/config 拉不到时 policy 为 undefined。
+    // 旧实现 `if (!policy) return null` 让 1 位密码也「通过」→ 前端零校验。
+    expect(validatePasswordClient("a")).not.toBeNull();
+  });
+});
+
 describe("passwordRulesHint", () => {
   it("falls back to a generic hint without a policy", () => {
     expect(passwordRulesHint()).toBe("请设置密码");

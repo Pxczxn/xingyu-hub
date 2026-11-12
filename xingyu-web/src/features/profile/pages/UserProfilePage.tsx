@@ -17,6 +17,7 @@ import { ProfileSeries } from "@/features/profile/components/ProfileSeries";
 import { usePagedSection } from "@/features/profile/usePagedSection";
 import { ProfileBlockControl } from "@/features/blocks/components/ProfileBlockControl";
 import { isBlockedUsername, loadBlockedUsers } from "@/features/blocks/blocked-users.store";
+import { ArchetypeFrame } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 
@@ -274,27 +275,48 @@ export function UserProfilePage() {
 
   const { profile } = state;
 
-  return (
-    <div className="section-gap">
-      <ProfileHeader
-        profile={profile}
-        following={following}
-        followPending={followPending}
-        followError={followError}
-        onToggleFollow={() => void toggleFollow()}
-        canFollow={isAuthenticated}
-        statsSlot={<ProfileStats profile={profile} />}
-        blockControl={
-          canBlock && (blockStatus === "blocked" || blockStatus === "clear") ? (
-            <ProfileBlockControl
-              username={username}
-              blocked={blockStatus === "blocked"}
-              onRelationshipChanged={handleRelationshipChanged}
-            />
-          ) : null
-        }
-      />
+  /*
+    SK6 信息流 · H=幅 / D=紧 / R=齐（`.team/design/A-archetypes.md` §3 的单页域 UserProfile 行）。
 
+    这是 SK6 的「幅」特例，也是本批唯一一处页头不交给共享页头组件的地方：
+
+      H=幅：身份带本身就是横幅 —— `ProfileHeader` 出 h1（展示名）、带头像锚点与底部
+        `border-b` 收口，比 `PageHero` 更适合「一个人的主页」这件事（它上面没有一段
+        营销文案可写）。所以它走 frame 的 `headerSlot`（`banner` 分支，间距 mb-8），
+        而不是页面里再手写一条标题。
+      D=紧：作品列表是行式流（见 ProfileWorks 的「批次 W2」注释），不是卡格墙。身份带
+        之下的三段（文章 / 系列 / 动态）共用 `density-compact` 的块间节奏，页面里不再
+        手写 `mt-8`。
+      R=齐：没有侧轨 —— 批次 07 撤掉 300px 侧栏后，本页的三段内容都是「顺着往下读」的，
+        再加一条轨只是把同一件事拆成两列。SK6 的右轨在这里不存在（frame 的 SOLO 分支
+        让主列吃满内容宽）。
+  */
+  return (
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="banner"
+      density="compact"
+      headerSlot={
+        <ProfileHeader
+          profile={profile}
+          following={following}
+          followPending={followPending}
+          followError={followError}
+          onToggleFollow={() => void toggleFollow()}
+          canFollow={isAuthenticated}
+          statsSlot={<ProfileStats profile={profile} />}
+          blockControl={
+            canBlock && (blockStatus === "blocked" || blockStatus === "clear") ? (
+              <ProfileBlockControl
+                username={username}
+                blocked={blockStatus === "blocked"}
+                onRelationshipChanged={handleRelationshipChanged}
+              />
+            ) : null
+          }
+        />
+      }
+    >
       {/*
         批次 07：侧栏撤掉，主栏吃满宽度。
 
@@ -337,7 +359,7 @@ export function UserProfilePage() {
         )}
       </section>
 
-      <section aria-labelledby="series-heading" className="mt-8 min-w-0">
+      <section aria-labelledby="series-heading" className="min-w-0">
         <h2 id="series-heading" className="section-heading mb-3">
           公开系列
         </h2>
@@ -362,7 +384,7 @@ export function UserProfilePage() {
         )}
       </section>
 
-      <section aria-labelledby="moments-heading" className="mt-8 min-w-0">
+      <section aria-labelledby="moments-heading" className="min-w-0">
         <h2 id="moments-heading" className="section-heading mb-3">
           公开动态
         </h2>
@@ -390,6 +412,6 @@ export function UserProfilePage() {
           <PageState kind="loading" />
         )}
       </section>
-    </div>
+    </ArchetypeFrame>
   );
 }

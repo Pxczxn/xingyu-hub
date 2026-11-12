@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { myCommentsApi } from "@/api/me-activity/me-activity.api";
 import { MY_ACTIVITY_LIMIT, type MyCommentView } from "@/api/me-activity/me-activity.types";
+import { ArchetypeFrame } from "@/components/layout";
 import { contentHref } from "@/components/shared/ContentCard";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -30,6 +32,22 @@ import { cn } from "@/lib/cn";
  * `/comments/:id` route, but V2 ships no such route, so linking there would
  * produce a dead link. `contentHref` resolves ARTICLE / SERIES / MOMENT and
  * degrades unmapped types to /discover.
+ *
+ * 骨架（A §3 `/me/*` 表 · MyComments = SK6 · 线/松/齐）
+ * -------------------------------------------------
+ * 与 MyLikesPage 同为 SK6、同一组数据形状，但要能一眼分开，所以取的是**另一组轴值**：
+ *   H=线：`PageMasthead`，与 MyLikes 一致（线是这一域列表页的基线页头）。
+ *   D=松：每条评论**是独立卡面**（`rounded-card` + 1px 发丝边 + 卡内 padding），
+ *         不是 MyLikes 那种发丝线行。首屏因此至多三块，与「扫式时间流」是两种读法：
+ *         评论正文要逐条读，行式会把三行正文压成一条细缝。
+ *   R=齐：**没有 rail**，主列与页头同宽同边。这是本批里同 SK 页面「有无右栏」这一档
+ *         差异的对照组：MyLikes / MyFollowing 有右栏（错），本页没有（齐）。
+ *
+ * 条目内部结构（三种 SK6 里的第三种）：正文（可多行、保留换行）→ 来源行，
+ * 与 MyLikes 的「类型压在标题上方」、Follow 的「@username · 关注于」都不同。
+ *
+ * 行为未变：`myCommentsApi.list(MY_ACTIVITY_LIMIT)`、`reloadKey` 重试、
+ * 三态文案、`<ul aria-label="我的评论列表">` 全部原样保留。
  */
 
 type LoadState =
@@ -114,23 +132,28 @@ export function MyCommentsPage() {
   const { comments } = state;
 
   return (
-    <div className="section-gap">
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的评论</h1>
-        <p className="lede mt-2 max-w-2xl">
-          你在社区的评论记录。已隐藏或删除的评论不会显示在这里。
-        </p>
-      </header>
-
-      <section className="rounded-xl border border-border/70 bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="section-heading">评论记录</h2>
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="line"
+      density="loose"
+      headerSlot={
+        <PageMasthead
+          title="我的评论"
+          description="你在社区的评论记录。已隐藏或删除的评论不会显示在这里。"
+        />
+      }
+    >
+      <section aria-labelledby="comments-record-heading" className="min-w-0">
+        <div className="flex items-baseline justify-between gap-4 border-b border-border/70 pb-2">
+          <h2 id="comments-record-heading" className="section-heading">
+            评论记录
+          </h2>
           {/* No "load more": the endpoint returns a bare array with no cursor. */}
-          <span className="text-xs text-muted-foreground">最多 {MY_ACTIVITY_LIMIT} 条</span>
+          <span className="text-caption text-muted-foreground">最多 {MY_ACTIVITY_LIMIT} 条</span>
         </div>
 
         {comments.length === 0 ? (
-          <div className="p-5">
+          <div className="pt-6">
             <PageState
               kind="empty"
               title="暂无评论"
@@ -138,35 +161,35 @@ export function MyCommentsPage() {
             />
           </div>
         ) : (
-          <ul aria-label="我的评论列表" className="divide-y divide-border">
+          /* D=松：每条独立卡面，间距与卡内 padding 都走 `.density-loose` 提供的
+             变量，所以「松」只有一处定义（ArchetypeFrame 的 density 参数）。 */
+          <ul aria-label="我的评论列表" className="flex flex-col gap-[var(--density-list-gap)] pt-4">
             {comments.map((comment) => (
               <li
                 key={comment.id}
-                className="grid gap-3 px-5 py-4 sm:grid-cols-[92px_minmax(0,1fr)]"
+                className="rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
               >
-                <time
-                  dateTime={comment.createdAt}
-                  className="text-xs tabular-nums text-muted-foreground"
-                >
-                  {formatTime(comment.createdAt)}
-                </time>
-                <div className="min-w-0">
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-                    {comment.body?.trim() || "（无内容）"}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    评论于{" "}
-                    {/* Links to the commented content: V2 has no /comments/:id,
-                        so linking to the comment id would be a dead link. */}
-                    <Link
-                      to={contentHref({ id: comment.objectId, objectType: comment.objectType })}
-                      className="text-accent-strong hover:underline"
-                    >
-                      {comment.objectTitle || comment.objectId}
-                    </Link>
-                    <span className="ml-1">（{comment.objectType}）</span>
-                  </p>
-                </div>
+                <p className="whitespace-pre-wrap text-body leading-7 text-foreground">
+                  {comment.body?.trim() || "（无内容）"}
+                </p>
+                <p className="mt-3 flex flex-wrap items-baseline gap-x-2 text-caption text-muted-foreground">
+                  <span>评论于</span>
+                  {/* Links to the commented content: V2 has no /comments/:id,
+                      so linking to the comment id would be a dead link. */}
+                  <Link
+                    to={contentHref({ id: comment.objectId, objectType: comment.objectType })}
+                    className="focus-ring text-accent-strong hover:underline"
+                  >
+                    {comment.objectTitle || comment.objectId}
+                  </Link>
+                  <span>（{comment.objectType}）</span>
+                  <time
+                    dateTime={comment.createdAt}
+                    className="ml-auto shrink-0 tabular-nums text-muted-foreground"
+                  >
+                    {formatTime(comment.createdAt)}
+                  </time>
+                </p>
               </li>
             ))}
           </ul>
@@ -178,6 +201,6 @@ export function MyCommentsPage() {
           去探索更多内容
         </Link>
       </p>
-    </div>
+    </ArchetypeFrame>
   );
 }

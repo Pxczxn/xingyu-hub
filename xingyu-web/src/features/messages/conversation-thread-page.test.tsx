@@ -265,6 +265,22 @@ describe("ConversationThreadPage — realtime", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
   });
 
+  it("marks a burst of incoming messages read once", async () => {
+    await renderConnected([]);
+    const callsAfterOpen = mocked.markRead.mock.calls.length;
+
+    for (let n = 0; n < 5; n += 1) {
+      emitChatEvent({
+        kind: "message",
+        conversationId: "c1",
+        message: message({ id: `burst-${n}`, sequenceNumber: n + 2 }),
+      });
+    }
+
+    await waitFor(() => expect(mocked.markRead.mock.calls.length).toBe(callsAfterOpen + 1));
+    expect(mocked.markRead).toHaveBeenCalledWith("c1");
+  });
+
   it("turns a message into a tombstone when a recall frame arrives", async () => {
     await renderConnected([message({ id: "m1", senderId: ME, sequenceNumber: 1 })]);
 
@@ -318,6 +334,14 @@ describe("ConversationThreadPage — realtime", () => {
     await renderConnected([message()]);
 
     expect(screen.getByText(/连接中断/)).toBeInTheDocument();
+  });
+
+  it("shows that catch-up failed instead of looking fully caught up", async () => {
+    chatSocket.connection = "open";
+    chatSocket.backfill = "behind";
+    await renderConnected([message()]);
+
+    expect(screen.getByText(/有消息没能补齐/)).toBeInTheDocument();
   });
 });
 

@@ -39,6 +39,22 @@ public interface CommentMapper extends BaseMapper<Comment> {
     long countByAuthorId(String authorId);
 
     /**
+     * 落在该用户文章、动态、系列上的可见评论。隐藏评论不计入。
+     * 创作台「收到评论」用这个口径，不用 {@link #countByAuthorId}。
+     */
+    @Select("""
+            SELECT COUNT(*) FROM comment c
+            WHERE c.status = 'VISIBLE'
+              AND ((c.object_type = 'ARTICLE' AND EXISTS (
+                    SELECT 1 FROM article a WHERE a.id = c.object_id AND a.owner_id = #{ownerId}))
+                OR (c.object_type = 'MOMENT' AND EXISTS (
+                    SELECT 1 FROM moment m WHERE m.id = c.object_id AND m.author_id = #{ownerId}))
+                OR (c.object_type = 'SERIES' AND EXISTS (
+                    SELECT 1 FROM series s WHERE s.id = c.object_id AND s.owner_id = #{ownerId})))
+            """)
+    long countVisibleOnOwnedContent(@Param("ownerId") String ownerId);
+
+    /**
      * Comment counts for many objects of one type in a single round trip.
      *
      * <p>Only {@code VISIBLE} rows are counted, matching

@@ -3,6 +3,8 @@ import { ApiError } from "@/api/client";
 import { usersApi } from "@/api/users/users.api";
 import type { FollowersVisibility } from "@/api/users/users.types";
 import { PageState } from "@/components/shared/PageState";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageSection } from "@/components/shared/PageSection";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import {
@@ -47,6 +49,14 @@ import {
  * privacy control would silently publish the reader's follow graph, and the
  * existing tests pin the "never send a no-op PATCH" rule.
  * ---------------------------------------------------------------------------
+ *
+ * --- 2026-11-10 批次 C：SK3 · 壳 / 松 / 错 -------------------------------
+ * 壳：h1「设置」由 `SettingsLayout` 出，本页只出 `PageSection` 的 h2「隐私」。
+ * 松：卡内边距 24px、说明行独立成行（`leading-6`），一个 bit 的设置占一块完整的面 ——
+ *     本页因此与「紧」的两页（登录会话 / 屏蔽管理）不会长成同一个样子。
+ * 错：`ArchetypeFrame` 传 `rail`，lg 起为 `[1fr | 280]`。侧轨复述已保存值与"为什么
+ *     要手动保存"，不给保存再开第二个入口（`<form>` 仍只有一个，测试的
+ *     `container.querySelector("form")` 不变）。
  */
 
 type LoadState = "loading" | "error" | "ready";
@@ -106,119 +116,153 @@ export function SettingsPrivacyPage() {
     }
   }, [value, baseline]);
 
-  if (loadState === "loading") return <PageState kind="loading" />;
+  if (loadState === "loading") {
+    return (
+      <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
+        <PageState kind="loading" />
+      </ArchetypeFrame>
+    );
+  }
   if (loadState === "error" || baseline === null) {
     return (
-      <div className="section-gap">
+      <ArchetypeFrame skeleton="SK3" header="shell" density="loose">
         <PageState kind="error" title="隐私设置加载失败" description="请稍后重试。" />
         <div>
           <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
             重新加载
           </Button>
         </div>
-      </div>
+      </ArchetypeFrame>
     );
   }
 
   const dirty = baseline !== value;
+  const savedLabel =
+    FOLLOWERS_VISIBILITY_OPTIONS.find((option) => option.value === baseline)?.label ?? "—";
 
   return (
-    <div className="section-gap">
-      <section aria-labelledby="settings-privacy-heading">
-        <h2 id="settings-privacy-heading" className="section-heading">
-          隐私
-        </h2>
-        <p className="lede mt-1.5 max-w-2xl">控制谁可以看到你的关注关系。</p>
-      </section>
-
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-        className="overflow-hidden rounded-xl border border-border/70 bg-card"
-      >
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-5">
-          <div className="min-w-0">
-            <p className="text-card font-medium text-primary">关注列表可见性</p>
-            <p className="mt-0.5 text-meta text-muted-foreground">决定谁能看到你关注了哪些人。</p>
+    <ArchetypeFrame
+      skeleton="SK3"
+      header="shell"
+      density="loose"
+      railLabel="隐私说明"
+      rail={
+        /*
+          R=错：主列 + 280 侧轨（A §2 的 sticky rail 构图）。侧轨只复述**本页已拥有**
+          的两个事实 —— 已保存的值、为什么保存要手动 —— 不引入新承诺。它让「我改了
+          但没保存」这件事在视口里一直可见，而这正是本页最容易出错的点。
+        */
+        <div className="flex flex-col gap-4 rounded-card border border-border/70 bg-card p-4">
+          <div>
+            <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
+              已保存
+            </p>
+            <p className="mt-1 text-card font-medium text-primary">{savedLabel}</p>
           </div>
-
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {/* Segmented control. The native radios stay the real control (and the
-                labelled element the tests click) — they are visually hidden and
-                driven by the label, so keyboard arrow-key navigation still works. */}
-            <fieldset
-              className="flex items-center gap-1 rounded-lg bg-surface-sunken p-1"
-              disabled={saving}
-            >
-              <legend className="sr-only">关注列表可见性</legend>
-              {FOLLOWERS_VISIBILITY_OPTIONS.map((option) => {
-                const selected = value === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={cn(
-                      "cursor-pointer rounded-md px-3 py-1.5 text-meta transition-colors",
-                      selected
-                        ? "bg-card font-medium text-primary shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
-                      saving && "cursor-not-allowed opacity-60",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="followersVisibility"
-                      value={option.value}
-                      checked={selected}
-                      onChange={() => {
-                        setValue(option.value);
-                        setSaved(false);
-                        setSaveError(null);
-                      }}
-                      className="sr-only"
-                    />
-                    {option.label}
-                  </label>
-                );
-              })}
-            </fieldset>
-
-            {/* The save affordance changes weight with the dirty state: a solid
-                navy block that is permanently disabled is the heaviest thing on
-                the page and says nothing. Outlined when clean, filled when there
-                is something to save. */}
-            <Button
-              type="submit"
-              size="sm"
-              variant={dirty ? "default" : "outline"}
-              disabled={!dirty || saving}
-            >
-              {saving ? "保存中…" : "保存"}
-            </Button>
-
-            {saved ? (
-              <span
-                role="status"
-                data-testid="privacy-saved"
-                className="text-meta font-medium text-accent-strong"
-              >
-                已保存
-              </span>
-            ) : null}
+          <div>
+            <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
+              为什么要点保存
+            </p>
+            <p className="mt-1 text-meta leading-6 text-muted-foreground">
+              立即生效意味着一次误触就会公开你的关注关系，所以这里保留显式保存。
+              改完记得确认。
+            </p>
           </div>
         </div>
+      }
+    >
+      <PageSection id="settings-privacy-heading" title="隐私" description="控制谁可以看到你的关注关系。">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+          className="overflow-hidden rounded-card border border-border/70 bg-card"
+        >
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-6">
+            <div className="min-w-0">
+              <p className="text-card font-medium text-primary">关注列表可见性</p>
+              <p className="mt-1 text-meta leading-6 text-muted-foreground">
+                决定谁能看到你关注了哪些人。
+              </p>
+            </div>
 
-        {saveError ? (
-          <p
-            role="alert"
-            data-testid="privacy-save-error"
-            className="border-t border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
-          >
-            {saveError}
-          </p>
-        ) : null}
-      </form>
-    </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-3">
+              {/* Segmented control. The native radios stay the real control (and the
+                  labelled element the tests click) — they are visually hidden and
+                  driven by the label, so keyboard arrow-key navigation still works. */}
+              <fieldset
+                className="flex items-center gap-1 rounded-control bg-surface-sunken p-1"
+                disabled={saving}
+              >
+                <legend className="sr-only">关注列表可见性</legend>
+                {FOLLOWERS_VISIBILITY_OPTIONS.map((option) => {
+                  const selected = value === option.value;
+                  return (
+                    <label
+                      key={option.value}
+                      className={cn(
+                        "cursor-pointer rounded-chip px-3 py-1.5 text-meta transition-colors",
+                        selected
+                          ? "bg-card font-medium text-primary shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                        saving && "cursor-not-allowed opacity-60",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="followersVisibility"
+                        value={option.value}
+                        checked={selected}
+                        onChange={() => {
+                          setValue(option.value);
+                          setSaved(false);
+                          setSaveError(null);
+                        }}
+                        className="sr-only"
+                      />
+                      {option.label}
+                    </label>
+                  );
+                })}
+              </fieldset>
+
+              {/* The save affordance changes weight with the dirty state: a solid
+                  navy block that is permanently disabled is the heaviest thing on
+                  the page and says nothing. Outlined when clean, filled when there
+                  is something to save. */}
+              <Button
+                type="submit"
+                size="sm"
+                variant={dirty ? "default" : "outline"}
+                disabled={!dirty || saving}
+              >
+                {saving ? "保存中…" : "保存"}
+              </Button>
+
+              {saved ? (
+                <span
+                  role="status"
+                  data-testid="privacy-saved"
+                  className="text-meta font-medium text-accent-strong"
+                >
+                  已保存
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {saveError ? (
+            <p
+              role="alert"
+              data-testid="privacy-save-error"
+              className="border-t border-destructive/25 bg-destructive/5 px-5 py-3 text-meta text-destructive"
+            >
+              {saveError}
+            </p>
+          ) : null}
+        </form>
+      </PageSection>
+    </ArchetypeFrame>
   );
 }

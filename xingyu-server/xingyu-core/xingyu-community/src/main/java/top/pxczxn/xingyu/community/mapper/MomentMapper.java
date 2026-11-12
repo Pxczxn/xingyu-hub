@@ -3,6 +3,7 @@ package top.pxczxn.xingyu.community.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.Moment;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -35,6 +36,28 @@ public interface MomentMapper extends BaseMapper<Moment> {
             LIMIT #{limit}
             """)
     List<Moment> listByAuthorId(String authorId, int limit);
+
+    /**
+     * 每个作者最近 N 条已发布动态。窗口先按作者截断，再交给调用方做可见性过滤，
+     * 隐藏项不会用更早的动态回填。
+     */
+    @Select("""
+            <script>
+            SELECT m2.* FROM (
+                SELECT m.id AS moment_id,
+                       ROW_NUMBER() OVER (PARTITION BY m.author_id ORDER BY m.created_at DESC, m.id DESC) rn
+                FROM moment m
+                WHERE m.status = 'PUBLISHED'
+                  AND m.author_id IN
+                  <foreach collection='authorIds' item='authorId' open='(' separator=',' close=')'>#{authorId}</foreach>
+            ) ranked
+            INNER JOIN moment m2 ON m2.id = ranked.moment_id
+            WHERE ranked.rn &lt;= #{perAuthorLimit}
+            </script>
+            """)
+    List<Moment> listRecentByAuthorIds(
+            @Param("authorIds") List<String> authorIds,
+            @Param("perAuthorLimit") int perAuthorLimit);
 
     /** {@link #listByAuthorId} 的游标续读：严格早于边界三元组的下一段。 */
     @Select("""

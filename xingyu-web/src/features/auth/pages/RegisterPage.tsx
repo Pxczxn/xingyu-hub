@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import type { PasswordPolicy } from "@/api/auth/auth.types";
+import { ArchetypeFrame } from "@/components/layout";
+import { AuthActionBar } from "@/features/auth/components/AuthActionBar";
 import { AuthCaptchaImage } from "@/features/auth/components/AuthCaptchaImage";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { AuthFormError } from "@/features/auth/components/AuthFormError";
@@ -12,7 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { getPublicConfig } from "@/lib/public-config";
-import { passwordRulesHint, validatePasswordClient } from "@/lib/password-rules";
+import {
+  PASSWORD_POLICY_FALLBACK_NOTICE,
+  passwordRulesHint,
+  usingFallbackPasswordPolicy,
+  validatePasswordClient,
+} from "@/lib/password-rules";
 import { mapUsernameFieldError, validateUsernameClient } from "@/lib/username-rules";
 
 /**
@@ -50,6 +57,8 @@ export function RegisterPage() {
   const [verifyPhoneRequired, setVerifyPhoneRequired] = useState(false);
   const [captchaEnabled, setCaptchaEnabled] = useState(false);
   const [passwordRules, setPasswordRules] = useState<PasswordPolicy | undefined>();
+  // policy 拉不到时不再静默：页面在规则提示下方明说「正在用默认规则」。
+  const [passwordPolicyFallback, setPasswordPolicyFallback] = useState(false);
 
   async function loadCaptcha() {
     try {
@@ -67,6 +76,7 @@ export function RegisterPage() {
       .then((config) => {
         if (!active) return;
         setPasswordRules(config.password);
+        setPasswordPolicyFallback(usingFallbackPasswordPolicy(config.password));
         setRegistrationOpen(config.registration?.enabled !== false);
         setVerifyEmailRequired(config.registration?.verifyEmail === true);
         setVerifyPhoneRequired(
@@ -77,7 +87,12 @@ export function RegisterPage() {
         setCaptchaEnabled(on);
         if (on) void loadCaptcha();
       })
-      .catch(() => setRegistrationOpen(true));
+      .catch(() => {
+        if (!active) return;
+        // 不再静默：校验会自动回退到内置下限，但不能让用户以为已拿到站点规则。
+        setPasswordPolicyFallback(true);
+        setRegistrationOpen(true);
+      });
     return () => {
       active = false;
     };
@@ -171,11 +186,22 @@ export function RegisterPage() {
 
   if (registrationOpen === false) {
     return (
-      <AuthCard title="注册已关闭" description="当前站点未开放注册，请联系管理员。">
-        <Link to="/login" className="text-meta text-accent-strong hover:underline">
-          返回登录
-        </Link>
-      </AuthCard>
+      <ArchetypeFrame skeleton="SK5" header="shell" density="loose">
+        <AuthCard
+          variant="banner"
+          title="注册已关闭"
+          description="当前站点未开放注册，请联系管理员。"
+          footer={
+            <Link to="/login" className="text-accent-strong hover:underline">
+              返回登录
+            </Link>
+          }
+        >
+          <p className="text-meta leading-6 text-muted-foreground">
+            已经有账号的话，可以直接登录；如果你的账号还在审核中，审核结果会通过邮件通知。
+          </p>
+        </AuthCard>
+      </ArchetypeFrame>
     );
   }
 
@@ -194,6 +220,16 @@ export function RegisterPage() {
    * Every claim below maps to a feature that exists: articles, series and moments
    * are the three publishable types, 星系 is the group surface, and 收藏 is the
    * bookmark store. Nothing here promises anything the product does not do.
+   *
+   * --- 2026-11-10 批次 C：SK5 · 幅 / 松 / 齐 -------------------------------
+   * 映射表给本页的是「幅 / 松 / 齐」，与 `/login` 的「线」必须一眼分开，所以：
+   *   幅  `AuthCard variant="banner"`：标题落在一块带 `motif-orbit` 母题的面上
+   *       （B §6 M1，中性发丝环），形成「横幅 → 字段」两段式；登录页没有这层面。
+   *   松  `contentClassName="gap-6"` + 每个字段下方的说明行。
+   *   齐  **不再并排**：价值主张从 320px 的 `aside` 移到表单下方，与表单同宽、
+   *       三列等分（`sm:grid-cols-3`）。并排是 R=错 的构图，而本页在映射表里是 齐 ——
+   *       同域里错留给 PendingAudit / VerifyEmail。内容一个字没删，只是换了位置。
+   * 提交按钮移进 `AuthActionBar`（仍在 `<form>` 内），校验与提交逻辑一行未动。
    */
   const benefits = [
     { icon: PenLine, title: "发布内容", body: "写文章、建系列、发动态，都从同一个创作台开始。" },
@@ -202,28 +238,23 @@ export function RegisterPage() {
   ];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8">
-      <div className="rounded-xl border border-border/70 bg-card p-6 sm:p-7">
-        {/*
-          24px 是域内唯一的例外，别"对齐"成 20px。
-
-          认证域（S8 窄栏）的 L1 是 20px —— 理由写在 `AuthStatusPanel` 的注释里。
-          这里保留内容页的 24px，因为本页是域内唯一有第二份工作的页面：它除了收
-          字段还要回答"我为什么要注册"，而那个回答放在 320px 的 aside 里（见上）。
-          20px 的标题配一块并排的价值主张，读起来像"一个表单附带了一段说明"；
-          24px 才让表单列成为这一页的主体。它也不会与任何 20px 标题同屏 —— 从
-          本页离开是去 `/login`，那是一次导航，不是同页状态切换。
-        */}
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight text-primary">注册星语</h1>
-          <p className="mt-1.5 text-meta leading-6 text-muted-foreground">
-            创建账号，开始创作与探索。
-          </p>
-        </header>
-
-        <div className="mt-6">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {/*
+    <ArchetypeFrame skeleton="SK5" header="shell" density="loose">
+      <AuthCard
+        variant="banner"
+        title="注册星语"
+        description="创建账号，开始创作与探索。"
+        contentClassName="gap-6"
+        footer={
+          <>
+            已有账号？
+            <Link to="/login" className="ml-1 font-medium text-accent-strong hover:underline">
+              直接登录
+            </Link>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {/*
           Six fields in one flat stack gave the reader no structure and no help:
           they could not tell which fields were the account's identity, which was
           its secret, and which were one-off checks — and nothing explained what
@@ -231,175 +262,175 @@ export function RegisterPage() {
           permanent (邮箱 / 用户名) say so, because those are the two a reader
           would most regret getting wrong.
         */}
-            <p className="text-meta font-medium text-foreground-soft">账号</p>
+          <p className="border-b border-border/60 pb-2 text-meta font-medium text-foreground-soft">
+            账号
+          </p>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">邮箱</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setFieldErrors((prev) => ({ ...prev, email: "" }));
-                }}
-                aria-invalid={fieldErrors.email ? true : undefined}
-                aria-describedby={fieldErrors.email ? "email-error" : undefined}
-                required
-              />
-              <p className="text-meta text-muted-foreground">
-                用于登录与找回密码，注册后需要先验证。
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email">邮箱</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, email: "" }));
+              }}
+              aria-invalid={fieldErrors.email ? true : undefined}
+              aria-describedby={fieldErrors.email ? "email-error" : undefined}
+              required
+            />
+            <p className="text-meta text-muted-foreground">
+              用于登录与找回密码，注册后需要先验证。
+            </p>
+            {fieldErrors.email ? (
+              <p id="email-error" role="alert" className="text-meta text-destructive">
+                {fieldErrors.email}
               </p>
-              {fieldErrors.email ? (
-                <p id="email-error" role="alert" className="text-meta text-destructive">
-                  {fieldErrors.email}
-                </p>
-              ) : null}
-            </div>
+            ) : null}
+          </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="username">用户名</Label>
-              <Input
-                id="username"
-                autoComplete="username"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setFieldErrors((prev) => ({ ...prev, username: "" }));
-                }}
-                aria-invalid={fieldErrors.username ? true : undefined}
-                aria-describedby={fieldErrors.username ? "username-error" : undefined}
-                required
-              />
-              <p className="text-meta text-muted-foreground">
-                只能使用小写字母、数字和下划线，注册后不可修改。
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="username">用户名</Label>
+            <Input
+              id="username"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, username: "" }));
+              }}
+              aria-invalid={fieldErrors.username ? true : undefined}
+              aria-describedby={fieldErrors.username ? "username-error" : undefined}
+              required
+            />
+            <p className="text-meta text-muted-foreground">
+              只能使用小写字母、数字和下划线，注册后不可修改。
+            </p>
+            {fieldErrors.username ? (
+              <p id="username-error" role="alert" className="text-meta text-destructive">
+                {fieldErrors.username}
               </p>
-              {fieldErrors.username ? (
-                <p id="username-error" role="alert" className="text-meta text-destructive">
-                  {fieldErrors.username}
-                </p>
-              ) : null}
-            </div>
+            ) : null}
+          </div>
 
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="password">密码</Label>
+            <PasswordInput
+              id="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, password: "" }));
+              }}
+              aria-invalid={fieldErrors.password ? true : undefined}
+              aria-describedby={fieldErrors.password ? "password-error" : undefined}
+              required
+            />
+            {/*
+              规则提示与紧跟其下的错误信息是同一个字段的两条注释，此前一个
+              12px（`text-xs`）一个 13px（`text-meta`），叠在一起像两级信息。
+              认证域的辅助文本只有 `text-meta` 一档（见 `AuthCard` 的注释），
+              这里收进去。
+            */}
+            <p className="text-meta text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
+            {passwordPolicyFallback ? (
+              <p role="status" className="text-meta text-warning">
+                {PASSWORD_POLICY_FALLBACK_NOTICE}
+              </p>
+            ) : null}
+            {fieldErrors.password ? (
+              <p id="password-error" role="alert" className="text-meta text-destructive">
+                {fieldErrors.password}
+              </p>
+            ) : null}
+          </div>
+
+          {verifyPhoneRequired ? (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="password">密码</Label>
-              <PasswordInput
-                id="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setFieldErrors((prev) => ({ ...prev, password: "" }));
-                }}
-                aria-invalid={fieldErrors.password ? true : undefined}
-                aria-describedby={fieldErrors.password ? "password-error" : undefined}
+              <Label htmlFor="phone">手机号</Label>
+              <div className="flex items-center gap-2">
+                <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void sendSmsCode()}
+                  disabled={sendingSms || !phone}
+                >
+                  {sendingSms ? "发送中…" : "发送验证码"}
+                </Button>
+              </div>
+              <Label htmlFor="smsCode">短信验证码</Label>
+              <Input
+                id="smsCode"
+                value={smsCode}
+                onChange={(e) => setSmsCode(e.target.value)}
                 required
               />
-              {/*
-                规则提示与紧跟其下的错误信息是同一个字段的两条注释，此前一个
-                12px（`text-xs`）一个 13px（`text-meta`），叠在一起像两级信息。
-                认证域的辅助文本只有 `text-meta` 一档（见 `AuthCard` 的注释），
-                这里收进去。
-              */}
-              <p className="text-meta text-muted-foreground">{passwordRulesHint(passwordRules)}</p>
-              {fieldErrors.password ? (
-                <p id="password-error" role="alert" className="text-meta text-destructive">
-                  {fieldErrors.password}
-                </p>
-              ) : null}
             </div>
+          ) : null}
 
-            {verifyPhoneRequired ? (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="phone">手机号</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void sendSmsCode()}
-                    disabled={sendingSms || !phone}
-                  >
-                    {sendingSms ? "发送中…" : "发送验证码"}
-                  </Button>
-                </div>
-                <Label htmlFor="smsCode">短信验证码</Label>
+          {captchaEnabled ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="captcha">验证码</Label>
+              <div className="flex items-center gap-2">
                 <Input
-                  id="smsCode"
-                  value={smsCode}
-                  onChange={(e) => setSmsCode(e.target.value)}
+                  id="captcha"
+                  value={captchaCode}
+                  onChange={(e) => setCaptchaCode(e.target.value)}
                   required
                 />
+                {captcha?.img ? <AuthCaptchaImage src={captcha.img} /> : null}
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {captchaEnabled ? (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="captcha">验证码</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="captcha"
-                    value={captchaCode}
-                    onChange={(e) => setCaptchaCode(e.target.value)}
-                    required
-                  />
-                  {captcha?.img ? <AuthCaptchaImage src={captcha.img} /> : null}
-                </div>
-              </div>
-            ) : null}
+          {error ? (
+            <AuthFormError testId="register-error" focusOnMount>
+              {error}
+            </AuthFormError>
+          ) : null}
 
-            {error ? (
-              <AuthFormError testId="register-error" focusOnMount>
-                {error}
-              </AuthFormError>
-            ) : null}
-
+          <AuthActionBar>
             <Button type="submit" disabled={submitting}>
               {submitting ? "注册中…" : "注册"}
             </Button>
-          </form>
-        </div>
+          </AuthActionBar>
+        </form>
+      </AuthCard>
 
-        <p className="mt-6 border-t border-border/60 pt-4 text-meta text-muted-foreground">
-          已有账号？
-          <Link to="/login" className="ml-1 font-medium text-accent-strong hover:underline">
-            直接登录
-          </Link>
-        </p>
-      </div>
-
-      <aside className="lg:sticky lg:top-24">
-        <div className="rounded-xl border border-border/70 bg-card p-5">
-          <p className="eyebrow mb-4">加入星语后你可以</p>
-          <ul className="flex list-none flex-col gap-4 p-0">
-            {benefits.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.title} className="flex items-start gap-3">
-                  <span
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent-strong"
-                    aria-hidden
-                  >
-                    <Icon className="h-4 w-4" />
+      {/* R=齐：价值主张与表单同宽、同边，落在下面而不是并排。 */}
+      <section
+        aria-labelledby="register-benefits"
+        className="rounded-card border border-border/70 bg-card px-6 py-5"
+      >
+        <h2 id="register-benefits" className="text-card font-semibold text-primary">
+          加入星语后你可以
+        </h2>
+        <ul className="mt-4 grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-3">
+          {benefits.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.title} className="flex items-start gap-3">
+                <span
+                  className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-chip bg-surface-sunken text-foreground-soft"
+                  aria-hidden
+                >
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-card font-medium text-primary">{item.title}</span>
+                  <span className="mt-0.5 block text-meta leading-6 text-muted-foreground">
+                    {item.body}
                   </span>
-                  <span className="min-w-0">
-                    <span className="block text-card font-medium text-primary">{item.title}</span>
-                    <span className="mt-0.5 block text-meta leading-5 text-muted-foreground">
-                      {item.body}
-                    </span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </aside>
-    </div>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </ArchetypeFrame>
   );
 }

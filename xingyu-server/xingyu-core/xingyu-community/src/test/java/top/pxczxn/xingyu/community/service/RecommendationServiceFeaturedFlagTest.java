@@ -16,14 +16,18 @@ import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -72,7 +76,7 @@ class RecommendationServiceFeaturedFlagTest {
         seriesMapper = mock(SeriesMapper.class);
         momentMapper = mock(MomentMapper.class);
         contentCoverService = mock(ContentCoverService.class);
-        when(contentCoverService.resolveCoverUrl(any())).thenReturn(null);
+        when(contentCoverService.resolveArticleCovers(anyList())).thenReturn(Map.of());
         service = new RecommendationService(
                 clientSettingsService,
                 featuredContentMapper,
@@ -108,10 +112,13 @@ class RecommendationServiceFeaturedFlagTest {
         return document;
     }
 
-    /** Resolves a featured row's index document by its object id. */
+    /** Resolves a featured row's live index document by its object id. */
     private void resolveEveryFeaturedRow() {
-        when(searchDocumentMapper.findByObject(anyString(), anyString()))
-                .thenAnswer(invocation -> indexed(invocation.getArgument(1)));
+        when(searchDocumentMapper.findLiveByTypeAndIds(anyString(), anyList()))
+                .thenAnswer(invocation -> {
+                    List<String> ids = invocation.getArgument(1);
+                    return ids.stream().map(RecommendationServiceFeaturedFlagTest::indexed).toList();
+                });
     }
 
     @Test
@@ -134,6 +141,8 @@ class RecommendationServiceFeaturedFlagTest {
                         tuple("b", true),
                         tuple("c", false),
                         tuple("d", false));
+        verify(searchDocumentMapper, never()).findByObject(anyString(), anyString());
+        verify(contentCoverService, never()).resolveCoverUrl(any());
     }
 
     @Test
@@ -156,7 +165,7 @@ class RecommendationServiceFeaturedFlagTest {
         when(featuredContentMapper.listActive(anyInt()))
                 .thenReturn(List.of(editorialRow("gone", 0)));
         // The featured row's index document has been removed.
-        when(searchDocumentMapper.findByObject(anyString(), anyString())).thenReturn(null);
+        when(searchDocumentMapper.findLiveByTypeAndIds(anyString(), anyList())).thenReturn(List.of());
         when(searchDocumentMapper.listActiveByHot(isNull(), anyInt())).thenReturn(List.of(indexed("c")));
 
         RecommendationFeedView feed = service.recommend(null, 5);

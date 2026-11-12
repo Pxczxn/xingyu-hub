@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
+import { ApiError } from "@/api/client";
 import { discoverApi } from "@/api/discover/discover.api";
 import { topicsApi } from "@/api/topics/topics.api";
 import { AuthProvider } from "@/features/auth/auth.store";
@@ -116,6 +117,39 @@ it("keeps content visible and reports topic loading failure", async () => {
   expect(await screen.findByText("全部内容第一篇")).toBeInTheDocument();
   expect(screen.getByText("话题暂时无法加载。")).toBeInTheDocument();
 });
+it("switches to featured and keeps the topic", async () => {
+  renderPage("/discover?topic=design");
+  await screen.findByText("全部内容第一篇");
+  fireEvent.click(screen.getByRole("radio", { name: "精选" }));
+  await waitFor(() =>
+    expect(discover).toHaveBeenLastCalledWith({ limit: 20, topic: "design", sort: "featured" }),
+  );
+  expect(screen.getByTestId("location")).toHaveTextContent("/discover?topic=design&sort=featured");
+  expect(screen.getByRole("radio", { name: "精选" })).toHaveAttribute("aria-checked", "true");
+});
+
+it("asks the guest to log in for interest sort and keeps the topic", async () => {
+  discover.mockImplementation(async (input) => {
+    if (input?.sort === "interest") {
+      throw new ApiError({
+        type: "about:blank",
+        status: 401,
+        title: "请先登录",
+        detail: "请先登录",
+        code: "AUTH_REQUIRED",
+      });
+    }
+    return { items: [article("全部内容第一篇")], nextCursor: null };
+  });
+  renderPage("/discover?topic=design");
+  await screen.findByText("全部内容第一篇");
+  fireEvent.click(screen.getByRole("radio", { name: "兴趣" }));
+  expect(await screen.findByText("登录后查看兴趣相关")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "去登录" })).toHaveAttribute("href", "/login");
+  expect(screen.getByTestId("location")).toHaveTextContent("/discover?topic=design&sort=interest");
+  expect(discover).toHaveBeenLastCalledWith({ limit: 20, topic: "design", sort: "interest" });
+});
+
 it("shows every topic as a filter, without the decorative prompt or inactive hot filter", async () => {
   topics.mockResolvedValue(
     Array.from({ length: 10 }, (_, i) => ({ id: `t${i}`, slug: `topic-${i}`, name: `话题${i}` })),

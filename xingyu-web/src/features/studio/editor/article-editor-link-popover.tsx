@@ -50,10 +50,14 @@ export function ArticleEditorLinkPopover({
   }
 
   return (
-    // The handler only stops the event from reaching the editor behind it; the
-    // dialog itself has no interactive affordance.
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-    <div role="dialog" aria-label="编辑链接" onMouseDown={(event) => event.stopPropagation()}>
+    /*
+     * `components/ui/popover` now owns the dialog role, the accessible label,
+     * Escape and outside-click dismissal — see the portal wrapper. The handler
+     * below only stops the press from reaching the editor behind it (a portal
+     * still bubbles events through the React tree to the editor).
+     */
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+    <div onMouseDown={(event) => event.stopPropagation()}>
       <form className={cn(styles.linkPopoverForm)} onSubmit={handleSubmit}>
         <label className={cn(styles.linkPopoverField)} htmlFor={textId}>
           <span>显示文本</span>
@@ -76,12 +80,6 @@ export function ArticleEditorLinkPopover({
             disabled={disabled}
             placeholder="https:// 或 /articles/..."
             onChange={(event) => setUrl(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                onCancel();
-              }
-            }}
           />
         </label>
 

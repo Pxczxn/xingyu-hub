@@ -8,6 +8,8 @@ import {
   RECOMMENDATION_FEEDBACK_DEFAULT_LIMIT,
   RECOMMENDATION_FEEDBACK_MAX_LENGTH,
 } from "@/api/recommendation-feedback/recommendation-feedback.types";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -155,20 +157,40 @@ export function RecommendationFeedbackPage() {
   const overLimit = remaining === 0 && body.trim().length > RECOMMENDATION_FEEDBACK_MAX_LENGTH;
   const confirmed = isJustSubmitted(justSubmitted, state.rows);
 
+  /*
+   * SK6 信息流 · H 线 / D 松 / R 齐（A §3 的 /me RecommendationFeedback 行）。
+   *
+   *   skeleton="SK6"   → 信息流原型。本页不传 `rail`，所以 `ArchetypeFrame` 用
+   *                      `SOLO.SK6`：单列、与内容列同宽同边 —— 这一页按映射表是
+   *                      R=齐，没有第二条轨道要放。
+   *   header="line"    → H=线：`PageMasthead` 一行页头（标题 + 限定语），自带本页
+   *                      唯一的 h1；原来手写的 `text-2xl` 标题就此收敛。
+   *   density="loose"  → D=松：区块间距与卡内 padding 读 `.density-loose` 给出的
+   *                      `--density-*` 变量，页面不写像素值。
+   *   R=齐             → 页头、表单、历史条目共用同一条左缘、同一宽度。
+   *
+   * 呈现上唯一的实质变化是「历史反馈」：原来是圆角卡面里再套一层 `divide-y` 的
+   * 白盒（卡里套行），现在按 SK6 的条目规则变成**行式条目** —— 无卡面、发丝线分隔、
+   * 单列同宽，首屏因此少一层壳。
+   *
+   * 提交逻辑（本地校验 / 提交 / 错误 / 已提交确认 / 字数倒计）一行未动，只换了外层容器。
+   */
   return (
-    <div className="section-gap">
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="line"
+      density="loose"
+      headerSlot={<PageMasthead title="推荐反馈" description={FEEDBACK_SCOPE_NOTE} />}
+    >
       {/*
-        S7 header (batch 08). The card surface and the icon are gone: the first
-        screen is the form itself, and a bordered panel here would be a second
-        white plane above the two sections that already carry their own.
+        表单保留独立卡面：它不是列表条目，而是一块「在这里写」的操作面板，D=松 的
+        定义本来就是「每项独立卡面、首屏 ≤3 块」。限定语（scope）挪到了页头描述位，
+        因为它回答的是「这一页是什么」，不是「这个表单怎么填」。
       */}
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">推荐反馈</h1>
-        {/* Scope stated up front — otherwise users think they are rating an article. */}
-        <p className="lede mt-2 max-w-2xl">{FEEDBACK_SCOPE_NOTE}</p>
-      </header>
-
-      <section aria-label="提交反馈" className="rounded-xl border border-border/70 bg-card p-5">
+      <section
+        aria-label="提交反馈"
+        className="rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
+      >
         <label htmlFor="feedback-body" className="text-sm font-medium text-foreground">
           反馈内容
         </label>
@@ -226,14 +248,14 @@ export function RecommendationFeedbackPage() {
         ) : null}
       </section>
 
-      <section aria-label="历史反馈" className="rounded-xl border border-border/70 bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+      <section aria-label="历史反馈" className="min-w-0">
+        <div className="flex items-baseline justify-between gap-4 border-b border-border/70 pb-2">
           <h2 className="section-heading">历史反馈</h2>
-          <span className="text-xs text-muted-foreground">{state.rows.length} 条</span>
+          <span className="text-caption text-muted-foreground">{state.rows.length} 条</span>
         </div>
 
         {state.rows.length === 0 ? (
-          <div className="p-5">
+          <div className="pt-6">
             <PageState
               kind="empty"
               title="还没有提交过反馈"
@@ -241,11 +263,16 @@ export function RecommendationFeedbackPage() {
             />
           </div>
         ) : (
+          /* 行式条目（A §1 的 SK6）：没有卡面，靠 `divide-y` 的发丝线分隔；一条反馈一行，
+             正文在上、时间在下，与读者扫列表的顺序一致。多行正文由 `whitespace-pre-wrap` 保留。 */
           <ul className="divide-y divide-border">
             {state.rows.map((row) => (
-              <li key={row.id} className="px-5 py-4">
-                <p className="whitespace-pre-wrap text-sm text-foreground">{row.body}</p>
-                <time className="mt-1.5 block text-xs tabular-nums text-muted-foreground">
+              <li key={row.id} className="flex flex-col gap-1.5 py-4">
+                <p className="whitespace-pre-wrap text-body text-foreground">{row.body}</p>
+                <time
+                  dateTime={row.createdAt}
+                  className="text-caption tabular-nums text-muted-foreground"
+                >
                   {formatFeedbackTime(row.createdAt)}
                 </time>
               </li>
@@ -254,17 +281,18 @@ export function RecommendationFeedbackPage() {
         )}
 
         {state.rows.length > 0 ? (
-          <p className="border-t border-border px-5 py-3 text-xs text-muted-foreground">
+          /* 上限说明是列表的脚注，仍挂在列表上（不再是「卡片页脚」）。 */
+          <p className="border-t border-border pt-3 text-caption text-muted-foreground">
             最多显示最近 {RECOMMENDATION_FEEDBACK_DEFAULT_LIMIT} 条，且无法删除或修改。
           </p>
         ) : null}
       </section>
 
       <p className="text-center">
-        <Link to="/discover" className="text-sm text-accent-strong hover:underline">
+        <Link to="/discover" className="focus-ring text-meta text-accent-strong hover:underline">
           去探索内容
         </Link>
       </p>
-    </div>
+    </ArchetypeFrame>
   );
 }

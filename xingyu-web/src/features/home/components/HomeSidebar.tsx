@@ -5,6 +5,7 @@ import { TrendingTopicsPanel } from "./TrendingTopicsPanel";
 import { RecommendedCreatorsPanel } from "./RecommendedCreatorsPanel";
 import { CommunityEventsPanel } from "./CommunityEventsPanel";
 import type { RecommendedCreator } from "../use-recommended-creators";
+import { cn } from "@/lib/cn";
 
 /*
  * Right-hand column of the home page (1/3 on desktop):
@@ -53,10 +54,24 @@ export function HomeSidebar({
      * 一列三张轻卡片，和内容区的平面列表形成「正文 / 边注」的分工。
      *
      * 之前试过纯细线分隔（无卡片），在只有文字时成立；一旦每块都带图标标题和
-     * 右侧动作，没有边界就会糊成一段。卡片只保留 1px 边框 + 半透明纸色，不加
-     * 阴影、不加 hover 抬升：边注是配角，不能和 feed 抢层级。
+     * 右侧动作，没有边界就会糊成一段。卡片只保留 1px 边框 + 纸色，不加阴影、
+     * 不加 hover 抬升：边注是配角，不能和 feed 抢层级。
+     *
+     * 承载它的是 `ArchetypeFrame` 的 `SectionRail`（`<aside aria-labelledby>`），
+     * 所以这里只是一个容器，不再自己声明 `<aside aria-label>`：两层同名 landmark
+     * 会让「社区侧栏」在无障碍树里出现两次。
      */
-    <aside aria-label="社区侧栏" className="flex flex-col gap-4">
+    <div 
+      className={cn(
+        "flex flex-col gap-4",
+        // Sticky 定位，始终停留在视口内
+        "lg:sticky lg:top-[calc(var(--shell-header-height)+1rem)]",
+        // 最大高度 = 视口高度 - Header - 上下边距
+        "lg:max-h-[calc(100vh-var(--shell-header-height)-2rem)]",
+        // 内部滚动
+        "lg:overflow-y-auto lg:overscroll-contain"
+      )}
+    >
       <TrendingTopicsPanel status={topics.status} items={topics.items} />
       <RecommendedCreatorsPanel
         status={creators.status}
@@ -67,6 +82,6 @@ export function HomeSidebar({
         onToggleFollow={onToggleFollow}
       />
       <CommunityEventsPanel status={events.status} items={events.items} />
-    </aside>
+    </div>
   );
 }

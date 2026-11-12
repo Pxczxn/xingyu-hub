@@ -9,10 +9,11 @@ import {
   targetDescription,
   type UserReportView,
 } from "@/api/moderation/moderation.types";
+import { ArchetypeFrame, FeedRow } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
-import { staggerDelay } from "@/lib/stagger";
+import { Button } from "@/components/ui/button";
+import { ModerationSwitch } from "@/features/moderation/components/ModerationSwitch";
 
 /*
  * My reports — the moderation reports the session user filed.
@@ -122,61 +123,45 @@ export function MyReportsPage() {
   }
 
   const { reports } = state;
+  /*
+    SK6 信息流 · H=线 / D=紧 / R=错（`.team/design/A-archetypes.md` §3 的 MyReports 行）。
 
+    骨架由 `ArchetypeFrame skeleton="SK6"` 给出 `[1fr 行式流 | 300 右轨]`，页面不再自己
+    写栏宽：
+
+      H=线：页头是 `PageMasthead` —— 无面、无边框，标题贴内容列左缘。改前那个手写的
+        `<header>` + `text-2xl` 是 A §4 点名的 30 处之一，就此收敛（去卡片、去图标
+        的理由继续成立：一张只装标题的卡不是状态卡，是装饰）。
+      D=紧：条目是「行」不是「格」。`FeedRow` 自带发丝线分隔、无逐项卡面；改前是
+        「一张大卡 + `divide-y`」，那仍然是一张卡，行只是卡里的条纹。
+      R=错：主列 + 侧轨。右轨由 frame 的 `rail` 出（`SectionRail` 自带
+        `<aside aria-labelledby>` 与 sticky），承载页内本来就有的两个入口：举报/申诉
+        切换器与「查看社区规则」。**不放任何统计卡** —— 文件头那段「这是个人事务记录，
+        不是仪表盘」是本页的硬约束，`my-reports-page.test.tsx` 逐条钉着（不收「共 N 条」
+        / 成功率 / 已处理数）。
+
+    行不再做错峰入场：错峰是为「一格一格落下的卡格」准备的，行流是连续读数，逐行延迟
+    只会让人等；整页入场仍由 AppLayout 的 `animate-page-enter` 负责。
+  */
   return (
-    <div className="section-gap">
-      {/*
-        页头（2026-10-13，批次 08c）—— 去卡片，改成分隔线式。
-
-        这里原本是一张 `rounded-lg border border-border bg-card p-5` 的卡片，装着
-        标题和一句说明。方案 §4.6 给治理页组的原则是逐字的：「用户来举报和申诉
-        不是来欣赏视觉设计的——状态与操作必须比装饰优先」。S9 的骨架定义是
-        「状态卡 + 时间线/进度」，要的是**状态卡**；一张只装标题的卡不是状态卡，
-        是装饰。页头卡 + 紧邻的列表卡还会在首屏叠成两张白面，正是 `PageMasthead`
-        选型时记下的那个问题。
-
-        全库另有 15 处卡片式页头，逐一查过：**零处**带「刻意保留」注释 —— 它们是
-        存量，不是设计。批次 07 已为 /me/moments、/me/events 建好无表面页头，本批
-        把同一条线走到治理页组。
-
-        形态取 `border-b border-border/70 pb-5`：与 07 的 NotificationsPage、08a 的
-        SettingsLayout 逐字相同，全库 8 处（含本批 08d 的 announcements / guide /
-        rules 四页）都用它 —— 而不是 BookshelfPage 那种完全无装饰的裸 `<header>`，
-        后者的 4 处都停在更早的形态上。
-
-        h1 里的 lucide 图标一并去掉。全库 15 处带图标的 h1 **全部**落在卡片页头
-        里，零反例；无卡片页头的 h1（含 NotificationsPage、SettingsLayout）全部
-        无图标。图标是「卡片页头」这一形态的伴生物，不是标题的内容。「我的举报 /
-        我的申诉」两页的区别由下面那个切换器承担，不靠图标。
-
-        说明行进 `.lede`（`lede mt-2 max-w-2xl`）：与 PageMasthead / PageHeader /
-        PageSection 三个共享页头组件、以及 settings 域八页逐字一致。
-
-        卡片表面升到 `rounded-xl border border-border/70 bg-card` —— 批次 07 起的
-        表面语言（见 MyMomentsPage 的注释）。列表标题行那条 `border-b border-border`
-        保持全量不动：同一处注释讲过，外框 70% 配内部分隔全量，列表就该长这样，
-        行才是结构，框只是边界。列表行也照批次 07 的语言错峰入场。
-      */}
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的举报</h1>
-        <p className="lede mt-2 max-w-2xl">你提交过的举报记录与处理进展。</p>
-      </header>
-
-      <nav className="flex flex-wrap gap-2" aria-label="举报与申诉">
-        <span className={cn(buttonVariants({ variant: "accent" }), "text-sm")}>我的举报</span>
-        <Link to="/appeals" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>
-          我的申诉
-        </Link>
-      </nav>
-
-      <section className="rounded-xl border border-border/70 bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="section-heading">举报记录</h2>
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="line"
+      density="compact"
+      railLabel="举报与申诉入口"
+      headerSlot={<PageMasthead title="我的举报" description="你提交过的举报记录与处理进展。" />}
+      rail={<ModerationSwitch active="reports" className="flex-col" />}
+    >
+      <section aria-labelledby="reports-list-heading">
+        <div className="flex items-baseline justify-between border-b border-border/70 pb-2">
+          <h2 id="reports-list-heading" className="section-heading">
+            举报记录
+          </h2>
           <span className="text-meta text-muted-foreground">按最近更新</span>
         </div>
 
         {reports.length === 0 ? (
-          <div className="p-5">
+          <div className="pt-4">
             <PageState
               kind="empty"
               title="暂无举报记录"
@@ -184,46 +169,41 @@ export function MyReportsPage() {
             />
           </div>
         ) : (
-          <ul aria-label="我的举报列表" className="divide-y divide-border">
-            {reports.map((report, index) => (
-              <li
+          <ul aria-label="我的举报列表" className="flex flex-col">
+            {reports.map((report) => (
+              <FeedRow
                 key={report.id}
-                className="animate-rise-in px-5 py-4"
-                style={{ animationDelay: staggerDelay(index) }}
+                className="animate-rise-in"
+                meta={
+                  <time dateTime={report.updatedAt} className="tabular-nums">
+                    {`最近更新 ${formatTime(report.updatedAt)}`}
+                  </time>
+                }
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">
+                  <span className="text-caption font-medium text-muted-foreground">
                     {objectTypeLabel(report.targetType)}
                   </span>
                   {/* Echoes unknown statuses verbatim rather than guessing. */}
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+                  <span className="rounded-pill bg-muted px-2 py-0.5 text-caption font-medium text-foreground">
                     {reportStatusLabel(report.status)}
                   </span>
                 </div>
                 {/* The subject, as the server describes it — never a UUID. */}
                 <Link
                   to={`/reports/${encodeURIComponent(report.id)}`}
-                  className="mt-1 block text-sm font-medium text-foreground hover:text-accent-strong"
+                  className="focus-ring mt-1 block text-h3 font-semibold text-foreground hover:text-accent-strong"
                 >
                   {targetDescription(report)}
                 </Link>
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-meta text-muted-foreground">
                   举报原因：{reportReasonLabel(report.reason)}
                 </p>
-                <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-                  最近更新 {formatTime(report.updatedAt)}
-                </p>
-              </li>
+              </FeedRow>
             ))}
           </ul>
         )}
       </section>
-
-      <p className="text-center">
-        <Link to="/guide" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>
-          查看社区规则
-        </Link>
-      </p>
-    </div>
+    </ArchetypeFrame>
   );
 }

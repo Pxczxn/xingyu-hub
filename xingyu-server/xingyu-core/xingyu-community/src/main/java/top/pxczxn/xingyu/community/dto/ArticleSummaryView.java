@@ -16,4 +16,6 @@ public class ArticleSummaryView {
     String title;
     String categoryId;
     Instant updatedAt;
+    /** OWNER = 文章主人；EDITOR = 通过协作邀请获得的草稿编辑权。 */
+    String collaborationRole;
 }

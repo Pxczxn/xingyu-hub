@@ -151,6 +151,7 @@ Desktop.ini
 .plan/
 .run/
 .ai/
+.team/
 ai-notes/
 ai-output/
 rollout-*.jsonl
@@ -197,6 +198,11 @@ page-summaries.txt
 # 根目录个人笔记（明确不入库）
 /提示词.txt
 /信息优先级.md
+/erroe.txt
+/阅读器.html
+xingyu-web-frontend-analysis.md
+xingyu-web-pc-ux-analysis.md
+xingyu-web-ux-analysis.md
 # AI 生成的工作总结文档（非项目资产）
 **/*_SUMMARY.md
 

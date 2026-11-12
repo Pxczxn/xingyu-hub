@@ -109,6 +109,19 @@ describe("GrowthPage — aggregation", () => {
       "/me/badges",
     );
   });
+
+  /*
+   * `/me/interests` was routed but unreachable: the existence of a page is not an
+   * entry point (audit 2026-11-10). The entry lives on the growth page because
+   * 探索兴趣 is the same self-knowledge surface as badges/history.
+   */
+  it("offers an entry point to /me/interests", async () => {
+    renderPage();
+    expect(await screen.findByRole("link", { name: "探索兴趣" })).toHaveAttribute(
+      "href",
+      "/me/interests",
+    );
+  });
 });
 
 describe("GrowthPage — per-section honesty on partial failure", () => {

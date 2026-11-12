@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Bookmark, Heart } from "lucide-react";
+import { Bookmark, Heart, Share2 } from "lucide-react";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import { useAuth } from "@/features/auth/auth.store";
 import { buildLoginPath } from "@/features/auth/login-return-path";
@@ -38,6 +38,37 @@ export function ArticleInteractions({
   const [bookmarked, setBookmarked] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const shareNoticeTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (shareNoticeTimer.current !== null) window.clearTimeout(shareNoticeTimer.current);
+    },
+    [],
+  );
+
+  /*
+   * Share is a pure client affordance: the native share sheet when the browser
+   * has one, otherwise the URL is copied. It never touches the API, so guests
+   * get it too. A user cancelling the native sheet rejects the promise — that is
+   * not an error and must not surface as one.
+   */
+  async function shareArticle() {
+    const url = window.location.href;
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: document.title, url });
+        return;
+      }
+      await navigator.clipboard?.writeText(url);
+      setShareNotice("链接已复制");
+      if (shareNoticeTimer.current !== null) window.clearTimeout(shareNoticeTimer.current);
+      shareNoticeTimer.current = window.setTimeout(() => setShareNotice(null), 2000);
+    } catch {
+      /* Cancelled by the user — nothing to report. */
+    }
+  }
 
   useEffect(() => {
     // Guests cannot read like *status* or bookmark state (verified: 401
@@ -165,6 +196,17 @@ export function ArticleInteractions({
           </Link>
         </span>
       )}
+
+      <Button type="button" variant="outline" size="sm" onClick={() => void shareArticle()}>
+        <Share2 className="mr-1.5 h-4 w-4" aria-hidden />
+        分享
+      </Button>
+
+      {shareNotice ? (
+        <span role="status" className="text-sm text-muted-foreground">
+          {shareNotice}
+        </span>
+      ) : null}
 
       {error ? (
         <span role="alert" className="text-sm text-destructive">

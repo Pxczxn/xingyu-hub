@@ -109,31 +109,26 @@ describe("inviteLifetimeHint", () => {
 });
 
 describe("the acceptance boundary disclosure", () => {
-  it("exists and says no permission is granted", () => {
-    expect(ACCEPTANCE_BOUNDARY_NOTE).toContain("不会因此获得任何协作权限");
-  });
-
-  it("is not phrased as a successful collaboration", () => {
-    // Old wording implied membership; the new one must not.
-    expect(ACCEPTANCE_BOUNDARY_NOTE).toContain("尚未实现");
+  it("exists and says editors may edit drafts", () => {
+    expect(ACCEPTANCE_BOUNDARY_NOTE).toContain("编辑对方的文章草稿");
+    expect(ACCEPTANCE_BOUNDARY_NOTE).toContain("送审");
   });
 });
 
 describe("acceptedHeadline", () => {
   it("names the inviter", () => {
     expect(acceptedHeadline({ accepted: true, inviterUsername: "alice" })).toBe(
-      "已确认 alice 的邀请",
+      "已加入 alice 的协作",
     );
   });
 
-  it("says 已确认 rather than 已加入协作", () => {
+  it("says the accepter joined the collaboration", () => {
     const headline = acceptedHeadline({ accepted: true, inviterUsername: "alice" });
-    expect(headline).not.toContain("加入");
-    expect(headline).toContain("确认");
+    expect(headline).toContain("加入");
   });
 
   it("degrades gracefully with no result", () => {
-    expect(acceptedHeadline(null)).toBe("已确认邀请");
+    expect(acceptedHeadline(null)).toBe("已加入协作");
   });
 });
 

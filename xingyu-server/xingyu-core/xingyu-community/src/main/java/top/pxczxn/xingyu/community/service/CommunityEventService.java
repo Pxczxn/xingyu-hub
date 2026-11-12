@@ -24,9 +24,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -134,9 +139,8 @@ public class CommunityEventService {
         if (limit <= 0) {
             limit = 20;
         }
-        return submissionMapper.listByAuthorId(user.getId(), limit).stream()
-                .map(this::toSubmissionView)
-                .toList();
+        List<EventSubmission> rows = submissionMapper.listByAuthorId(user.getId(), limit);
+        return toSubmissionViews(rows);
     }
 
     public List<EventSubmissionView> listAcceptedSubmissions(String eventId, int limit) {
@@ -144,9 +148,7 @@ public class CommunityEventService {
         if (limit <= 0) {
             limit = 50;
         }
-        return submissionMapper.listAcceptedByEventId(eventId, limit).stream()
-                .map(this::toSubmissionView)
-                .toList();
+        return toSubmissionViews(submissionMapper.listAcceptedByEventId(eventId, limit));
     }
 
     public List<EventSubmissionAdminView> listSubmissionsForAdmin(String eventId, int limit) {
@@ -157,8 +159,14 @@ public class CommunityEventService {
         if (limit <= 0) {
             limit = 100;
         }
-        return submissionMapper.listByEventId(eventId, limit).stream()
-                .map(this::toAdminSubmissionView)
+        List<EventSubmission> rows = submissionMapper.listByEventId(eventId, limit);
+        Map<String, SearchDocument> documents = documentsFor(rows);
+        Map<String, CommunityProfile> profiles = profilesFor(rows);
+        return rows.stream()
+                .map(row -> toAdminSubmissionView(
+                        row,
+                        documents.get(documentKey(row.getObjectType(), row.getObjectId())),
+                        profiles.get(row.getAuthorId())))
                 .toList();
     }
 
@@ -298,9 +306,58 @@ public class CommunityEventService {
                 "createdAt", registration.getCreatedAt());
     }
 
+    private List<EventSubmissionView> toSubmissionViews(List<EventSubmission> rows) {
+        Map<String, SearchDocument> documents = documentsFor(rows);
+        return rows.stream()
+                .map(row -> toSubmissionView(
+                        row, documents.get(documentKey(row.getObjectType(), row.getObjectId()))))
+                .toList();
+    }
+
+    private Map<String, SearchDocument> documentsFor(List<EventSubmission> rows) {
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<String>> idsByType = new LinkedHashMap<>();
+        for (EventSubmission row : rows) {
+            List<String> ids = idsByType.computeIfAbsent(row.getObjectType(), key -> new ArrayList<>());
+            if (!ids.contains(row.getObjectId())) {
+                ids.add(row.getObjectId());
+            }
+        }
+        Map<String, SearchDocument> documents = new HashMap<>();
+        for (Map.Entry<String, List<String>> entry : idsByType.entrySet()) {
+            for (SearchDocument document : searchDocumentMapper.listByTypeAndIds(entry.getKey(), entry.getValue())) {
+                documents.putIfAbsent(documentKey(document.getObjectType(), document.getObjectId()), document);
+            }
+        }
+        return documents;
+    }
+
+    private Map<String, CommunityProfile> profilesFor(List<EventSubmission> rows) {
+        List<String> authorIds = rows.stream()
+                .map(EventSubmission::getAuthorId)
+                .filter(authorId -> authorId != null && !authorId.isBlank())
+                .distinct()
+                .toList();
+        if (authorIds.isEmpty()) {
+            return Map.of();
+        }
+        return profileMapper.findByUserIds(authorIds).stream()
+                .collect(Collectors.toMap(CommunityProfile::getUserId, Function.identity(), (left, right) -> left));
+    }
+
+    private static String documentKey(String objectType, String objectId) {
+        return objectType + "\u0001" + objectId;
+    }
+
     private EventSubmissionView toSubmissionView(EventSubmission submission) {
-        SearchDocument document = searchDocumentMapper.findByObject(
-                submission.getObjectType(), submission.getObjectId());
+        return toSubmissionView(
+                submission,
+                searchDocumentMapper.findByObject(submission.getObjectType(), submission.getObjectId()));
+    }
+
+    private EventSubmissionView toSubmissionView(EventSubmission submission, SearchDocument document) {
         return EventSubmissionView.builder()
                 .id(submission.getId())
                 .eventId(submission.getEventId())
@@ -314,9 +371,14 @@ public class CommunityEventService {
     }
 
     private EventSubmissionAdminView toAdminSubmissionView(EventSubmission submission) {
-        SearchDocument document = searchDocumentMapper.findByObject(
-                submission.getObjectType(), submission.getObjectId());
-        CommunityProfile profile = profileMapper.findByUserId(submission.getAuthorId());
+        return toAdminSubmissionView(
+                submission,
+                searchDocumentMapper.findByObject(submission.getObjectType(), submission.getObjectId()),
+                profileMapper.findByUserId(submission.getAuthorId()));
+    }
+
+    private EventSubmissionAdminView toAdminSubmissionView(
+            EventSubmission submission, SearchDocument document, CommunityProfile profile) {
         return EventSubmissionAdminView.builder()
                 .id(submission.getId())
                 .eventId(submission.getEventId())

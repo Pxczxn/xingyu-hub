@@ -115,10 +115,8 @@ describe("acceptInvite", () => {
     await expect(collaborationApi.acceptInvite("bad")).rejects.toBe(failure);
   });
 
-  it("does not fabricate any relationship in its return value", async () => {
-    // The backend returns no resource id / membership, because none is created.
-    // If this ever gains a field, the UI copy about "no permissions granted"
-    // must be revisited — which is exactly why the shape is asserted here.
+  it("returns the inviter receipt fields, not a membership id", async () => {
+    // Membership is a side effect of accept; the HTTP body stays the receipt.
     apiRequestMock.mockResolvedValue({
       accepted: true,
       inviterUsername: "alice",

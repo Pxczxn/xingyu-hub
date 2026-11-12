@@ -83,6 +83,69 @@
       scroll-behavior: auto !important;
     }
   }
+
+  /*
+   * Root font size, stepped by viewport — 16 / 17 / 18px.
+   *
+   * The type scale is stated in `rem` (`--type-body` 1rem, `--type-meta`
+   * .875rem, `--type-h3` 1.125rem …), so every step is a multiple of the root.
+   * The root was always 16px while the shell grew to 1600px, which made the
+   * 1200 → 1600 widening cost type/container ratio: the same 16px body on a
+   * 1600px box reads smaller than on a 1200px one. Chinese glyphs at 16px were
+   * already tight, so the fix is to lift the root rather than to restate 8
+   * steps in px: one number scales the whole ladder by 6.25 % / 12.5 %.
+   *
+   *   16px  … <1440        today's type, untouched (390 phone: zero change)
+   *   17px  1440–1799      +6.25 % — body 16 → 17, meta 14 → 14.875
+   *   18px  1800+          +12.5 % — body 16 → 18, meta 14 → 15.75
+   *
+   * Thresholds were 1536 / 1920 in the first cut and were pulled DOWN to
+   * 1440 / 1800 after a 1910px screenshot: a 1910 window missed the 18px tier by
+   * 10px and only got 17px, so the "字偏小" it was meant to fix barely moved.
+   * 1800 is the tier where the shell has already reached its 1600px ceiling
+   * (90 % of 1778), i.e. every window that wide shows the same page box — which
+   * is exactly the condition where the type/box ratio is worst and the extra
+   * 12.5 % costs nothing in reflow. 1440 covers the ordinary laptop/desktop
+   * band; below it the layout is unchanged.
+   *
+   * Stated in PERCENT, not in absolute px, and that is deliberate: `100%` on
+   * `html` means "the browser's own default" (16px for an untouched browser,
+   * exactly as before this batch), so a reader who has raised their default
+   * font size keeps their choice — `font-size: 16px` would silently clamp it
+   * back down, which is the one thing a type change must not do (CONTRACTS
+   * §"a11y 不退化"). The steps are therefore stated as ratios of that default:
+   * 100 % = 16px, 106.25 % = 17px, 112.5 % = 18px.
+   *
+   * Deliberately NOT scaled (the four things that must stay put):
+   *   1. `--type-reading` / `--reading-body-size` — pinned 18px in tokens.css.
+   *      Long-form prose does not get a fourth size; 18px is the CJK ceiling.
+   *   2. `--reading-measure` — pinned 717.785px, so the 68-glyph column does not
+   *      widen into ~800px on the very screens that got bigger type.
+   *   3. `.guide-reader.article-body` — pinned 17/24/20px, same reason as (1):
+   *      it is a reading surface, and its column is pinned by (2).
+   *   4. `--density-*` (card padding / grid gaps, all px) — type grows, air stays
+   *      the same, which is what makes the wider layout read as more generous
+   *      instead of merely larger.
+   *
+   * `--shell-max-width` stays 1600px: this is about type-to-box ratio, not about
+   * widening the box further.
+   *
+   * Breakdowns are handled per component (`text-caption` / `text-meta` on the
+   * 300/320px right rail, buttons and badges), not by a fourth root step.
+   */
+  html {
+    font-size: 100%; /* 16px at the browser default — the pre-batch size */
+  }
+  @media (min-width: 1440px) {
+    html {
+      font-size: 106.25%; /* = 17px at the browser default */
+    }
+  }
+  @media (min-width: 1800px) {
+    html {
+      font-size: 112.5%; /* = 18px at the browser default */
+    }
+  }
 }
 
 @layer components {
@@ -242,17 +305,40 @@
 
   /*
    * Shared shell: aligned with the header and footer so all three edges land on
-   * the same vertical line. Was `max-w-[1440px]`, which ran body text to ~100 CJK
-   * glyphs per line on a wide display; MASTER.md asks for 1152px. 1200px is the
-   * compromise — see --shell-max-width.
+   * the same vertical line.
    *
-   * `max-width` is written as plain CSS rather than `@apply max-w-shell` so the
-   * rule still resolves if the Tailwind config is ever stale (a config edit is
-   * not picked up by a running dev server without a restart).
+   * History, because this rule has now been through three shapes:
+   *   - `max-w-[1440px]`, then a literal `1200px`, then `max-w-shell`
+   *     (1560px) with NO percentage width. That combination was the problem:
+   *     the column froze early and the gutters grew instead, which on a 1910px
+   *     display meant ~175px of dead space per side and on a 2560px one ~500px.
+   *   - then a pure percentage (94%, no `max-width`) — full-bleed on every
+   *     screen, which on a 2560px panel meant a feed row 2400px wide holding a
+   *     12-character title. Room, but not a readable measure.
+   *   - now BOTH: 90% of the viewport, capped at `--shell-max-width` (1600px).
+   *     The percentage keeps the gutter proportional on ordinary screens; the
+   *     ceiling stops the runaway on 2K/4K ones. Measured: 390→351, 1528→1375,
+   *     1910→1600 (155px per side), 2560→1600 (480px per side).
+   *
+   * 94% → 90%: at 94% the gutter was ~46px per side on a 1528px display, which
+   * read as "the column IS the screen". 90% gives a visible margin at every
+   * size that is still under the ceiling.
+   *
+   * `vw` is still not used: it ignores the scrollbar and can overflow when a
+   * vertical bar is present.
+   *
+   * Line length is NOT this rule's job. Reading surfaces cap themselves with
+   * `--reading-measure` (`max-w-[var(--reading-measure)]`, 68ch at the 18px
+   * body — see tokens.css), so prose stays ~717px wide on a 4K panel while the
+   * feed/table/banner rows use the extra room. With the 1600px ceiling the
+   * feed column lands near 1600−48 = 1552px, which is why rows do not need a
+   * second, per-row measure of their own.
    */
   .content-shell {
     @apply mx-auto w-[90%] px-4 py-6 md:px-6 md:py-8;
-    max-width: 1400px;
+
+    /* After `@apply` on purpose: the percentage width must lose to this. */
+    max-width: var(--shell-max-width);
   }
 
   /* Vertical rhythm between page-level blocks. One value, used everywhere. */
@@ -507,6 +593,56 @@
   .article-body ol {
     @apply list-decimal;
   }
+
+  /*
+   * Guide reader, from 阅读器.html. Scoped so the article page keeps its own
+   * scale. 17px / 1.8 and the looser block gaps are this surface only.
+   *
+   * 2026-11-10 (wide-screen root scale): the three sizes below are pinned in px
+   * instead of `rem`. The root steps to 17px at 1440 and 18px at 1800, so
+   * `1.0625rem` / `1.5rem` / `1.25rem` would have grown this surface to
+   * 19.1 / 27 / 22.5px — i.e. the one long-form reading surface the batch
+   * deliberately left alone would have become the largest text in the product,
+   * in a column that is itself pinned (`--reading-measure`, 717.785px). Same
+   * two pins as `.article-body` (18px) and `--reading-measure`: reading surfaces
+   * do not follow the root. Values are exactly today's 16px-basis pixels, so the
+   * guide reader renders unchanged at every viewport. The A-/A+ control still
+   * wins: `GuideTutorial.tsx` sets an inline `fontSize` when the reader picks a
+   * step, and an inline style beats this rule.
+   */
+  .guide-reader.article-body {
+    font-size: 17px; /* 1.0625rem at the 16px root */
+    line-height: 1.8;
+  }
+  .guide-reader.article-body > * + * {
+    margin-top: 0;
+  }
+  .guide-reader.article-body p,
+  .guide-reader.article-body ul,
+  .guide-reader.article-body ol,
+  .guide-reader.article-body blockquote {
+    margin-bottom: 1.5em;
+  }
+  .guide-reader.article-body h2 {
+    margin: 2em 0 1em;
+    font-size: 24px; /* 1.5rem at the 16px root — pinned, see the note above */
+    line-height: 1.35;
+  }
+  .guide-reader.article-body h3 {
+    margin: 1.5em 0 0.8em;
+    font-size: 20px; /* 1.25rem at the 16px root — pinned, see the note above */
+    line-height: 1.4;
+  }
+  .guide-reader.article-body li + li {
+    margin-top: 0.8em;
+  }
+  .guide-reader.article-body blockquote {
+    border-left-width: 4px;
+    border-color: hsl(var(--accent));
+    background: hsl(var(--accent) / 0.08);
+    padding: 1rem 1.25rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
   .article-body blockquote {
     @apply border-l-2 border-accent-line pl-4 text-muted-foreground;
   }
@@ -586,5 +722,152 @@
   }
   .article-body th {
     @apply bg-surface-sunken font-medium;
+  }
+}
+
+/* ===========================================================================
+ * 2026-11-10 · Phase 2 · SK-B visual language utilities
+ * ===========================================================================
+ * APPEND ONLY. This file carries other people's uncommitted work, so nothing
+ * above is reordered, renamed or reformatted; the batch adds one new
+ * `@layer components` block at the end.
+ *
+ * Sources: `.team/design/B-visual-language.md` §2 (density) and §6 (motifs).
+ * ========================================================================= */
+@layer components {
+  /* --- B §6 · M1 geometric-orbit ----------------------------------------
+   * Hero / domain header decoration. Two rings, no image, no filter. The
+   * documented composition then adds one 6px dot and two 1px rules; those are
+   * per-page placement, so they stay in the page, not here.
+   * Radius follows the surface scale so a hero card and its rings agree.
+   *
+   * 2026-11-10 palette switch: the outer ring used to be gold
+   * (`hsl(var(--accent) / 0.35)`) and the inner one navy. Gold is gone, and blue
+   * is reserved for links / selected / progress / focus, so both rings are now
+   * neutral ink hairlines at 7% and 5% — a whisper that separates without
+   * colouring. A hero must not become a blue panel, or a coloured one either.
+   */
+  .motif-orbit {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-surface);
+  }
+  .motif-orbit::before,
+  .motif-orbit::after {
+    content: "";
+    position: absolute;
+    border-radius: 9999px;
+    border: 1px solid rgb(17 24 39 / 0.07);
+  }
+  .motif-orbit::before {
+    width: 180%;
+    aspect-ratio: 1;
+    right: -60%;
+    top: -120%;
+  }
+  .motif-orbit::after {
+    width: 110%;
+    aspect-ratio: 1;
+    right: -30%;
+    top: -70%;
+    border-color: rgb(17 24 39 / 0.05);
+  }
+
+  /* --- B §6 · M2 mesh-glow ----------------------------------------------
+   * Three low-alpha radial gradients over the card surface. Deliberately NOT
+   * a large-radius `filter: blur()`: that repaints every frame and drops
+   * frames on mobile.
+   *
+   * 2026-11-10 palette switch: the gold + navy + teal washes are replaced by
+   * neutral ink at 3.5–6% over white. The mesh is a light falloff, not a colour
+   * field, so `白 + 干净` still holds and no blue tint surface is introduced.
+   */
+  .motif-mesh {
+    background:
+      radial-gradient(120% 90% at 12% 8%, rgb(17 24 39 / 0.035), transparent 58%),
+      radial-gradient(90% 80% at 88% 12%, rgb(17 24 39 / 0.05), transparent 60%),
+      radial-gradient(120% 120% at 50% 118%, rgb(17 24 39 / 0.06), transparent 62%),
+      hsl(var(--card));
+  }
+
+  /* --- B §6 · M3 paper-grain --------------------------------------------
+   * The only "material" in the system: reading surfaces and the dark footer.
+   * `position: relative` is added to the base rule because the pseudo-element
+   * is `inset: 0` — without a positioning context it would stretch over
+   * whichever ancestor happens to be positioned.
+   *
+   * Fallback (if an SVG data URI is ever unavailable, e.g. a strict CSP on
+   * `img-src data:`), the documented substitute is:
+   *   background-image: repeating-linear-gradient(0deg,
+   *     hsl(var(--foreground) / 0.03) 0 1px, transparent 1px 3px);
+   * The grain is `opacity: .045` decoration, so losing it is not a failure.
+   */
+  .motif-grain {
+    position: relative;
+  }
+  .motif-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.045;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.8'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* --- B §2 · density tiers ---------------------------------------------
+   * A density class does two things to its own subtree: it re-points the
+   * active `--density-*` variables, and it lays its direct children out as a
+   * block stack using that tier's section gap (the same shape `.section-gap`
+   * encodes with one fixed 40px).
+   *
+   * Because it sets `display: flex`, put it on the block stack itself — never
+   * on a grid wrapper, where it would replace the grid.
+   */
+  .density-loose,
+  .density-compact,
+  .density-dense {
+    display: flex;
+    flex-direction: column;
+    gap: var(--density-section-gap);
+  }
+
+  .density-loose {
+    --density-page-top: var(--density-loose-page-top);
+    --density-page-bottom: var(--density-loose-page-bottom);
+    --density-section-gap: var(--density-loose-section-gap);
+    --density-heading-gap: var(--density-loose-heading-gap);
+    --density-card-pad: var(--density-loose-card-pad);
+    --density-list-gap: var(--density-loose-list-gap);
+    --density-grid-gap: var(--density-loose-grid-gap);
+  }
+
+  .density-compact {
+    --density-page-top: var(--density-compact-page-top);
+    --density-page-bottom: var(--density-compact-page-bottom);
+    --density-section-gap: var(--density-compact-section-gap);
+    --density-heading-gap: var(--density-compact-heading-gap);
+    --density-card-pad: var(--density-compact-card-pad);
+    --density-list-gap: var(--density-compact-list-gap);
+    --density-grid-gap: var(--density-compact-grid-gap);
+  }
+
+  .density-dense {
+    --density-page-top: var(--density-dense-page-top);
+    --density-page-bottom: var(--density-dense-page-bottom);
+    --density-section-gap: var(--density-dense-section-gap);
+    --density-heading-gap: var(--density-dense-heading-gap);
+    --density-card-pad: var(--density-dense-card-pad);
+    --density-list-gap: var(--density-dense-list-gap);
+    --density-grid-gap: var(--density-dense-grid-gap);
+  }
+
+  /*
+   * The third step of the section-gap family (B §2): `.section-gap` is 40px
+   * (comfortable) and `.section-gap-tight` is 32px (compact); 24px is dense —
+   * analytics tables, moderation queues, the editor's side rails.
+   */
+  .section-gap-dense {
+    @apply flex flex-col gap-6;
   }
 }

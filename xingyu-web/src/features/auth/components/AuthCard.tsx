@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 
 /*
- * Shared shell for auth screens (design idea taken from Legacy
+ * Shared title block for auth screens (design idea taken from Legacy
  * components/community/auth-page-shell.tsx — rebuilt, no CSS copied).
  *
  * 标题层级（2026-10-08）
@@ -38,30 +38,109 @@ import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/
  * `authStatusLinkClass`、`authStatusPrimaryClass`、`AuthFormError`。只有本壳页脚写
  * `text-sm`，于是 `ForgotPasswordPage` 表单态的「返回登录」是 14px、提交成功后的
  * 同类链接是 13px。改成 `text-meta`，与 h1 一样收进认证域同一套规格。
+ *
+ * --- 2026-11-10 批次 C：H 轴（A §2 / B §2）--------------------------
+ * 认证 7 页全部是 SK5 流程原型，但**页头处理不是同一个值**（A §3 映射表）：
+ *
+ *   `line`    无面 masthead：标题贴内容列左缘，一条发丝线把它与字段分开。
+ *             不给认证页套卡面，是因为卡片边框会把「一个只需填两格就走的
+ *             页面」画成一个要阅读的区块。
+ *   `banner`  有面横幅：标题落在一块带母题（`motif-orbit`，B §6）的面上，
+ *             与下面的字段形成「横幅 → 内容列」两段式。
+ *   `card`    旧形状（有边卡 + CardHeader/CardContent）。保留是给**状态页**用的
+ *             —— 一个不能填写的结论配一圈边框是恰当的。
+ *
+ * 所以 H 值由本组件的一个 prop 表达，而不是由页头组件表达：认证域里
+ * `AuthCard`/`AuthStatusPanel` 就是页头，h1 只能在这两处出现一次（A §7.2 的
+ * 「恰有 1 个 h1」）。页面把 SK5 的栅格交给 `ArchetypeFrame`，把 H 交给这里。
+ *
+ * `bleed`（R=出）只对 `banner` 有效：把横幅左右各拉出 16/24px（= `.content-shell`
+ * 的 `px-4`/`md:px-6`），于是横幅比页内其它任何块都宽 —— 这正是 `BleedBand`
+ * 对「出血」的定义（`BleedBand.tsx:12-19` 说明了为什么只到那条线、不到视口边缘）。
+ * 其后所有块回到内容列。
  */
+export type AuthCardVariant = "line" | "banner" | "card";
+
+const CONTENT_GAP = "gap-4";
+
 export function AuthCard({
   title,
   description,
   children,
   footer,
+  variant = "line",
+  /** R=出：只让 `banner` 的横幅越过内容列。 */
+  bleed = false,
+  /** D 轴（B §2）：`gap-6` 松 / `gap-3` 紧。 */
+  contentClassName,
+  className,
 }: {
   title: string;
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
+  variant?: AuthCardVariant;
+  bleed?: boolean;
+  contentClassName?: string;
+  className?: string;
 }) {
+  const heading = (
+    <h1 className="text-xl font-semibold tracking-tight text-primary">{title}</h1>
+  );
+  const lede = description ? (
+    <p className="mt-1.5 text-meta leading-6 text-muted-foreground">{description}</p>
+  ) : null;
+
+  const footerNode = footer ? (
+    <div className="border-t border-border/60 pt-4 text-meta text-muted-foreground">{footer}</div>
+  ) : null;
+
+  if (variant === "card") {
+    return (
+      <div
+        className={cn(
+          "min-w-0 rounded-card border border-border/70 bg-card p-6",
+          className,
+        )}
+      >
+        <header>
+          {heading}
+          {lede}
+        </header>
+        <div className={cn("mt-5 flex flex-col", contentClassName ?? CONTENT_GAP)}>{children}</div>
+        {footerNode ? <div className="mt-5">{footerNode}</div> : null}
+      </div>
+    );
+  }
+
+  if (variant === "banner") {
+    return (
+      <div className={cn("min-w-0", className)}>
+        <header
+          className={cn(
+            "motif-orbit relative isolate overflow-hidden rounded-card border border-border/70 bg-surface-sunken px-6 py-6",
+            bleed && "-mx-4 md:-mx-6",
+          )}
+        >
+          <div className="relative z-10">
+            {heading}
+            {lede}
+          </div>
+        </header>
+        <div className={cn("mt-6 flex flex-col", contentClassName ?? CONTENT_GAP)}>{children}</div>
+        {footerNode ? <div className="mt-6">{footerNode}</div> : null}
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <h1 className="text-xl font-semibold tracking-tight text-primary">{title}</h1>
-        {description ? (
-          <CardDescription className="text-meta leading-6">{description}</CardDescription>
-        ) : null}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {children}
-        {footer ? <div className="text-meta text-muted-foreground">{footer}</div> : null}
-      </CardContent>
-    </Card>
+    <div className={cn("min-w-0", className)}>
+      <header className="border-b border-border/70 pb-4">
+        {heading}
+        {lede}
+      </header>
+      <div className={cn("mt-5 flex flex-col", contentClassName ?? CONTENT_GAP)}>{children}</div>
+      {footerNode ? <div className="mt-5">{footerNode}</div> : null}
+    </div>
   );
 }

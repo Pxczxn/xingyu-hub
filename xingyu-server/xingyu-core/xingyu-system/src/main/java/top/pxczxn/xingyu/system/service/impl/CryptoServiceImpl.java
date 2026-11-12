@@ -17,7 +17,9 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
 import java.security.SecureRandom;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Map;
 
@@ -52,18 +54,45 @@ public class CryptoServiceImpl implements CryptoService {
     @Override
     public void reloadRsaKeys() {
         try {
-            JsonNode config = getSecurityConfig();
-            if (config != null) {
-                publicKey = getStringValue(config, "encryptPublicKey");
-                privateKey = getStringValue(config, "encryptPrivateKey");
+            loadRsaKeysFromConfig();
+            if (!isUsableRsaPrivateKey(privateKey) || isBlank(publicKey)) {
+                log.warn("RSA 私钥缺失或不可用（例如迁移基线占位 __REDACTED__），正在生成新密钥对");
+                persistGeneratedRsaKeyPair();
+                loadRsaKeysFromConfig();
             }
-            if (isBlank(publicKey) || isBlank(privateKey)) {
-                log.info("RSA 密钥未配置，等待管理端生成");
-            } else {
+            if (isUsableRsaPrivateKey(privateKey) && !isBlank(publicKey)) {
                 log.info("RSA 密钥加载成功");
+            } else {
+                log.info("RSA 密钥未配置，等待管理端生成");
             }
         } catch (Exception e) {
             log.error("加载 RSA 密钥失败", e);
+        }
+    }
+
+    private void loadRsaKeysFromConfig() {
+        JsonNode config = getSecurityConfig();
+        if (config != null) {
+            publicKey = getStringValue(config, "encryptPublicKey");
+            privateKey = getStringValue(config, "encryptPrivateKey");
+        }
+    }
+
+    /**
+     * 占位符或无法解析为 PKCS#8 的值都不能用来解密登录密码。
+     * V001 为了不入库真实私钥把 encryptPrivateKey 写成 {@code __REDACTED__}，
+     * 但 encryptEnabled 仍为 true，前端会 RSA 加密密码，服务端解密失败后把密文拿去 BCrypt。
+     */
+    public static boolean isUsableRsaPrivateKey(String key) {
+        if (isBlank(key) || "__REDACTED__".equals(key)) {
+            return false;
+        }
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(key);
+            KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -94,7 +123,7 @@ public class CryptoServiceImpl implements CryptoService {
         return node != null && !node.isNull() ? node.asText() : null;
     }
 
-    private boolean isBlank(String value) {
+    private static boolean isBlank(String value) {
         return value == null || value.isEmpty();
     }
 
@@ -173,24 +202,30 @@ public class CryptoServiceImpl implements CryptoService {
      */
     public String generateAndPersistRsaKeyPair() {
         try {
-            Map<String, String> keyPair = RsaUtils.generateKeyPair();
-            SysConfigGroup group = configGroupService.getByGroupCode(CONFIG_GROUP_SECURITY);
-            if (group == null) {
-                throw new IllegalStateException("security 配置分组不存在");
-            }
-            com.fasterxml.jackson.databind.node.ObjectNode config;
-            if (group.getConfigValue() != null && !group.getConfigValue().isBlank()) {
-                config = (com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.readTree(group.getConfigValue());
-            } else {
-                config = objectMapper.createObjectNode();
-            }
-            config.put("encryptPublicKey", keyPair.get(RsaUtils.PUBLIC_KEY));
-            config.put("encryptPrivateKey", keyPair.get(RsaUtils.PRIVATE_KEY));
-            configGroupService.saveConfig(CONFIG_GROUP_SECURITY, objectMapper.writeValueAsString(config));
+            persistGeneratedRsaKeyPair();
             reloadRsaKeys();
-            return keyPair.get(RsaUtils.PUBLIC_KEY);
+            return publicKey;
         } catch (Exception e) {
             throw new RuntimeException("生成并保存 RSA 密钥失败", e);
         }
+    }
+
+    private void persistGeneratedRsaKeyPair() throws Exception {
+        Map<String, String> keyPair = RsaUtils.generateKeyPair();
+        SysConfigGroup group = configGroupService.getByGroupCode(CONFIG_GROUP_SECURITY);
+        if (group == null) {
+            throw new IllegalStateException("security 配置分组不存在");
+        }
+        com.fasterxml.jackson.databind.node.ObjectNode config;
+        if (group.getConfigValue() != null && !group.getConfigValue().isBlank()) {
+            config = (com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.readTree(group.getConfigValue());
+        } else {
+            config = objectMapper.createObjectNode();
+        }
+        config.put("encryptPublicKey", keyPair.get(RsaUtils.PUBLIC_KEY));
+        config.put("encryptPrivateKey", keyPair.get(RsaUtils.PRIVATE_KEY));
+        configGroupService.saveConfig(CONFIG_GROUP_SECURITY, objectMapper.writeValueAsString(config));
+        publicKey = keyPair.get(RsaUtils.PUBLIC_KEY);
+        privateKey = keyPair.get(RsaUtils.PRIVATE_KEY);
     }
 }

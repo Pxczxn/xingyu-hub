@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/features/auth/auth.store";
+import { AUTH_PATHS, sanitizeInAppPath } from "@/features/onboarding/post-login-routing";
 
 /**
  * Auth guard: unauthenticated visitors are redirected to /login and the
  * originally requested path is preserved so login can send them back.
- * Phase 0 only has this one guard (no role/permission guards yet).
+ * The guest-side counterpart of this guard is {@link GuestOnly}.
+ * There are still no role/permission guards.
  *
  * The return path travels as the `?returnTo=` query parameter, because that is
  * what LoginPage actually reads (`params.get("returnTo")`). It previously used
@@ -47,4 +49,62 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+/**
+ * AUTH_PATHS entries are "somewhere else a login-lookalike screen lives".
+ * Sending an authenticated reader there would land on another guest-only page,
+ * which would immediately redirect again — or, for `/login`, replace the URL
+ * with itself and paint nothing. `buildLoginPath()` already keeps auth screens
+ * out of `returnTo`; this mirrors that shared contract (AUTH_PATHS is exported
+ * for exactly this "is the target another auth page" question) instead of
+ * inventing a second list.
+ */
+function isAuthLanding(path: string): boolean {
+  return AUTH_PATHS.some(
+    (authPath) =>
+      path === authPath ||
+      path.startsWith(`${authPath}?`) ||
+      path.startsWith(`${authPath}/`) ||
+      path.startsWith(`${authPath}#`),
+  );
+}
+
+/**
+ * Guest-only guard (audit A1, 2026-11-10 — the other half).
+ *
+ * `/login` and `/register` are screens for people who are NOT signed in. Without
+ * this guard an authenticated reader could sit on /login, mistype a password and
+ * fire the login endpoint, or get signed out of a healthy session by some older
+ * failure path. The guest pages now bounce to where the reader was headed.
+ *
+ * `returnTo` is the same query parameter `RequireAuth` writes and `LoginPage`
+ * reads, sanitized with the project's one implementation
+ * (`sanitizeInAppPath`) — no second open-redirect ruleset. Unknown / external
+ * shapes fall back to "/".
+ *
+ * `initializing` shows the same loading placeholder as RequireAuth: the session
+ * restore has not answered yet, and rendering the form first would flash a login
+ * screen in front of a signed-in reader.
+ */
+export function GuestOnly({ children }: { children: ReactNode }) {
+  const { status } = useAuth();
+  const [params] = useSearchParams();
+
+  if (status === "initializing") {
+    return (
+      <div role="status" aria-live="polite" data-testid="guest-guard-loading">
+        正在加载…
+      </div>
+    );
+  }
+
+  // `error` (token stored but /me unreachable) stays on the guest page: logging in
+  // is the recovery path, and the token was never proven dead.
+  if (status !== "authenticated") {
+    return <>{children}</>;
+  }
+
+  const requested = sanitizeInAppPath(params.get("returnTo") ?? "", "/");
+  return <Navigate to={isAuthLanding(requested) ? "/" : requested} replace />;
 }

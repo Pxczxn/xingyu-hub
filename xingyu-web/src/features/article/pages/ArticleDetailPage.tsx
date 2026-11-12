@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { articlesApi } from "@/api/articles/articles.api";
 import type { ArticleDetail } from "@/api/articles/articles.types";
@@ -11,15 +12,33 @@ import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { ArticleMarkdownBody, extractArticleOutline } from "@/lib/article-markdown";
 import { prepareArticleBodyForRead } from "@/lib/article-body-read";
 import { PageState } from "@/components/shared/PageState";
+import {
+  READER_DEFAULT_FONT_SIZE,
+  READER_DEFAULT_LINE_HEIGHT,
+  READER_FONT_SIZES,
+  READER_LINE_HEIGHT_STEPS,
+  ReaderDocInfo,
+  ReaderFrame,
+  ReaderProgress,
+  ReaderSettingsButton,
+  ReaderSourceCard,
+  ReaderTools,
+  readerDocumentStats,
+} from "@/components/layout";
+import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 
 /*
- * Article detail (Phase 1B) — real implementation.
+ * Article-reading page — real implementation.
  * Real endpoint: GET /api/v1/articles/{articleId}.
  *
  * The body is rendered with the migrated Legacy Markdown READING pipeline
  * (unified/remark/rehype). Legacy HTML-polluted bodies are recovered via
  * turndown before rendering — the DB already contains such content.
+ *
+ * (Naming note, 2026-11-10: all content-reading surfaces — 文章 / 指南 / 公告 /
+ * 规则 / 系列章节 — are the same 「内容阅读页」 template. "阅读器" in older docs
+ * names the SK7 immersive prototype, not this route.)
  */
 type LoadState =
   | { kind: "loading" }
@@ -34,12 +53,49 @@ function formatDate(value: string | null): string {
   return date.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" });
 }
 
+/*
+ * Body typography overrides (user correction, 2026-11-10 point 5).
+ *
+ * The long-form defaults live in `globals.css` (`18px / 1.85`, h2 24px) and that
+ * file is not this task's to edit, so the reading-page refinements are applied
+ * through descendant variants on the body wrapper. The two values the reader
+ * controls are CSS variables: `--reading-body-size` is the token `.article-body`
+ * itself already reads (so font size needs no specificity fight), and
+ * `--reader-line-height` is read by the two line-height rules below.
+ *
+ * Specificity: `.wrapper .article-body > * + *` (0,2,1) beats globals'
+ * `.article-body > * + *` (0,1,1); same for the paragraph line-height and the
+ * h2 overrides.
+ */
+const BODY_TYPOGRAPHY = cn(
+  "[&_.article-body]:leading-[var(--reader-line-height)]",
+  "[&_.article-body_p]:leading-[var(--reader-line-height)]",
+  /* Paragraph rhythm: 1.15em (~20px at the 18px body), per the user correction. */
+  "[&_.article-body>*+*]:mt-[1.15em]",
+  /* h2: 28px at the default 18px body (1.5556em keeps it proportional), 上 48 下 16. */
+  "[&_.article-body_h2]:mt-12",
+  "[&_.article-body_h2]:mb-4",
+  "[&_.article-body_h2]:text-[1.5556em]",
+  "[&_.article-body_blockquote]:border-l-[3px]",
+  /* Lists: 8px between items, 1.5em indent. */
+  "[&_.article-body_ol]:gap-2",
+  "[&_.article-body_ul]:gap-2",
+  "[&_.article-body_ol]:pl-[1.5em]",
+  "[&_.article-body_ul]:pl-[1.5em]",
+);
+
 export function ArticleDetailPage() {
   const { articleId = "" } = useParams<{ articleId: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   /* Bumping the key replays the load effect — the retry mechanism for the
      error branch below. The effect keeps its per-run `active` guard. */
   const [reloadKey, setReloadKey] = useState(0);
+  /* Local reading settings (no persistence, no request): the article body is
+     fixed at 18px / 1.9 by default, and these two ladders are the reader's
+     override. They live here, not in a store, because only this page reads
+     them. */
+  const [fontSize, setFontSize] = useState(READER_DEFAULT_FONT_SIZE);
+  const [lineHeight, setLineHeight] = useState(READER_DEFAULT_LINE_HEIGHT);
 
   useEffect(() => {
     if (!articleId) {
@@ -73,6 +129,12 @@ export function ArticleDetailPage() {
     () => (prepared ? extractArticleOutline(prepared.markdown) : []),
     [prepared],
   );
+  /* Real numbers from the rendered body — no API field is invented. Used both
+     by the header's "约 N 字" and by the right-track "本文信息" block. */
+  const stats = useMemo(
+    () => (prepared ? readerDocumentStats(prepared.markdown) : { paragraphs: 0, characters: 0 }),
+    [prepared],
+  );
 
   if (state.kind === "loading") return <PageState kind="loading" />;
   if (state.kind === "notfound") {
@@ -97,176 +159,177 @@ export function ArticleDetailPage() {
     );
   }
 
+  const bodyStyle = {
+    "--reading-body-size": `${fontSize}px`,
+    "--reader-line-height": String(lineHeight),
+  } as CSSProperties;
+
+  function handleBackToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /*
+   * 内容阅读页（文章）· SK1 阅读栏（`C-reader.md` §1/§2/§3 + 2026-11-10 用户修正）。
+   *
+   *   骨架    `ReaderFrame` 三轨：`[元信息 | 正文 | 工具/目录/进度]`。1910 下
+   *           正文列仍是 596.1–1313.9，page margin 235（≤240）；两侧 297 栏 +
+   *           64 栏距吃掉原本的空白。1024–1439 与 <1024 左右栏不渲染。
+   *   纸面    正文列包一层 `rounded-card border bg-card`，内边距 48×56
+   *           （<1024 收到 24）—— 白底白卡靠 1px 边 + 留白区分，这是「不再
+   *           裸浮」的直接原因。
+   *   左栏    作者卡（avatar 40 / 名 / @handle）、发布日期、收录于、标签 chips；
+   *           全部来自本页已有字段，没有系列/标签就整块不渲染。
+   *   右栏    块序固定 工具 → 目录/本文信息 → 进度：
+   *             · 工具：A−/A+ 字号（16/18/20）+ 行距 3 档，真实作用于正文；
+   *             · 有 h2/h3 时是目录；没有时换成「本文共 N 段 · 约 M 字」（从
+   *               渲染出的 Markdown 实算，不编字段）；
+   *             · 进度：4px 轨道 + 整数百分比，滚动实现与顶部 2px 细线共用
+   *               同一个 passive scroll + rAF 注册表（全站只有一份实现）。
+   *   标题    eyebrow → h1 44/700/1.15 → 摘要 18/`--foreground-soft` → meta 行
+   *           （作者 · 日期 · 约 N 字）→ 1px 发丝线 → 48px → 正文。
+   *   移动端  左右栏折叠成标题下的 meta 行；右上角 44×44 工具按钮打开底部 Sheet。
+   *
+   * 行为未变：api、加载/404/错误三态、重试、Markdown 阅读管线、目录抽取、评论与
+   * 继续阅读的数据逻辑全部原样保留；只改呈现层与两份本地阅读设置。
+   */
   return (
-    <article className="section-gap">
-      <header className="flex flex-col gap-4">
-        <h1 className="text-display font-semibold tracking-tight text-primary">{article.title}</h1>
+    <article>
+      <ReaderFrame
+        asideLeftLabel="关于这份内容"
+        asideLeft={
+          <div className="flex flex-col gap-6 text-meta">
+            <ReaderSourceCard
+              name={article.ownerDisplayName ?? article.ownerUsername}
+              handle={article.ownerUsername}
+              avatarUrl={article.ownerAvatar}
+              href={`/u/${article.ownerUsername}`}
+              rows={[
+                ...(article.publishedAt
+                  ? [
+                      {
+                        label: "发布",
+                        value: (
+                          <time dateTime={article.publishedAt}>
+                            {formatDate(article.publishedAt)}
+                          </time>
+                        ),
+                      },
+                    ]
+                  : []),
+                { label: "字数", value: `约 ${stats.characters} 字` },
+                { label: "段落", value: `${stats.paragraphs} 段` },
+              ]}
+            />
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-meta text-muted-foreground">
-          <Link to={`/u/${article.ownerUsername}`} className="group flex items-center gap-2">
-            {article.ownerAvatar ? (
-              <img src={article.ownerAvatar} alt="" className="h-6 w-6 rounded-full object-cover" />
-            ) : (
-              /*
-                2026-10-13 (batch 07c): the 10px on this fallback avatar is deliberate,
-                and after this batch it is the ONLY 10px left in the app — every other
-                occurrence came up to the 11px floor. It is not a text step: it is the
-                first glyph of a 24px disc, i.e. part of a graphic, sitting in a header
-                whose name is rendered at `text-meta` right beside it. 10px is already
-                the large end for a fallback avatar at a 0.42 glyph-to-disc ratio, and
-                the character is decorative — the real name is the link text one line
-                over, so nothing here has to be read at a glance.
-              */
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-muted text-[10px]">
-                {(article.ownerDisplayName ?? article.ownerUsername).slice(0, 1)}
-              </span>
-            )}
-            <span className="font-medium text-foreground transition-colors group-hover:text-accent-strong">
-              {article.ownerDisplayName ?? article.ownerUsername}
-            </span>
-          </Link>
-          {article.publishedAt ? (
-            <>
-              <span aria-hidden className="text-border">
-                ·
-              </span>
-              <span className="tabular-nums">{formatDate(article.publishedAt)}</span>
-            </>
-          ) : null}
-        </div>
-
-        {/*
-          The summary is the article's LEDE, not a panel. It was wrapped in
-          `rounded-lg border bg-card p-4` — a card inside the reading column,
-          which reads as a separate object the reader may skip, and which adds a
-          second border 12px under the title. A lede is the title's continuation:
-          no surface, one step down in weight, same left edge as the body below.
-        */}
-        {article.summary ? (
-          <p className="max-w-[var(--reading-measure)] text-meta leading-7 text-muted-foreground">
-            {article.summary}
-          </p>
-        ) : null}
-
-        {/*
-          Series context and topic chips share ONE metadata row below the lede.
-          They are the same kind of fact — where this article sits — and giving
-          each its own full-width line pushed the body 56px further down for two
-          facts the reader scans rather than reads. `text-meta` (13px) is the
-          weight the priority table asks for: below the title and the author,
-          above nothing.
-        */}
-        {article.seriesContexts.length > 0 || (article.topicSlugs?.length ?? 0) > 0 ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-meta">
             {article.seriesContexts.length > 0 ? (
-              <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="text-muted-foreground">收录于</span>
-                {article.seriesContexts.map((series) => (
-                  <Link
-                    key={series.id}
-                    to={`/series/${encodeURIComponent(series.id)}`}
-                    className="focus-ring rounded-sm font-medium text-foreground transition-colors hover:text-accent-strong"
-                  >
-                    {series.title} · 第 {series.position} 章
-                  </Link>
-                ))}
-              </span>
+              <div>
+                <p className="eyebrow mb-3">收录于</p>
+                <ul className="flex list-none flex-col gap-2 p-0">
+                  {article.seriesContexts.map((series) => (
+                    <li key={series.id}>
+                      <Link
+                        to={`/series/${encodeURIComponent(series.id)}`}
+                        className="focus-ring block rounded-sm font-medium text-foreground transition-colors hover:text-accent-strong"
+                      >
+                        {series.title} · 第 {series.position} 章
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
 
             {article.topicSlugs && article.topicSlugs.length > 0 ? (
-              <ul className="flex flex-wrap gap-1.5">
-                {article.topicSlugs.map((slug) => (
-                  <li key={slug}>
-                    <Link
-                      to={`/topics/${slug}`}
-                      className="focus-ring inline-block rounded-full border border-border/70 px-2.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-accent-line hover:text-accent-strong"
-                    >
-                      #{slug}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <div>
+                <p className="eyebrow mb-3">标签</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {article.topicSlugs.map((slug) => (
+                    <li key={slug}>
+                      <Link
+                        to={`/topics/${slug}`}
+                        className="focus-ring inline-block rounded-full border border-border/70 px-2.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-accent-line hover:text-accent-strong"
+                      >
+                        #{slug}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </div>
-        ) : null}
-      </header>
+        }
+        asideRightLabel="阅读工具与本文信息"
+        asideRight={
+          <div className="flex flex-col gap-6">
+            <ReaderTools
+              fontSize={fontSize}
+              fontSizeSteps={READER_FONT_SIZES}
+              onFontSize={setFontSize}
+              lineHeight={lineHeight}
+              lineHeightSteps={READER_LINE_HEIGHT_STEPS}
+              onLineHeight={setLineHeight}
+            />
+            {outline.length > 0 ? (
+              <ArticleOutline items={outline} rail />
+            ) : (
+              <ReaderDocInfo body={prepared?.markdown ?? article.body} />
+            )}
+            <ReaderProgress />
+          </div>
+        }
+      >
+        <div className="rounded-card border border-border bg-card p-6 min-[1024px]:px-14 min-[1024px]:py-12">
+          <header>
+            <div className="flex items-start justify-between gap-4">
+              <p className="eyebrow">文章</p>
+              {/* <1024：44×44 阅读设置按钮在标题区右上角。 */}
+              <ReaderSettingsButton
+                fontSize={fontSize}
+                onFontSize={setFontSize}
+                lineHeight={lineHeight}
+                onLineHeight={setLineHeight}
+                className="min-[1024px]:hidden"
+              />
+            </div>
+            <h1 className="mt-3 text-[44px] font-bold leading-[1.15] tracking-tight text-primary">
+              {article.title}
+            </h1>
+            {article.summary ? (
+              <p className="mt-5 text-[18px] leading-[1.7] text-foreground-soft">
+                {article.summary}
+              </p>
+            ) : null}
+            <p className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted-foreground">
+              <span className="font-medium text-foreground-soft">
+                {article.ownerDisplayName ?? article.ownerUsername}
+              </span>
+              {article.publishedAt ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <time dateTime={article.publishedAt} className="tabular-nums">
+                    {formatDate(article.publishedAt)}
+                  </time>
+                </>
+              ) : null}
+              <span aria-hidden>·</span>
+              <span className="tabular-nums">约 {stats.characters} 字</span>
+            </p>
+            {/* C-reader §3: 标题块最后一条是 1px 发丝线，宽度 = 正文列。 */}
+            <div aria-hidden className="mt-6 border-b border-border" />
+          </header>
 
-      {/*
-        Reading layout.
-        ============================================================
-        Two things were wrong here:
-
-        1. The outline was rendered AFTER the article body. A table of contents
-           placed below the thing it indexes cannot be used to navigate it — by
-           the time the reader can see it, they have already scrolled past every
-           heading it lists.
-
-        2. The body had no reading measure, so on a 1200px shell a Chinese line
-           ran ~70 glyphs. Comfortable long-form reading is 30-40 CJK glyphs;
-           `max-w-[var(--reading-measure)]` measures 39 glyphs at the 18px body
-           (Batch 13; it was 42 at the old 15px body on a 638px column).
-
-        Both are fixed by one grid. `order` moves the outline ABOVE the body
-        below `lg` (where a side rail has no room) and beside it at `lg`+ as a
-        sticky rail. It is a SINGLE DOM node with CSS ordering rather than two
-        copies behind responsive `hidden` — two copies would mean two
-        `nav[aria-label="文章目录"]` landmarks, which is both an a11y smell and
-        something the tests would have to work around.
-
-        Batch 11 — the first column was `minmax(0, 1fr)`.
-        ------------------------------------------------------------
-        `1fr` took everything the shell gave it (974.5px at 1440) while the body
-        below capped itself at `max-w-[68ch]` (638px). The surplus 336px stayed
-        INSIDE the first column, and `lg:gap-10` added 40px more, so the outline
-        sat 376.5px from the body at 1440 and 494px at 1920 — measured, not
-        estimated. The outline was not beside the text, it was at the far right
-        edge of the viewport.
-
-        The column is now sized to the measure (`minmax(0, var(--reading-measure))`)
-        so the gap is the gap and nothing else. `justify-start`, not
-        `justify-center`: centring the pair would drag the title's left edge off
-        the body's, and this app has already learned that lesson once
-        (`PageMasthead`: the action cluster pushed to the far right left a 530px
-        hole). Left edges stay put; the leftover width becomes page margin,
-        which is what it is.
-
-        Batch 13 — why the measure is a variable and not `68ch`.
-        ------------------------------------------------------------
-        `ch` resolves against the element's OWN font-size, so `68ch` here
-        measured 638px on the page's 16px ancestor while the series reader's
-        `68ch` measured 717.8px on its 18px column: two surfaces that both said
-        "68ch" and disagreed by 79.75px. `--reading-measure` states the width
-        once, as an absolute length, so this column and the reader's default
-        column are the same 717.785px. The token is documented in tokens.css.
-      */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,var(--reading-measure))_220px] lg:items-start lg:justify-start lg:gap-x-12">
-        <div className="order-2 min-w-0 lg:order-1">
-          {/*
-            The cover lives INSIDE the reading column, not above it.
-
-            It used to be a sibling of the grid at `aspect-[16/9] w-full`: on a
-            1200px shell that is a 675px-tall band, so a reader who came for the
-            text scrolled past three quarters of a screen of image before
-            reaching line one. The priority table puts the cover nowhere — the
-            article's P0 is the title and the body — so it must not outrank
-            them.
-
-            Two changes fix it without deleting the author's artwork: it now
-            shares the body's measure (`max-w-[var(--reading-measure)]`, so ~340px tall instead of
-            675px) and shares the body's left edge, which makes it read as an
-            illustration FOR this text rather than a banner the text sits under.
-            The 16:9 ratio is kept as-is — cropping the author's framing to buy
-            height would be trading their decision for ours.
-          */}
           {article.coverUrl ? (
             <img
               src={article.coverUrl}
               alt=""
-              className="mb-8 aspect-[16/9] w-full max-w-[var(--reading-measure)] rounded-lg border border-border object-cover"
+              className="mt-8 aspect-[16/9] w-full rounded-card border border-border object-cover"
             />
           ) : null}
 
-          <div className="max-w-[var(--reading-measure)]">
+          <div
+            className={cn("mt-12 max-w-[var(--reading-measure)]", BODY_TYPOGRAPHY)}
+            style={bodyStyle}
+          >
             <ArticleMarkdownBody body={prepared?.markdown ?? article.body} />
 
             {prepared?.recoveredFromHtml ? (
@@ -275,35 +338,50 @@ export function ArticleDetailPage() {
               </p>
             ) : null}
           </div>
-        </div>
 
-        {outline.length > 0 ? <ArticleOutline items={outline} /> : null}
-      </div>
+          <footer className="mt-12 flex max-w-[var(--reading-measure)] flex-col gap-10">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
+              <ArticleInteractions objectType="ARTICLE" objectId={article.id} />
+              <button
+                type="button"
+                onClick={handleBackToTop}
+                className="focus-ring ml-auto shrink-0 rounded-sm text-meta text-muted-foreground transition-colors hover:text-accent-strong"
+              >
+                返回顶部
+              </button>
+            </div>
+
+            <div className="border-t border-border pt-8">
+              <CommentSection objectType="ARTICLE" objectId={article.id} />
+            </div>
+
+            {/* Quiet, secondary entry. `owner` comes from the server, so the author
+                does not see a report link for their own article. */}
+            <ReportLink objectType="ARTICLE" objectId={article.id} hidden={article.owner} />
+
+            <div className="border-t border-border pt-8">
+              {/* Last, deliberately: a reader reaches this block only after the
+                  body and the comments, which is the moment they are deciding
+                  what to read next. */}
+              <ArticleContinueReading article={article} />
+            </div>
+          </footer>
+        </div>
+      </ReaderFrame>
 
       {/*
-        The tail shares the body's measure.
-
-        Everything below the body used to span the whole shell (1200px) while
-        the body itself is capped at `max-w-[var(--reading-measure)]` (717.8px).
-        Two costs: the page widens abruptly the moment the article ends, and
-        every comment line then runs ~85 CJK glyphs — more than twice a
-        comfortable measure. Holding the tail to the reading column keeps one
-        left edge from the title to the last comment. `gap-8` matches
-        `section-gap`, so the rhythm is unchanged.
+        1024–1439: the frame renders no rails in this band, so the same trigger
+        is pinned to the reading column's top-right corner: `383` = 717.785/2
+        (half the measure) + 24 (the design's binding distance), pure CSS — the
+        component never measures the DOM (C-reader §4).
       */}
-      <div className="flex max-w-[var(--reading-measure)] flex-col gap-8">
-        <ArticleInteractions objectType="ARTICLE" objectId={article.id} />
-
-        {/* Quiet, secondary entry. `owner` comes from the server, so the author
-            does not see a report link for their own article. */}
-        <ReportLink objectType="ARTICLE" objectId={article.id} hidden={article.owner} />
-
-        <CommentSection objectType="ARTICLE" objectId={article.id} />
-
-        {/* Last, deliberately: a reader reaches this block only after the body
-            and the comments, which is the moment they are deciding what to read
-            next. See the component for the walkthrough evidence behind it. */}
-        <ArticleContinueReading article={article} />
+      <div className="fixed left-[calc(50%+383px)] top-[calc(var(--shell-header-height)+16px)] z-rail hidden min-[1024px]:grid min-[1440px]:hidden">
+        <ReaderSettingsButton
+          fontSize={fontSize}
+          onFontSize={setFontSize}
+          lineHeight={lineHeight}
+          onLineHeight={setLineHeight}
+        />
       </div>
     </article>
   );

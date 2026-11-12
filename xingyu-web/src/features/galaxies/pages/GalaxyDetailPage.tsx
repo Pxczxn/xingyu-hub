@@ -3,6 +3,7 @@ import { ArrowRight, Pin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxyContent, GalaxyMember } from "@/api/galaxies/galaxies.types";
+import { ArchetypeFrame } from "@/components/layout";
 import { ContentVisual } from "@/components/visual/ContentVisual";
 import { contentHref } from "@/components/shared/ContentCard";
 import { cn } from "@/lib/cn";
@@ -52,63 +53,70 @@ function formatContentDate(iso: string | null | undefined): string | null {
 }
 
 /**
- * 星系内容行（Galaxy Content Contract，Phase 4.2）：title/summary 来自
+ * 星系内容条目（Galaxy Content Contract，Phase 4.2）：title/summary 来自
  * search_document 活文档；cover 只有 ARTICLE 可能有，SERIES/MOMENT 用
  * ContentVisual 确定性视觉降级——三种内容类型的空封面都有设计感，且互不冒充。
+ *
+ * D=松（A §3 的 GalaxyDetail 行）：每条内容是**独立卡面**，卡与卡之间靠
+ * `--density-grid-gap` 拉开，不再是「发丝线行」。这是本页与同域
+ * GalaxyMembersPage（SK3·紧·齐，发丝线行、无轨）最直接的区分手段之一，
+ * 另一个是右轨：本页有成员侧栏，成员页没有。
  */
-function GalaxyContentRows({ items, slug }: { items: GalaxyContent[]; slug: string }) {
+function GalaxyContentCards({ items, slug }: { items: GalaxyContent[]; slug: string }) {
   return (
-    <ul className="divide-y divide-border/60 border-t border-border/60">
+    <ul className="grid gap-[var(--density-grid-gap)]">
       {items.map((item) => {
         const dateLabel = formatContentDate(item.updatedAt);
         return (
-          <li key={item.id} className="group flex gap-3 py-4 transition-colors hover:bg-muted/35">
-            {item.cover ? (
-              <img
-                src={item.cover}
-                alt=""
-                aria-hidden
-                className="h-16 w-24 shrink-0 rounded-md border border-border/50 object-cover"
-              />
-            ) : (
-              <ContentVisual
-                stableKey={`${slug}:${item.id}`}
-                objectType={item.objectType}
-                variant="compact"
-                className="h-16 w-24 shrink-0 rounded-md border border-border/50 object-cover"
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span>{galaxyContentTypeLabel(item.objectType)}</span>
-                {item.authorName ? <span>{item.authorName}</span> : null}
-                {dateLabel ? <span>{dateLabel}</span> : null}
-                {item.pinned ? (
-                  <span className="inline-flex items-center gap-1 text-accent/80">
-                    {/* Decorative: the word 置顶 beside it carries the state, so
-                        the mark keeps the vivid brand gold rather than the
-                        `--accent-strong` that text uses. */}
-                    <Pin className="h-3 w-3" aria-hidden />
-                    置顶
-                  </span>
+          <li key={item.id}>
+            <div className="group flex gap-4 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)] transition-colors hover:border-border">
+              {item.cover ? (
+                <img
+                  src={item.cover}
+                  alt=""
+                  aria-hidden
+                  className="h-16 w-24 shrink-0 rounded-md border border-border/50 object-cover"
+                />
+              ) : (
+                <ContentVisual
+                  stableKey={`${slug}:${item.id}`}
+                  objectType={item.objectType}
+                  variant="compact"
+                  className="h-16 w-24 shrink-0 rounded-md border border-border/50 object-cover"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex flex-wrap items-center gap-2 text-meta text-muted-foreground">
+                  <span>{galaxyContentTypeLabel(item.objectType)}</span>
+                  {item.authorName ? <span>{item.authorName}</span> : null}
+                  {dateLabel ? <span>{dateLabel}</span> : null}
+                  {item.pinned ? (
+                    <span className="inline-flex items-center gap-1 text-accent/80">
+                      {/* Decorative: the word 置顶 beside it carries the state, so
+                          the mark keeps the vivid brand gold rather than the
+                          `--accent-strong` that text uses. */}
+                      <Pin className="h-3 w-3" aria-hidden />
+                      置顶
+                    </span>
+                  ) : null}
+                </div>
+                <Link
+                  to={contentHref({ id: item.objectId, objectType: item.objectType })}
+                  className="focus-ring block truncate text-card font-semibold text-primary transition-colors hover:text-accent-strong"
+                >
+                  {item.title}
+                </Link>
+                {item.summary ? (
+                  <p className="mt-1 line-clamp-2 text-meta leading-5 text-muted-foreground">
+                    {item.summary}
+                  </p>
                 ) : null}
               </div>
-              <Link
-                to={contentHref({ id: item.objectId, objectType: item.objectType })}
-                className="focus-ring block truncate text-sm font-semibold text-primary transition-colors hover:text-accent-strong"
-              >
-                {item.title}
-              </Link>
-              {item.summary ? (
-                <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">
-                  {item.summary}
-                </p>
-              ) : null}
+              <ArrowRight
+                className="mt-6 h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-1"
+                aria-hidden
+              />
             </div>
-            <ArrowRight
-              className="mt-6 h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-1"
-              aria-hidden
-            />
           </li>
         );
       })}
@@ -171,112 +179,134 @@ function GalaxyOverview({ slug }: { slug: string }) {
   const recentContent = orderedContent
     .filter((item) => !item.pinned)
     .slice(0, Math.max(0, 4 - pinnedContent.length));
-  const previewMembers = members.kind === "ready" ? members.items.slice(0, 6) : [];
+
+  /*
+   * SK3 控制台 · H 壳 / D 松 / R 错（A §3 的 GalaxyDetail 行）。
+   *
+   *   skeleton="SK3"    → 控制台栅格；传 `rail` 即 `lg:[1fr | 280px]`，右轨由
+   *                       `SectionRail` 粘住 —— 这就是 R=错（主列 + 侧轨）。
+   *   header="shell"    → H=壳：标题由 `GalaxyShell` 出（`GalaxyShell.tsx:363` 的
+   *                       `<h1>` = 星系名）。按 A §7.2 这是 **A 类壳**，页内
+   *                       **不得再出 h1** —— 本文件一个 `<h1>` 都没有，标题层级
+   *                       从 `h2`（`.section-heading`）起。
+   *   density="loose"   → D=松：精选/最新每个内容条目独立成面，卡与卡由
+   *                       `--density-grid-gap` 拉开（见 `GalaxyContentCards`）。
+   *
+   * 与同域 GalaxyMembersPage（SK3·壳/紧/齐）的一眼之别：本页**有右轨 + 独立卡面**，
+   * 成员页**无轨 + 发丝线行**。两者四元组不同（松/错 vs 紧/齐），满足 A §2 第 1 条。
+   *
+   * 行为未变：两个 `SectionState` 状态机、精选在前/最多四条、成员预览最多六人、
+   * 以及「内容失败不拖垮成员、成员失败不拖垮内容」的独立错误分支全部原样保留。
+   */
+  return (
+    <ArchetypeFrame
+      skeleton="SK3"
+      header="shell"
+      density="loose"
+      rail={<GalaxyMembersPanel slug={slug} state={members} />}
+      /* landmark 名与侧栏里那块卡的标题（「星系成员」）不同名，避免同名重复。 */
+      railLabel="成员侧栏"
+    >
+      {content.kind === "loading" ? <SectionMessage>正在加载内容…</SectionMessage> : null}
+      {content.kind === "error" ? (
+        <SectionMessage error>最近内容暂时不可用。</SectionMessage>
+      ) : null}
+      {content.kind === "ready" ? (
+        <>
+          {pinnedContent.length > 0 ? (
+            <section aria-labelledby="galaxy-pinned-content">
+              <h2 id="galaxy-pinned-content" className="section-heading mb-4">
+                精选内容
+              </h2>
+              <GalaxyContentCards items={pinnedContent} slug={slug} />
+            </section>
+          ) : null}
+
+          <section aria-labelledby="galaxy-recent-content">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+              <h2 id="galaxy-recent-content" className="section-heading">
+                最新内容
+              </h2>
+              <SectionLink to={`/galaxies/${encodeURIComponent(slug)}/content`}>
+                查看全部
+              </SectionLink>
+            </div>
+            {recentContent.length > 0 ? (
+              <GalaxyContentCards items={recentContent} slug={slug} />
+            ) : (
+              <SectionMessage>
+                {pinnedContent.length > 0
+                  ? "暂无最近内容。"
+                  : "暂无内容，运营关联的内容会显示在这里。"}
+              </SectionMessage>
+            )}
+          </section>
+        </>
+      ) : null}
+    </ArchetypeFrame>
+  );
+}
+
+/**
+ * 右轨：成员预览（最多六人）。
+ *
+ * 它只是一个**内容组件** —— 粘住、滚动与 landmark 由 `ArchetypeFrame` 里的
+ * `SectionRail` 负责（`SectionRail.tsx:41-56`），所以这里没有第二个 `<aside>`：
+ * 两层 aside 会让页面出现两个同名区域。三态仍是本页自己的状态机，没有新增请求。
+ */
+function GalaxyMembersPanel({
+  slug,
+  state,
+}: {
+  slug: string;
+  state: SectionState<GalaxyMember>;
+}) {
+  const previewMembers = state.kind === "ready" ? state.items.slice(0, 6) : [];
 
   return (
-    /*
-      Phase 4.3 信息架构：双栏（内容主栏 + 成员侧栏），信息层级对齐
-      TopicDetailPage，但不复用其 Layout——星系的侧栏是成员预览，主栏是
-      策展内容（精选/最新），职责与话题的自动聚合不同。窄屏单栏折叠。
-    */
-    <div className="grid items-start gap-6 pt-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <main className="min-w-0 space-y-7">
-        <section aria-labelledby="galaxy-content-area">
-          <div className="sr-only" id="galaxy-content-area">
-            星系内容
-          </div>
-          {content.kind === "loading" ? <SectionMessage>正在加载内容…</SectionMessage> : null}
-          {content.kind === "error" ? (
-            <SectionMessage error>最近内容暂时不可用。</SectionMessage>
-          ) : null}
-          {content.kind === "ready" ? (
-            <>
-              {pinnedContent.length > 0 ? (
-                <section aria-labelledby="galaxy-pinned-content" className="mb-7">
-                  <h2
-                    id="galaxy-pinned-content"
-                    className="mb-3 text-lg font-semibold tracking-tight text-primary"
-                  >
-                    精选内容
-                  </h2>
-                  <GalaxyContentRows items={pinnedContent} slug={slug} />
-                </section>
-              ) : null}
-              <section aria-labelledby="galaxy-recent-content">
-                <div className="mb-3 flex items-center justify-between gap-4">
-                  <h2
-                    id="galaxy-recent-content"
-                    className="text-lg font-semibold tracking-tight text-primary"
-                  >
-                    最新内容
-                  </h2>
-                  <SectionLink to={`/galaxies/${encodeURIComponent(slug)}/content`}>
-                    查看全部
-                  </SectionLink>
-                </div>
-                {recentContent.length > 0 ? (
-                  <GalaxyContentRows items={recentContent} slug={slug} />
-                ) : (
-                  <SectionMessage>
-                    {pinnedContent.length > 0
-                      ? "暂无最近内容。"
-                      : "暂无内容，运营关联的内容会显示在这里。"}
-                  </SectionMessage>
-                )}
-              </section>
-            </>
-          ) : null}
-        </section>
-      </main>
-
-      <aside className="space-y-5 lg:sticky lg:top-24">
-        <section
-          aria-labelledby="galaxy-members"
-          className="rounded-lg border border-border/60 bg-card p-4"
-        >
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <h2 id="galaxy-members" className="text-base font-semibold tracking-tight text-primary">
-              星系成员
-            </h2>
-            <SectionLink to={`/galaxies/${encodeURIComponent(slug)}/members`}>全部成员</SectionLink>
-          </div>
-          {members.kind === "loading" ? <SectionMessage>正在加载成员…</SectionMessage> : null}
-          {members.kind === "error" ? (
-            <SectionMessage error>成员暂时不可用。</SectionMessage>
-          ) : null}
-          {members.kind === "ready" && previewMembers.length === 0 ? (
-            <SectionMessage>暂无公开成员</SectionMessage>
-          ) : null}
-          {members.kind === "ready" && previewMembers.length > 0 ? (
-            <ul className="space-y-2.5">
-              {previewMembers.map((member) => {
-                const name = member.displayName || member.username;
-                return (
-                  <li key={member.userId}>
-                    <Link
-                      to={`/u/${encodeURIComponent(member.username)}`}
-                      aria-label={name}
-                      className="group focus-ring flex items-center gap-2.5 rounded-md py-1"
-                    >
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                        {name.trim().charAt(0).toUpperCase()}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block max-w-36 truncate text-sm font-medium text-primary transition-colors group-hover:text-accent-strong">
-                          {name}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {galaxyMemberRoleLabel(member.role)}
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </section>
-      </aside>
-    </div>
+    <section
+      aria-labelledby="galaxy-members"
+      className="rounded-card border border-border/70 bg-card p-4"
+    >
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <h2 id="galaxy-members" className="text-h3 font-semibold text-primary">
+          星系成员
+        </h2>
+        <SectionLink to={`/galaxies/${encodeURIComponent(slug)}/members`}>全部成员</SectionLink>
+      </div>
+      {state.kind === "loading" ? <SectionMessage>正在加载成员…</SectionMessage> : null}
+      {state.kind === "error" ? <SectionMessage error>成员暂时不可用。</SectionMessage> : null}
+      {state.kind === "ready" && previewMembers.length === 0 ? (
+        <SectionMessage>暂无公开成员</SectionMessage>
+      ) : null}
+      {state.kind === "ready" && previewMembers.length > 0 ? (
+        <ul className="space-y-2.5">
+          {previewMembers.map((member) => {
+            const name = member.displayName || member.username;
+            return (
+              <li key={member.userId}>
+                <Link
+                  to={`/u/${encodeURIComponent(member.username)}`}
+                  aria-label={name}
+                  className="group focus-ring flex items-center gap-2.5 rounded-md py-1"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                    {name.trim().charAt(0).toUpperCase()}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block max-w-36 truncate text-sm font-medium text-primary transition-colors group-hover:text-accent-strong">
+                      {name}
+                    </span>
+                    <span className="block truncate text-meta text-muted-foreground">
+                      {galaxyMemberRoleLabel(member.role)}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </section>
   );
 }

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import type { ChatMessage, Conversation } from "@/api/messages/messages.types";
 import { messagesApi } from "@/api/messages/messages.api";
+import { setStoredToken } from "@/lib/storage";
 import { ChatSocketProvider } from "./ChatSocketProvider";
 import type { ChatEvent } from "./chat-socket.context";
 
@@ -109,6 +110,7 @@ function Probe() {
     conversationsStatus,
     conversations,
     watchConversation,
+    backfill,
   } = useChatForTest();
   React.useEffect(() => {
     return subscribe((event) => received.push(event));
@@ -126,6 +128,7 @@ function Probe() {
       <span data-testid="unread">{unreadTotal === null ? "-" : unreadTotal}</span>
       <span data-testid="status">{conversationsStatus}</span>
       <span data-testid="rows">{conversations?.length ?? "-"}</span>
+      <span data-testid="backfill">{backfill}</span>
     </div>
   );
 }
@@ -309,14 +312,32 @@ describe("ChatSocketProvider — reconnect reconciliation", () => {
     expect(FakeSocket.instances).toHaveLength(1);
   });
 
-  it("stays silent when the backfill fails (the rendered conversation is still correct)", async () => {
+  it("pages until the server reports no further messages, past five rounds", async () => {
+    renderProvider();
+    await waitFor(() => expect(FakeSocket.instances).toHaveLength(1));
+
+    for (let n = 1; n <= 6; n += 1) {
+      mocked.listMessagesAfter.mockResolvedValueOnce({
+        messages: [message({ id: `m${n}`, sequenceNumber: 5 + n })],
+        hasMore: n < 6,
+      });
+    }
+    FakeSocket.instances[0].open();
+
+    await waitFor(() => expect(mocked.listMessagesAfter).toHaveBeenCalledTimes(6));
+    expect(mocked.listMessagesAfter).toHaveBeenLastCalledWith("c1", 10, expect.any(Number));
+    expect(screen.getByTestId("backfill")).toHaveTextContent("caught-up");
+    expect(received.filter((e) => e.kind === "message")).toHaveLength(6);
+  });
+
+  it("marks backfill behind when reconciliation fails, without inventing messages", async () => {
     renderProvider();
     await waitFor(() => expect(FakeSocket.instances).toHaveLength(1));
 
     mocked.listMessagesAfter.mockRejectedValue(new Error("offline"));
     FakeSocket.instances[0].open();
 
-    await waitFor(() => expect(mocked.listMessagesAfter).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId("backfill")).toHaveTextContent("behind"));
     expect(received.filter((e) => e.kind === "message")).toHaveLength(0);
   });
 
@@ -335,3 +356,56 @@ describe("ChatSocketProvider — reconnect reconciliation", () => {
     expect(mocked.listMessagesAfter).not.toHaveBeenCalled();
   });
 });
+
+describe("ChatSocketProvider — session changes", () => {
+  it("opens a socket after a token is stored in this tab", async () => {
+    localStorage.removeItem("xingyu-satoken");
+    renderProvider();
+    expect(FakeSocket.instances).toHaveLength(0);
+
+    act(() => setStoredToken("later-token"));
+
+    await waitFor(() => expect(FakeSocket.instances).toHaveLength(1));
+    expect(FakeSocket.instances[0].url).toContain("token=later-token");
+    await waitFor(() => expect(mocked.listConversations).toHaveBeenCalled());
+  });
+
+  it("closes the socket and clears the conversation list when the session ends", async () => {
+    renderProvider();
+    await waitFor(() => expect(screen.getByTestId("rows")).toHaveTextContent("1"));
+
+    act(() => setStoredToken(null));
+
+    await waitFor(() => expect(screen.getByTestId("rows")).toHaveTextContent("0"));
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(FakeSocket.instances[0].readyState).toBe(3);
+  });
+
+  it("reconnects with the new token and drops the previous account's list", async () => {
+    const first = deferred<Conversation[]>();
+    mocked.listConversations
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue([conversation({ id: "c-new", unreadCount: 4 })]);
+    renderProvider();
+    await waitFor(() => expect(FakeSocket.instances).toHaveLength(1));
+
+    act(() => setStoredToken("other-token"));
+
+    await waitFor(() => expect(screen.getByTestId("unread")).toHaveTextContent("4"));
+    expect(FakeSocket.instances.at(-1)?.url).toContain("token=other-token");
+    expect(FakeSocket.instances[0].readyState).toBe(3);
+
+    await act(async () => {
+      first.resolve([conversation({ unreadCount: 9 })]);
+    });
+    expect(screen.getByTestId("unread")).toHaveTextContent("4");
+  });
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}

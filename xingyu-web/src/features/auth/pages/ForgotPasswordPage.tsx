@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
+import { ArchetypeFrame } from "@/components/layout";
+import { AuthActionBar } from "@/features/auth/components/AuthActionBar";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import {
@@ -17,6 +19,14 @@ import { Label } from "@/components/ui/label";
 /**
  * Forgot password (Phase 1A).
  * Real contract: POST /api/v1/auth/password-recovery { login }.
+ *
+ * --- 2026-11-10 批次 C：SK5 · 线 / 紧 / 齐 -------------------------------
+ * 线：`AuthCard variant="line"`（无卡面的 masthead + 发丝线），成功态用
+ * `AuthStatusPanel variant="line"` —— 两种状态同一个 H 值，标题不会在提交后跳字号
+ * 也不会突然多出一圈边框。
+ * 紧：`density="compact"` + `contentClassName="gap-3"`。本页只有一个字段，任务单一，
+ * 与 `/login` 的「松」（每字段带说明行）拉开密度差。
+ * 齐：无侧栏，所有块与窄栏同宽。
  */
 export function ForgotPasswordPage() {
   const [login, setLogin] = useState("");
@@ -59,64 +69,73 @@ export function ForgotPasswordPage() {
   */
   if (sent) {
     return (
-      <AuthStatusPanel
-        icon={<MailCheck className="h-5 w-5" />}
-        disc="bg-accent-soft text-accent-strong"
-        title="重置链接已发送"
-        body={
-          <>
-            如该账号存在，我们已经发送了重置链接。请查收邮件并按提示操作。
-            {notice ? <span className="mt-2 block">{notice}</span> : null}
-          </>
-        }
-        action={
-          <>
-            <Link to="/login" className={authStatusPrimaryClass}>
-              返回登录
-            </Link>
-            <button type="button" onClick={() => setSent(false)} className={authStatusLinkClass}>
-              换一个账号再试
-            </button>
-          </>
-        }
-      />
+      <ArchetypeFrame skeleton="SK5" header="shell" density="compact">
+        <AuthStatusPanel
+          variant="line"
+          icon={<MailCheck className="h-5 w-5" />}
+          disc="bg-accent-soft text-accent-strong"
+          title="重置链接已发送"
+          body={
+            <>
+              如该账号存在，我们已经发送了重置链接。请查收邮件并按提示操作。
+              {notice ? <span className="mt-2 block">{notice}</span> : null}
+            </>
+          }
+          action={
+            <>
+              <Link to="/login" className={authStatusPrimaryClass}>
+                返回登录
+              </Link>
+              <button type="button" onClick={() => setSent(false)} className={authStatusLinkClass}>
+                换一个账号再试
+              </button>
+            </>
+          }
+        />
+      </ArchetypeFrame>
     );
   }
 
   return (
-    <AuthCard
-      title="找回密码"
-      description="输入注册时使用的邮箱或用户名，我们会发送重置链接。"
-      footer={
-        <Link to="/login" className="text-accent-strong hover:underline">
-          返回登录
-        </Link>
-      }
-    >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="login">邮箱或用户名</Label>
-          <Input
-            id="login"
-            value={login}
-            onChange={(e) => setLogin(e.target.value)}
-            autoComplete="username"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "forgot-error" : undefined}
-            required
-          />
-        </div>
+    <ArchetypeFrame skeleton="SK5" header="shell" density="compact">
+      <AuthCard
+        variant="line"
+        title="找回密码"
+        description="输入注册时使用的邮箱或用户名，我们会发送重置链接。"
+        contentClassName="gap-3"
+        footer={
+          <Link to="/login" className="text-accent-strong hover:underline">
+            返回登录
+          </Link>
+        }
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="login">邮箱或用户名</Label>
+            <Input
+              id="login"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              autoComplete="username"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "forgot-error" : undefined}
+              required
+            />
+          </div>
 
-        {error ? (
-          <AuthFormError id="forgot-error" testId="forgot-password-error" focusOnMount>
-            {error}
-          </AuthFormError>
-        ) : null}
+          {error ? (
+            <AuthFormError id="forgot-error" testId="forgot-password-error" focusOnMount>
+              {error}
+            </AuthFormError>
+          ) : null}
 
-        <Button type="submit" disabled={submitting || !login} className="w-full">
-          {submitting ? "发送中…" : "发送重置链接"}
-        </Button>
-      </form>
-    </AuthCard>
+          <AuthActionBar>
+            <Button type="submit" disabled={submitting || !login}>
+              {submitting ? "发送中…" : "发送重置链接"}
+            </Button>
+          </AuthActionBar>
+        </form>
+      </AuthCard>
+    </ArchetypeFrame>
   );
 }

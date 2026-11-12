@@ -13,14 +13,14 @@
  * reports/appeals. Probing `POST /collaboration/invites` for create would 405 and
  * look like a missing feature.
  *
- * ⚠️ Accept creates no collaboration relationship — see collaboration.types.ts.
- * This module deliberately does not try to paper over that.
+ * Accept writes collaboration_member. See collaboration.types.ts.
  */
 import { apiRequest } from "@/api/client";
 import type {
   CollaborationAcceptResult,
   CollaborationInvite,
   CollaborationInviteResolve,
+  CollaborationParticipant,
 } from "./collaboration.types";
 
 export const collaborationApi = {
@@ -47,11 +47,8 @@ export const collaborationApi = {
     ),
 
   /**
-   * "Accepts" an invite.
-   *
-   * ⚠️ Despite the name this only VALIDATES and reports back. It writes nothing
-   * (verified: `CollaborationService.acceptInvite` has no insert/update), so no
-   * permission changes hands. Requires a session — a guest gets 401.
+   * Accepts an invite: inserts collaboration_member (EDITOR) or reuses the pair.
+   * Requires a session — a guest gets 401.
    *
    * Backend rejections:
    *   404 NOT_FOUND  邀请已失效或不存在  (unknown or expired token)
@@ -61,5 +58,21 @@ export const collaborationApi = {
     apiRequest<CollaborationAcceptResult>("/api/v1/collaboration/invites/accept", {
       method: "POST",
       body: { token },
+    }),
+
+  listEditors: (): Promise<CollaborationParticipant[]> =>
+    apiRequest<CollaborationParticipant[]>("/api/v1/me/collaboration-members"),
+
+  removeEditor: (memberId: string): Promise<void> =>
+    apiRequest<void>(`/api/v1/me/collaboration-members/${encodeURIComponent(memberId)}`, {
+      method: "DELETE",
+    }),
+
+  listHosts: (): Promise<CollaborationParticipant[]> =>
+    apiRequest<CollaborationParticipant[]>("/api/v1/me/collaboration-memberships"),
+
+  leaveHost: (ownerId: string): Promise<void> =>
+    apiRequest<void>(`/api/v1/me/collaboration-memberships/${encodeURIComponent(ownerId)}`, {
+      method: "DELETE",
     }),
 };

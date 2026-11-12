@@ -46,6 +46,17 @@ describe("GuideBody", () => {
     expect(heading).toHaveAttribute("id", "guide-heading-0");
   });
 
+  it("keeps numbered lines as a paragraph in document mode", () => {
+    render(
+      <GuideBody blocks={[{ type: "paragraph", text: "1. 甲\n2. 乙", level: 0 }]} body="ignored" />,
+    );
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    const paragraph = screen.getByText(
+      (_, node) => node?.tagName === "P" && node.textContent === "1. 甲\n2. 乙",
+    );
+    expect(paragraph).toBeInTheDocument();
+  });
+
   it("falls back to the plain body when there are no blocks", () => {
     // A backend that has not shipped `blocks` must keep working unchanged.
     render(<GuideBody blocks={null} body="一段纯文本。" />);

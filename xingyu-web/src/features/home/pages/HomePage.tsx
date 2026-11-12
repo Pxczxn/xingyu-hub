@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { homeApi } from "@/api/home/home.api";
 import type { GuestHomeView, MeHomeView } from "@/api/home/home.types";
 import { topicsApi } from "@/api/topics/topics.api";
@@ -10,6 +9,7 @@ import type { AnnouncementSummary, ContentSummary } from "@/api/common.types";
 import { useAuth } from "@/features/auth/auth.store";
 import { type SectionStatus } from "@/components/shared/SectionState";
 import { PageState } from "@/components/shared/PageState";
+import { ArchetypeFrame } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { staggerDelay } from "@/lib/stagger";
@@ -89,7 +89,15 @@ function contentStatus<T>(section: Section<unknown>, items: T[] | undefined): Se
 
 export function HomePage() {
   const { status: authStatus, isAuthenticated } = useAuth();
-  const ready = authStatus === "authenticated" || authStatus === "unauthenticated";
+  /*
+   * Only `initializing` means "the stored token has not been resolved yet, so we
+   * do not know which composition to ask for". `unauthenticated` and `error`
+   * both have a usable answer for this page — there is no identity to render.
+   * `error` in particular is the A2 retryable state (network/5xx during restore,
+   * token kept); gating it out left the feed skeleton spinning forever instead
+   * of falling back to the guest home. The guard still hides protected pages.
+   */
+  const ready = authStatus !== "initializing";
 
   const [guestHome, setGuestHome] = useState<GuestHomeView | null>(null);
   const [myHome, setMyHome] = useState<MeHomeView | null>(null);
@@ -205,148 +213,39 @@ export function HomePage() {
     );
   }
 
+  /*
+   * SK6 信息流 · H 线 / D 紧 / R 错（A §3 的 Home 行）。
+   *
+   * 骨架交给 `ArchetypeFrame`，页面只声明身份，不再自己写栅格：
+   *   skeleton="SK6"    → `[1fr 行式流 | 300 右栏]`，右栏由 `SectionRail` 粘住；
+   *                       原来的 `lg:grid-cols-[minmax(0,1fr)_300px]` 与
+   *                       `lg:sticky lg:top-[92px]` 两处手写栅格就此收敛。
+   *   header="line"     → H=线：无面报头。首页报头仍是 `EnhancedHero` —— 它已是
+   *                       线式报头（无卡片、无边框、标题贴内容列左缘、两个入口在
+   *                       文字尾），并且是首屏唯一的视觉锚点（星空素材，B §7 R8）。
+   *                       换成 `PageMasthead` 会丢掉这块锚点，也会改掉四条测试
+   *                       钉住的文案结构，所以这里用它承担线式报头。
+   *   density="compact" → D=紧：条目是「行」不是「格」，行与行靠发丝线分隔；行内
+   *                       元信息在行**底**（作者 · 类型 + 互动计数），缩略图只在有
+   *                       真实封面时出现。同为 SK6 的 TopicDetail 把元信息放在行
+   *                       **首**且没有互动条 —— 两页靠条目内部结构区分，不靠配色。
+   *   R=错             → 主列 + 300 右栏（热门话题 / 推荐创作者 / 社区活动）。
+   *                       右栏空时整列不渲染，frame 退回单列（`SOLO.SK6`），不会有
+   *                       一条与 feed 等高的空白竖栏。
+   *
+   * 游客可读性：`authStatus` 未定时（`initializing`）两个 composition 请求都不发（`ready`
+   * 守卫）；`error`（恢复会话遇网络/5xx，token 仍保留）按游客态加载，不能停在骨架。
+   * 报头只按 `isAuthenticated` 换文案与入口，全程没有登录态断言。
+   */
   return (
-    <div className="section-gap">
-      {/*
-        Nameplate only. Promoting the newest row into the head was tried and
-        reverted — it printed the same headline twice above the fold and made
-        every text query for that article ambiguous. The head says what the page
-        is; the list starts right under it.
-      */}
-      <EnhancedHero isAuthenticated={isAuthenticated} />
-
-      {/* 公告条：时效性信息，Hero 和内容区之间 */}
-      {notice ? <HomeNotice item={notice} /> : null}
-
-      {/*
-        Two columns from `lg`, one below it. The rail is 300px rather than 320 so
-        the feed keeps a usable measure on a 1024 screen; below `lg` the rail
-        stacks under the feed, which is where the old `md` switch used to squeeze
-        rows into ~430px.
-      */}
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-14">
-        {/* 左列 — 主 Feed 区 */}
-        <div
-          className={cn(
-            "flex min-w-0 flex-col gap-5",
-            showSidebar ? "lg:col-span-1" : "lg:col-span-2",
-          )}
-        >
-          <HomeFeedTabs
-            value={tab}
-            onChange={setTab}
-            topics={topicSection.items}
-            trailing={
-              tab === "recommend" ? (
-                <Link
-                  to="/discover"
-                  className="group/more inline-flex items-center gap-1 text-accent-strong transition-all duration-200 hover:gap-1.5"
-                >
-                  <span>查看更多推荐</span>
-                  <svg
-                    className="h-3.5 w-3.5 transition-transform group-hover/more:translate-x-0.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </Link>
-              ) : null
-            }
-          />
-
-          {/* 继续阅读 - 显示骨架屏或实际内容 */}
-          {homeStatus === "loading" && isAuthenticated ? (
-            <ContinueReadingSkeleton />
-          ) : continueReading && continueReading.length > 0 ? (
-            <ContinueReadingStrip items={continueReading} />
-          ) : null}
-
-          {/* Feed 内容区 - 加载态/空状态/实际内容 */}
-          <section
-            key={tab}
-            id={`home-tabpanel-${tab}`}
-            role="tabpanel"
-            aria-labelledby={`home-tab-${tab}`}
-            className="animate-in fade-in slide-in-from-bottom-2 duration-300"
-          >
-            {feedStatus === "loading" ? (
-              <HomeFeedSkeleton count={3} />
-            ) : feedStatus === "empty" ? (
-              <div className="animate-in fade-in zoom-in-95 duration-300 delay-75">
-                <EmptyFeedState variant={emptyVariant} />
-              </div>
-            ) : feedStatus === "error" ? (
-              <div className="animate-in fade-in zoom-in-95 duration-300 delay-75">
-                <div className="rounded-2xl border border-border/80 bg-card p-6 text-center shadow-sm">
-                  <p className="text-sm font-medium text-destructive">加载失败</p>
-                  <p className="mt-1 text-sm text-muted-foreground">请稍后重试</p>
-                </div>
-              </div>
-            ) : (
-              // Rows, not a card. A 2xl bordered card wrapping a list made the
-              // feed read as one object and pushed the section's edge 24px past
-              // every other block on the page; a single hairline above the first
-              // row is enough to separate it from the tabs, and each row's own
-              // hover wash now spans the full column instead of being clipped by
-              // `overflow-hidden`.
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 border-t border-border/70">
-                {/*
-                 * 第四刀：Feed 内容卡增强
-                 *
-                 * 增加所属系列/星系/话题信息，让它不像博客列表。
-                 * 数据契约不变，只在已有字段上增强展示。
-                 *
-                 * 精选与 Feed 关系：
-                 * - 精选是推荐第一条的"强化展示"，不是替代
-                 * - Feed 列表保持完整，包含第一条
-                 * - 这样测试不需要调整，用户体验也更好（Feed 可独立滚动）
-                 */}
-                <ul key={tab} className="flex flex-col">
-                  {(feedItems ?? []).map((item, index) => (
-                    <li
-                      key={item.id}
-                      className={cn("animate-rise-in", index > 0 && "border-t border-border/50")}
-                      style={{ animationDelay: staggerDelay(index) }}
-                    >
-                      <HomeFeedItem
-                        item={item}
-                        variant={tab === "recommend" ? "discover" : "subscription"}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
-        </div>
-
-        {/*
-         * 第五刀：右侧栏顺序调整
-         *
-         * 原顺序：热门话题 > 推荐创作者 > 社区活动
-         * 新顺序：探索星系 > 热门话题 > 活跃创作者
-         *
-         * 为什么：星系是星语特色，应该优先展示。
-         *
-         * 注意：这里的"探索星系"是 HomeSidebar 内部的模块，
-         * 不是上方的 GalaxyExploreEntries。
-         */}
-        {/*
-          The rail follows the reader down the feed at `lg` and up. It is sticky
-          rather than fixed so it stops at its own last module, and `items-start`
-          on the grid keeps it from stretching to the feed's height (a stretched
-          sticky box pins at the wrong offset).
-        */}
-        <div className="lg:sticky lg:top-[92px] lg:self-start">
-          {homeStatus === "loading" ? (
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="line"
+      density="compact"
+      headerSlot={<EnhancedHero isAuthenticated={isAuthenticated} />}
+      rail={
+        showSidebar ? (
+          homeStatus === "loading" ? (
             <HomeSidebarSkeleton />
           ) : (
             <HomeSidebar
@@ -358,9 +257,88 @@ export function HomePage() {
               pendingUsername={creators.pendingUsername}
               onToggleFollow={(creator) => void creators.toggleFollow(creator)}
             />
+          )
+        ) : null
+      }
+      /* landmark 名与三块面板标题不同名，否则「热门话题」会在无障碍树里出现两次。 */
+      railLabel="社区侧栏"
+    >
+      {/* 公告条：时效性信息，报头和内容区之间 */}
+      {notice ? <HomeNotice item={notice} /> : null}
+
+      {/*
+        「标签页 / 继续阅读 / feed」是同一块功能区，内部间距保持 20px；与 frame
+        给出的区块间距（density-compact = 32px）分开，不让标签和它自己的列表被
+        一个「区块间距」隔开。
+      */}
+      <div className="flex min-w-0 flex-col gap-5">
+        <HomeFeedTabs value={tab} onChange={setTab} />
+
+        {/* 继续阅读 - 显示骨架屏或实际内容 */}
+        {homeStatus === "loading" && isAuthenticated ? (
+          <ContinueReadingSkeleton />
+        ) : continueReading && continueReading.length > 0 ? (
+          <ContinueReadingStrip items={continueReading} />
+        ) : null}
+
+        {/* Feed 内容区 - 加载态/空状态/实际内容 */}
+        <section
+          key={tab}
+          id={`home-tabpanel-${tab}`}
+          role="tabpanel"
+          aria-labelledby={`home-tab-${tab}`}
+          className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+        >
+          {feedStatus === "loading" ? (
+            <HomeFeedSkeleton count={3} />
+          ) : feedStatus === "empty" ? (
+            <div className="animate-in fade-in zoom-in-95 duration-300 delay-75">
+              <EmptyFeedState variant={emptyVariant} />
+            </div>
+          ) : feedStatus === "error" ? (
+            <div className="animate-in fade-in zoom-in-95 duration-300 delay-75">
+              <div className="rounded-control border border-border/80 bg-card p-6 text-center">
+                <p className="text-body font-medium text-danger">加载失败</p>
+                <p className="mt-1 text-body text-foreground-soft">请稍后重试</p>
+              </div>
+            </div>
+          ) : (
+            // Rows, not a card. A 2xl bordered card wrapping a list made the
+            // feed read as one object and pushed the section's edge 24px past
+            // every other block on the page; a single hairline above the first
+            // row is enough to separate it from the tabs, and each row's own
+            // hover wash now spans the full column instead of being clipped by
+            // `overflow-hidden`.
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 border-t border-border/70">
+              {/*
+               * 第四刀：Feed 内容卡增强
+               *
+               * 增加所属系列/星系/话题信息，让它不像博客列表。
+               * 数据契约不变，只在已有字段上增强展示。
+               *
+               * 精选与 Feed 关系：
+               * - 精选是推荐第一条的"强化展示"，不是替代
+               * - Feed 列表保持完整，包含第一条
+               * - 这样测试不需要调整，用户体验也更好（Feed 可独立滚动）
+               */}
+              <ul key={tab} className="flex flex-col">
+                {(feedItems ?? []).map((item, index) => (
+                  <li
+                    key={item.id}
+                    className={cn("animate-rise-in", index > 0 && "border-t border-border/50")}
+                    style={{ animationDelay: staggerDelay(index) }}
+                  >
+                    <HomeFeedItem
+                      item={item}
+                      variant={tab === "recommend" ? "discover" : "subscription"}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-        </div>
+        </section>
       </div>
-    </div>
+    </ArchetypeFrame>
   );
 }

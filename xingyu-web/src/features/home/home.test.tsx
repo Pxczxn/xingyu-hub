@@ -9,7 +9,7 @@ import { authApi } from "@/api/auth/auth.api";
 import { interactionsApi } from "@/api/interactions/interactions.api";
 import type { ContentSummary } from "@/api/common.types";
 import { AuthProvider } from "@/features/auth/auth.store";
-import { setStoredToken } from "@/lib/storage";
+import { getStoredToken, setStoredToken } from "@/lib/storage";
 import { HomePage } from "./pages/HomePage";
 
 /*
@@ -226,23 +226,33 @@ describe("home (guest)", () => {
     expect(screen.queryByRole("link", { name: /开始创作/ })).not.toBeInTheDocument();
   });
 
-  it("shows 查看更多 on 推荐 only, and only to /discover", async () => {
+  /*
+   * A2 regression (audit 2026-11-10) — the page half.
+   *
+   * The session restore now keeps the token when it fails for a network reason
+   * (auth.store status = "error"). The home page used to gate its composition on
+   * `status === "authenticated" || status === "unauthenticated"`, so the new
+   * "error" state left the feed skeleton spinning forever — same root cause
+   * ("restore failed" ≠ "signed out"), opposite symptom. With the token still
+   * stored but no identity, the page must fall back to the guest composition and
+   * actually finish loading; it must NOT call the member endpoint, and must NOT
+   * delete the session it could not verify.
+   */
+  it("renders the guest home when the session restore fails for a network reason", async () => {
+    setStoredToken("valid-token");
+    authMocked.getMe.mockRejectedValue(new TypeError("Failed to fetch"));
     homeMocked.getGuestHome.mockResolvedValue(
-      guestHome({
-        followingUpdates: [{ id: "f1", title: "关注条目" }],
-        discoveries: [{ id: "d1", title: "推荐条目" }],
-      }),
+      guestHome({ discoveries: [{ id: "d1", title: "游客推荐条目" }] }),
     );
 
     renderHome();
 
-    const more = await screen.findByRole("link", { name: /查看更多/ });
-    expect(more).toHaveAttribute("href", "/discover");
-
-    // 关注 has no "more" page — /me/following is the follow graph, not a feed.
-    fireEvent.click(screen.getByRole("tab", { name: "关注" }));
-    await screen.findByText("关注条目");
-    expect(screen.queryByRole("link", { name: /查看更多/ })).not.toBeInTheDocument();
+    // The page ends its loading state on the guest composition instead of
+    // waiting for an identity it will never get.
+    expect(await screen.findByText("游客推荐条目")).toBeInTheDocument();
+    expect(homeMocked.getGuestHome).toHaveBeenCalled();
+    expect(homeMocked.getMyHome).not.toHaveBeenCalled();
+    expect(getStoredToken()).toBe("valid-token");
   });
 });
 

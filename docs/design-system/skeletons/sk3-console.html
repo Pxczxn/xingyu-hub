@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SK3 控制台 · 桌面 1440 / 移动 390 | 星语骨架原型</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* ===== SK3 控制台：分区壳（顶部页签）+ 量化带 → 结构化主区 → 可选右轨 280 =====
+         壳内不再出自带大标题（标题归壳层），页面第一个内容块恒是量化带。 */
+
+      .c-subnav {
+        display: flex;
+        gap: 2px;
+        padding: 0 var(--pad);
+        border-bottom: 1px solid var(--line);
+        overflow: hidden;
+      }
+
+      .c-subnav a {
+        position: relative;
+        padding: 12px 12px 11px;
+        font-size: 13.5px;
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+
+      .c-subnav a:hover {
+        color: var(--ink);
+      }
+
+      .c-subnav a[aria-current="page"] {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .c-subnav a[aria-current="page"]::after {
+        content: "";
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: -1px;
+        height: 2px;
+        background: var(--accent);
+      }
+
+      /* 量化带：一条通栏浅底，数字不是卡片 */
+      .c-belt {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 32px;
+        padding: 18px var(--pad);
+        background: var(--sunken);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .c-belt li {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        font-size: 12.5px;
+        color: var(--ink-3);
+      }
+
+      .c-belt b {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .c-belt .state {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        color: var(--ink-3);
+      }
+
+      /* 主区：1fr 表格 + 280 右轨 */
+      .c-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 0 40px;
+        padding: 28px var(--pad) 0;
+        align-items: start;
+      }
+
+      .c-sec > header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--line-2);
+      }
+
+      .c-sec > header h2 {
+        font-size: var(--fs-h3);
+        font-weight: 600;
+      }
+
+      .c-sec > header .count {
+        font-size: 12.5px;
+        color: var(--ink-3);
+      }
+
+      .c-sec > header .more {
+        margin-left: auto;
+        font-size: 12.5px;
+        color: var(--ink-3);
+      }
+
+      .c-sec > header .more:hover {
+        color: var(--ink);
+      }
+
+      /* 表格：列对齐、无卡片、行高 dense */
+      .c-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+      }
+
+      .c-table thead th {
+        padding: 8px 10px 8px 0;
+        background: var(--surface-2);
+        font-size: 11.5px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--ink-3);
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .c-table tbody td {
+        padding: 11px 10px 11px 0;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-2);
+        vertical-align: baseline;
+      }
+
+      .c-table tbody th {
+        padding: 11px 10px 11px 0;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .c-table .num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .c-table th.num {
+        font-weight: 500;
+      }
+
+      .c-table a:hover {
+        color: var(--ink);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      .c-sec + .c-sec {
+        margin-top: 26px;
+      }
+
+      /* 右轨：两个入口，不再是六张卡 */
+      .c-rail {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .c-draft {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-card);
+        background: var(--surface-2);
+      }
+
+      .c-draft .title {
+        font-family: var(--display);
+        font-size: 19px;
+        line-height: 1.45;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+      }
+
+      .c-new {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-card);
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* 出血区：一条安静的提示带 */
+      .c-band {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 20px;
+        padding: 20px var(--pad);
+        margin-top: 32px;
+        border-top: 1px solid var(--ink);
+        border-bottom: 1px solid var(--ink);
+      }
+
+      .c-band p {
+        font-family: var(--display);
+        font-size: 16px;
+        line-height: 1.7;
+        color: var(--ink);
+        max-width: 36em;
+      }
+
+      .c-band .btn {
+        margin-left: auto;
+      }
+
+      .c-back {
+        display: inline-block;
+        margin: 22px var(--pad) 0;
+        font-size: 13px;
+        color: var(--ink-3);
+      }
+
+      .c-back:hover {
+        color: var(--ink);
+      }
+
+      /* 移动：表格降级为行卡，右轨下沉到主区之后 */
+      .frame[data-width="390"] .c-subnav {
+        gap: 0;
+        padding: 0 14px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .frame[data-width="390"] .c-subnav::-webkit-scrollbar {
+        display: none;
+      }
+
+      .frame[data-width="390"] .c-subnav a {
+        padding: 11px 9px 10px;
+        font-size: 13px;
+      }
+
+      .frame[data-width="390"] .c-belt {
+        padding: 14px var(--pad);
+        gap: 6px 20px;
+      }
+
+      .frame[data-width="390"] .c-belt b {
+        font-size: 19px;
+      }
+
+      .frame[data-width="390"] .c-belt .state {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .frame[data-width="390"] .c-body {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        padding: 20px var(--pad) 0;
+      }
+
+      .frame[data-width="390"] .c-table thead {
+        display: none;
+      }
+
+      .frame[data-width="390"] .c-table tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 2px 10px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .frame[data-width="390"] .c-table tbody th,
+      .frame[data-width="390"] .c-table tbody td {
+        border: 0;
+        padding: 0;
+      }
+
+      .frame[data-width="390"] .c-table tbody td[data-label]::before {
+        content: attr(data-label) " ";
+        color: var(--ink-3);
+        font-size: 11.5px;
+      }
+
+      .frame[data-width="390"] .c-rail {
+        margin-top: 24px;
+      }
+
+      .frame[data-width="390"] .c-band {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .frame[data-width="390"] .c-band .btn {
+        margin-left: 0;
+      }
+    </style>
+  </head>
+  <body data-sk="SK3">
+    <input id="zfit" class="sr-only" type="radio" name="zoom" checked />
+    <input id="z1" class="sr-only" type="radio" name="zoom" />
+
+    <header class="ghead">
+      <a class="gback" href="index.html">← 返回总览</a>
+      <div class="grow">
+        <span class="gnum">SK3</span>
+        <h1>控制台</h1>
+      </div>
+      <p class="gsub gpages">
+        <b>真实页面</b>（A §3，共 2 例以上）：<br />
+        <code>xingyu-web/src/features/studio/pages/StudioPage.tsx</code>
+        <code>xingyu-web/src/features/studio/pages/ContentListPage.tsx</code>
+        <code>xingyu-web/src/features/settings/pages/SettingsProfilePage.tsx</code>
+        <code>xingyu-web/src/features/settings/pages/SettingsSessionsPage.tsx</code>
+      </p>
+      <p class="gsub">
+        创作中心 / 设置 / 星系成员 / 成长 / 合集管理（22 页）。构图：<b>分区壳</b>（顶部页签或左轨 200，标题归壳层，页内不再出自带大标题）→
+        <b>量化带</b>（计数 / 进度 / 状态，一条通栏浅底，数字不是卡片）→ <b>结构化主区</b>（列表格：列对齐、可比较）→
+        可选右轨 280 放单项入口。区别：页面目的是「操作与比较」，不是读，也不是逛。
+      </p>
+      <div class="gmeta">
+        <span class="chip">分区壳 · 页签</span>
+        <span class="chip">量化带优先</span>
+        <span class="chip">表格 · 列对齐</span>
+        <span class="chip">出血区 · 提示带</span>
+      </div>
+      <div class="gtool">
+        <span>缩放</span>
+        <div class="seg" role="group" aria-label="桌面原型缩放">
+          <label for="zfit">适应宽度 58%</label>
+          <label for="z1">1:1 原尺寸</label>
+        </div>
+      </div>
+      <nav class="gswitcher" aria-label="原型切换">
+        <a href="sk1-reading.html">SK1 阅读栏</a>
+        <a href="sk2-gallery.html">SK2 画廊</a>
+        <a href="sk3-console.html" aria-current="page">SK3 控制台</a>
+        <a href="sk4-inbox.html">SK4 收件箱</a>
+        <a href="sk5-flow.html">SK5 流程</a>
+        <a href="sk6-feed.html">SK6 信息流</a>
+        <a href="sk7-reader.html">SK7 阅读器</a>
+        <a href="sk8-canvas.html">SK8 创作台</a>
+      </nav>
+    </header>
+
+    <main class="stage" id="main">
+      <figure class="shot">
+        <figcaption>
+          <strong>1440</strong> 桌面
+          <em>· 量化带 → 表格 → 右轨 280</em>
+        </figcaption>
+        <div class="frame" data-sk="SK3" data-width="1440" role="group" aria-label="桌面原型，1440 宽">
+          <header class="topbar">
+            <a class="brand" href="index.html">星语</a>
+            <nav class="nav" aria-label="主导航">
+              <a href="#">首页</a>
+              <a href="#">探索</a>
+              <a href="#">话题</a>
+              <a href="#">系列</a>
+              <a href="#">星系</a>
+              <a href="#">动态</a>
+              <a href="#">指南</a>
+            </nav>
+            <p class="search">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="9" cy="9" r="5.5" />
+                <path d="m13.5 13.5 3 3" />
+              </svg>
+              搜索文章、话题或作者
+            </p>
+            <div class="dock">
+              <button class="btn btn--ink btn--sm" type="button">创作</button>
+              <button class="icon" type="button" aria-label="通知（3 条未读）">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M10 3.2a5 5 0 0 0-5 5v3.3L4 14.2h12l-1-2.7V8.2a5 5 0 0 0-5-5Z" />
+                  <path d="M8.2 16.4a1.9 1.9 0 0 0 3.6 0" />
+                </svg>
+                <span class="dot">3</span>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <nav class="c-subnav" aria-label="创作中心导航">
+            <a href="#" aria-current="page">概览</a>
+            <a href="#">我的内容</a>
+            <a href="#">我的系列</a>
+            <a href="#">投稿记录</a>
+            <a href="#">数据分析</a>
+            <a href="#">创作空间分类</a>
+            <a href="#">邀请协作</a>
+          </nav>
+
+          <div class="page" style="padding: 0">
+            <h1 class="sr-only">创作中心</h1>
+
+            <ul class="c-belt bleed" aria-label="数据概览">
+              <li>已发布文章 <b>8</b> 篇</li>
+              <li>获得喜欢 <b>246</b></li>
+              <li>收到评论 <b>57</b></li>
+              <li>粉丝 <b>132</b></li>
+              <li class="state">
+                <span class="chip">待处理 2</span>
+                <span>最近更新 3 小时前</span>
+              </li>
+            </ul>
+
+            <div class="c-body">
+              <div>
+                <section class="c-sec" aria-labelledby="c-recent-d">
+                  <header>
+                    <h2 id="c-recent-d">最近内容</h2>
+                    <span class="count">共 8 篇 · 2 篇草稿</span>
+                    <a class="more" href="#">全部内容 →</a>
+                  </header>
+                  <table class="c-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">标题</th>
+                        <th scope="col">状态</th>
+                        <th scope="col" class="num">喜欢</th>
+                        <th scope="col" class="num">更新时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th scope="row"><a href="sk7-reader.html">在县城的旧书店里，我重新学会慢下来</a></th>
+                        <td><span class="chip">待审核</span></td>
+                        <td class="num" data-label="喜欢">—</td>
+                        <td class="num" data-label="更新">11/10 14:12</td>
+                      </tr>
+                      <tr>
+                        <th scope="row"><a href="#">县城的早市为什么在七点半就散了</a></th>
+                        <td>草稿</td>
+                        <td class="num" data-label="喜欢">—</td>
+                        <td class="num" data-label="更新">11/10 11:20</td>
+                      </tr>
+                      <tr>
+                        <th scope="row"><a href="#">我在地图上找不到的那条河</a></th>
+                        <td><span class="chip">需修改</span></td>
+                        <td class="num" data-label="喜欢">61</td>
+                        <td class="num" data-label="更新">11/08 19:02</td>
+                      </tr>
+                      <tr>
+                        <th scope="row"><a href="sk1-reading.html">车站旁边的裁缝铺，和一台还在用的缝纫机</a></th>
+                        <td>已发布</td>
+                        <td class="num" data-label="喜欢">44</td>
+                        <td class="num" data-label="更新">11/06 10:31</td>
+                      </tr>
+                      <tr>
+                        <th scope="row"><a href="#">写给第一次投稿的人：编辑到底在看什么</a></th>
+                        <td>已发布</td>
+                        <td class="num" data-label="喜欢">212</td>
+                        <td class="num" data-label="更新">11/05 08:15</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+
+                <section class="c-sec" aria-labelledby="c-pending-d">
+                  <header>
+                    <h2 id="c-pending-d">待处理事项</h2>
+                    <span class="count">2 项</span>
+                  </header>
+                  <table class="c-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">标题</th>
+                        <th scope="col">状态</th>
+                        <th scope="col" class="num">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th scope="row">在县城的旧书店里，我重新学会慢下来</th>
+                        <td><span class="chip">待审核</span></td>
+                        <td class="num" data-label="操作"><a href="#">查看详情</a></td>
+                      </tr>
+                      <tr>
+                        <th scope="row">我在地图上找不到的那条河</th>
+                        <td><span class="chip">需修改</span></td>
+                        <td class="num" data-label="操作"><a href="#">查看详情</a></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+              </div>
+
+              <aside class="c-rail" aria-label="快捷入口">
+                <a class="c-draft on-soft" href="#">
+                  <span class="eyebrow">继续创作</span>
+                  <span class="title" style="display: block">县城的早市为什么在七点半就散了</span>
+                  <span class="micro" style="display: block">最近更新于 3 小时前</span>
+                  <span class="btn btn--outline btn--sm" style="width: fit-content; background: var(--surface)">继续编辑</span>
+                </a>
+                <div class="c-new">
+                  <p class="meta">从一张空白页开始，写好后再决定什么时候提交。</p>
+                  <button class="btn btn--primary btn--block" type="button">写新文章</button>
+                </div>
+              </aside>
+            </div>
+
+            <div class="bleed c-band">
+              <p>草稿会一直留着 —— 上次你停在第二节「七点半的散场，是一场默契」。</p>
+              <button class="btn btn--outline btn--sm" type="button">接着写</button>
+            </div>
+          </div>
+
+          <footer class="foot">
+            <span>星语</span>
+            <a href="#">公告</a>
+            <a href="#">社区活动</a>
+            <a href="#">社区规则</a>
+            <span style="margin-left: auto">© 2026 星语社区</span>
+          </footer>
+        </div>
+      </figure>
+
+      <figure class="shot">
+        <figcaption>
+          <strong>390</strong> 移动
+          <em>· 表格降级为行卡 / 右轨下沉</em>
+        </figcaption>
+        <div class="frame" data-sk="SK3" data-width="390" role="group" aria-label="移动原型，390 宽">
+          <header class="topbar">
+            <button class="icon" type="button" aria-label="打开导航菜单" aria-expanded="false">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="M3 6h14M3 10h14M3 14h14" />
+              </svg>
+            </button>
+            <a class="brand" href="index.html">星语</a>
+            <div class="dock">
+              <button class="icon" type="button" aria-label="通知（3 条未读）">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M10 3.2a5 5 0 0 0-5 5v3.3L4 14.2h12l-1-2.7V8.2a5 5 0 0 0-5-5Z" />
+                  <path d="M8.2 16.4a1.9 1.9 0 0 0 3.6 0" />
+                </svg>
+                <span class="dot">3</span>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <nav class="c-subnav" aria-label="创作中心导航">
+            <a href="#" aria-current="page">概览</a>
+            <a href="#">我的内容</a>
+            <a href="#">我的系列</a>
+            <a href="#">投稿记录</a>
+          </nav>
+
+          <div class="page" style="padding: 0">
+            <h1 class="sr-only">创作中心</h1>
+
+            <ul class="c-belt" aria-label="数据概览">
+              <li>已发布 <b>8</b> 篇</li>
+              <li>喜欢 <b>246</b></li>
+              <li>评论 <b>57</b></li>
+              <li>粉丝 <b>132</b></li>
+              <li class="state"><span class="chip">待处理 2</span></li>
+            </ul>
+
+            <div class="c-body">
+              <div>
+                <section class="c-sec" aria-labelledby="c-recent-m">
+                  <header>
+                    <h2 id="c-recent-m">最近内容</h2>
+                    <a class="more" href="#">全部 →</a>
+                  </header>
+                  <table class="c-table">
+                    <tbody>
+                      <tr>
+                        <th scope="row"><a href="sk7-reader.html">在县城的旧书店里，我重新学会慢下来</a></th>
+                        <td class="num"><span class="chip">待审核</span></td>
+                      </tr>
+                      <tr>
+                        <th scope="row"><a href="#">县城的早市为什么在七点半就散了</a></th>
+                        <td class="num">草稿</td>
+                      </tr>
+                      <tr>
+                        <th scope="row"><a href="#">我在地图上找不到的那条河</a></th>
+                        <td class="num"><span class="chip">需修改</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+
+                <aside class="c-rail" aria-label="快捷入口">
+                  <a class="c-draft on-soft" href="#">
+                    <span class="eyebrow">继续创作</span>
+                    <span class="title" style="display: block">县城的早市为什么在七点半就散了</span>
+                    <span class="micro" style="display: block">3 小时前</span>
+                    <span class="btn btn--outline btn--sm" style="width: fit-content; background: var(--surface)">继续编辑</span>
+                  </a>
+                  <div class="c-new">
+                    <p class="meta">从一张空白页开始，写好后再决定什么时候提交。</p>
+                    <button class="btn btn--primary btn--block" type="button">写新文章</button>
+                  </div>
+                </aside>
+              </div>
+            </div>
+
+            <div class="c-band">
+              <p style="font-size: 15px">草稿会一直留着 —— 上次你停在第二节「七点半的散场，是一场默契」。</p>
+              <button class="btn btn--outline btn--sm" type="button">接着写</button>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </main>
+
+    <footer class="gfoot">
+      真实字段来源：<code>StudioPage.tsx:133-330</code>（草稿 <code>home.draftArticles[0]</code>、
+      待处理 <code>submissionsApi.listMine()</code> 过滤 <code>isSubmissionPending</code> +
+      <code>submissionStatusLabel</code>、数据概览 <code>meInsights</code> 的
+      <code>articleCount / likeCount / commentCount / followerCount</code>）、
+      页签 7 项来自 <code>StudioNav.tsx:45-51</code>；设置页是同一原型的另一实例
+      （<code>SettingsLayout.tsx:21-37</code> 的 200px 左轨版本）。
+    </footer>
+  </body>
+</html>

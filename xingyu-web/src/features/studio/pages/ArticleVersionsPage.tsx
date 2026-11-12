@@ -3,9 +3,17 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { articlesApi } from "@/api/articles/articles.api";
 import type { ArticleRevision, ArticleLifecycleStatus } from "@/api/articles/articles.types";
+import { ArchetypeFrame, TableFrame } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   REVISION_DISPLAY_LIMIT,
   canRestore,
@@ -18,6 +26,18 @@ import {
 
 /*
  * /studio/content/:articleId/versions — 历史版本 (Phase 2L)
+ *
+ * 骨架迁移（批次 D）：SK3 控制台 · H 壳 / D 表 / R 齐
+ * --------------------------------------------------
+ *   SK3 + 无 `rail` ⇒ `SOLO.SK3`：单列、与内容列同宽同边（R=齐）。原来那套
+ *   `lg:grid-cols-[1fr_1.2fr]` 的主从双栏是另一种节奏，也与本页在映射表里的
+ *   R=齐 不符，故收起。
+ *   H=壳：`WorkbenchShell` 无 heading（`WorkbenchShell.tsx:15-29`），页内必须恰好
+ *        1 个 `h1`；首块是量化带、没有视觉标题位 → `sr-only`（A §7.2）。
+ *   D=表：历史版本本来就是**可比较**的数据 —— 版本号 / 标题 / 发布时间 / 可见性
+ *        四列对齐之后，"哪一版是什么时候、对谁可见" 一眼可比。所以列表换成
+ *        `TableFrame` 的表行；选中仍然是显式控件（`aria-pressed` 的行内按钮），
+ *        不做整行可点 —— 行内还有别的焦点目标时，整行可点会吞掉键盘。
  *
  * ⚠️ THE LABELS HERE DELIBERATELY DIFFER FROM LEGACY.
  *
@@ -151,28 +171,49 @@ export function ArticleVersionsPage() {
   const selected = displayed.find((r) => r.id === selectedId) ?? displayed[0] ?? null;
   const restorable = canRestore(status);
   const blockedReason = restoreBlockedReason(status);
+  const latestFrozenAt = revisions.length > 0 ? formatFrozenAt(revisions[0]?.frozenAt) : null;
 
   return (
-    <div className="section-gap">
-      <nav className="text-xs text-muted-foreground" aria-label="面包屑">
-        <Link to="/studio/submissions" className="hover:text-foreground">
-          我的投稿
-        </Link>
-        <span aria-hidden="true"> / </span>
-        <span>历史版本</span>
-      </nav>
+    <ArchetypeFrame skeleton="SK3" header="shell" density="dense">
+      {/* B 类壳：恰好 1 个 h1，视觉隐藏；首块仍是内容（量化带）。 */}
+      <h1 className="sr-only">历史版本</h1>
 
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">历史版本</h1>
-        <p className="text-sm text-muted-foreground">
-          查看这篇文章每次发布时定格的版本，并可将其中一个恢复为当前草稿。
-        </p>
-      </header>
+      <p className="text-meta leading-6 text-muted-foreground">
+        查看这篇文章每次发布时定格的版本，并可将其中一个恢复为当前草稿。
+      </p>
+
+      {/* 量化带：三个可复核的数字，同一把尺子。 */}
+      <div className="overflow-hidden rounded-card border border-border/70 bg-border/60">
+        <ul aria-label="版本概况" className="grid grid-cols-3 gap-px">
+          <li className="bg-card px-4 py-3">
+            <p className="text-meta text-muted-foreground">历史版本</p>
+            <p className="mt-1 flex items-baseline gap-1">
+              <span className="text-h2 tabular-nums text-primary">{revisions.length}</span>
+              <span className="text-caption text-muted-foreground">个</span>
+            </p>
+          </li>
+          <li className="bg-card px-4 py-3">
+            <p className="text-meta text-muted-foreground">本页显示</p>
+            <p className="mt-1 flex items-baseline gap-1">
+              <span className="text-h2 tabular-nums text-primary">{displayed.length}</span>
+              <span className="text-caption text-muted-foreground">
+                / 上限 {REVISION_DISPLAY_LIMIT}
+              </span>
+            </p>
+          </li>
+          <li className="bg-card px-4 py-3">
+            <p className="text-meta text-muted-foreground">最近定格</p>
+            <p className="mt-1 truncate text-meta text-foreground">
+              {latestFrozenAt ?? "时间未提供"}
+            </p>
+          </li>
+        </ul>
+      </div>
 
       {actionError ? (
         <p
           role="alert"
-          className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive"
+          className="rounded-control border border-destructive/40 bg-card p-3 text-meta text-destructive"
         >
           {actionError}
         </p>
@@ -181,7 +222,7 @@ export function ArticleVersionsPage() {
       {restored ? (
         <p
           role="status"
-          className="rounded-md border border-border bg-card p-3 text-sm text-foreground"
+          className="rounded-control border border-border bg-card p-3 text-meta text-foreground"
         >
           已恢复为当前草稿。
           <Link
@@ -201,97 +242,151 @@ export function ArticleVersionsPage() {
           description="历史版本在文章发布时生成。这篇文章还没有发布过，所以还没有可恢复的版本。"
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-          <Card>
-            <CardContent className="p-0">
-              <ul aria-label="版本列表" className="divide-y divide-border">
+        <>
+          {/* 「版本列表」之所以是这一层的 aria-label：下面同时有表格标题与选中详情，
+              测试与读屏都靠这个名字圈定"列表本身"。 */}
+          <section aria-label="版本列表" className="min-w-0">
+            <TableFrame caption="历史版本">
+              <thead>
+                <tr>
+                  <th scope="col" className="w-[1%] whitespace-nowrap">
+                    选择
+                  </th>
+                  <th scope="col" className="w-[1%] whitespace-nowrap">
+                    版本
+                  </th>
+                  <th scope="col">标题</th>
+                  <th scope="col" className="w-[1%] whitespace-nowrap">
+                    定格时间
+                  </th>
+                  <th scope="col" className="w-[1%] whitespace-nowrap">
+                    可见性
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
                 {displayed.map((revision) => {
                   const active = selected?.id === revision.id;
                   return (
-                    <li key={revision.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedId(revision.id)}
-                        aria-pressed={active}
-                        className={
-                          "w-full px-4 py-3 text-left transition-colors " +
-                          (active ? "bg-accent/10" : "hover:bg-muted/40")
-                        }
-                      >
-                        <span className="text-xs text-muted-foreground">
-                          {revisionLabel(revision)}
-                        </span>
-                        <span className="mt-1 block text-sm font-medium text-foreground">
-                          {revisionTitle(revision)}
-                        </span>
-                        <span className="mt-1 block text-xs text-muted-foreground">
-                          {formatFrozenAt(revision.frozenAt) ?? "时间未提供"}
-                          {" · "}
-                          {visibilityLabel(revision.visibility)}
-                        </span>
-                      </button>
-                    </li>
+                    <tr
+                      key={revision.id}
+                      data-selected={active ? "true" : undefined}
+                      className={active ? "bg-muted/70" : "hover:bg-surface-sunken/60"}
+                    >
+                      <td className="whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(revision.id)}
+                          aria-pressed={active}
+                          /* 可判定的可访问名：读屏听到的是「哪个版本」而不是「选择」。 */
+                          aria-label={`选择此版本：${revisionLabel(revision)} · ${revisionTitle(revision)}`}
+                          className="focus-ring rounded-sm text-meta text-accent-strong hover:underline"
+                        >
+                          {active ? "已选" : "选择"}
+                        </button>
+                      </td>
+                      <td className="whitespace-nowrap text-meta tabular-nums text-muted-foreground">
+                        {revisionLabel(revision)}
+                      </td>
+                      <td className="text-meta font-medium text-foreground">
+                        {revisionTitle(revision)}
+                      </td>
+                      <td className="whitespace-nowrap text-meta tabular-nums text-muted-foreground">
+                        {formatFrozenAt(revision.frozenAt) ?? "时间未提供"}
+                      </td>
+                      <td className="whitespace-nowrap text-meta text-muted-foreground">
+                        {visibilityLabel(revision.visibility)}
+                      </td>
+                    </tr>
                   );
                 })}
-              </ul>
-            </CardContent>
-          </Card>
+              </tbody>
+            </TableFrame>
+          </section>
 
-          <Card>
-            <CardContent className="flex flex-col gap-4 p-5">
-              {selected ? (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <h2 className="text-card font-semibold text-primary">
-                      {revisionTitle(selected)}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                      {revisionLabel(selected)}
-                      {" · "}
-                      {formatFrozenAt(selected.frozenAt) ?? "时间未提供"}
-                      {" · "}
-                      {visibilityLabel(selected.visibility)}
-                    </p>
-                  </div>
+          {selected ? (
+            <section
+              aria-labelledby="version-detail-heading"
+              className="flex flex-col gap-4 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
+            >
+              <div className="flex flex-col gap-1">
+                <h2 id="version-detail-heading" className="text-h3 break-words text-primary">
+                  {revisionTitle(selected)}
+                </h2>
+                <p className="text-meta text-muted-foreground">
+                  {revisionLabel(selected)}
+                  {" · "}
+                  {formatFrozenAt(selected.frozenAt) ?? "时间未提供"}
+                  {" · "}
+                  {visibilityLabel(selected.visibility)}
+                </p>
+              </div>
 
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-sm font-medium text-foreground">该版本的摘要</h3>
-                    {selected.summary?.trim() ? (
-                      <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                        {selected.summary}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">该版本没有保存摘要。</p>
-                    )}
-                  </div>
-
-                  <p className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                    版本记录只保存发布时定格的标题、摘要与可见性；<b>正文不会在这里提供预览</b>。
-                    恢复后再回到编辑器查看与修改正文。
+              <div className="flex flex-col gap-1">
+                <h3 className="text-meta font-medium text-foreground">该版本的摘要</h3>
+                {selected.summary?.trim() ? (
+                  <p className="whitespace-pre-wrap text-meta leading-6 text-muted-foreground">
+                    {selected.summary}
                   </p>
+                ) : (
+                  <p className="text-meta text-muted-foreground">该版本没有保存摘要。</p>
+                )}
+              </div>
 
-                  <div className="border-t border-border pt-4">
-                    {restorable ? (
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        disabled={pending}
-                        onClick={() => setConfirming(true)}
-                      >
+              <p className="rounded-control border border-border bg-surface-sunken/60 p-3 text-caption leading-5 text-muted-foreground">
+                版本记录只保存发布时定格的标题、摘要与可见性；<b>正文不会在这里提供预览</b>。
+                恢复后再回到编辑器查看与修改正文。
+              </p>
+
+              <div className="border-t border-border/70 pt-4">
+                {restorable ? (
+                  /* 浮层统一：确认块收敛到 `components/ui/dialog`（role="alertdialog"）。
+                     旧实现是挂了 aria-modal 却没有遮罩、没有焦点陷阱的行内块。 */
+                  <Dialog open={confirming} onOpenChange={setConfirming}>
+                    <DialogTrigger asChild>
+                      <Button type="button" variant="default" size="sm" disabled={pending}>
                         恢复为当前草稿
                       </Button>
-                    ) : (
-                      <p className="text-sm text-muted-foreground" data-testid="restore-blocked">
-                        {blockedReason}
-                      </p>
-                    )}
-                  </div>
-                </>
-              ) : null}
-            </CardContent>
-          </Card>
-        </div>
+                    </DialogTrigger>
+                    <DialogContent role="alertdialog" className="max-w-sm rounded-xl bg-card">
+                      <DialogTitle className="text-base font-semibold text-primary">
+                        确认恢复版本
+                      </DialogTitle>
+                      <DialogDescription className="text-sm leading-6 text-muted-foreground">
+                        确定把这个版本恢复为当前草稿吗？<b>当前草稿的内容会被覆盖</b>
+                        ，建议先另存一份再恢复。
+                      </DialogDescription>
+                      <DialogFooter className="gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => setConfirming(false)}
+                        >
+                          取消
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => void onRestore()}
+                        >
+                          确认恢复
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <p className="text-meta text-muted-foreground" data-testid="restore-blocked">
+                    {blockedReason}
+                  </p>
+                )}
+              </div>
+            </section>
+          ) : null}
+        </>
       )}
 
       <Link
@@ -300,28 +395,6 @@ export function ArticleVersionsPage() {
       >
         返回编辑器
       </Link>
-
-      {confirming ? (
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-label="确认恢复版本"
-          className="rounded-lg border border-border bg-card p-4"
-        >
-          <p className="text-sm text-foreground">
-            确定把这个版本恢复为当前草稿吗？<b>当前草稿的内容会被覆盖</b>
-            ，建议先另存一份再恢复。
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Button variant="default" disabled={pending} onClick={() => void onRestore()}>
-              确认恢复
-            </Button>
-            <Button variant="outline" disabled={pending} onClick={() => setConfirming(false)}>
-              取消
-            </Button>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    </ArchetypeFrame>
   );
 }

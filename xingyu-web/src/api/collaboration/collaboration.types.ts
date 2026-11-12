@@ -1,31 +1,13 @@
 /*
- * Collaboration invite domain types (Phase 2M).
+ * Collaboration invite domain types.
  *
- * ⚠️ READ THIS BEFORE TRUSTING ANY LABEL ON THIS FEATURE.
+ * createInvite writes collaboration_invite.
+ * resolveInvite is a public read.
+ * acceptInvite writes collaboration_member (owner_id = inviter, member_id = accepter,
+ * role = EDITOR) and is idempotent for the same pair. Self-accept is 409.
+ * The member can edit that author's drafts. Submit and trash stay with the author.
  *
- * Verified against `CollaborationService` + `CollaborationInviteView` +
- * the `collaboration_invite` table (sql/V024) on 2026-09-28:
- *
- *   createInvite  -> WRITES a row (the invite itself). Real.
- *   resolveInvite -> READ-ONLY lookup. Real. Public (no auth).
- *   acceptInvite  -> **WRITES NOTHING.** It validates the token, refuses
- *                    self-acceptance, and returns the inviter's profile. That
- *                    is the entire implementation.
- *
- * There is therefore NO collaboration relationship anywhere in the backend:
- *   - the only insert in the whole service is the invite row itself;
- *   - the table has no `accepted_by` / `accepted_at` column;
- *   - no `collaborator` / `space_member` table exists;
- *   - a repo-wide grep finds no reader of "who accepted".
- *
- * Consequence, and the reason this file leads with a warning: after accepting,
- * NEITHER party gains any access or permission. The invite link is, today, a
- * message with a receipt — not a grant.
- *
- * The UI must say this out loud rather than implying a working collaboration
- * handshake. Legacy did not: it printed 「已接受协作邀请」 and a button to "view the
- * collaboration space", which reads as "you are now a collaborator". That is the
- * same class of misstatement as the version-history auto-save lie (see Phase 2L).
+ * inviteUrl is a relative path. Prefix it with the origin before sharing.
  */
 
 /** `POST /api/v1/me/collaboration-invites` response (`CollaborationInviteView`). */
@@ -63,6 +45,14 @@ export type CollaborationInviteResolve = {
 };
 
 /** `POST /api/v1/collaboration/invites/accept` response. */
+export type CollaborationParticipant = {
+  userId: string;
+  username: string;
+  displayName: string;
+  role: "EDITOR";
+  joinedAt: string;
+};
+
 export type CollaborationAcceptResult = {
   accepted: boolean;
   inviterUsername?: string;

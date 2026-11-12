@@ -3,6 +3,7 @@ package top.pxczxn.xingyu.community.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.ModerationCase;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -23,6 +24,15 @@ public interface ModerationCaseMapper extends BaseMapper<ModerationCase> {
             LIMIT 1
             """)
     ModerationCase findByReportId(String reportId);
+
+    @Select("""
+            <script>
+            SELECT * FROM moderation_case
+            WHERE report_id IN
+            <foreach collection='reportIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            </script>
+            """)
+    List<ModerationCase> listByReportIds(@Param("reportIds") List<String> reportIds);
 
     /**
      * 取案件行并<b>加行锁</b>（{@code FOR UPDATE}）。

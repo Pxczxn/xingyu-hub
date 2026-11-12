@@ -14,16 +14,23 @@ import type { TopicCreatorSummary } from "@/api/topics/topics.types";
  * the one sticky slot at `top-24`; a second sticky at the same offset would slide
  * under it. The galaxy rail can stick because its shell's header scrolls away —
  * the topic header does not.
+ *
+ * 2026-11-10（批次 A）—— 根元素从 `<aside aria-labelledby>` 改成
+ * `<section aria-labelledby>`：它现在由 `ArchetypeFrame` 的 `SectionRail` 包住，
+ * 而 `SectionRail` 本身已经是那个 `<aside>`。两层 aside 会让页面出现两个
+ * `complementary` landmark（话题页测试正好用 `getByRole("complementary")` 取它，
+ * 多个就是直接抛错），也会让同一块侧栏在无障碍树里被宣告两次。
+ * section + `aria-labelledby` 仍然是带名字的 region，语义没有丢。
  */
 export function TopicCreatorsPanel({ creators }: { creators: TopicCreatorSummary[] }) {
   if (creators.length === 0) return null;
 
   return (
-    <aside
+    <section
       aria-labelledby="topic-creators"
-      className="animate-rise-in rounded-lg border border-border/60 bg-card p-4"
+      className="animate-rise-in rounded-card border border-border/60 bg-card p-4"
     >
-      <h2 id="topic-creators" className="text-base font-semibold tracking-tight text-primary">
+      <h2 id="topic-creators" className="text-h3 text-primary">
         活跃创作者
       </h2>
       <ul className="mt-3 flex flex-col gap-2.5">
@@ -51,6 +58,6 @@ export function TopicCreatorsPanel({ creators }: { creators: TopicCreatorSummary
           );
         })}
       </ul>
-    </aside>
+    </section>
   );
 }

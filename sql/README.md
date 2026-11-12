@@ -33,10 +33,12 @@
 | `V053` | 可靠事件租约恢复索引（`reliable_event(status, lease_until)`；见 V053 头部实测数据） |
 | `V054` | 星系内容推荐（`galaxy_content_submission`：成员推荐 → 运营审核 → 上架 `galaxy_content`） |
 | `V055` | PRIVATE 资料语义收紧：历史默认 PRIVATE（`lock_version=0`）迁移为 PUBLIC；新注册仍默认 PRIVATE |
+| `V056` | 创作协作成员（`collaboration_member`：接受邀请写入 EDITOR 关系，可复用邀请链接） |
+| `V057` | 私钥仍为 `__REDACTED__` 时关闭登录 RSA 加密，避免密文当密码校验 |
 | `rebuild.ps1` | 一键删库重建（开发环境） |
 
 > 备注：部分迁移（如 `V029`、`V030`、`V031`、`V037`、`V040`、`V052`、`V053`、`V054`）头部标注为「可重复执行」——列/索引/表已存在时会自动跳过，可安全重跑。
-> 当前最新迁移为 **`V055__profile_private_visibility_enforcement.sql`**，新增迁移请从 `V056__*.sql` 起。
+> 当前最新迁移为 **`V057__disable_encrypt_when_rsa_private_redacted.sql`**，新增迁移请从 `V058__*.sql` 起。
 
 ## 一键重建（推荐）
 

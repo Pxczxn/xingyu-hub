@@ -201,10 +201,6 @@
     grid-template-columns: 244px minmax(0, 1fr);
     column-gap: 39px;
   }
-  .discover-layout[data-focused="true"] {
-    grid-template-columns: 156px minmax(0, 1fr);
-    column-gap: 28px;
-  }
   .discover-reading-toolbar {
     position: static;
   }
@@ -221,6 +217,13 @@
   .discover-reader .discover-reading-body {
     grid-column: 1;
     grid-row: 1 / span 2;
+  }
+  /* 双列布局下，限制正文区域的最大宽度，避免过宽 */
+  @media (min-width: 1280px) {
+    .discover-reader .discover-reading-body {
+      max-width: 800px;
+      margin-right: auto;
+    }
   }
   /*
    * A moment has no directory column, so its body uses the full reader width.

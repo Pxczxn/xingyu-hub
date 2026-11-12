@@ -5,6 +5,7 @@ import { ApiError } from "@/api/client";
 import { onboardingApi } from "@/api/onboarding/onboarding.api";
 import type { OnboardingPatch, OnboardingState } from "@/api/onboarding/onboarding.types";
 import { usersApi } from "@/api/users/users.api";
+import { ArchetypeFrame, BleedBand } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -238,56 +239,77 @@ export function OnboardingPage() {
 
   const stepIndex = STEPS.findIndex((item) => item.key === currentStep);
 
+  /*
+    SK5 流程 · H=幅 / D=松 / R=出（`.team/design/A-archetypes.md` §3 的单页域 Onboarding 行）。
+
+    状态机与接口调用**一行未动**：`WELCOME → INTERESTS → FOLLOWS → PROFILE → completed=true`
+    的推进仍由 `patchOnboarding` / `finish` / `run` 完成，`STEPS`、`RESUME_STEPS`、未知步骤
+    分支、`load()` 重读全部原样。这次只换外壳、步骤条与操作条的落位：
+
+      H=幅：标题区是一块**有面横幅** —— `BleedBand` 取 `tone="card"`（白面 + 上下发丝线），
+        承载 eyebrow / h1 / 步骤条三行。横幅靠「面 + 线」而不靠底色：B §4 取消域 tint 之后，
+        彩色横幅在本体系里是不允许的。
+      R=出：这条带比页内其它块都宽（`BleedBand` 的 `-mx-4/md:-mx-6` 正好抵消
+        `.content-shell` 的 `px-4/md:px-6`），其后所有内容回到 720 窄栏。`出` 每域 ≤2 页，
+        本页是全站唯一一处「引导流程用整幅开屏」。
+      D=松：五张步骤卡各是独立面，块间走 `density-loose`。
+
+    步骤条：沿用 `StepFlow` 的视觉语言（编号圆盘 + 连接线 + done/current/ahead 三态），但
+    **不套 `StepFlow` 组件** —— 它把子内容硬编码成 `density-compact`（会抹掉本页的 D=松），
+    且它的 `actions` 是外部注入的单一粘底条，而本页每个分支的终点按钮就长在自己的卡片里。
+    所以这里只搬形状：圆盘 + 线 + `aria-current="step"`；`<ol aria-label="引导步骤">` 这个
+    语义结构、条目文案与顺序一个字没改。
+  */
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
-      {/*
-        A guided flow, so it opens like one: the same eyebrow treatment the other
-        page banners use, an L1 title, and a step rail that is legible rather
-        than decorative.
-        The rail keeps its three states (done / current / ahead) but gains step
-        numbers — "2 of 4" is the single most useful thing to know inside a
-        wizard, and a row of coloured pills alone does not say it.
-      */}
-      <header className="space-y-2.5">
-        <p className="eyebrow">ONBOARDING</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">设置你的星语档案</h1>
-        <ol className="flex flex-wrap gap-2 text-meta" aria-label="引导步骤">
-          {STEPS.map((item, index) => (
-            <li
-              key={item.key}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-                index === stepIndex
-                  ? "border-accent bg-accent font-medium text-accent-foreground"
-                  : index < stepIndex
-                    ? "border-border bg-muted text-foreground"
-                    : "border-border text-muted-foreground",
-              )}
-            >
-              {/*
-                2026-10-13 (batch 07c): 10px -> 11px. The disc is 16px, so 11px with
-                `leading-none` still clears it with ~2.5px above and below, and 11px is
-                this app's floor — the last place a step number should be smaller than
-                the label sitting next to it.
-              */}
-              <span
-                aria-hidden
-                className={cn(
-                  "grid h-4 w-4 shrink-0 place-items-center rounded-full text-[11px] font-semibold tabular-nums",
-                  index === stepIndex
-                    ? "bg-accent-foreground/15"
-                    : index < stepIndex
-                      ? "bg-foreground/10"
-                      : "bg-muted-foreground/10",
-                )}
-              >
-                {index + 1}
-              </span>
-              {item.label}
-            </li>
-          ))}
-        </ol>
-      </header>
+    <ArchetypeFrame
+      skeleton="SK5"
+      header="banner"
+      density="loose"
+      headerSlot={
+        <BleedBand tone="card" className="mb-8">
+          <div className="space-y-3">
+            <p className="eyebrow">ONBOARDING</p>
+            <h1 className="text-h1 text-primary">设置你的星语档案</h1>
+            <ol className="flex flex-wrap items-center gap-3" aria-label="引导步骤">
+              {STEPS.map((item, index) => {
+                const isCurrent = index === stepIndex;
+                const isDone = index < stepIndex;
+                return (
+                  <li
+                    key={item.key}
+                    aria-current={isCurrent ? "step" : undefined}
+                    className="flex min-w-0 items-center gap-2"
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "grid h-6 w-6 shrink-0 place-items-center rounded-pill border text-caption tabular-nums",
+                        isDone && "border-primary bg-primary text-primary-foreground",
+                        isCurrent && "border-primary text-primary",
+                        !isDone && !isCurrent && "border-border-strong text-muted-foreground",
+                      )}
+                    >
+                      {index + 1}
+                    </span>
+                    <span
+                      className={cn(
+                        "truncate text-meta",
+                        isCurrent ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                    {index < STEPS.length - 1 ? (
+                      <span aria-hidden className="h-px w-5 shrink-0 bg-border" />
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </BleedBand>
+      }
+    >
 
       {/*
         步骤卡片（2026-10-13，批次 08b）
@@ -348,7 +370,7 @@ export function OnboardingPage() {
       */}
 
       {currentStep === "WELCOME" ? (
-        <div className="rounded-xl border border-border/70 bg-card p-6">
+        <div className="rounded-card border border-border/70 bg-card p-6">
           {/* Decorative: the heading below carries the meaning, so the mark
               keeps the vivid brand gold. */}
           <Sparkles className="mb-2 h-5 w-5 text-accent" aria-hidden />
@@ -356,21 +378,22 @@ export function OnboardingPage() {
           <p className="lede mt-2">
             用几步记录你关心的领域，并补上展示名称。兴趣只保存在入门资料里。
           </p>
-          <Button
-            className="mt-4"
-            variant="accent"
-            disabled={pending}
-            onClick={() =>
-              void run(() => patchOnboarding({ step: "INTERESTS" }).then(() => undefined))
-            }
-          >
-            {pending ? "跳转中…" : "开始设置"}
-          </Button>
+          <div className="sticky bottom-0 z-rail -mx-6 -mb-6 mt-4 flex flex-wrap items-center rounded-b-card border-t border-border/70 bg-card/95 px-6 py-3 backdrop-blur">
+            <Button
+              variant="accent"
+              disabled={pending}
+              onClick={() =>
+                void run(() => patchOnboarding({ step: "INTERESTS" }).then(() => undefined))
+              }
+            >
+              {pending ? "跳转中…" : "开始设置"}
+            </Button>
+          </div>
         </div>
       ) : null}
 
       {currentStep === "INTERESTS" ? (
-        <div className="rounded-xl border border-border/70 bg-card p-6">
+        <div className="rounded-card border border-border/70 bg-card p-6">
           <h2 className="section-heading">记录兴趣</h2>
           <p className="lede mt-1">
             选择你想记录的领域与兴趣。这些标签只保存在入门资料里，不会改变推荐结果。
@@ -478,28 +501,29 @@ export function OnboardingPage() {
           <p className="lede mt-3">
             已选 <span className="font-medium text-foreground">{selectedInterests.length}</span> 项
           </p>
-          <Button
-            className="mt-3"
-            variant="accent"
-            disabled={pending}
-            onClick={() =>
-              void run(() => {
-                const payload: OnboardingPatch =
-                  selectedInterests.length > 0
-                    ? { step: "FOLLOWS", interestsJson: JSON.stringify(selectedInterests) }
-                    : { step: "FOLLOWS" };
-                return patchOnboarding(payload).then(() => undefined);
-              })
-            }
-          >
-            {pending ? "保存中…" : "下一步"}
-          </Button>
+          <div className="sticky bottom-0 z-rail -mx-6 -mb-6 mt-4 flex flex-wrap items-center rounded-b-card border-t border-border/70 bg-card/95 px-6 py-3 backdrop-blur">
+            <Button
+              variant="accent"
+              disabled={pending}
+              onClick={() =>
+                void run(() => {
+                  const payload: OnboardingPatch =
+                    selectedInterests.length > 0
+                      ? { step: "FOLLOWS", interestsJson: JSON.stringify(selectedInterests) }
+                      : { step: "FOLLOWS" };
+                  return patchOnboarding(payload).then(() => undefined);
+                })
+              }
+            >
+              {pending ? "保存中…" : "下一步"}
+            </Button>
+          </div>
         </div>
       ) : null}
 
       {currentStep === "PROFILE" ? (
         <form
-          className="rounded-xl border border-border/70 bg-card p-6"
+          className="rounded-card border border-border/70 bg-card p-6"
           onSubmit={(event) => {
             event.preventDefault();
             void run(async () => {
@@ -545,47 +569,47 @@ export function OnboardingPage() {
               />
             </div>
           </div>
-          <Button className="mt-4" variant="accent" type="submit" disabled={pending}>
-            {pending ? "保存中…" : "下一步"}
-          </Button>
+          <div className="sticky bottom-0 z-rail -mx-6 -mb-6 mt-4 flex flex-wrap items-center rounded-b-card border-t border-border/70 bg-card/95 px-6 py-3 backdrop-blur">
+            <Button variant="accent" type="submit" disabled={pending}>
+              {pending ? "保存中…" : "下一步"}
+            </Button>
+          </div>
         </form>
       ) : null}
 
       {currentStep === "FOLLOWS" ? (
-        <div className="rounded-xl border border-border/70 bg-card p-6">
+        <div className="rounded-card border border-border/70 bg-card p-6">
           <h2 className="section-heading">推荐关注</h2>
           <p className="lede mt-1">
             创作者推荐暂时不可用。这一步可以跳过，不会伪造名单，也不影响已经记录的兴趣。
           </p>
-          <Button
-            className="mt-4"
-            variant="accent"
-            disabled={pending}
-            onClick={() =>
-              void run(() => patchOnboarding({ step: "PROFILE" }).then(() => undefined))
-            }
-          >
-            {pending ? "跳转中…" : "跳过"}
-          </Button>
+          <div className="sticky bottom-0 z-rail -mx-6 -mb-6 mt-4 flex flex-wrap items-center rounded-b-card border-t border-border/70 bg-card/95 px-6 py-3 backdrop-blur">
+            <Button
+              variant="accent"
+              disabled={pending}
+              onClick={() =>
+                void run(() => patchOnboarding({ step: "PROFILE" }).then(() => undefined))
+              }
+            >
+              {pending ? "跳转中…" : "跳过"}
+            </Button>
+          </div>
         </div>
       ) : null}
 
       {currentStep === "DONE" ? (
-        <div className="rounded-xl border border-border/70 bg-card p-6 text-center">
+        <div className="rounded-card border border-border/70 bg-card p-6 text-center">
           <h2 className="section-heading">欢迎加入星语</h2>
           <p className="lede mt-2">
             {selectedInterests.length > 0
               ? `已记录 ${selectedInterests.length} 项兴趣。`
               : "入门设置已就绪。"}
           </p>
-          <Button
-            className="mt-4"
-            variant="accent"
-            disabled={pending}
-            onClick={() => void run(finish)}
-          >
-            {pending ? "进入中…" : "进入星语"}
-          </Button>
+          <div className="sticky bottom-0 z-rail -mx-6 -mb-6 mt-4 flex flex-wrap items-center justify-center rounded-b-card border-t border-border/70 bg-card/95 px-6 py-3 backdrop-blur">
+            <Button variant="accent" disabled={pending} onClick={() => void run(finish)}>
+              {pending ? "进入中…" : "进入星语"}
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -598,6 +622,6 @@ export function OnboardingPage() {
         </Link>{" "}
         里继续改资料。
       </p>
-    </section>
+    </ArchetypeFrame>
   );
 }

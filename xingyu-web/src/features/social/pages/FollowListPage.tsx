@@ -4,10 +4,12 @@ import { ApiError } from "@/api/client";
 import { socialApi } from "@/api/social/social.api";
 import type { FollowUser } from "@/api/social/social.types";
 import { usersApi } from "@/api/users/users.api";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { FollowUserRow } from "../FollowUserRow";
+import { FollowUserRow, followUserLabel } from "../FollowUserRow";
 
 type LoadState =
   | { kind: "loading" }
@@ -27,6 +29,21 @@ type LoadState =
  *
  * `limit` is the only paging knob (no cursor): 50 is the backend's own default
  * ceiling for a single page, so the window is fetched once.
+ *
+ * 骨架（A §3 `/me/*` 表）
+ * ----------------------
+ * MyFollowing  = SK6 · 线/紧/错 ：`PageMasthead` + `FeedRow` 行式 + **右栏**
+ * MyFollowers  = SK6 · 线/紧/齐 ：同样的页头与行制，**没有右栏**
+ * 一个文件两页，所以「错 / 齐」这一档差异只能落在 `rail` 的有无上 —— 这也正是
+ * R 轴的定义（错 = 主列+侧轨，齐 = 全块与内容列同宽同边），而不是页面自己写
+ * 一套偏移网格。页头两种方向都保持 `线`（无面 masthead）：同一屏两页的标题是
+ * 「我的关注 / 我的粉丝」，用横幅把区别放在「有无一层面色」上会读成两种页面形态。
+ *
+ * 页签（关注 / 粉丝）从标题下方的一行挪进 `PageMasthead` 的 `actions` 槽：
+ * 页签属于页头的身份行，放在这里首屏就少一块，行流能更早开始。`<nav aria-label>`
+ * 与 `aria-current="page"` 原样保留（路由测试与 follow-pages.test.tsx 都按它查）。
+ * 选中态按 B §4 收敛：`--surface-sunken` 面 + `--primary` 字，不再用蓝底蓝字
+ * （功能蓝只留给链接、焦点与选中竖条）。
  */
 
 const LIMIT = 50;
@@ -53,10 +70,10 @@ const COPY: Record<Direction, { title: string; empty: string; emptyHint: string 
  */
 function tabClass(active: boolean): string {
   return cn(
-    "focus-ring rounded-md border px-3 py-1.5 text-sm",
+    "focus-ring rounded-chip border px-3 py-1.5 text-sm transition-colors",
     active
-      ? "border-accent bg-accent/10 font-medium text-accent-strong"
-      : "border-border text-muted-foreground hover:bg-muted",
+      ? "border-border bg-surface-sunken font-medium text-primary"
+      : "border-transparent text-muted-foreground hover:bg-muted",
   );
 }
 
@@ -168,29 +185,41 @@ export function FollowListPage({ direction }: { direction: Direction }) {
   const { users } = state;
 
   return (
-    <div className="section-gap">
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">{copy.title}</h1>
-        <p className="lede mt-2 max-w-2xl">{`共 ${users.length} 位`}</p>
-      </header>
-
-      <nav aria-label="关注导航" className="flex gap-2">
-        <Link
-          to="/me/following"
-          aria-current={direction === "following" ? "page" : undefined}
-          className={tabClass(direction === "following")}
-        >
-          关注
-        </Link>
-        <Link
-          to="/me/followers"
-          aria-current={direction === "followers" ? "page" : undefined}
-          className={tabClass(direction === "followers")}
-        >
-          粉丝
-        </Link>
-      </nav>
-
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="line"
+      density="compact"
+      headerSlot={
+        <PageMasthead
+          title={copy.title}
+          description={`共 ${users.length} 位`}
+          actions={
+            <nav aria-label="关注导航" className="flex gap-2">
+              <Link
+                to="/me/following"
+                aria-current={direction === "following" ? "page" : undefined}
+                className={tabClass(direction === "following")}
+              >
+                关注
+              </Link>
+              <Link
+                to="/me/followers"
+                aria-current={direction === "followers" ? "page" : undefined}
+                className={tabClass(direction === "followers")}
+              >
+                粉丝
+              </Link>
+            </nav>
+          }
+        />
+      }
+      /*
+       * R=错 只在「我的关注」上成立：粉丝列表按映射表是「齐」，所以那一页不传 rail，
+       * frame 自动退回 `SOLO.SK6` 的单列。右栏两块都从本页已取回的 users 派生。
+       */
+      rail={direction === "following" && users.length > 0 ? <FollowingRail users={users} /> : null}
+      railLabel="关注侧栏"
+    >
       {rowError ? (
         <p role="alert" className="text-sm text-destructive">
           {rowError}
@@ -200,7 +229,10 @@ export function FollowListPage({ direction }: { direction: Direction }) {
       {users.length === 0 ? (
         <PageState kind="empty" title={copy.empty} description={copy.emptyHint} />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        /* 行式流：单列、发丝线分隔（`FollowUserRow` 内部用 `FeedRow`），
+           所以这里不再给 `sm:grid-cols-2` —— D=紧 的「行」与 D=松 的「格」
+           是两种读法，两列会把行读成格子。 */
+        <ul aria-label={`${copy.title}列表`} className="flex flex-col">
           {users.map((user) => (
             <FollowUserRow
               key={user.userId}
@@ -221,8 +253,74 @@ export function FollowListPage({ direction }: { direction: Direction }) {
           ))}
         </ul>
       )}
+    </ArchetypeFrame>
+  );
+}
+
+/**
+ * 右栏：只挂在「我的关注」上（R=错）。两块都由本页已取回的 `FollowUser[]` 派生。
+ *
+ * 刻意不自造「互关率 / 活跃度」类指标：`FollowUser` 只有 userId/username/
+ * displayName/followedAt 四个字段。这里的人数与时间都能逐条复核。
+ *
+ * 名单用 `<span>` 而不是 `<Link>`：行流里那条才是唯一可点的目标，右栏只是索引副本。
+ */
+function FollowingRail({ users }: { users: FollowUser[] }) {
+  const mutual = users.filter((user) => Boolean(user.followedAt)).length;
+  const latest = [...users]
+    .filter((user) => Boolean(user.followedAt))
+    .sort((a, b) => followedAtMs(b.followedAt) - followedAtMs(a.followedAt))
+    .slice(0, 3);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <section
+        aria-labelledby="following-rail-overview"
+        className="rounded-card border border-border/70 bg-card p-4"
+      >
+        <h2 id="following-rail-overview" className="text-h3 text-primary">
+          关注概览
+        </h2>
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+          <div>
+            <dt className="text-caption text-muted-foreground">关注人数</dt>
+            <dd className="mt-1 text-metric leading-none tabular-nums text-primary">
+              {users.length}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-caption text-muted-foreground">已回关</dt>
+            <dd className="mt-1 text-metric leading-none tabular-nums text-primary">{mutual}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {latest.length > 0 ? (
+        <section
+          aria-labelledby="following-rail-latest"
+          className="rounded-card border border-border/70 bg-card p-4"
+        >
+          <h2 id="following-rail-latest" className="text-h3 text-primary">
+            最近关注
+          </h2>
+          <ul className="mt-3 flex flex-col gap-3">
+            {latest.map((user) => (
+              <li key={user.userId} className="truncate text-meta text-foreground-soft">
+                {followUserLabel(user)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
+}
+
+/** 排序用的时间戳；缺失或不可解析一律当 0，让它们排到最后。 */
+function followedAtMs(value?: string | null): number {
+  if (!value) return 0;
+  const ms = new Date(value).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
 }
 
 /** Route hosts — `/me/following` and `/me/followers`. */

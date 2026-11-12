@@ -54,6 +54,7 @@ export type ArticleDraft = {
   lockVersion: number;
   updatedAt: string;
   scheduledPublishAt: string | null;
+  collaborationRole?: "OWNER" | "EDITOR";
 };
 
 /** Verified enum from top.pxczxn.xingyu.common.contract.access.Visibility. */
@@ -111,6 +112,8 @@ export type MyArticleSummary = {
   title: string | null;
   categoryId: string | null;
   updatedAt: string;
+  /** OWNER = 自己的文章；EDITOR = 通过协作邀请获得的草稿编辑权。缺省按作者处理。 */
+  collaborationRole?: "OWNER" | "EDITOR";
 };
 
 /*

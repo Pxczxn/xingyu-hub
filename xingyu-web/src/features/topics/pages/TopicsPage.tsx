@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { topicsApi } from "@/api/topics/topics.api";
 import type { TopicSummary } from "@/api/topics/topics.types";
-import { PageMasthead } from "@/components/shared/PageMasthead";
+import { PageHero } from "@/components/shared/PageHero";
 import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
+import { ArchetypeFrame, BleedBand } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth.store";
 import { staggerDelay } from "@/lib/stagger";
@@ -208,25 +209,48 @@ export function TopicsPage() {
 
   const searching = keyword.trim().length > 0;
 
-  return (
-    <div className="section-gap">
-      {/*
-       * 批次 08 改进：话题广场改用 PageMasthead（无表面开头）。
-       * 页头是 P3（eyebrow、标题和一句话），筛选条是 P1（sticky），话题网格是 P0。
-       * 无需 banner 包装——读者来这里是为了找话题，不是被"卖"一个概念。
-       */}
-      <PageMasthead
-        eyebrow="TOPICS"
-        title="话题广场"
-        description="从感兴趣的话题出发，找到正在发生的讨论，并持续关注它们。"
-      />
+  /*
+   * 发现区是否有东西可排。两份名单都从 `topics` 派生，服务端没给时间或内容数时
+   * 会是空的 —— 那种情况下整条出血带不渲染，而不是留一条空带（`TopicDiscoverySection`
+   * 自己也会返回 null，但 band 的边框和上下 padding 会留下一条空条）。
+   */
+  const hasDiscovery = featured.hot.length > 0 || featured.recent.length > 0;
 
+  /*
+   * SK2 画廊 · H 幅 / D 松 / R 出（A §3 的 Topics 行）。
+   *
+   *   skeleton="SK2"    → 画廊原型：卡格 + 卡即链接，页面不再手写整页栅格。
+   *   header="banner"   → H=幅：`PageHero`，有面横幅（eyebrow + 标题 + 一句话）。
+   *   density="loose"   → D=松：每张话题卡独立成面，首屏 ≤3 块。
+   *   R=出             → 首屏有一条整幅出血带：热门话题 / 最近活跃两份**带真实计数
+   *                       与发布时间**的目录坐在带里（mesh 母题、card 面），其后的
+   *                       「全部话题」卡格回到内容列。
+   *
+   * 与同为 SK2·幅/松/出的 DiscoverPage 的区别：两页四元组相同，靠出血带**内容**与
+   * 带下构图区分 —— 这里带里是话题目录（先给「从哪开始」），带下是三列等权卡格；
+   * Discover 带里是横幅（先给「这是哪儿」），带下是筛选列 + 单列可展开的阅读行。
+   */
+  return (
+    <ArchetypeFrame
+      skeleton="SK2"
+      header="banner"
+      density="loose"
+      headerSlot={
+        <PageHero
+          eyebrow="TOPICS"
+          title="话题广场"
+          description="从感兴趣的话题出发，找到正在发生的讨论，并持续关注它们。"
+        />
+      }
+    >
       {/*
-        话题发现区（第二层）：热门话题 + 最近活跃，1:1 两列。
-        搜索时整块让位，让过滤结果成为唯一焦点。
-      */}
-      {!searching && !loading && !error ? (
-        <TopicDiscoverySection hot={featured.hot} recent={featured.recent} />
+       * 话题发现区（第二层）：热门话题 + 最近活跃，1:1 两列。
+       * 搜索时整块让位，让过滤结果成为唯一焦点。
+       */}
+      {!searching && !loading && !error && hasDiscovery ? (
+        <BleedBand tone="card" motif="mesh" contentClassName="px-4 py-8 md:px-6 md:py-10">
+          <TopicDiscoverySection hot={featured.hot} recent={featured.recent} />
+        </BleedBand>
       ) : null}
 
       {loading ? <PageState kind="loading" /> : null}
@@ -264,7 +288,7 @@ export function TopicsPage() {
           >
             {visible.length > 0 ? (
               <ul
-                className="grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3"
+                className="grid list-none gap-[var(--density-grid-gap)] p-0 sm:grid-cols-2 lg:grid-cols-3"
                 data-testid="topic-list"
               >
                 {visible.map((topic, index) => {
@@ -308,6 +332,6 @@ export function TopicsPage() {
           </PageSection>
         </>
       ) : null}
-    </div>
+    </ArchetypeFrame>
   );
 }

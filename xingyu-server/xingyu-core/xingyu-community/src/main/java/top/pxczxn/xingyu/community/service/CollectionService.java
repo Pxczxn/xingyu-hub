@@ -6,6 +6,7 @@ import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.dto.CollectionItemView;
 import top.pxczxn.xingyu.community.dto.CollectionSummaryView;
 import top.pxczxn.xingyu.community.dto.CollectionView;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 import top.pxczxn.xingyu.community.entity.CollectionEntry;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
@@ -19,7 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -53,12 +58,14 @@ public class CollectionService {
     }
 
     public List<CollectionSummaryView> listMine(CommunityUser user) {
-        return collectionMapper.listByOwnerId(user.getId()).stream()
+        List<UserCollection> collections = collectionMapper.listByOwnerId(user.getId());
+        Map<String, Long> counts = itemCounts(collections);
+        return collections.stream()
                 .map(collection -> CollectionSummaryView.builder()
                         .id(collection.getId())
                         .title(collection.getName())
                         .visibility(collection.getVisibility())
-                        .itemCount(collectionEntryMapper.countByCollectionId(collection.getId()))
+                        .itemCount(counts.getOrDefault(collection.getId(), 0L))
                         .build())
                 .toList();
     }
@@ -71,8 +78,10 @@ public class CollectionService {
         if (!canRead(collection, viewer)) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        List<CollectionItemView> items = collectionEntryMapper.listByCollectionId(collectionId).stream()
-                .map(this::toItemView)
+        List<CollectionEntry> entries = collectionEntryMapper.listByCollectionId(collectionId);
+        Map<String, SearchDocument> documents = documentsFor(entries);
+        List<CollectionItemView> items = entries.stream()
+                .map(entry -> toItemView(entry, documents.get(documentKey(entry.getObjectType(), entry.getObjectId()))))
                 .toList();
         return CollectionView.builder()
                 .id(collection.getId())
@@ -149,9 +158,7 @@ public class CollectionService {
     @Transactional
     public void deleteCollection(CommunityUser user, String collectionId) {
         UserCollection collection = requireOwnedCollection(user, collectionId);
-        for (CollectionEntry entry : collectionEntryMapper.listByCollectionId(collectionId)) {
-            collectionEntryMapper.deleteById(entry.getId());
-        }
+        collectionEntryMapper.deleteByCollectionId(collection.getId());
         collectionMapper.deleteById(collection.getId());
     }
 
@@ -215,10 +222,7 @@ public class CollectionService {
     }
 
     private CollectionEntry findEntry(String collectionId, String objectType, String objectId) {
-        return collectionEntryMapper.listByCollectionId(collectionId).stream()
-                .filter(entry -> objectType.equals(entry.getObjectType()) && objectId.equals(entry.getObjectId()))
-                .findFirst()
-                .orElse(null);
+        return collectionEntryMapper.findByCollectionAndObject(collectionId, objectType, objectId);
     }
 
     private void validateObject(String objectType, String objectId) {
@@ -240,8 +244,47 @@ public class CollectionService {
         return viewer != null && viewer.getId().equals(collection.getOwnerId());
     }
 
+    private Map<String, Long> itemCounts(List<UserCollection> collections) {
+        if (collections.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Long> counts = new HashMap<>();
+        for (ObjectCountRow row : collectionEntryMapper.countByCollectionIds(
+                collections.stream().map(UserCollection::getId).distinct().toList())) {
+            counts.put(row.getObjectId(), row.getCount());
+        }
+        return counts;
+    }
+
+    private Map<String, SearchDocument> documentsFor(List<CollectionEntry> entries) {
+        if (entries.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<String>> idsByType = new LinkedHashMap<>();
+        for (CollectionEntry entry : entries) {
+            List<String> ids = idsByType.computeIfAbsent(entry.getObjectType(), key -> new ArrayList<>());
+            if (!ids.contains(entry.getObjectId())) {
+                ids.add(entry.getObjectId());
+            }
+        }
+        Map<String, SearchDocument> documents = new HashMap<>();
+        for (Map.Entry<String, List<String>> entry : idsByType.entrySet()) {
+            for (SearchDocument document : searchDocumentMapper.listByTypeAndIds(entry.getKey(), entry.getValue())) {
+                documents.putIfAbsent(documentKey(document.getObjectType(), document.getObjectId()), document);
+            }
+        }
+        return documents;
+    }
+
+    private static String documentKey(String objectType, String objectId) {
+        return objectType + "\u0001" + objectId;
+    }
+
     private CollectionItemView toItemView(CollectionEntry entry) {
-        SearchDocument document = searchDocumentMapper.findByObject(entry.getObjectType(), entry.getObjectId());
+        return toItemView(entry, searchDocumentMapper.findByObject(entry.getObjectType(), entry.getObjectId()));
+    }
+
+    private CollectionItemView toItemView(CollectionEntry entry, SearchDocument document) {
         String title = document == null ? entry.getObjectId() : document.getTitle();
         return CollectionItemView.builder()
                 .id(entry.getId())

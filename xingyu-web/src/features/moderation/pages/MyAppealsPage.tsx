@@ -8,10 +8,11 @@ import {
   targetDescription,
   type AppealDetailView,
 } from "@/api/moderation/moderation.types";
+import { ArchetypeFrame, FeedRow } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
-import { staggerDelay } from "@/lib/stagger";
+import { ModerationSwitch } from "@/features/moderation/components/ModerationSwitch";
 
 /*
  * My appeals (Phase 2J-2, reworked by the Governance Static Design收敛 pass).
@@ -113,39 +114,43 @@ export function MyAppealsPage() {
   }
 
   const { appeals } = state;
+  /*
+    SK6 信息流 · H=线 / D=紧 / R=齐（`.team/design/A-archetypes.md` §3 的 MyAppeals 行）。
 
+    与 /reports 共用同一套骨架与同一份切换器组件，但两者不是同一个模板：
+
+      H=线：`PageMasthead` 无面页头，替掉改前手写的 `<header>` + `text-2xl`（A §4 点名的
+        30 处之一）。
+      D=紧：条目是「行」。`FeedRow` 自带发丝线、无逐项卡面；改前是「一张大卡 + divide-y」。
+      R=齐：**没有侧轨** —— 切换器与「查看社区规则」都留在主列，与行流同宽同边。R=错 留给了
+        /reports 与 /appeals/:id，本页要保持「一条竖列读到底」的节奏，否则两页会读成同一个
+        页面换了标题。
+
+    行内容一字未动：先是「针对：<对象描述>」（绝不渲染 caseId），再是状态、申诉正文、时间。
+    行的错峰入场去掉了（理由同 MyReportsPage：行流是连续读数，逐行延迟只会让人等）。
+  */
   return (
-    <div className="section-gap">
-      {/*
-        页头（2026-10-13，批次 08c）—— 与 /reports 同形：去卡片、去图标、改成分隔
-        线式。完整判据写在 MyReportsPage 的注释里（方案 §4.6 逐字的「状态与操作必须
-        比装饰优先」+ 全库 15 处卡片式页头零处刻意保留 + 带图标的 h1 15/15 全落在
-        卡片页头里），这里不重复。
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="line"
+      density="compact"
+      headerSlot={
+        <PageMasthead title="我的申诉" description="你对社区治理措施提交的申诉及裁定结果。" />
+      }
+    >
+      <ModerationSwitch active="appeals" />
 
-        这一页必须与 /reports 逐字一致：两页共用同一个切换器，读者是在它们之间来回
-        切的，页头长得不一样就会读成两个不同的东西。
-      */}
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的申诉</h1>
-        <p className="lede mt-2 max-w-2xl">你对社区治理措施提交的申诉及裁定结果。</p>
-      </header>
-
-      <nav className="flex flex-wrap gap-2" aria-label="举报与申诉">
-        <Link to="/reports" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>
-          我的举报
-        </Link>
-        <span className={cn(buttonVariants({ variant: "accent" }), "text-sm")}>我的申诉</span>
-      </nav>
-
-      <section className="rounded-xl border border-border/70 bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="section-heading">申诉记录</h2>
+      <section aria-labelledby="appeals-list-heading">
+        <div className="flex items-baseline justify-between border-b border-border/70 pb-2">
+          <h2 id="appeals-list-heading" className="section-heading">
+            申诉记录
+          </h2>
           {/* No "load more": the endpoint returns a bare array with no cursor. */}
           <span className="text-meta text-muted-foreground">最多 {APPEAL_LIST_LIMIT} 条</span>
         </div>
 
         {appeals.length === 0 ? (
-          <div className="p-5">
+          <div className="pt-4">
             <PageState
               kind="empty"
               title="暂无申诉记录"
@@ -153,40 +158,41 @@ export function MyAppealsPage() {
             />
           </div>
         ) : (
-          <ul aria-label="我的申诉列表" className="divide-y divide-border">
-            {appeals.map((appeal, index) => (
-              <li
+          <ul aria-label="我的申诉列表" className="flex flex-col">
+            {appeals.map((appeal) => (
+              <FeedRow
                 key={appeal.id}
-                className="animate-rise-in px-5 py-4"
-                style={{ animationDelay: staggerDelay(index) }}
+                className="animate-rise-in"
+                meta={
+                  <time dateTime={appeal.createdAt} className="tabular-nums">
+                    {formatTime(appeal.createdAt)}
+                  </time>
+                }
               >
                 {/* 针对什么处理 —— 对象描述，绝不渲染 caseId/UUID */}
-                <p className="text-xs text-muted-foreground">针对：{targetDescription(appeal)}</p>
+                <p className="text-meta text-muted-foreground">针对：{targetDescription(appeal)}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+                  <span className="rounded-pill bg-muted px-2 py-0.5 text-caption font-medium text-foreground">
                     {appealStatusLabel(appeal.status)}
                   </span>
                 </div>
                 <Link
                   to={`/appeals/${encodeURIComponent(appeal.id)}`}
-                  className="mt-1 block whitespace-pre-wrap text-sm leading-6 text-foreground hover:text-accent-strong"
+                  className="focus-ring mt-1 block whitespace-pre-wrap text-body leading-6 text-foreground hover:text-accent-strong"
                 >
                   {appeal.body?.trim() || "（无内容）"}
                 </Link>
-                <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-                  {formatTime(appeal.createdAt)}
-                </p>
-              </li>
+              </FeedRow>
             ))}
           </ul>
         )}
       </section>
 
       <p className="text-center">
-        <Link to="/guide" className={cn(buttonVariants({ variant: "outline" }), "text-sm")}>
+        <Link to="/guide" className={buttonVariants({ variant: "outline", className: "text-sm" })}>
           查看社区规则
         </Link>
       </p>
-    </div>
+    </ArchetypeFrame>
   );
 }

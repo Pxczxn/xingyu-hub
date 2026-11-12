@@ -5,6 +5,7 @@ import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.dto.AppealAdminView;
 import top.pxczxn.xingyu.community.dto.AppealDetailView;
+import top.pxczxn.xingyu.community.dto.CaseMeasureRow;
 import top.pxczxn.xingyu.community.dto.ModerationCaseView;
 import top.pxczxn.xingyu.community.dto.ReportAdminView;
 import top.pxczxn.xingyu.community.dto.ReportSupplementView;
@@ -46,9 +47,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -208,6 +212,134 @@ public class ModerationService {
     private record TargetDescription(String title, String summary) {
     }
 
+    private Map<String, ModerationCase> casesByReportId(List<Report> reports) {
+        List<String> reportIds = reports.stream()
+                .map(Report::getId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        if (reportIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, ModerationCase> cases = new HashMap<>();
+        for (ModerationCase moderationCase : caseMapper.listByReportIds(reportIds)) {
+            cases.putIfAbsent(moderationCase.getReportId(), moderationCase);
+        }
+        return cases;
+    }
+
+    private Map<String, TargetDescription> describeTargets(List<Report> reports) {
+        List<String> articleIds = distinctObjectIds(reports, "ARTICLE");
+        List<String> momentIds = distinctObjectIds(reports, "MOMENT");
+        List<String> commentIds = distinctObjectIds(reports, "COMMENT");
+        Map<String, FormalRevision> articleRevisions = articleRevisions(articleIds);
+        Map<String, MomentRevision> momentRevisions = new HashMap<>();
+        if (!momentIds.isEmpty()) {
+            for (MomentRevision revision : momentRevisionMapper.listLatestByMomentIds(momentIds)) {
+                momentRevisions.putIfAbsent(revision.getMomentId(), revision);
+            }
+        }
+        Map<String, Comment> comments = new HashMap<>();
+        if (!commentIds.isEmpty()) {
+            for (Comment comment : commentMapper.selectBatchIds(commentIds)) {
+                comments.putIfAbsent(comment.getId(), comment);
+            }
+        }
+        Map<String, TargetDescription> descriptions = new HashMap<>();
+        for (Report report : reports) {
+            String key = targetKey(report.getObjectType(), report.getObjectId());
+            descriptions.putIfAbsent(
+                    key,
+                    descriptionOf(
+                            report.getObjectType(),
+                            report.getObjectId(),
+                            articleRevisions,
+                            momentRevisions,
+                            comments));
+        }
+        return descriptions;
+    }
+
+    private Map<String, FormalRevision> articleRevisions(List<String> articleIds) {
+        if (articleIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, PublishedRevision> publishedByArticle = new HashMap<>();
+        for (PublishedRevision published : publishedRevisionMapper.listByArticleIds(articleIds)) {
+            publishedByArticle.putIfAbsent(published.getArticleId(), published);
+        }
+        List<String> revisionIds = publishedByArticle.values().stream()
+                .map(PublishedRevision::getFormalRevisionId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        Map<String, FormalRevision> revisionsById = new HashMap<>();
+        if (!revisionIds.isEmpty()) {
+            for (FormalRevision revision : formalRevisionMapper.listByIds(revisionIds)) {
+                revisionsById.putIfAbsent(revision.getId(), revision);
+            }
+        }
+        Map<String, FormalRevision> byArticle = new HashMap<>();
+        List<String> missing = new ArrayList<>();
+        for (String articleId : articleIds) {
+            PublishedRevision published = publishedByArticle.get(articleId);
+            FormalRevision revision = published == null ? null : revisionsById.get(published.getFormalRevisionId());
+            if (revision != null) {
+                byArticle.put(articleId, revision);
+            } else {
+                missing.add(articleId);
+            }
+        }
+        if (!missing.isEmpty()) {
+            for (FormalRevision revision : formalRevisionMapper.listLatestByArticleIds(missing)) {
+                byArticle.putIfAbsent(revision.getArticleId(), revision);
+            }
+        }
+        return byArticle;
+    }
+
+    private TargetDescription descriptionOf(
+            String objectType,
+            String objectId,
+            Map<String, FormalRevision> articleRevisions,
+            Map<String, MomentRevision> momentRevisions,
+            Map<String, Comment> comments) {
+        return switch (objectType == null ? "" : objectType) {
+            case "ARTICLE" -> {
+                FormalRevision revision = articleRevisions.get(objectId);
+                yield revision == null
+                        ? new TargetDescription(null, null)
+                        : new TargetDescription(revision.getTitle(), revision.getSummary());
+            }
+            case "MOMENT" -> {
+                MomentRevision revision = momentRevisions.get(objectId);
+                yield revision == null
+                        ? new TargetDescription(null, null)
+                        : new TargetDescription(null, abbreviate(revision.getBody()));
+            }
+            case "COMMENT" -> {
+                Comment comment = comments.get(objectId);
+                yield comment == null
+                        ? new TargetDescription(null, null)
+                        : new TargetDescription(null, abbreviate(comment.getBody()));
+            }
+            default -> new TargetDescription(null, null);
+        };
+    }
+
+    private static List<String> distinctObjectIds(List<Report> reports, String objectType) {
+        return reports.stream()
+                .filter(report -> objectType.equals(report.getObjectType()))
+                .map(Report::getObjectId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private static String targetKey(String objectType, String objectId) {
+        return (objectType == null ? "" : objectType) + '\u0001' + (objectId == null ? "" : objectId);
+    }
+
     @Transactional
     public Report submitReport(CommunityUser user, Map<String, String> body) {
         String rawObjectType = firstNonBlank(body.get("objectType"), body.get("targetType"));
@@ -299,11 +431,18 @@ public class ModerationService {
     }
 
     public List<UserReportView> listMyReports(CommunityUser user) {
-        return reportMapper.listByReporterId(user.getId()).stream()
+        List<Report> reports = reportMapper.listByReporterId(user.getId());
+        if (reports.isEmpty()) {
+            return List.of();
+        }
+        Map<String, ModerationCase> cases = casesByReportId(reports);
+        Map<String, TargetDescription> descriptions = describeTargets(reports);
+        return reports.stream()
                 .map(report -> {
-                    ModerationCase moderationCase = caseMapper.findByReportId(report.getId());
-                    // 「举报了什么」由服务端现查，前端不得拿 targetId 当描述。
-                    TargetDescription description = describeTarget(report.getObjectType(), report.getObjectId());
+                    ModerationCase moderationCase = cases.get(report.getId());
+                    TargetDescription description = descriptions.getOrDefault(
+                            targetKey(report.getObjectType(), report.getObjectId()),
+                            new TargetDescription(null, null));
                     return UserReportView.builder()
                             .id(report.getId())
                             .status(report.getStatus())
@@ -473,8 +612,59 @@ public class ModerationService {
         if (limit <= 0) {
             limit = 20;
         }
-        return appealMapper.listByAppellantId(user.getId(), limit).stream()
-                .map(this::toAppealDetailView)
+        List<Appeal> appeals = appealMapper.listByAppellantId(user.getId(), limit);
+        if (appeals.isEmpty()) {
+            return List.of();
+        }
+        List<String> caseIds = appeals.stream()
+                .map(Appeal::getCaseId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        Map<String, ModerationCase> cases = new HashMap<>();
+        if (!caseIds.isEmpty()) {
+            for (ModerationCase moderationCase : caseMapper.selectBatchIds(caseIds)) {
+                cases.putIfAbsent(moderationCase.getId(), moderationCase);
+            }
+        }
+        List<String> reportIds = caseIds.stream()
+                .map(cases::get)
+                .filter(Objects::nonNull)
+                .map(ModerationCase::getReportId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        Map<String, Report> reports = new HashMap<>();
+        if (!reportIds.isEmpty()) {
+            for (Report report : reportMapper.selectBatchIds(reportIds)) {
+                reports.putIfAbsent(report.getId(), report);
+            }
+        }
+        List<Report> loadedReports = reportIds.stream()
+                .map(reports::get)
+                .filter(Objects::nonNull)
+                .toList();
+        Map<String, TargetDescription> descriptions = loadedReports.isEmpty()
+                ? Map.of()
+                : describeTargets(loadedReports);
+        Map<String, String> measureTypes = new HashMap<>();
+        if (!caseIds.isEmpty()) {
+            for (CaseMeasureRow row : measureMapper.listLatestByCaseIds(caseIds)) {
+                measureTypes.putIfAbsent(row.getCaseId(), row.getMeasureType());
+            }
+        }
+        return appeals.stream()
+                .map(appeal -> {
+                    ModerationCase moderationCase = cases.get(appeal.getCaseId());
+                    Report report = moderationCase == null ? null : reports.get(moderationCase.getReportId());
+                    TargetDescription description = report == null
+                            ? new TargetDescription(null, null)
+                            : descriptions.getOrDefault(
+                                    targetKey(report.getObjectType(), report.getObjectId()),
+                                    new TargetDescription(null, null));
+                    String measureType = moderationCase == null ? null : measureTypes.get(moderationCase.getId());
+                    return toAppealDetailView(appeal, report, description, measureType);
+                })
                 .toList();
     }
 
@@ -489,24 +679,23 @@ public class ModerationService {
     private AppealDetailView toAppealDetailView(Appeal appeal) {
         // 「原处理对象 / 原决定」链：case → report → 对象描述 + 最新 measure 类型。
         // 任一环节缺失时该字段为 null，UI 如实渲染为"无法解析"，绝不猜测。
-        String targetType = null;
-        String targetId = null;
-        String targetTitle = null;
-        String targetSummary = null;
-        String measureType = null;
         ModerationCase moderationCase = appeal.getCaseId() == null ? null : caseMapper.selectById(appeal.getCaseId());
+        Report report = null;
+        TargetDescription description = new TargetDescription(null, null);
+        String measureType = null;
         if (moderationCase != null) {
-            Report report = reportMapper.selectById(moderationCase.getReportId());
+            report = reportMapper.selectById(moderationCase.getReportId());
             if (report != null) {
-                targetType = report.getObjectType();
-                targetId = report.getObjectId();
-                TargetDescription description = describeTarget(report.getObjectType(), report.getObjectId());
-                targetTitle = description.title();
-                targetSummary = description.summary();
+                description = describeTarget(report.getObjectType(), report.getObjectId());
             }
             ModerationMeasure measure = measureMapper.findLatestByCaseId(moderationCase.getId());
             measureType = measure == null ? null : measure.getMeasureType();
         }
+        return toAppealDetailView(appeal, report, description, measureType);
+    }
+
+    private AppealDetailView toAppealDetailView(
+            Appeal appeal, Report report, TargetDescription description, String measureType) {
         return AppealDetailView.builder()
                 .id(appeal.getId())
                 .caseId(appeal.getCaseId())
@@ -515,10 +704,10 @@ public class ModerationService {
                 .outcome(appeal.getOutcome())
                 .decidedAt(appeal.getDecidedAt())
                 .decisionNote(appeal.getDecisionNote())
-                .targetType(targetType)
-                .targetId(targetId)
-                .targetTitle(targetTitle)
-                .targetSummary(targetSummary)
+                .targetType(report == null ? null : report.getObjectType())
+                .targetId(report == null ? null : report.getObjectId())
+                .targetTitle(description.title())
+                .targetSummary(description.summary())
                 .measureType(measureType)
                 .createdAt(appeal.getCreatedAt())
                 .build();

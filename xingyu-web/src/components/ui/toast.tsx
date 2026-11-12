@@ -35,6 +35,13 @@ import { cn } from "@/lib/utils";
 
 const ToastProvider = ToastPrimitives.Provider;
 
+/*
+ * Layer: `z-toast` (--z-toast: 200), not the old literal `z-[100]`. The literal
+ * happened to equal `--z-drawer` (100), so a toast and an open drawer/modal sat
+ * on the same layer and DOM order decided the winner. The semantic layer is
+ * strictly above header (30), user menu (40) and drawer (100), which is what a
+ * transient message over the whole shell needs.
+ */
 const ToastViewport = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Viewport>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Viewport>
@@ -42,7 +49,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col sm:max-w-[420px]",
+      "fixed top-0 z-toast flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col sm:max-w-[420px]",
       className,
     )}
     {...props}

@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SK1 阅读栏 · 桌面 1440 / 移动 390 | 星语骨架原型</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* ---- A1 专属：出血封面 → 单测量栏 + 目录侧轨 ---- */
+
+      .a1-head {
+        padding-top: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .a1-byline {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        font-size: var(--fs-meta);
+        color: var(--ink-3);
+      }
+
+      .a1-byline a {
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .a1-byline a:hover {
+        color: var(--ink);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      .a1-context {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 10px;
+        font-size: var(--fs-meta);
+        color: var(--ink-3);
+      }
+
+      .a1-context .series-link {
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      /* 双栏：正文测量栏 + 220px 目录轨。轨不抢戏，靠左边一条发丝线立住。 */
+      .a1-read {
+        display: grid;
+        grid-template-columns: minmax(0, 68ch) 220px;
+        gap: 0 44px;
+        align-items: start;
+        padding: 34px 0 8px;
+      }
+
+      .a1-toc {
+        border-left: 1px solid var(--line);
+        padding-left: 18px;
+        position: sticky;
+        top: 24px;
+      }
+
+      .a1-toc h2 {
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+
+      .a1-toc ol {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        counter-reset: toc;
+      }
+
+      .a1-toc li {
+        counter-increment: toc;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-3);
+      }
+
+      .a1-toc li::before {
+        content: counter(toc, decimal-leading-zero);
+        font-family: var(--mono);
+        font-size: 10.5px;
+        margin-right: 8px;
+        color: var(--ink-3);
+      }
+
+      .a1-toc li[aria-current="true"] {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .a1-toc li[aria-current="true"]::before {
+        color: var(--accent);
+      }
+
+      .a1-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 30px;
+        padding-top: 22px;
+        border-top: 1px solid var(--line);
+      }
+
+      .a1-actions .count {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .a1-author {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        margin-top: 26px;
+        padding: 22px 0;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .a1-author p {
+        margin-top: 4px;
+        font-size: 13px;
+        line-height: 1.75;
+        color: var(--ink-3);
+        max-width: 32em;
+      }
+
+      .a1-comments {
+        margin-top: 30px;
+      }
+
+      .a1-comments > header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .a1-comments ul {
+        margin-top: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .a1-c {
+        display: flex;
+        gap: 12px;
+      }
+
+      .a1-c p {
+        margin-top: 4px;
+        font-size: 14px;
+        line-height: 1.8;
+        color: var(--ink-2);
+        max-width: 34em;
+      }
+
+      .a1-c .micro {
+        margin-top: 6px;
+        display: flex;
+        gap: 14px;
+      }
+
+      .a1-c .micro a {
+        color: var(--ink-3);
+      }
+
+      .a1-c .micro a:hover {
+        color: var(--ink);
+      }
+
+      /* 非对称收尾：一篇大的 + 两篇小的 */
+      .a1-next {
+        margin-top: 34px;
+        padding-top: 26px;
+        border-top: 1px solid var(--line);
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+        gap: 22px;
+      }
+
+      .a1-next .lead {
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: var(--r-card);
+        padding: 22px;
+      }
+
+      .a1-next .lead .h3 {
+        font-family: var(--display);
+        font-size: 21px;
+        line-height: 1.45;
+        margin-top: 8px;
+      }
+
+      .a1-next ul {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .a1-next ul li + li {
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+      }
+
+      /* 移动：目录折进 details，双栏塌成单栏 */
+      .frame[data-width="390"] .a1-head {
+        padding-top: 24px;
+        gap: 14px;
+      }
+
+      .frame[data-width="390"] .a1-read {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 20px;
+        padding-top: 22px;
+      }
+
+      .frame[data-width="390"] .a1-toc {
+        order: -1;
+        border-left: 0;
+        padding: 0;
+        position: static;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .frame[data-width="390"] .a1-toc summary {
+        padding: 12px 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .frame[data-width="390"] .a1-toc summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .frame[data-width="390"] .a1-toc summary::after {
+        content: "＋";
+        font-family: var(--mono);
+        color: var(--ink-3);
+      }
+
+      .frame[data-width="390"] .a1-toc[open] summary::after {
+        content: "－";
+      }
+
+      .frame[data-width="390"] .a1-toc h2 {
+        font-size: 11px;
+      }
+
+      .frame[data-width="390"] .a1-toc ol {
+        padding-bottom: 14px;
+      }
+
+      .frame[data-width="390"] .a1-context {
+        gap: 6px 8px;
+      }
+
+      .frame[data-width="390"] .a1-next {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .frame[data-width="390"] .a1-next .lead .h3 {
+        font-size: 18px;
+      }
+
+      /* 桌面才有的目录标题（details 里另有一套） */
+      .a1-toc .toc-title {
+        display: block;
+      }
+
+      .frame[data-width="390"] .a1-toc .toc-title {
+        display: none;
+      }
+    </style>
+  </head>
+  <body data-sk="SK1">
+    <input id="zfit" class="sr-only" type="radio" name="zoom" checked />
+    <input id="z1" class="sr-only" type="radio" name="zoom" />
+
+    <header class="ghead">
+      <a class="gback" href="index.html">← 返回总览</a>
+      <div class="grow">
+        <span class="gnum">SK1</span>
+        <h1>阅读栏</h1>
+      </div>
+      <p class="gsub gpages">
+        <b>真实页面</b>（A §3，共 2 例以上）：<br />
+        <code>xingyu-web/src/features/article/pages/ArticleDetailPage.tsx</code>
+        <code>xingyu-web/src/features/announcements/pages/AnnouncementDetailPage.tsx</code>
+        <code>xingyu-web/src/features/guide/pages/GuideDetailPage.tsx</code>
+      </p>
+      <p class="gsub">
+        文章详情 / 公告 / 指南 / 事件 / 动态详情 / 系列详情（8 页）。构图：<b>标题就是正文首块</b>，
+        落在内容列上、<b>不作横幅</b> → 正文收在 <code style="font-family: var(--mono); font-size: 12px">--reading-measure</code>（68ch）→
+        <b>双栏</b>（正文 + 220px 目录侧轨，sticky）→ 互动 → 作者 → 评论 → 「继续读」。
+        评论与相关同样锁在这条测量列上，页面只有一条主线。
+      </p>
+      <div class="gmeta">
+        <span class="chip">单测量列 68ch</span>
+        <span class="chip">双栏 · 正文 + 220 目录</span>
+        <span class="chip">标题首块 · 无横幅</span>
+        <span class="chip">行高 1.85</span>
+      </div>
+      <div class="gtool">
+        <span>缩放</span>
+        <div class="seg" role="group" aria-label="桌面原型缩放">
+          <label for="zfit">适应宽度 58%</label>
+          <label for="z1">1:1 原尺寸</label>
+        </div>
+      </div>
+      <nav class="gswitcher" aria-label="原型切换">
+        <a href="sk1-reading.html" aria-current="page">SK1 阅读栏</a>
+        <a href="sk2-gallery.html">SK2 画廊</a>
+        <a href="sk3-console.html">SK3 控制台</a>
+        <a href="sk4-inbox.html">SK4 收件箱</a>
+        <a href="sk5-flow.html">SK5 流程</a>
+        <a href="sk6-feed.html">SK6 信息流</a>
+        <a href="sk7-reader.html">SK7 阅读器</a>
+        <a href="sk8-canvas.html">SK8 创作台</a>
+      </nav>
+    </header>
+
+    <main class="stage" id="main">
+      <!-- ================= 桌面 1440 ================= -->
+      <figure class="shot">
+        <figcaption>
+          <strong>1440</strong> 桌面
+          <em>· 出血封面 / 68ch 测量栏 / 220px 目录轨</em>
+        </figcaption>
+        <div class="frame" data-sk="SK1" data-width="1440" role="group" aria-label="桌面原型，1440 宽">
+          <a class="skip" href="#a1-main-d">跳到正文</a>
+
+          <header class="topbar">
+            <a class="brand" href="index.html">星语</a>
+            <nav class="nav" aria-label="主导航">
+              <a href="#">首页</a>
+              <a href="#">探索</a>
+              <a href="#">话题</a>
+              <a href="#">系列</a>
+              <a href="#">星系</a>
+              <a href="#">动态</a>
+              <a href="#">指南</a>
+            </nav>
+            <p class="search">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="9" cy="9" r="5.5" />
+                <path d="m13.5 13.5 3 3" />
+              </svg>
+              搜索文章、话题或作者
+            </p>
+            <div class="dock">
+              <button class="btn btn--ink btn--sm" type="button">创作</button>
+              <button class="icon" type="button" aria-label="通知（3 条未读）">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M10 3.2a5 5 0 0 0-5 5v3.3L4 14.2h12l-1-2.7V8.2a5 5 0 0 0-5-5Z" />
+                  <path d="M8.2 16.4a1.9 1.9 0 0 0 3.6 0" />
+                </svg>
+                <span class="dot">3</span>
+              </button>
+              <button class="icon" type="button" aria-label="私信（2 条未读）">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M3.2 5.4h13.6v9H3.2z" />
+                  <path d="m3.6 6.1 6.4 4.9 6.4-4.9" />
+                </svg>
+                <span class="dot">2</span>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <div id="a1-main-d" tabindex="-1">
+            <div class="page">
+              <article>
+                <header class="a1-head measure">
+                  <p class="eyebrow">长篇 · 城市观察笔记 · 第 03 章</p>
+                  <h1 class="display">
+                    在县城的旧书店里，我重新学会慢下来
+                  </h1>
+
+                  <div class="a1-byline">
+                    <span class="avatar avatar--soft" aria-hidden="true">林</span>
+                    <a href="#">林晚</a>
+                    <span class="meta">@linwan</span>
+                    <span aria-hidden="true">·</span>
+                    <time class="meta" datetime="2026-11-03">2026年11月3日</time>
+                  </div>
+
+                  <p class="lede">
+                    一个下午，我在县城最老的街上找到一家没有招牌的旧书店。它不卖畅销书，
+                    也没有咖啡和文创，只把六万册旧书按自己的脾气堆到天花板 —— 那里藏着
+                    我在城市里丢掉的那种阅读方式。
+                  </p>
+
+                  <div class="a1-context">
+                    <span>收录于</span>
+                    <a class="series-link" href="#">《城市观察笔记》</a>
+                    <span class="meta">· 第 3 章</span>
+                    <ul style="display: flex; flex-wrap: wrap; gap: 6px" aria-label="话题">
+                      <li><a class="chip" href="#">#县城</a></li>
+                      <li><a class="chip" href="#">#书店</a></li>
+                      <li><a class="chip" href="#">#慢生活</a></li>
+                    </ul>
+                  </div>
+                </header>
+
+                <div class="a1-read">
+                  <div class="measure read">
+                    <p>
+                      推开门的时候，先闻到的是纸。不是新书那种油墨味，是旧纸在潮气里放了很多年之后
+                      才会有的、带一点甜的气味。店里没有开大灯，只有靠窗一排书架上方悬着一盏
+                      黄光的灯泡，照见灰尘在光柱里慢慢地转。
+                    </p>
+                    <p>
+                      老板娘姓许，五十多岁，正把一摞《收获》按年份插回书架。她说这些杂志是
+                      上个月从隔壁县的旧货市场拉回来的，一共三百多本，缺了七年和十一年 ——
+                      缺的那两年，恰好是我开始不再读杂志的两年。
+                    </p>
+
+                    <h3>一、书架是按脾气排的</h3>
+                    <p>
+                      我问她为什么不用分类号。她指了指最里面那面墙：「那儿是按心情排的，
+                      你要找的东西不在那儿，得看你现在是什么心情。」这当然是句玩笑，但
+                      我确实在那面墙上找到了一本 1987 年的地方志，夹着一张手写的借书条，
+                      上面的日期比我的年龄还大。
+                    </p>
+
+                    <blockquote>
+                      一个书店最好的部分，往往不是它有什么，而是它愿意为了什么而空缺。
+                    </blockquote>
+
+                    <h3>二、慢下来的不是速度，是选择</h3>
+                    <p>
+                      在城市里我每周要去一次书店，二十分钟挑完三本，剩下的时间用来拍照。
+                      在这里，我花了一个半小时只翻了两本书，而且都没买 —— 因为许姐说
+                      「这本你留到冬天再看，现在看会不喜欢」。
+                    </p>
+                    <p>
+                      我忽然明白，「慢」不是把动作放慢，而是把判断变重。你不再需要快速决定
+                      要不要，因为你并不急着离开。
+                    </p>
+                  </div>
+
+                  <!-- 桌面：常驻目录轨 -->
+                  <aside>
+                    <nav class="a1-toc" aria-label="文章目录">
+                      <h2 class="toc-title">目录</h2>
+                      <ol>
+                        <li aria-current="true">书架是按脾气排的</li>
+                        <li>慢下来的不是速度，是选择</li>
+                        <li>第三个冬天还会来</li>
+                        <li>附：六家值得坐一下午的旧书店</li>
+                      </ol>
+                    </nav>
+                  </aside>
+                </div>
+
+                <div class="measure">
+                  <div class="a1-actions">
+                    <button class="btn btn--outline" type="button" aria-pressed="true">
+                      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                        <path d="M10 16s-6-3.6-6-7.2A3.3 3.3 0 0 1 10 6.6 3.3 3.3 0 0 1 16 8.8C16 12.4 10 16 10 16Z" />
+                      </svg>
+                      <span class="count">128</span>
+                      <span class="sr-only">人喜欢，已喜欢</span>
+                    </button>
+                    <button class="btn btn--outline" type="button" aria-pressed="false">
+                      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                        <path d="M5.5 3.5h9v13l-4.5-3-4.5 3z" />
+                      </svg>
+                      收藏
+                    </button>
+                    <a class="btn btn--quiet" href="#a1-comments-d">评论 12</a>
+                    <button class="btn btn--quiet" type="button">分享</button>
+                    <span class="micro" style="margin-left: auto">举报</span>
+                  </div>
+
+                  <div class="a1-author">
+                    <span class="avatar avatar--soft" aria-hidden="true" style="width: 44px; height: 44px; font-size: 16px">林</span>
+                    <div style="flex: 1 1 auto">
+                      <p class="card-t" style="font-size: 15px">林晚 <span class="meta">@linwan</span></p>
+                      <p>在县城写城市观察。已经写了三年，速度是每月一篇，不打算变快。</p>
+                    </div>
+                    <button class="btn btn--ink btn--sm" type="button">关注</button>
+                  </div>
+
+                  <section class="a1-comments" id="a1-comments-d" aria-labelledby="a1-c-title-d">
+                    <header>
+                      <h2 class="h3" id="a1-c-title-d">评论 <span class="meta">12</span></h2>
+                      <button class="btn btn--quiet" type="button">按最新</button>
+                    </header>
+                    <ul>
+                      <li class="a1-c">
+                        <span class="avatar" aria-hidden="true">陈</span>
+                        <div>
+                          <p class="card-t" style="font-size: 14px">陈叙 <span class="meta">· 2 天前</span></p>
+                          <p>
+                            「慢不是把动作放慢，而是把判断变重」这句我抄下来了。上周在苏州也进了一家
+                            这样的店，老板说他不进新书，因为新书都有人在推荐。
+                          </p>
+                          <p class="micro"><a href="#">回复</a><a href="#">喜欢 8</a></p>
+                        </div>
+                      </li>
+                      <li class="a1-c">
+                        <span class="avatar" aria-hidden="true">许</span>
+                        <div>
+                          <p class="card-t" style="font-size: 14px">许多多 <span class="meta">· 3 天前</span></p>
+                          <p>第七年、第十一年缺的那两本，我大概知道在哪儿。下次去帮你问问。</p>
+                          <p class="micro"><a href="#">回复</a><a href="#">喜欢 3</a></p>
+                        </div>
+                      </li>
+                    </ul>
+                  </section>
+
+                  <section class="a1-next" id="a1-next-d" aria-labelledby="a1-next-d">
+                    <a class="lead on-soft" href="#">
+                      <p class="eyebrow">同系列 · 第 4 章</p>
+                      <p class="h3">车站旁边的裁缝铺，和一台还在用的缝纫机</p>
+                      <p class="meta" style="margin-top: 10px">林晚 · 2026年11月17日</p>
+                    </a>
+                    <ul aria-label="你可能也想读">
+                      <li>
+                        <a class="card-t" href="#">县城的早市为什么在七点半就散了</a>
+                        <p class="micro" style="margin-top: 4px">周野 · 2026年11月9日</p>
+                      </li>
+                      <li>
+                        <a class="card-t" href="#">我在地图上找不到的那条河</a>
+                        <p class="micro" style="margin-top: 4px">阿禾 · 2026年10月28日</p>
+                      </li>
+                    </ul>
+                  </section>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <footer class="foot">
+            <span>星语</span>
+            <a href="#">公告</a>
+            <a href="#">社区活动</a>
+            <a href="#">探索创作者</a>
+            <a href="#">社区规则</a>
+            <span style="margin-left: auto">© 2026 星语社区</span>
+          </footer>
+        </div>
+      </figure>
+
+      <!-- ================= 移动 390 ================= -->
+      <figure class="shot">
+        <figcaption>
+          <strong>390</strong> 移动
+          <em>· 封面收薄 / 目录折进 details</em>
+        </figcaption>
+        <div class="frame" data-sk="SK1" data-width="390" role="group" aria-label="移动原型，390 宽">
+          <header class="topbar">
+            <button class="icon" type="button" aria-label="打开导航菜单" aria-expanded="false">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="M3 6h14M3 10h14M3 14h14" />
+              </svg>
+            </button>
+            <a class="brand" href="index.html">星语</a>
+            <div class="dock">
+              <button class="icon" type="button" aria-label="搜索">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <circle cx="9" cy="9" r="5.5" />
+                  <path d="m13.5 13.5 3 3" />
+                </svg>
+              </button>
+              <button class="icon" type="button" aria-label="通知（3 条未读）">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M10 3.2a5 5 0 0 0-5 5v3.3L4 14.2h12l-1-2.7V8.2a5 5 0 0 0-5-5Z" />
+                  <path d="M8.2 16.4a1.9 1.9 0 0 0 3.6 0" />
+                </svg>
+                <span class="dot">3</span>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <div>
+            <div class="page">
+              <article>
+                <header class="a1-head">
+                  <p class="eyebrow">长篇 · 第 03 章</p>
+                  <h1 class="h1">在县城的旧书店里，我重新学会慢下来</h1>
+
+                  <div class="a1-byline">
+                    <span class="avatar avatar--soft" aria-hidden="true" style="width: 26px; height: 26px; font-size: 11px">林</span>
+                    <a href="#">林晚</a>
+                    <span class="meta">@linwan</span>
+                    <span aria-hidden="true">·</span>
+                    <time class="meta" datetime="2026-11-03">11月3日</time>
+                  </div>
+
+                  <p class="lede">
+                    一个下午，我在县城最老的街上找到一家没有招牌的旧书店。它不卖畅销书，
+                    只把六万册旧书按自己的脾气堆到天花板。
+                  </p>
+
+                  <div class="a1-context">
+                    <span>收录于</span>
+                    <a class="series-link" href="#">《城市观察笔记》</a>
+                    <span class="meta">第 3 章</span>
+                  </div>
+                </header>
+
+                <div class="a1-read">
+                  <details class="a1-toc">
+                    <summary>文章目录 · 4 节</summary>
+                    <ol>
+                      <li aria-current="true">书架是按脾气排的</li>
+                      <li>慢下来的不是速度，是选择</li>
+                      <li>第三个冬天还会来</li>
+                      <li>附：六家值得坐一下午的旧书店</li>
+                    </ol>
+                  </details>
+
+                  <div class="read">
+                    <p>
+                      推开门的时候，先闻到的是纸。不是新书那种油墨味，是旧纸在潮气里放了很多年
+                      之后才会有的、带一点甜的气味。
+                    </p>
+                    <p>
+                      老板娘姓许，五十多岁，正把一摞《收获》按年份插回书架。她说这些杂志是
+                      上个月从隔壁县的旧货市场拉回来的，缺了七年和十一年。
+                    </p>
+                    <h3>一、书架是按脾气排的</h3>
+                    <p>
+                      我问她为什么不用分类号。她指了指最里面那面墙：「那儿是按心情排的，
+                      你要找的东西不在那儿，得看你现在是什么心情。」
+                    </p>
+                  </div>
+                </div>
+
+                <div class="a1-actions">
+                  <button class="btn btn--outline btn--sm" type="button" aria-pressed="true">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                      <path d="M10 16s-6-3.6-6-7.2A3.3 3.3 0 0 1 10 6.6 3.3 3.3 0 0 1 16 8.8C16 12.4 10 16 10 16Z" />
+                    </svg>
+                    128
+                    <span class="sr-only">人喜欢，已喜欢</span>
+                  </button>
+                  <button class="btn btn--outline btn--sm" type="button" aria-pressed="false">收藏</button>
+                  <button class="btn btn--quiet btn--sm" type="button">评论 12</button>
+                  <button class="btn btn--quiet btn--sm" type="button">分享</button>
+                </div>
+
+                <div class="a1-author">
+                  <span class="avatar avatar--soft" aria-hidden="true" style="width: 38px; height: 38px; font-size: 14px">林</span>
+                  <div style="flex: 1 1 auto">
+                    <p class="card-t" style="font-size: 14px">林晚 <span class="meta">@linwan</span></p>
+                    <p class="micro">在县城写城市观察，每月一篇。</p>
+                  </div>
+                  <button class="btn btn--ink btn--sm" type="button">关注</button>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </main>
+
+    <footer class="gfoot">
+      真实字段来源：<code>ArticleDetailPage.tsx:101-309</code> ——
+      标题 <code>title</code>、摘要 <code>summary</code>、作者 <code>ownerDisplayName/ownerUsername</code>、
+      发布时间 <code>publishedAt</code>、系列语境 <code>seriesContexts.title/position</code>、
+      话题 <code>topicSlugs</code>、正文 <code>body</code>、目录 <code>extractArticleOutline</code>。
+      字数与阅读时长已从原型中删除：后端没有这两个字段（<code>bookshelf-page.test.tsx:80</code> 甚至反面断言过「阅读时长」不应出现）。
+    </footer>
+  </body>
+</html>

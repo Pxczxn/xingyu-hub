@@ -394,16 +394,19 @@ export function GalaxyShell({
         sticky（设计方案 §3.4 第 2 行）。身份头滚走后，这三个 tab 是「我在看哪个
         星系的哪一页」的唯一剩余线索，而概览页下面还有一屏内容。
 
-        `top-24` 而非 `top-0`：shell header 自己就是 `sticky top-0 z-30`，钉在
-        `top-0` 的导航会滑到它下面去。96px 是全站既有的内容级 sticky 偏移
-        （TopicHeader / ArticleDetailPage / RulesPage / SettingsProfilePage 同值）。
+        `top-24` 而非 `top-0`：shell header 自己就是 `sticky top-0 z-header`(30)，钉在
+        `top-0` 的导航会滑到它下面去。96px（6rem）是内容级 sticky 的既有取值，
+        现在仍在用同一档的是 `RulesPage.tsx:116`（`lg:sticky lg:top-24`）。
+        `TopicHeader` **不再参与**这个对齐：阶段三 · 批次 A 已把它改成无面
+        masthead 并去掉 `lg:sticky lg:top-24 lg:z-20`（`TopicHeader.tsx:10-20`）。
 
         背景必须不透明（`bg-background`，不是 `/95`）：半透明的 sticky 条会让
-        正文从底下透出来。z-20 低于 shell header 的 z-30，也低于弹层。
+        正文从底下透出来。层级用 `--z-rail`(20)：低于 shell header 的
+        `--z-header`(30)，也低于 menu/popover/modal/drawer/toast。
       */}
       <nav
         aria-label="星系导航"
-        className="flex flex-wrap gap-6 border-b border-border/70 bg-background pb-2 pt-2 lg:sticky lg:top-24 lg:z-20"
+        className="flex flex-wrap gap-6 border-b border-border/70 bg-background pb-2 pt-2 lg:sticky lg:top-24 lg:z-rail"
       >
         {TABS.map((tab) => (
           <Link

@@ -1,5 +1,7 @@
 package top.pxczxn.xingyu.community.service;
 
+import top.pxczxn.xingyu.common.contract.ContractException;
+import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.community.dto.ContentCardView;
 import top.pxczxn.xingyu.community.dto.HomeCompositionView;
 import top.pxczxn.xingyu.community.dto.MeHomeView;
@@ -8,6 +10,7 @@ import top.pxczxn.xingyu.community.dto.PendingActionView;
 import top.pxczxn.xingyu.community.dto.SearchResultView;
 import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
+import top.pxczxn.xingyu.community.entity.WorkingDraft;
 import top.pxczxn.xingyu.community.entity.Moment;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
 import top.pxczxn.xingyu.community.entity.Series;
@@ -18,11 +21,11 @@ import top.pxczxn.xingyu.community.mapper.NotificationMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
-import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -56,6 +59,7 @@ public class HomeService {
     private final ContentCoverService contentCoverService;
     private final HomeFeedEnrichmentService enrichmentService;
     private final TopicService topicService;
+    private final ExplorationService explorationService;
 
     public HomeCompositionView compose(CommunityUser user) {
         long unread = user == null ? 0L : notificationMapper.countUnread(user.getId());
@@ -96,12 +100,11 @@ public class HomeService {
                 .map(this::toContentCard)
                 .toList();
         List<ContentCardView> recommendations = recommendationService.recommend(user, 12).getItems();
-        List<ContentCardView> draftArticles = articleMapper.listByOwnerId(user.getId()).stream()
-                .filter(ArticleStateSupport::isActiveLifecycle)
-                .filter(article -> ArticleStateSupport.EDITORIAL_DRAFT.equals(article.getStatus()))
-                .limit(6)
+        List<Article> draftRows = articleMapper.listRecentActiveDrafts(user.getId(), 6);
+        Map<String, WorkingDraft> draftByArticle = loadDrafts(draftRows);
+        List<ContentCardView> draftArticles = draftRows.stream()
                 .map(article -> {
-                    var draft = draftMapper.findByArticleId(article.getId());
+                    WorkingDraft draft = draftByArticle.get(article.getId());
                     return ContentCardView.builder()
                             .id(article.getId())
                             .title(draft == null ? "未命名草稿" : draft.getTitle())
@@ -111,16 +114,11 @@ public class HomeService {
                 })
                 .toList();
         List<PendingActionView> pendingActions = new ArrayList<>();
-        for (Article article : articleMapper.listByOwnerId(user.getId())) {
-            if (!ArticleStateSupport.isActiveLifecycle(article)) {
-                continue;
-            }
-            if (ArticleStateSupport.isUnderReview(article)) {
-                pendingActions.add(new PendingActionView(
-                        "REVIEW",
-                        "文章审核中",
-                        "/studio/reviewing"));
-            }
+        for (String ignored : articleMapper.listActiveInReviewIds(user.getId())) {
+            pendingActions.add(new PendingActionView(
+                    "REVIEW",
+                    "文章审核中",
+                    "/studio/reviewing"));
         }
 
         // One enrichment pass across all three content rails.
@@ -152,6 +150,17 @@ public class HomeService {
      * <p>一致性边界：可见性规则由事件管线保证（发布/生命周期/治理变化实时
      * 同步 search_document），与逐条路径共享同一真相源。
      */
+    private Map<String, WorkingDraft> loadDrafts(List<Article> articles) {
+        if (articles.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, WorkingDraft> drafts = new HashMap<>();
+        for (WorkingDraft draft : draftMapper.listByArticleIds(articles.stream().map(Article::getId).toList())) {
+            drafts.putIfAbsent(draft.getArticleId(), draft);
+        }
+        return drafts;
+    }
+
     private List<SearchResultView> followingUpdatesFor(CommunityUser user) {
         if (user == null) {
             // 游客（含带无效 token 的请求：resolveViewer 吞 401 返回 null）
@@ -165,11 +174,11 @@ public class HomeService {
         documents.addAll(searchDocumentMapper.findLiveArticlesByOwnerIds(followeeIds));
         documents.addAll(searchDocumentMapper.findLiveSeriesByOwnerIds(followeeIds));
         documents.addAll(searchDocumentMapper.findRecentMomentsByAuthorIds(followeeIds, 5));
-        return documents.stream()
+        List<SearchDocument> selected = documents.stream()
                 .sorted((left, right) -> right.getIndexedAt().compareTo(left.getIndexedAt()))
                 .limit(10)
-                .map(this::toSearchView)
                 .toList();
+        return toSearchViews(selected);
     }
 
     public PageResultView<ContentCardView> discover(int limit, String cursor) {
@@ -177,11 +186,29 @@ public class HomeService {
     }
 
     public PageResultView<ContentCardView> discover(int limit, String cursor, String topic, String type) {
+        return discover(limit, cursor, topic, type, null);
+    }
+
+    public PageResultView<ContentCardView> discover(
+            int limit, String cursor, String topic, String type, String sort) {
+        return discover(limit, cursor, topic, type, sort, null);
+    }
+
+    public PageResultView<ContentCardView> discover(
+            int limit, String cursor, String topic, String type, String sort, CommunityUser viewer) {
         String topicId = topic == null || topic.isBlank() ? null : topicService.requireEnabledBySlug(topic).getId();
+        List<String> domainIds = List.of();
+        if (sort != null && "interest".equalsIgnoreCase(sort.trim())) {
+            if (viewer == null) {
+                throw new ContractException(ErrorCode.AUTH_REQUIRED);
+            }
+            domainIds = explorationService.selectedDomainIds(viewer.getId());
+        }
         // Phase 5（2026-10-11）：keyset 翻页实现（此前 nextCursor 恒 null、
         // 超过单页的内容不可达）。同样做一轮批量富化，保持与首页 rails 一致
         // 的作者/计数描述；/discover 为公开端点，富化不带 viewer。
-        PageResultView<ContentCardView> page = recommendationService.discoverPage(limit, cursor, topicId, type);
+        PageResultView<ContentCardView> page = recommendationService.discoverPage(
+                limit, cursor, topicId, type, sort, domainIds);
         List<ContentCardView> items = page.getItems();
         List<ContentCardView> enriched = enrichmentService.applyCards(
                 items, enrichmentService.enrich(HomeFeedEnrichmentService.refsOfCards(items), null));
@@ -193,18 +220,19 @@ public class HomeService {
     }
 
     private List<SearchResultView> toSearchViews(List<SearchDocument> docs) {
-        return docs.stream().map(this::toSearchView).toList();
+        Map<String, String> covers = contentCoverService.resolveDocumentCovers(docs);
+        return docs.stream()
+                .map(doc -> toSearchView(doc, covers))
+                .toList();
     }
 
-    private SearchResultView toSearchView(SearchDocument doc) {
+    private SearchResultView toSearchView(SearchDocument doc, Map<String, String> covers) {
         return SearchResultView.builder()
                 .objectType(doc.getObjectType())
                 .objectId(doc.getObjectId())
                 .title(doc.getTitle())
                 .summary(doc.getSummary())
-                .cover(contentCoverService.resolveCoverUrl(doc))
-                // `indexedAt` is the only timestamp this document carries; SearchService
-                // already treats it as the hit's updatedAt, so the two surfaces agree.
+                .cover("ARTICLE".equals(doc.getObjectType()) ? covers.get(doc.getObjectId()) : null)
                 .updatedAt(doc.getIndexedAt() == null ? null : doc.getIndexedAt().toString())
                 .build();
     }

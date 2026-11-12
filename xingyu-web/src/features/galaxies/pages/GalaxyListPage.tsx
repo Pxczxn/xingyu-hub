@@ -3,6 +3,7 @@ import { ArrowRight, Network, Search, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxySummary } from "@/api/galaxies/galaxies.types";
+import { ArchetypeFrame, BleedBand } from "@/components/layout";
 import { PageHero } from "@/components/shared/PageHero";
 import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
@@ -50,7 +51,7 @@ function GalaxyGrid({
   animate?: boolean;
 }) {
   return (
-    <ul className={cn("grid list-none gap-3 p-0", className)}>
+    <ul className={cn("grid list-none gap-[var(--density-grid-gap)] p-0", className)}>
       {items.map((item, index) => (
         <li
           key={item.id}
@@ -205,20 +206,46 @@ export function GalaxyListPage() {
     );
   }
 
+  /*
+   * SK2 画廊 · H 幅 / D 松 / R 出（A §3 的 /galaxies 行）。
+   *
+   *   skeleton="SK2"    → 画廊原型：等权卡格、卡即链接；页面不再手写整页栅格。
+   *   header="banner"   → H=幅：`PageHero` 有面横幅（eyebrow + 标题 + 一句话）。
+   *   density="loose"   → D=松：每张星系卡独立成面、首屏 ≤3 块。卡格间距走
+   *                       `--density-grid-gap`，密度因此只有一处定义。
+   *   R=出             → 首屏一条整幅出血带：`BleedBand` 用与 `.content-shell`
+   *                       内边距等量的负 margin 把底色推到内容列外缘，横幅坐在带里；
+   *                       全页只此一条，其后的搜索行、星系卡格与教学段都回到内容列。
+   *                       出血带在 `GalaxyShell` 的 children 里，不在壳层页头之上 ——
+   *                       壳层身份头与页签仍整幅留在画框内。
+   *
+   * 与同为 SK2·幅 的 EventsPage（紧/错）的区别不靠颜色：本页每张卡是**独立卡面**
+   * 且带「成员数」（`GalaxyTile.tsx:119-122`），活动页是发丝线行 + 右轨日历。
+   * 与 TopicsPage / DiscoverPage（四元组与本页相同）的区别靠出血带内容与带下构图：
+   * 本页带里是横幅，带下是「搜索行 + 我的星系 chips + 官方/探索两份卡格」。
+   */
   return (
-    <div className="section-gap">
-      <PageHero
-        eyebrow="GALAXIES"
-        title="星系"
-        description="围绕共同兴趣聚合内容与成员，找到属于你的社区空间。"
-        illustration={
-          <GalaxyVisual
-            stableKey="galaxy-plaza-masthead"
-            variant="masthead"
-            className="h-20 w-28"
+    <ArchetypeFrame
+      skeleton="SK2"
+      header="banner"
+      density="loose"
+      headerSlot={
+        <BleedBand tone="sunken" motif="orbit" contentClassName="px-4 py-9 md:px-6 md:py-11">
+          <PageHero
+            eyebrow="GALAXIES"
+            title="星系"
+            description="围绕共同兴趣聚合内容与成员，找到属于你的社区空间。"
+            illustration={
+              <GalaxyVisual
+                stableKey="galaxy-plaza-masthead"
+                variant="masthead"
+                className="h-20 w-28"
+              />
+            }
           />
-        }
-      />
+        </BleedBand>
+      }
+    >
 
       {/* P1 搜索：全页过滤器，作用于下面每一个列表。 */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -385,6 +412,6 @@ export function GalaxyListPage() {
           </section>
         </>
       )}
-    </div>
+    </ArchetypeFrame>
   );
 }

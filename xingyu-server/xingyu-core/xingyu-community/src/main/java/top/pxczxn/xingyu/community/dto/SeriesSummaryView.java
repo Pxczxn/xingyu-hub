@@ -15,4 +15,5 @@ public class SeriesSummaryView {
     String status;
     int chapterCount;
     Instant updatedAt;
+    String collaborationRole;
 }

@@ -1,45 +1,70 @@
 /*
  * Design tokens for Xingyu Web V2.
- * Source: docs/design-system/MASTER.md (confirmed brand baseline).
  *
- * Brand:
- *   Navy   #1A2138  -> primary text, navigation, headings, primary buttons
- *   Cream  #F9F7F2  -> page background, shell canvas
- *   Gold   #F59E0B  -> CTAs, active nav, highlights, save/publish accents
+ * --- 2026-11-10 · PALETTE SWITCH: navy+cream+gold → 白 + 干净 (white + clean) --
+ * Final calibre: a **white, restrained** system — NOT a copy of a blue SaaS
+ * marketing site. This file re-VALUES the existing semantic variables; nothing is
+ * renamed or deleted, because three sample pages (announcements / bookshelf /
+ * studio) were already migrated against these names.
+ *
+ * Surfaces
+ *   page canvas  #FFFFFF            pure white — no grey page bottom
+ *   card         #FFFFFF + 1px #EAEAEA + 0 1px 2px rgba(17,24,39,.04)
+ *   secondary    #F7F7F8            table heads, code, small input internals
+ *   hover shadow 0 4px 12px rgba(17,24,39,.06)
+ *   floating     0 8px 24px rgba(17,24,39,.10)
+ *
+ * Text       #111827 title · #374151 body · #6B7280 auxiliary · #9CA3AF decor
+ * Borders    #EAEAEA divider only · #878E96 control edge (1.4.11)
+ *
+ * Emphasis — the whole ruling in three lines
+ *   --primary        #111827  near-black: 213 `text-primary` headings AND 41
+ *                             `bg-primary` buttons both need this
+ *   --accent         #111827  near-black: 121 `bg-accent` CTAs/badges/active
+ *                             blocks — the reason a blue accent had to go
+ *   --accent-strong  #2563EB  THE one blue text outlet: links, eyebrows,
+ *                             highlights. Plus --ring and --accent-line.
+ *   So `bg-accent` / `bg-primary` turn ink and `text-accent-strong` turns blue
+ *   with zero component edits. No other token is allowed to be blue, and no
+ *   blue fill block, blue hero or blue tint panel may be introduced.
+ *
+ * --- Measured contrast (WCAG 2.x relative luminance, sRGB) -------------------
+ * Text floors 4.5:1; non-text boundaries (WCAG 1.4.11) 3:1.
+ *
+ *   #FFFFFF on #111827  17.74:1   ← button label (the >15:1 requirement)
+ *   #FFFFFF on #000000  21.00:1
+ *   #111827 on #FFFFFF  17.74:1   #111827 on #F7F7F8  16.57:1
+ *   #374151 on #FFFFFF  10.31:1   #374151 on #F7F7F8   9.63:1
+ *   #6B7280 on #FFFFFF   4.83:1   #6B7280 on #F7F7F8   4.52:1  (readable aux)
+ *   #2563EB on #FFFFFF   5.17:1   #2563EB on #F7F7F8   4.83:1  (links/eyebrow)
+ *   #9CA3AF on #FFFFFF   2.54:1   (decorative / disabled text ONLY)
+ *   #C7CBD1 on #FFFFFF   1.63:1   (disabled control / placeholder only)
+ *   #EAEAEA on #FFFFFF   1.20:1   (--border: divider ONLY, never a control edge)
+ *   #878E96 on #FFFFFF   3.31:1   #878E96 on #F7F7F8   3.09:1  (--border-strong)
+ *
+ *   success #047857 on #ECFDF5 5.21:1 / on #FFFFFF 5.48:1
+ *   warning #B45309 on #FFFBEB 4.84:1 / on #FFFFFF 5.02:1
+ *   danger  #B91C1C on #FEF2F2 5.91:1 / on #FFFFFF 6.47:1
  *
  * All component colors MUST reference these semantic CSS variables.
  * No raw hex values are allowed in components.
- *
- * --- 2026-10-03 gold contrast fix -------------------------------------------
- * The raw brand gold is a FILL colour, not a TEXT colour. Measured against the
- * two surfaces it sits on:
- *
- *   #F59E0B on #FFFFFF  -> 2.15:1     (WCAG AA needs 4.5:1)
- *   #F59E0B on #F9F7F2  -> 2.01:1
- *   --accent-strong on cream -> 4.72:1  (fixed)
- *
- * Every gold *label* in the old UI (the `GALAXIES` eyebrow, the `进入星系 ->`
- * link, the step numbers, footer hovers) was therefore both an accessibility
- * failure AND the reason the pages read as washed-out grey: an accent you can
- * barely see is not an accent. Gold text now resolves through --accent-strong,
- * while --accent stays the fill for buttons/badges (navy on gold = 7.42:1).
  * ---------------------------------------------------------------------------
  */
 :root {
   /* raw brand references (for documentation / one-off needs) */
-  --brand-navy: #1a2138;
-  --brand-cream: #f9f7f2;
-  --brand-gold: #f59e0b;
+  --brand-ink: #111827; /* brand ink — same value as --primary and --accent */
+  --brand-blue: #2563eb; /* the one functional blue — same value as --accent-strong */
+  --brand-canvas: #ffffff; /* page canvas — same value as --background */
 
   /* semantic tokens (HSL channels, consumed via hsl(var(--x))) */
-  --background: 44 33% 96%; /* cream */
-  --foreground: 226 37% 16%; /* navy */
+  --background: 0 0% 100%; /* #FFFFFF — pure white canvas */
+  --foreground: 221 39% 11%; /* #111827 — titles, 17.74:1 on white */
 
-  --card: 0 0% 100%; /* white surface on cream */
-  --card-foreground: 226 37% 16%;
+  --card: 0 0% 100%; /* #FFFFFF — card sits on white, separated by its 1px border */
+  --card-foreground: 221 39% 11%;
 
-  --muted: 40 14% 91%;
-  --muted-foreground: 226 12% 38%;
+  --muted: 240 7% 97%; /* #F7F7F8 — secondary surface, only where distinction is needed */
+  --muted-foreground: 217 19% 27%; /* #374151 — body copy, 10.31:1 on white */
 
   /*
    * Secondary + popover exist for shadcn/ui primitives (Sheet, Dialog, Tabs,
@@ -48,57 +73,114 @@
    * tokens the surfaces render transparent and the menus become unreadable over
    * the page behind them.
    */
-  --secondary: 42 20% 93%;
-  --secondary-foreground: 226 37% 16%;
+  --secondary: 240 7% 97%; /* #F7F7F8 */
+  --secondary-foreground: 221 39% 11%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 226 37% 16%;
-
-  --primary: 226 37% 16%; /* navy */
-  --primary-foreground: 44 33% 96%; /* cream on navy */
+  --popover-foreground: 221 39% 11%;
 
   /*
-   * Gold — FILL ONLY. Navy sits on it at 7.47:1, but gold as TEXT on white
-   * is 2.13:1 and fails AA, so text resolves through --accent-strong.
+   * PRIMARY = INK, BLUE = `--accent-strong` only (final mapping, 2026-11-10).
    *
-   * Two exceptions are deliberate, so nobody "fixes" them twice:
-   *  - Decorative marks that are `aria-hidden` or `fill-current` keep the
-   *    vivid gold; they carry no reading (ruling in HomeFeedItem.tsx).
-   *  - `border-accent` on selected/active/hover states is an accent, not the
-   *    sole cue — the same element also changes its text colour or surface,
-   *    and states expose aria-selected / aria-pressed / sr-only text. Note
-   *    that --accent-line is LIGHTER than --accent, so swapping it in would
-   *    lower contrast rather than raise it.
+   *   --primary        #111827 near-black. It carries BOTH `text-primary`
+   *                    (213 heading sites) and `bg-primary` (41 primary-button
+   *                    sites), so it has to be safe as text and as a fill. Blue
+   *                    fails that job: blue headings plus blue buttons is
+   *                    exactly the SaaS look the user rejected.
+   *   --primary-hover  #000000 — a pressed button reads darker, not bluer.
+   *   --primary-soft   #F4F6F8 neutral wash. NOT blue any more (it used to be
+   *                    #EFF6FF).
+   *
+   * Blue appears in exactly THREE places in this file:
+   *   --accent-strong (text: links / eyebrow / highlight), --ring (focus),
+   *   --accent-line (hairline). Everything else is ink or grey.
    */
-  --accent: 38 92% 50%;
-  --accent-foreground: 226 37% 16%; /* navy on gold for contrast */
+  --primary: 221 39% 11%; /* #111827 — white label on it = 17.74:1 */
+  --primary-foreground: 0 0% 100%; /* #FFFFFF */
+  --primary-hover: 0 0% 0%; /* #000000 — white label on it = 21.00:1 */
+  --primary-soft: 210 22% 96%; /* #F4F6F8 — neutral wash, not blue */
 
-  /* Gold as TEXT. #B35309: measured 5.05:1 on white, 4.72:1 on cream — passes AA. */
-  --accent-strong: 26 90% 37%;
-  /* Gold as a large wash (hero panels, active nav, inset blocks). */
-  --accent-soft: 38 92% 96%;
-  /* Gold hairline — borders that should read as brand, not as a divider. */
-  --accent-line: 36 85% 78%;
+  /*
+   * Accent family — the semantics are fixed by ACTUAL USAGE (measured 2026-11-10):
+   *   bg-accent            121 sites — CTAs, badges, the active block
+   *   text-accent-strong   links, eyebrows, highlights
+   *   border-accent-line   hairlines, underlines, hover edges
+   *
+   *   --accent        #111827 near-black, because 121 call sites paint a FILL
+   *                   with it. Blue there would put blue blocks on every page.
+   *   --accent-strong #2563EB — THE ONE blue text outlet in the system (links,
+   *                   eyebrow labels, highlights). 5.17:1 on white.
+   *   --accent-soft   neutral wash #F4F6F8, identical to --primary-soft
+   *   --accent-line   blue at 35 % over white (#B3C8F8) — see the token below
+   */
+  --accent: 221 39% 11%; /* #111827 — white label/icon on it = 17.74:1 */
+  --accent-foreground: 0 0% 100%; /* #FFFFFF */
+  --accent-strong: 221 83% 53%; /* #2563EB — 5.17:1 on white, 4.83:1 on #F7F7F8 */
+  --accent-soft: 210 22% 96%; /* #F4F6F8 = --primary-soft */
+  /*
+   * Hairline blue. `rgb(37 99 235 / .35)` composited on white is exactly
+   * #B3C8F8, and it is written as an HSL TRIPLET (not the rgb() form the design
+   * note used) because `border-accent-line/60` and `ring-accent-line` already
+   * exist at ~10 call sites: Tailwind can only inject an alpha into a
+   * `hsl(var(--x))` colour. A raw `rgb(... / .35)` value would silently break
+   * every one of those opacity-modified utilities.
+   */
+  --accent-line: 222 83% 84%; /* #B3C8F8 = rgb(37 99 235 / .35) on white */
 
-  --destructive: 0 72% 45%;
+  --destructive: 0 73% 42%; /* #B91C1C — 6.47:1 on white, white on it 6.47:1 */
   --destructive-foreground: 0 0% 100%;
 
-  --border: 40 14% 87%;
-  --input: 40 14% 87%;
   /*
-   * Focus ring. Raw gold measured 2.13:1 on white / 1.97:1 on cream, and
-   * every `.focus-ring` sets `outline-none` — so this ring is the ONLY focus
-   * indicator and 3:1 (WCAG 1.4.11) is the floor, not a nicety.
-   * --accent-strong clears it on every surface in the system: white 5.05,
-   * muted 4.17 at the lowest. `ring-offset` is always a light colour, so
-   * those are the surfaces a ring actually sits against.
+   * Status pairs (text / soft background). Each `-fg`-bearing value is a TEXT
+   * colour measured against its own `-soft` wash AND against white, so a status
+   * label is legible on a tinted banner and on a plain card. `-foreground` is the
+   * label colour for a SOLID fill of the same hue. Figures in the header above.
    */
-  --ring: 26 90% 37%;
+  --success: 163 94% 24%; /* #047857 — 5.21:1 on #ECFDF5 */
+  --success-foreground: 0 0% 100%;
+  --success-soft: 149 82% 96%; /* #ECFDF5 */
+
+  --warning: 26 90% 37%; /* #B45309 — 4.84:1 on #FFFBEB */
+  --warning-foreground: 0 0% 100%;
+  --warning-soft: 48 100% 96%; /* #FFFBEB */
+
+  --danger: 0 73% 42%; /* #B91C1C = --destructive — 5.91:1 on #FEF2F2 */
+  --danger-foreground: 0 0% 100%;
+  --danger-soft: 0 86% 97%; /* #FEF2F2 */
+
+  --border: 0 0% 92%; /* #EAEAEA — divider, 1.20:1 on white (decorative) */
+  --input: 0 0% 92%; /* #EAEAEA — the perceivable edge is --border-strong */
+  /*
+   * Focus ring. Every `.focus-ring` sets `outline-none`, so this ring is the
+   * ONLY focus indicator — WCAG 1.4.11's 3:1 is the floor. #2563EB clears it on
+   * every surface it can land on: white 5.17, #F7F7F8 4.83, #F4F6F8 4.77.
+   * This is one of the sanctioned uses of blue.
+   */
+  --ring: 221 83% 53%; /* #2563EB */
 
   /* A recessed surface one step below --card: chips, table headers, code. */
-  --surface-sunken: 42 24% 92%;
-  /* Secondary headings and dense labels that must not compete with navy. */
-  --foreground-soft: 226 22% 32%;
+  --surface-sunken: 240 7% 97%; /* #F7F7F8 */
+  /*
+   * The text ladder, named once so no two pages re-invent it:
+   *   --foreground          #111827  titles / primary text        17.74:1
+   *   --foreground-muted    #374151  正文 body copy              10.31:1
+   *   --foreground-soft     #6B7280  readable secondary/auxiliary  4.83:1
+   *   --foreground-subtle   #9CA3AF  DECORATION + disabled only    2.54:1
+   *   --foreground-disabled #C7CBD1  disabled control / placeholder 1.63:1
+   *
+   * #9CA3AF (2.54:1) and #C7CBD1 (1.63:1) are BELOW the 4.5:1 floor and may
+   * never carry reading: `subtle` is for decorative rules/icons and for text
+   * that is already announced elsewhere, `disabled` is for disabled controls and
+   * placeholder text (WCAG 1.4.3 exempts both). Anything the reader must be able
+   * to read — captions, timestamps, counts, helper text — uses
+   * `--foreground-soft` (#6B7280), which measures 4.83:1 on white and 4.52:1 on
+   * #F7F7F8. (On the #F4F6F8 selected-row wash it is 4.46:1, so auxiliary text
+   * should sit on white or #F7F7F8, not inside a selected row.)
+   */
+  --foreground-soft: 220 9% 46%; /* #6B7280 — 4.83:1 white / 4.52:1 #F7F7F8 */
+  --foreground-muted: 217 19% 27%; /* #374151 — same value as --muted-foreground */
+  --foreground-subtle: 218 11% 65%; /* #9CA3AF — 2.54:1, decoration/disabled only */
+  --foreground-disabled: 216 10% 80%; /* #C7CBD1 — 1.63:1, disabled/placeholder only */
 
   --radius: 0.5rem;
 
@@ -108,44 +190,75 @@
   --radius-media: 0.5rem;
 
   /*
-   * Shell width. MASTER.md specifies `max-w-6xl` (1152px) but the shell was
-   * built at `max-w-[1440px]`, so body text ran ~100 CJK glyphs per line on a
-   * 1920px display. 1200px keeps the design system's intent while leaving the
-   * wide grids room to breathe.
+   * Shell width — the ceiling the shell actually uses again.
+   *
+   * `.content-shell` is `w-[90%]` capped by this value (`globals.css`). The
+   * percentage keeps the gutter proportional on ordinary screens; the ceiling
+   * stops the runaway past ~1778px of viewport (90% of 1778 = 1600). Measured:
+   * 390→351, 1528→1375, 1910→1600, 2560→1600.
+   *
+   * 1560 → 1600 when the shell went back to a capped percentage: at 1920 (the
+   * most common desktop width) a 1560 ceiling leaves 180px per side, which
+   * reads as a phone-shaped column on a desktop; 1600 lands ~155 per side and
+   * still leaves the feed row ~1552px wide.
+   *
+   * Prose width is capped independently by `--reading-measure` above, so this
+   * value is about the page box, not about line length.
+   *
+   * Also exposed as the `max-w-shell` utility (`tailwind.config.ts`,
+   * `maxWidth.shell`); that utility currently has no consumers, so the shell
+   * rule is the only thing reading this token.
    */
-  --shell-max-width: 1200px;
+  --shell-max-width: 1600px;
 
   /*
    * Vertical offset for the floating notification stack.
    *
    * The shell header is `sticky top-0`, so anything pinned to `top-0` lands on
-   * top of it — the first toast covered 创作/登录/注册. The tallest header is the
-   * mobile one (~61px: h-10 actions + py-2.5 + border); 4.75rem (76px) clears it
-   * with a ~15px gap and a slightly larger gap on the shorter desktop header.
+   * top of it — the first toast covered 创作/登录/注册. The header height steps
+   * with the root font size: 61 / 64.8125 / 68.625px (token
+   * `--shell-header-height`). This offset is rem-based too (4.75rem), so it
+   * scales in step — clearance stays ≈15 / 15.9 / 16.9px.
    * Both the token and the header are edited together.
    */
   --toast-top-offset: 4.75rem;
 
   /*
-   * Height of the shell header on the breakpoints that show the mobile reader
-   * toolbar: the hamburger and h-10 action buttons make the row ~60.8px, so 61
-   * is the ceiling. (A desktop guest header without those h-10 controls is
-   * ~57px, but the sticky reader bar only exists below `lg`.)
+   * Height of the shell header — and the header's ACTUAL box height: the shell
+   * `<header>` sets `h-[var(--shell-header-height)]` (`AppLayout.tsx`), so its
+   * bottom edge equals this token (measured at 390 / 1528 / 1910: 0px
+   * deviation).
    *
-   * The reader toolbar uses this token instead of re-deriving the offset in a
-   * component. If the shell header's mobile height changes, edit this token.
+   * The value is rem-based on purpose: the root font size steps 16 → 17 → 18px
+   * at `min-width: 1440` / `1800` (`globals.css`), so the same token resolves to
+   * 61 / 64.8125 / 68.625px. The old desktop-guest-header figure is gone — the
+   * header no longer sizes itself from its controls.
+   *
+   * Anchors that must start exactly below the header (reader toolbar/progress,
+   * mobile drawer, editor toolbar) read this token instead of re-deriving the
+   * offset. If the header's height changes, edit this token.
    */
-  --shell-header-height: 3.8125rem; /* 61px */
+  --shell-header-height: 3.8125rem; /* 61px @16 root; 64.8125 @17; 68.625 @18 */
 
   /*
    * Type scale. The old UI had a 24px h1 and an 18px section heading and an
    * 18px card title — three levels that all looked like the same level. These
    * four steps are the ones components should reach for.
    */
-  --text-display: 1.75rem; /* h1 */
-  --text-title: 1.125rem; /* section heading */
-  --text-card: 0.9375rem; /* card title */
-  --text-meta: 0.8125rem; /* meta, captions */
+  /*
+   * 2026-11-10 (palette switch): the four legacy names below stay COMPATIBILITY
+   * ALIASES of the 8-step scale declared at the bottom of this file, so the 316
+   * `text-meta` / 45 `text-card` / 8 `text-display` / 73 `.section-heading` call
+   * sites follow the new ladder without a single call-site edit:
+   *   text-display → h1   36px (page title, was 28)
+   *   text-title   → h3   18px (module/card title, unchanged value)
+   *   text-card    → body 16px (was 15)
+   *   text-meta    → meta 14px (was 13)
+   */
+  --text-display: var(--type-h1); /* legacy alias → h1 (2.25rem) */
+  --text-title: var(--type-h3); /* legacy alias → h3 (1.125rem, unchanged) */
+  --text-card: var(--type-body); /* legacy alias → body (1rem) */
+  --text-meta: var(--type-meta); /* legacy alias → meta (0.875rem) */
 
   /*
    * Long-form body size — the one number every reading surface typesets at.
@@ -154,7 +267,15 @@
    * so the same text read differently depending on which route you arrived
    * from. Both now sit on this value (Batch 13).
    */
-  --reading-body-size: 1.125rem; /* 18px */
+  /*
+   * --- 2026-11-10 · WIDE-SCREEN ROOT SCALE PIN ---------------------------
+   * The root font size steps 16 → 17 → 18px at `min-width: 1440` / `1800`
+   * (globals.css, base layer), so every `rem` type step grows 6.25 % / 12.5 %.
+   * Long-form prose must NOT join that ladder: 18px is already the ceiling for
+   * Chinese body copy, and at a 17px root `1.125rem` would silently become
+   * 19.125px (20.25px at 18px). Stated in px so it is immune to the root size.
+   */
+  --reading-body-size: 18px; /* 18px — fixed, does NOT follow the root font size */
 
   /*
    * The reading measure, stated in an absolute length on purpose.
@@ -167,11 +288,281 @@
    * surfaces agreed on the token and disagreed on the width, which is exactly
    * the mismatch this batch exists to remove.
    *
-   * 44.86156rem × 16px = 717.785px. Keeping it in `rem` means it follows the
-   * root size if that ever changes, without re-introducing a dependency on the
-   * font-size of whichever element happens to carry the rule.
+   * 44.86156rem × 16px = 717.785px. It used to be stated in `rem` precisely so
+   * it would follow the root size — that is now the WRONG behaviour: the root
+   * goes to 17px at 1440 and 18px at 1800 (globals.css), so the same `rem` would
+   * resolve to 762.6px / 807.5px. The body itself is pinned at 18px, so the
+   * column would simply get LONGER in glyphs — 72ch / 77ch instead of 68ch,
+   * i.e. ~42 / ~45 CJK glyphs per line instead of ~40 — on exactly the screens
+   * where the bigger type is supposed to make reading more comfortable. Pinned
+   * in px, so the measure stays 717.785px at every root size.
    */
-  --reading-measure: 44.86156rem; /* 68ch at 18px = 717.785px */
+  --reading-measure: 717.785px; /* 68ch at 18px = 717.785px — fixed, root-independent */
+
+  /*
+   * The reading FRAME — the width of the whole three-track reader, not of the
+   * text (`C-reader.md` §1).
+   *
+   * At ≥1440 the reader is `[meta rail | measure | tool rail]` with a 64px
+   * gutter on each side: 1440 = 297 + 64 + 718 + 64 + 297. The four numbers are
+   * the point: the text keeps EXACTLY its current x (596.1 on a 1910 viewport)
+   * and only the two ~596px voids that used to flank it get content. Below
+   * 1440 the frame still caps at this value but the rails are not rendered, so
+   * the single reading column is the only track.
+   *
+   * Stated in px for the same reason as `--reading-measure`: the root font size
+   * steps 16 → 17 → 18px at 1440 / 1800, and a `rem` frame would change the
+   * text's x-position on exactly the wide screens this layout exists for.
+   */
+  --reading-frame: 1440px;
 }
 
 /* Dark shell is out of scope for Phase 0; keep a single light theme. */
+
+/* ===========================================================================
+ * 2026-11-10 · Phase 2 · SK-B visual language — token layer
+ * ===========================================================================
+ * Source: `.team/design/B-visual-language.md` (§1 type, §2 rhythm, §3 surfaces /
+ * radii / elevation, §4 domain tints, §5 motion), then re-VALUED on 2026-11-10 by
+ * the 白 + 干净 palette switch (see the file header).
+ *
+ * 2026-11-10 re-value, in one place so the delivery table can be read off it:
+ *   type     display 44→48 / h1 28→36 / h2 20→24 / h3 16→18 / body 15→16 /
+ *            meta 13→14 / new metric 36
+ *   radius   sm 6→8 / md 8→12 / lg 12→16 / xl 16→24
+ *   shadow   e1 re-tinted to rgba(17,24,39,…) + new card/hover/floating
+ *   tint     eight domains → #F7F7F8
+ *   motion   120/180/200/240/280 → 150/200/300
+ * Names are unchanged, so no call site has to be edited.
+ * ========================================================================= */
+:root {
+  /* --- §1 type scale -----------------------------------------------------
+   * Font-size only. Leading / tracking / weight live on the Tailwind
+   * `fontSize` keys so a class (`text-h1`) carries the whole step.
+   *
+   * Calibre: hero 40–48, page title 30–36, section 22–24, card 16–18,
+   * body 14–16, meta 12–14, metric 28–36. The desktop value is the top of each
+   * range, the mobile value (media query below) the bottom.
+   */
+  --type-display: 3rem; /* 48px — hero, at most one per page */
+  --type-display-leading: 1.09; /* mobile 1.25, see the media query below */
+  /*
+   * B §1 states -0.03em for display, then rules in the same section that the
+   * CJK floor is -0.01em (at 48px, -0.03em makes 星/语 collide — the same
+   * defect recorded for the serif face in globals.css). This product's display
+   * lines are Chinese, so the footnote wins; Latin-only surfaces may override.
+   */
+  --type-display-tracking: -0.01em;
+  --type-h1: 2.25rem; /* 36px — page title (weight 600) */
+  --type-h2: 1.5rem; /* 24px — section title (weight 600) */
+  --type-h3: 1.125rem; /* 18px — card title, list item title (weight 600) */
+  --type-body: 1rem; /* 16px — UI body, forms (weight 400) */
+  /*
+   * `text-reading` — long-form prose. Pinned to the same absolute 18px as
+   * `--reading-body-size` (the value `globals.css .article-body` actually
+   * uses): both must stay in px and stay equal, or `text-reading` on a heading
+   * and the body under it would drift apart on wide screens.
+   */
+  --type-reading: 18px; /* 18px — fixed, deliberately NOT a rem step */
+  --type-meta: 0.875rem; /* 14px — time / author / counts (weight 400) */
+  --type-caption: 0.75rem; /* 12px — badges, cover labels, footnotes */
+  --type-metric: 2.25rem; /* 36px — dashboard numbers (weight 700) */
+
+  /* --- §2 rhythm: three density tiers (4pt grid) ------------------------
+   * Each tier states the six positions B §2 tabulates. `comfortable` is the
+   * utility name `.density-loose`; the two must not drift apart.
+   */
+  --density-loose-page-top: 48px; /* comfortable: reading, reader, guide, detail */
+  --density-loose-page-bottom: 64px;
+  --density-loose-section-gap: 40px;
+  --density-loose-heading-gap: 16px;
+  --density-loose-card-pad: 20px;
+  --density-loose-list-gap: 16px;
+  --density-loose-grid-gap: 24px;
+
+  --density-compact-page-top: 32px; /* compact: feeds, discover, settings (default) */
+  --density-compact-page-bottom: 48px;
+  --density-compact-section-gap: 32px;
+  --density-compact-heading-gap: 12px;
+  --density-compact-card-pad: 16px;
+  --density-compact-list-gap: 12px;
+  --density-compact-grid-gap: 16px;
+
+  --density-dense-page-top: 24px; /* dense: analytics, moderation, editor rails */
+  --density-dense-page-bottom: 32px;
+  --density-dense-section-gap: 24px;
+  --density-dense-heading-gap: 8px;
+  --density-dense-card-pad: 12px;
+  --density-dense-list-gap: 8px;
+  --density-dense-grid-gap: 12px;
+
+  /* Active tier — overridden by `.density-loose/-compact/-dense` (globals.css). */
+  --density-page-top: var(--density-compact-page-top);
+  --density-page-bottom: var(--density-compact-page-bottom);
+  --density-section-gap: var(--density-compact-section-gap);
+  --density-heading-gap: var(--density-compact-heading-gap);
+  --density-card-pad: var(--density-compact-card-pad);
+  --density-list-gap: var(--density-compact-list-gap);
+  --density-grid-gap: var(--density-compact-grid-gap);
+
+  /* --- §3 surfaces ------------------------------------------------------
+   * All are HSL triplets, consumed as `hsl(var(--x))` like every token above.
+   * `--surface-sunken` is already declared above (240 7% 97%) and is reused,
+   * not redeclared.
+   */
+  --surface-canvas: var(--background);
+  --surface-card: var(--card);
+  /* Neutral tint fallback. Real usage always names a domain: --tint-<domain>. */
+  --surface-tint: var(--tint-topics);
+  /* Modal scrim: `hsl(var(--surface-overlay) / var(--surface-overlay-alpha))`.
+   * Raised from .32 to .40: the scrim is now #111827 over pure white instead of
+   * navy over cream, which is a bigger contrast every step of the way. */
+  --surface-overlay: var(--foreground);
+  --surface-overlay-alpha: 0.4;
+
+  /* --- §3 radius scale --------------------------------------------------
+   * Nested-radius rule: inner = outer − padding/2, snapped down a step
+   * (16px card + 16px padding → 8px inner). ≤2 radius kinds per card.
+   * 24px is ONLY for large display cards — prefer 16 when in doubt.
+   * Legacy `--radius` / `--radius-surface` / `--radius-compact` / `--radius-media`
+   * above are untouched; these five are the named scale.
+   */
+  --radius-sm: 8px; /* chip / tag / small button */
+  --radius-md: 12px; /* input / small card / compact control */
+  --radius-lg: 16px; /* the normal card */
+  --radius-xl: 24px; /* large display card only — avoid unless the card is big */
+  --radius-pill: 999px; /* avatar / status dot / filter pill / progress */
+
+  /* --- §3 elevation -----------------------------------------------------
+   * The white system keeps shadow almost invisible and lets the 1px #EAEAEA
+   * border do the separation. Every value is tinted with the brand ink
+   * rgba(17,24,39,·) rather than pure black.
+   *   E0 = border only (the default for a card in the document flow)
+   *   card    static card at rest
+   *   hover   whole-card hover only
+   *   floating/ e1  elements that leave the flow: sticky header, popover,
+   *           dropdown, modal, drawer, toast
+   * Never on inputs, tables, buttons or inline chips; never stacked twice.
+   */
+  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-hover: 0 4px 12px rgba(17, 24, 39, 0.06);
+  --shadow-floating: 0 8px 24px rgba(17, 24, 39, 0.1);
+  --shadow-e1: 0 1px 2px rgba(17, 24, 39, 0.04),
+    0 8px 24px -12px rgba(17, 24, 39, 0.1);
+
+  /* --- z-index semantic layers ------------------------------------------
+   * Ordered rail < header < menu < popover < modal < drawer < toast with ≥10
+   * between neighbours, covering the literals that existed before this batch:
+   *   10        → local content lift (`relative z-10`, a utility, not a layer)
+   *   20        → --z-rail     in-page sticky rail / reading bar
+   *   30        → --z-header   shell header
+   *   40        → --z-menu     dropdown-menu / select
+   *   50        → --z-popover  popover / tooltip
+   *   80        → --z-modal    dialog
+   *   100       → --z-drawer   sheet
+   *   200       → --z-toast    toast
+   */
+  --z-rail: 20;
+  --z-header: 30;
+  --z-menu: 40;
+  --z-popover: 50;
+  --z-modal: 80;
+  --z-drawer: 100;
+  --z-toast: 200;
+
+  /* --- §4 domain tints --------------------------------------------------
+   * 2026-11-10: the eight coloured domain washes are GONE. The white system
+   * separates domains by layout and type, not by hue, so every `--tint-*` now
+   * resolves to the same neutral #F7F7F8 and every `-ink` to the near-black
+   * #111827 (16.57:1 on the wash).
+   *
+   * The names are kept deliberately: `bg-tint-<domain>`, `text-tint-<domain>-ink`
+   * and `border-tint-<domain>-line` already exist in the Tailwind theme and in
+   * `BleedBand.tsx`, and deleting the names would break those call sites.
+   * A domain that wants emphasis must use the sanctioned blue (link/selected)
+   * or a status colour — never a wash.
+   *
+   * `-line` is a HAIRLINE DERIVED FROM THE INK (26% of it, alpha-composited),
+   * not a channel triplet — so never write `hsl(var(--tint-x-line))`; use
+   * `var(--tint-x-line)`, which is what `border-tint-x-line` emits.
+   */
+  --tint-home: 240 7% 97%; /* #F7F7F8 */
+  --tint-home-ink: 221 39% 11%; /* #111827 — 16.57:1 on the wash */
+  --tint-home-line: color-mix(in hsl, hsl(var(--tint-home-ink)) 26%, transparent);
+
+  --tint-discover: 240 7% 97%; /* #F7F7F8 */
+  --tint-discover-ink: 221 39% 11%; /* #111827 */
+  --tint-discover-line: color-mix(in hsl, hsl(var(--tint-discover-ink)) 26%, transparent);
+
+  --tint-topics: 240 7% 97%; /* #F7F7F8 */
+  --tint-topics-ink: 221 39% 11%; /* #111827 */
+  --tint-topics-line: color-mix(in hsl, hsl(var(--tint-topics-ink)) 26%, transparent);
+
+  --tint-series: 240 7% 97%; /* #F7F7F8 */
+  --tint-series-ink: 221 39% 11%; /* #111827 */
+  --tint-series-line: color-mix(in hsl, hsl(var(--tint-series-ink)) 26%, transparent);
+
+  --tint-galaxies: 240 7% 97%; /* #F7F7F8 */
+  --tint-galaxies-ink: 221 39% 11%; /* #111827 */
+  --tint-galaxies-line: color-mix(in hsl, hsl(var(--tint-galaxies-ink)) 26%, transparent);
+
+  --tint-moments: 240 7% 97%; /* #F7F7F8 */
+  --tint-moments-ink: 221 39% 11%; /* #111827 */
+  --tint-moments-line: color-mix(in hsl, hsl(var(--tint-moments-ink)) 26%, transparent);
+
+  --tint-guide: 240 7% 97%; /* #F7F7F8 */
+  --tint-guide-ink: 221 39% 11%; /* #111827 */
+  --tint-guide-line: color-mix(in hsl, hsl(var(--tint-guide-ink)) 26%, transparent);
+
+  --tint-studio: 240 7% 97%; /* #F7F7F8 */
+  --tint-studio-ink: 221 39% 11%; /* #111827 */
+  --tint-studio-line: color-mix(in hsl, hsl(var(--tint-studio-ink)) 26%, transparent);
+
+  /* --- §4 borders -------------------------------------------------------
+   * WCAG 1.4.11 fix. `--border` (#EAEAEA) measures 1.20:1 on white — that is a
+   * divider, not a perceivable control edge, and it must NOT be used as an input
+   * or checkbox boundary. This is the ≥3:1 step for inputs / checkboxes /
+   * switches / pagination edges.
+   * #878E96 = 3.31:1 on white and 3.09:1 on #F7F7F8: the lightest neutral in the
+   * family that clears 3:1 on both surfaces an input can sit on.
+   */
+  --border-strong: 212 7% 56%; /* #878E96 — 3.31:1 on white, 3.09:1 on #F7F7F8 */
+
+  /* --- §5 motion --------------------------------------------------------
+   * Three canonical durations — 150 / 200 / 300ms — plus `ease`. Only opacity,
+   * background and transform animate (height only for accordions); hover is a
+   * background darkening or `translateY(-2px)`, never a bounce.
+   * `--dur-spring` survives only because `animate-heart-pop` already references
+   * it; nothing new should reach for it.
+   */
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+  --dur-micro: 150ms;
+  --dur-enter: 200ms;
+  --dur-exit: 150ms;
+  --dur-expand: 200ms;
+  --dur-drawer: 300ms;
+  --dur-page: 300ms;
+  --dur-spring: 600ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* ≈ CSS `ease` */
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/*
+ * Mobile floor (<768). Four steps downgrade to the BOTTOM of their allowed
+ * range: display 48→40, h1 36→30, h2 24→22, metric 36→28. Everything below h2
+ * is already phone-sized. The display step also loosens its leading
+ * (1.09 → 1.25): at 40px the tight ratio starts clipping CJK glyph boxes.
+ */
+@media (max-width: 767.98px) {
+  :root {
+    --type-display: 2.5rem; /* 40px */
+    --type-display-leading: 1.25;
+    --type-h1: 1.875rem; /* 30px */
+    --type-h2: 1.375rem; /* 22px */
+    --type-metric: 1.75rem; /* 28px */
+  }
+}

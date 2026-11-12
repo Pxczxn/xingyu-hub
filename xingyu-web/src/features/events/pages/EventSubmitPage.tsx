@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Clock3, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { articlesApi } from "@/api/articles/articles.api";
 import { eventsApi } from "@/api/events/events.api";
@@ -20,6 +20,8 @@ import {
 } from "@/api/events/events.types";
 import { momentsApi } from "@/api/moments/moments.api";
 import { seriesApi } from "@/api/series/series.api";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -229,22 +231,49 @@ export function EventSubmitPage() {
 
   const { event: loaded } = eventState;
 
+  /*
+   * SK5 流程 · H 线 / D 松 / R 齐（A §3 的 EventSubmit 行）。
+   *
+   *   skeleton="SK5"    → 居中窄栏 `SOLO.SK5` = `max-w-[720px]`，无侧栏。
+   *   header="line"     → H=线：`PageMasthead`（无面，标题贴内容列左缘）。原来手写的
+   *                       `<h1 className="text-2xl …">` 就此收敛；路由测试按
+   *                       「活动投稿」这个 h1 名认这一页，标题文本未改。
+   *   density="loose"   → D=松：两个步骤各是独立卡面（`--density-card-pad`），
+   *                       块间走 `--density-section-gap`。
+   *   R=齐             → 不传 `rail`：原先的 260px 右轨（活动信息 / 作品预览 /
+   *                       投稿须知）三块全部回到内容列 —— 活动时间进页头描述、
+   *                       作品预览留进第 1 步、投稿须知排在提交前。于是页内只剩
+   *                       一条左缘，没有第二条竖线。
+   *
+   * 终点动作（提交投稿 / 取消）在粘底操作条里，这是 SK5 的必需件（A §1）。
+   *
+   * 行为未变：只拉当前 tab 的候选、按类型预选第一条、草稿不出现、提交后回活动页、
+   * 后端文案原样展示（「投稿内容不存在」/「活动投稿已关闭」）、以及投稿通道关闭时
+   * 整个表单不挂载（因此候选列表也不会被请求）。
+   */
   return (
-    <div className="section-gap">
-      <nav className="text-sm">
-        <Link
-          to={`/events/${encodeURIComponent(eventId)}`}
-          className="text-accent-strong hover:underline"
-        >
-          返回活动
-        </Link>
-      </nav>
-
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">活动投稿</h1>
-        <p className="text-sm text-muted-foreground">{loaded.title}</p>
-      </header>
-
+    <ArchetypeFrame
+      skeleton="SK5"
+      header="line"
+      density="loose"
+      headerSlot={
+        <div className="flex flex-col gap-4">
+          <Link
+            to={`/events/${encodeURIComponent(eventId)}`}
+            className="focus-ring self-start rounded-sm text-meta text-accent-strong hover:underline"
+          >
+            返回活动
+          </Link>
+          <PageMasthead
+            eyebrow="活动投稿"
+            title="活动投稿"
+            description={`${loaded.title} · 开始 ${
+              formatEventDateTime(loaded.startsAt) ?? "待公布"
+            } · 结束 ${formatEventDateTime(loaded.endsAt) ?? "待公布"}`}
+          />
+        </div>
+      }
+    >
       {submissionsClosed ? (
         <PageState
           kind="error"
@@ -254,11 +283,8 @@ export function EventSubmitPage() {
           }
         />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-          {/* The numbered steps are the same kind of block as each other, so the
-              tight rhythm; `section-gap` would open a hole between them. */}
-          <form onSubmit={onSubmit} className="section-gap-tight">
-            <section className="rounded-xl border border-border/70 bg-card p-5">
+          <form onSubmit={onSubmit} className="flex flex-col gap-[var(--density-section-gap)]">
+            <section className="rounded-card border border-border/70 bg-card p-5">
               <h2 className="section-heading">1. 选择投稿内容</h2>
 
               <nav aria-label="投稿类型" className="mt-3 flex flex-wrap gap-2">
@@ -335,9 +361,31 @@ export function EventSubmitPage() {
                   </p>
                 </div>
               )}
+
+              {/*
+                作品预览（原右轨的第一块）。R=齐 之后页内只有一条内容列，预览作为
+                选择的即时反馈留在它所属的第 1 步里，而不是被挪到另一栏。
+
+                `key={selected.objectId}` 是全部机制：换一篇作品就换一个 key，
+                卡片因此重新挂载、标题重新入场。没有它，下拉框的变化与预览的变化
+                就是两件没有可见关联的事。
+              */}
+              {selected ? (
+                <div
+                  key={selected.objectId}
+                  className="animate-rise-in mt-4 rounded-md border border-border bg-surface-sunken/60 p-3"
+                >
+                  <p className="text-meta font-medium text-foreground">作品预览</p>
+                  <p className="mt-1 truncate text-meta text-foreground">{selected.title}</p>
+                  <p className="mt-0.5 text-meta text-muted-foreground">
+                    内容类型：
+                    {SUBMISSION_OBJECT_LABELS[selected.objectType] ?? selected.objectType}
+                  </p>
+                </div>
+              ) : null}
             </section>
 
-            <section className="rounded-xl border border-border/70 bg-card p-5">
+            <section className="rounded-card border border-border/70 bg-card p-5">
               <h2 className="section-heading">2. 投稿说明</h2>
               <p className="mt-1 text-meta text-muted-foreground">
                 可简要说明创作思路，选填，最多 {NOTE_MAX} 字。
@@ -371,70 +419,41 @@ export function EventSubmitPage() {
               </p>
             ) : null}
 
-            <footer className="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="accent" disabled={!canSubmit}>
-                {submitting ? "提交中…" : "提交投稿"}
-              </Button>
-              <Link
-                to={`/events/${encodeURIComponent(eventId)}`}
-                className={cn(buttonVariants({ variant: "outline" }))}
-              >
-                取消
-              </Link>
-              {!objectId && options.length > 0 ? (
-                <span className="text-meta text-muted-foreground">请先选择一个作品。</span>
-              ) : null}
-            </footer>
-          </form>
-
-          <aside className="flex flex-col gap-4">
-            <section className="rounded-xl border border-border/70 bg-card p-4">
-              <h2 className="section-heading">{loaded.title}</h2>
-              <p className="mt-2 flex items-center gap-1 text-meta text-muted-foreground">
-                <Clock3 className="h-3.5 w-3.5" aria-hidden />
-                {loaded.startsAt
-                  ? `开始 ${formatEventDateTime(loaded.startsAt)}`
-                  : "开始时间待公布"}
-              </p>
-              <p className="mt-1 text-meta text-muted-foreground">
-                结束 {formatEventDateTime(loaded.endsAt) ?? "待公布"}
-              </p>
-            </section>
-
-            {selected ? (
-              /*
-                The one animated block on this page, and the only one that earns
-                it: it is not a fixed card, it appears with the first selection
-                and is REPLACED every time the reader picks a different work.
-                `key={selected.objectId}` is the whole mechanism — a new key
-                unmounts the card, so the title it now shows rises in instead of
-                silently swapping. Without it a dropdown change and a preview
-                that changed would be two events with no visible connection.
-
-                260ms (tailwind.config.ts) and no delay: this is a single card
-                answering one click, not a list arriving.
-              */
-              <section
-                key={selected.objectId}
-                className="animate-rise-in rounded-xl border border-border/70 bg-card p-4"
-              >
-                <h2 className="section-heading">作品预览</h2>
-                <p className="mt-2 text-meta font-medium text-foreground">{selected.title}</p>
-                <p className="mt-0.5 text-meta text-muted-foreground">
-                  内容类型：{SUBMISSION_OBJECT_LABELS[selected.objectType] ?? selected.objectType}
-                </p>
-              </section>
-            ) : null}
-
-            <section className="rounded-xl border border-border/70 bg-card p-4">
+            {/*
+              投稿须知（原右轨的第三块）。R=齐 之后它回到内容列，但仍排在提交
+              按钮**之前**：它是这条流程的规则，读者在按下按钮前需要读到它。
+            */}
+            <section className="rounded-card border border-border/70 bg-card p-5">
               <h2 className="section-heading">投稿须知</h2>
               <p className="mt-2 text-meta text-muted-foreground">
                 只能提交自己已发布的内容。投稿后需要经过审核，通过后才会在活动页公示。
               </p>
             </section>
-          </aside>
-        </div>
+
+            {/*
+              SK5 的粘底操作条（`StepFlow` 的同一条配方：上发丝线 + 半透明面 +
+              backdrop-blur + `z-rail`）。不用 `StepFlow` 组件本身，因为它的子内容
+              被硬编码成 `density-compact`（`StepFlow.tsx:111`），而本页按 A §3 是
+              D=松 —— 借用它的配方而不借用它的密度，与 `SeriesNewPage` 同一条判据。
+            */}
+            <footer className="sticky bottom-0 z-rail -mx-4 border-t border-border/70 bg-card/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button type="submit" variant="accent" disabled={!canSubmit}>
+                  {submitting ? "提交中…" : "提交投稿"}
+                </Button>
+                <Link
+                  to={`/events/${encodeURIComponent(eventId)}`}
+                  className={cn(buttonVariants({ variant: "outline" }))}
+                >
+                  取消
+                </Link>
+                {!objectId && options.length > 0 ? (
+                  <span className="text-meta text-muted-foreground">请先选择一个作品。</span>
+                ) : null}
+              </div>
+            </footer>
+          </form>
       )}
-    </div>
+    </ArchetypeFrame>
   );
 }

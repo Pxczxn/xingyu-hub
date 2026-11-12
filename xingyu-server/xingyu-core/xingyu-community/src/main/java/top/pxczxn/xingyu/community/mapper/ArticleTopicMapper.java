@@ -2,11 +2,13 @@ package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.dto.ArticleTopicNameRow;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 import top.pxczxn.xingyu.community.dto.TopicActivityStat;
 import top.pxczxn.xingyu.community.dto.TopicOwnerStat;
 import top.pxczxn.xingyu.community.entity.ArticleTopic;
 import top.pxczxn.xingyu.community.entity.SearchDocument;
 import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -49,6 +51,17 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
     @Delete("DELETE FROM article_topic WHERE article_id = #{articleId}")
     int deleteByArticleId(String articleId);
 
+    @Insert("""
+            <script>
+            INSERT INTO article_topic (article_id, topic_id, created_at)
+            VALUES
+            <foreach collection='links' item='link' separator=','>
+            (#{link.articleId}, #{link.topicId}, #{link.createdAt})
+            </foreach>
+            </script>
+            """)
+    int insertAll(@Param("links") List<ArticleTopic> links);
+
     @Delete("DELETE FROM article_topic WHERE article_id = #{articleId} AND topic_id = #{topicId}")
     int deleteLink(String articleId, String topicId);
 
@@ -61,6 +74,21 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
             WHERE at.topic_id = #{topicId}
             """)
     long countPublicContent(String topicId);
+
+    @Select("""
+            <script>
+            SELECT at.topic_id AS objectId, COUNT(*) AS count
+            FROM article_topic at
+            INNER JOIN article a ON a.id = at.article_id
+            INNER JOIN search_document sd ON sd.object_type = 'ARTICLE'
+              AND sd.object_id = a.id
+              AND sd.removed_at IS NULL
+            WHERE at.topic_id IN
+            <foreach collection='topicIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            GROUP BY at.topic_id
+            </script>
+            """)
+    List<ObjectCountRow> countPublicContentByTopicIds(@Param("topicIds") List<String> topicIds);
 
     @Select("""
             SELECT sd.* FROM search_document sd

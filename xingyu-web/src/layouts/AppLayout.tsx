@@ -1,17 +1,16 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { PageState } from "@/components/shared/PageState";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { UserMenu } from "@/components/shared/UserMenu";
 import { PageErrorBoundary } from "@/components/shared/RouteErrorPage";
 import { NotificationToaster } from "@/features/notifications/toast/NotificationToaster";
 import { useNotificationToasts } from "@/features/notifications/toast/notification-toast.context";
 import {
-  Bell,
   BookOpen,
   Compass,
   Hash,
   Home,
-  Mail,
   Map,
   Menu,
   MessageCircle,
@@ -26,6 +25,9 @@ import type { ProfileDetail } from "@/api/users/users.types";
 import { useAuth } from "@/features/auth/auth.store";
 import { buildLoginPath } from "@/features/auth/login-return-path";
 import { useChatSocket } from "@/features/chat/chat-socket.context";
+import { MessageMenu } from "@/features/messages/MessageMenu";
+import { getMessagePanelFocus } from "@/features/messages/message-panel-focus";
+import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { onUnreadChanged } from "@/features/notifications/unread-sync";
 import { cn } from "@/lib/cn";
 
@@ -35,8 +37,10 @@ import { cn } from "@/lib/cn";
  * 创作 -> /studio, user entry -> profile. Navigation uses React Router <Link>.
  * Icons come from lucide-react (no emoji used as real icons).
  *
- * Phase 2I-2: the notification entry is now a REAL link to /notifications, with
- * a live unread badge. It used to be an absent placeholder — the old note here
+ * Phase 2I-2: the notification entry is a bell popover (328px card under the
+ * icon), with a live unread badge. It used to be a link straight to
+ * /notifications. The full page still exists; the bell no longer leaves the
+ * current route. The old note here
  * read "Message/notification panels are deliberately NOT implemented this
  * round", which meant the shell had no notification entry at all.
  *
@@ -140,34 +144,13 @@ function SearchForm({
         name="q"
         placeholder="搜索文章、系列、动态、用户"
         aria-label="搜索"
+        style={{ width: 'clamp(200px, 30vw, 400px)' }}
         className={cn(
-          "h-9 w-full rounded-lg border border-input/80 bg-surface-sunken/70 pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-accent-line focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring",
+          "h-9 rounded-lg border border-input/80 bg-surface-sunken/70 pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-accent-line focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring",
           inputClassName,
         )}
       />
     </form>
-  );
-}
-
-/**
- * Compact unread badge shared by the notification and message entries.
- *
- * 2026-10-13 (batch 07c): 10px -> 11px. This is the SAME NUMBER as the unread badge
- * on a mailbox row (ConversationRow), and one number cannot be two sizes in one app —
- * the 1px difference is invisible on its own and obvious the moment the header badge
- * and the row badge are on screen together. 11px still fits the 16px disc (`h-4` +
- * `leading-none` leaves ~2.5px above and below), and this is a count the reader is
- * meant to catch without reading, which is exactly what 10px stops being.
- */
-function UnreadBadge({ count }: { count: number }) {
-  if (count <= 0) return null;
-  return (
-    <span
-      aria-hidden
-      className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[11px] font-semibold leading-none text-accent-foreground ring-2 ring-card"
-    >
-      {count > 99 ? "99+" : count}
-    </span>
   );
 }
 
@@ -176,6 +159,21 @@ export function AppLayout() {
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
   const [myProfile, setMyProfile] = useState<ProfileDetail | null>(null);
+
+  /*
+   * Mobile navigation drawer plumbing (2026-11-10, Radix migration).
+   *
+   * The hamburger is both the trigger AND the close control (it flips to an X
+   * while open), so `ui/sheet` (= Radix Dialog) hands focus back to it on close.
+   * Everything else the drawer used to hand-roll — Esc, backdrop dismissal,
+   * body scroll lock, the focus trap — now belongs to Radix.
+   *
+   * This ref is the only piece kept locally: the sheet should open with focus on
+   * the first destination rather than on the search field (an opened drawer is a
+   * navigation affordance first, a search box second, and focusing the input
+   * would pop the on-screen keyboard over the links).
+   */
+  const navContentRef = useRef<HTMLDivElement>(null);
 
   // The authenticated account payload only carries login identity. The real
   // community avatar is owned by GET /me/profile, so load that existing
@@ -206,6 +204,22 @@ export function AppLayout() {
   }, [location.pathname]);
 
   /*
+   * The drawer only exists below `lg`. If the window is widened past it while
+   * the sheet is open (rotate / resize on a tablet) the CSS hides the panel, but
+   * a modal left open would keep the page scroll-locked with no visible control
+   * to release it. Close it explicitly; Radix restores focus to the hamburger,
+   * which is hidden at this width, so focus simply falls back to the page.
+   */
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const onDesktop = (event: MediaQueryListEvent) => {
+      if (event.matches) setNavOpen(false);
+    };
+    desktop.addEventListener("change", onDesktop);
+    return () => desktop.removeEventListener("change", onDesktop);
+  }, []);
+
+  /*
    * Unread notification badge.
    *
    * Source: `GET /api/v1/notifications/unread-count` — a single COUNT of the
@@ -216,29 +230,46 @@ export function AppLayout() {
    *
    * It is read here rather than in each page so the shell shows it on every route.
    *
-   * A failure is swallowed on purpose — the badge is decoration, and a toast for
-   * a background count would be noise. The count simply stays absent.
+   * A failure leaves the previous server count in place. Before the first
+   * successful read the count is null, which renders as no badge — the same
+   * rule as the message badge. The count is read again when the tab becomes
+   * visible and once a minute while it stays visible, so a like or follow that
+   * arrives during a session can show up without a full reload.
    */
-  const [unread, setUnread] = useState(0);
+  const [unread, setUnread] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
     if (!isAuthenticated) {
-      setUnread(0);
+      setUnread(null);
       return;
     }
-    notificationsApi
-      .getUnreadCount()
-      .then((count) => {
-        if (active) setUnread(count);
-      })
-      .catch(() => {
-        if (active) setUnread(0);
-      });
+    // Drop the previous account's count before the next read lands.
+    setUnread(null);
+    const load = () => {
+      void notificationsApi
+        .getUnreadCount()
+        .then((count) => {
+          if (active) setUnread(count);
+        })
+        .catch(() => {
+          // Keep the last confirmed count. A failed read is not "zero unread".
+        });
+    };
+    load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 60_000);
     return () => {
       active = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.username]);
 
   /*
    * In-session sync with the notification page.
@@ -278,8 +309,7 @@ export function AppLayout() {
    * guests. Our own user id comes from the provider (it is learned from the socket's
    * `connected` frame — neither /me nor /me/profile returns an id).
    */
-  const { unreadTotal, subscribe, myUserId } = useChatSocket();
-  const unreadMessages = unreadTotal ?? 0;
+  const { subscribe, myUserId } = useChatSocket();
   const { push } = useNotificationToasts();
   const selfUserIdRef = useRef<string | null>(null);
   const pathnameRef = useRef(location.pathname);
@@ -293,6 +323,7 @@ export function AppLayout() {
       const message = event.message;
       if (message?.senderId && message.senderId === selfUserIdRef.current) return;
       if (pathnameRef.current === `/messages/${event.conversationId}`) return;
+      if (getMessagePanelFocus() === event.conversationId) return;
       push({
         category: "MESSAGE",
         title: "收到一条新私信",
@@ -304,9 +335,10 @@ export function AppLayout() {
 
   /*
    * The article editor is the ONE stated exception to 「Shell 不动」 (plan §一:
-   * 「唯一例外是编辑器页（§3.6），它使用独立全宽布局」). `.content-shell` caps a page
-   * at 1200px and pads it on all sides; the editor wants the whole viewport for
-   * its outline | body | settings columns, so it gets a bare `<main>` instead.
+   * 「唯一例外是编辑器页（§3.6），它使用独立全宽布局」). `.content-shell` is 90% of
+   * the viewport capped at `--shell-max-width` (1600px) with padding on all
+   * sides; the editor wants the whole viewport for its outline | body | settings
+   * columns, so it gets a bare `<main>` instead.
    *
    * Matched by SHAPE — exactly one segment after `/studio/content/` — rather than
    * by prefix, so the LIST (`/studio/content`) and the version history
@@ -320,13 +352,34 @@ export function AppLayout() {
       {/* First tab stop on every route — the header is ~10 stops long. */}
       <a
         href="#main"
-        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-menu focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
       >
         跳到主要内容
       </a>
 
-      <header className="sticky top-0 z-30 border-b border-border/70 bg-card/90 backdrop-blur-xl">
-        <div className="content-shell flex items-center gap-2 py-2.5 md:gap-3">
+      {/*
+       * 2026-11-10 (layout audit §2): the header box height IS
+       * `--shell-header-height`, not "whatever the tallest control happens to
+       * be". Everything anchored to the token (ReadingToolbar, the series
+       * sticky toolbar, the editor action row, CanvasFrame) assumes the header
+       * ends at exactly that offset. Measured, the authenticated header used to
+       * end 4.0–4.4px lower because the UserMenu trigger is 44px tall, so the
+       * /rules toolbar slid under it. A fixed box height plus a centred,
+       * full-height row makes `header.bottom === token` true at every root
+       * step: 1910 → 68.63px, 1528 → 64.81px, 390 → 61px (guest and auth
+       * alike). Internal controls are all shorter than the box at every step
+       * (tallest: 44px UserMenu trigger, 49.5px at the 18px root), so nothing
+       * is clipped and the box does not grow.
+       */}
+      {/*
+       * Layer: the header keeps `z-header` (30) unconditionally. While the
+       * mobile drawer is open, `ui/sheet`'s overlay AND content are both
+       * `z-drawer` (100), so by the ladder the dimmer covers the header. The
+       * drawer therefore carries its own close button — see the layer note on
+       * the mobile sheet below.
+       */}
+      <header className="sticky top-0 z-header h-[var(--shell-header-height)] border-b border-border/70 bg-card/90 backdrop-blur-xl">
+        <div className="content-shell flex h-full items-center gap-2 py-0 md:gap-3">
           {/* Brand. The gold dot is the only brand mark in the header — it gives
               the wordmark something to sit against without adding a second logo. */}
           <Link
@@ -369,8 +422,17 @@ export function AppLayout() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "focus-ring flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                    /*
+                     * 2026-11-10 (layout audit §3): active used to be the same
+                     * solid `#111827` pill as 创作 and 注册, so the header showed
+                     * three identical near-black pills at once and the current
+                     * page was not the unique one. The solid fill now belongs to
+                     * the primary CTAs only; the active tab is carried by weight
+                     * plus a 2px underline (inset shadow: no layout shift, so the
+                     * row height and the fixed header height stay untouched).
+                     */
                     active
-                      ? "bg-primary font-medium text-primary-foreground"
+                      ? "font-semibold text-foreground shadow-[inset_0_-2px_0_0_hsl(var(--primary))] hover:bg-surface-sunken"
                       : "text-muted-foreground hover:bg-surface-sunken hover:text-foreground",
                   )}
                 >
@@ -381,9 +443,29 @@ export function AppLayout() {
             })}
           </nav>
 
-          <SearchForm className="mx-auto hidden max-w-sm flex-1 lg:block" />
+          {/*
+           * 2026-11-10 (layout audit §6): this box is only rendered where it can
+           * actually show its placeholder. Measured, the placeholder needs 232px
+           * at the 16px root (182px of text + 36px icon inset + 12px right pad +
+           * 2px border) and 246px at the 17px root; the authenticated row only
+           * had 123px at 1024 and 199px at 1280, so the text was cut to 「搜索」.
+           * 1440 is the first tier with room to spare (287px measured, 246px
+           * needed) — below it the icon-only entry beside it takes over instead
+           * of squeezing the nav. `min-w` states the 232px floor in rem so it
+           * still holds if the type scale steps again.
+           */}
+          <SearchForm className="mx-auto hidden min-w-[14.5rem] max-w-sm flex-1 min-[1440px]:block" />
 
           <div className="ml-auto flex items-center gap-1.5 md:gap-2">
+            {/* Icon-only search entry, 1024–1439 only (see the note on the form
+                above). Below `lg` the drawer carries the real search field. */}
+            <Link
+              to="/search"
+              aria-label="搜索"
+              className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-sunken hover:text-foreground max-lg:hidden min-[1440px]:hidden"
+            >
+              <Search className="h-[18px] w-[18px]" aria-hidden />
+            </Link>
             <Link
               to="/studio"
               className="focus-ring hidden items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
@@ -394,32 +476,11 @@ export function AppLayout() {
 
             {isAuthenticated ? (
               <div className="flex items-center gap-0.5 md:gap-1">
-                {/* Phase 2I-2: real notification entry with a live unread badge.
-                    The badge is capped at 99+ so a hot account cannot stretch the
-                    header; the number itself is never hidden from screen readers.
-                    The link stays ICON-ONLY with an aria-label — a visible text
-                    label would change `link.textContent`, which the shell test
-                    pins as empty when nothing is unread. */}
-                <Link
-                  to="/notifications"
-                  aria-label={unread > 0 ? `通知（${unread} 条未读）` : "通知"}
-                  className="focus-ring relative flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-sunken hover:text-foreground"
-                >
-                  <Bell className="h-[18px] w-[18px]" aria-hidden />
-                  <UnreadBadge count={unread} />
-                </Link>
+                {/* Bell opens a 328px card. Icon only: a visible label would
+                    change textContent, which the shell test pins as empty. */}
+                <NotificationBell unread={unread} />
 
-                {/* Phase 2I-3: the message centre, same badge treatment as the
-                    bell. Mail (not MessageCircle) because 动态 in the nav already
-                    owns MessageCircle. */}
-                <Link
-                  to="/messages"
-                  aria-label={unreadMessages > 0 ? `私信（${unreadMessages} 条未读）` : "私信"}
-                  className="focus-ring relative flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-sunken hover:text-foreground"
-                >
-                  <Mail className="h-[18px] w-[18px]" aria-hidden />
-                  <UnreadBadge count={unreadMessages} />
-                </Link>
+                <MessageMenu />
 
                 {/* The user entry is a MENU, not a row of links — the prototype's 用户菜单.
                     Every destination it holds lives in UserMenu, which is their ONLY entry
@@ -453,79 +514,166 @@ export function AppLayout() {
               </div>
             )}
 
-            {/* Mobile disclosure. Rendered last so it sits at the trailing edge,
-                and only under md — above that the real nav is visible. */}
-            <button
-              type="button"
-              aria-expanded={navOpen}
-              aria-controls="mobile-nav"
-              aria-label={navOpen ? "关闭导航菜单" : "打开导航菜单"}
-              onClick={() => setNavOpen((open) => !open)}
-              className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-sunken lg:hidden"
-            >
-              {navOpen ? (
-                <X className="h-5 w-5" aria-hidden />
-              ) : (
-                <Menu className="h-5 w-5" aria-hidden />
-              )}
-            </button>
+            {/*
+             * Mobile disclosure. Rendered last so it sits at the trailing edge,
+             * and only under `lg` — above that the real nav is visible. While
+             * open its icon flips to X for continuity, but the drawer's overlay
+             * (`z-drawer`) covers the header, so the visible close control is
+             * the X inside the sheet, not this trigger. Radix still restores
+             * focus HERE after every close path (Esc / backdrop / sheet X /
+             * link tap); a click on the dimmed trigger area lands on the
+             * overlay and closes too.
+             *
+             * The `Sheet` root is rendered HERE, at the trigger, so this file
+             * does not have to wrap the whole header: the root emits no DOM and
+             * the content is portalled to <body> — out of the header's
+             * `backdrop-blur` containing block, which would otherwise position a
+             * `fixed` panel against the header instead of the viewport.
+             */}
+            <Sheet open={navOpen} onOpenChange={setNavOpen}>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={navOpen ? "关闭导航菜单" : "打开导航菜单"}
+                  className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-sunken lg:hidden"
+                >
+                  {navOpen ? (
+                    <X className="h-5 w-5" aria-hidden />
+                  ) : (
+                    <Menu className="h-5 w-5" aria-hidden />
+                  )}
+                </button>
+              </SheetTrigger>
+
+              {/*
+               * Mobile navigation sheet — `components/ui/sheet.tsx` (Radix
+               * Dialog) instead of the previous hand-written panel.
+               *
+               * What Radix now owns (the 2026-11-10 audit §5 items):
+               * Esc dismissal, backdrop dismissal, body scroll lock, a focus
+               * trap, dialog semantics (`role="dialog" aria-modal`) and focus
+               * return to the hamburger. Nothing below re-implements any of it.
+               *
+               * `side="top"` keeps the previous visual: a full-width panel
+               * dropping from under the fixed-height header, its inner
+               * `content-shell` aligned with the header's 90% / 1600px edges
+               * (three vertical edges line up at every width).
+               *
+               * Layer note — `ui/sheet` is on the semantic ladder now: overlay
+               * and content are BOTH `z-drawer` (100). That is above the
+               * header (30) and every modal (80), below toast (200); the
+               * dimmer therefore covers the header by contract, which is why
+               * the hamburger can no longer double as the visible close
+               * control. The explicit 44×44 X below is that control. Esc,
+               * backdrop press and the X all close; Radix returns focus to the
+               * hamburger trigger afterwards.
+               *
+               * `ui/sheet`'s own built-in close button stays hidden
+               * (`[&>button]:hidden`, direct child only) — the explicit X below
+               * lives one level deeper so it survives that rule; two X's in
+               * the same corner would just stack.
+               *
+               * Links come BEFORE the search field so the focus-on-open lands on
+               * the first navigation item instead of the input (no on-screen
+               * keyboard over the destinations the user just opened).
+               */}
+              <SheetContent
+                ref={navContentRef}
+                side="top"
+                aria-describedby={undefined}
+                onOpenAutoFocus={(event) => {
+                  // First DESTINATION, not the close controls and not the search
+                  // input: an opened drawer is a navigation affordance first, and
+                  // focusing the input would pop the on-screen keyboard over the
+                  // links.
+                  const first = navContentRef.current?.querySelector<HTMLElement>(
+                    ".content-shell a[href]",
+                  );
+                  if (!first) return;
+                  event.preventDefault();
+                  first.focus();
+                }}
+                className="top-[var(--shell-header-height)] z-drawer max-h-[calc(100dvh-var(--shell-header-height))] overflow-y-auto overscroll-contain border-b border-border/70 bg-card p-0 shadow-lg lg:hidden [&>button]:hidden"
+              >
+                <SheetTitle className="sr-only">主导航</SheetTitle>
+                <div className="content-shell space-y-3 py-4">
+                  {/*
+                   * Explicit close control. The overlay is `z-drawer` (100), i.e.
+                   * it covers the `z-header` (30) hamburger, so the header can no
+                   * longer be the visible close affordance. The sheet's built-in
+                   * X is hidden by `[&>button]:hidden` (it targets direct
+                   * children); this button lives one level deeper, so the drawer
+                   * keeps exactly one X.
+                   */}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      aria-label="关闭导航"
+                      onClick={() => setNavOpen(false)}
+                      className="focus-ring grid h-11 w-11 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-sunken hover:text-foreground"
+                    >
+                      <X className="h-5 w-5" aria-hidden />
+                    </button>
+                  </div>
+                  <nav aria-label="移动端导航" className="grid grid-cols-2 gap-1.5">
+                    {NAV_ITEMS.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActivePath(location.pathname, item.to);
+                      return (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          aria-current={active ? "page" : undefined}
+                          /*
+                           * Close on EVERY destination tap, including the
+                           * current page: relying on the pathname effect alone
+                           * meant tapping 「首页」 while already on `/` left the
+                           * sheet open (the pathname never changes, so the
+                           * effect never fires).
+                           */
+                          onClick={() => setNavOpen(false)}
+                          className={cn(
+                            "focus-ring flex h-11 items-center gap-2 rounded-lg px-3 text-sm transition-colors",
+                            // Mobile keeps the light selected fill: there is no
+                            // room for an underline under a 44px tap target.
+                            active
+                              ? "bg-surface-sunken font-semibold text-foreground"
+                              : "bg-surface-sunken/60 text-foreground hover:bg-surface-sunken",
+                          )}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </nav>
+
+                  <SearchForm onSubmitted={() => setNavOpen(false)} />
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <Link
+                      to="/studio"
+                      onClick={() => setNavOpen(false)}
+                      className="focus-ring inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent text-sm font-medium text-accent-foreground"
+                    >
+                      <PenLine className="h-4 w-4" aria-hidden />
+                      创作
+                    </Link>
+                    {!isAuthenticated ? (
+                      <Link
+                        to={buildLoginPath(`${location.pathname}${location.search}`)}
+                        onClick={() => setNavOpen(false)}
+                        className="focus-ring inline-flex h-11 items-center justify-center rounded-lg border border-border px-4 text-sm text-foreground"
+                      >
+                        登录
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
-
-        {navOpen ? (
-          <div
-            id="mobile-nav"
-            className="animate-sheet-in border-t border-border/70 bg-card lg:hidden"
-          >
-            <div className="content-shell space-y-3 py-4">
-              {/* No autoFocus here on purpose: the panel exists so the reader can
-                  reach a destination, and focusing the search field would pop the
-                  on-screen keyboard over the very links they opened it for. */}
-              <SearchForm onSubmitted={() => setNavOpen(false)} />
-
-              <nav aria-label="移动端导航" className="grid grid-cols-2 gap-1.5">
-                {NAV_ITEMS.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActivePath(location.pathname, item.to);
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "focus-ring flex h-11 items-center gap-2 rounded-lg px-3 text-sm transition-colors",
-                        active
-                          ? "bg-primary font-medium text-primary-foreground"
-                          : "bg-surface-sunken/60 text-foreground hover:bg-surface-sunken",
-                      )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              <div className="flex items-center gap-2 pt-1">
-                <Link
-                  to="/studio"
-                  className="focus-ring inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent text-sm font-medium text-accent-foreground"
-                >
-                  <PenLine className="h-4 w-4" aria-hidden />
-                  创作
-                </Link>
-                {!isAuthenticated ? (
-                  <Link
-                    to={buildLoginPath(`${location.pathname}${location.search}`)}
-                    className="focus-ring inline-flex h-11 items-center justify-center rounded-lg border border-border px-4 text-sm text-foreground"
-                  >
-                    登录
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        ) : null}
       </header>
 
       <main id="main" className={cn("flex-1", !isEditorRoute && "content-shell")}>

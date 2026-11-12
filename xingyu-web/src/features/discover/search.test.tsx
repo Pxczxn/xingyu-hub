@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { discoverApi } from "@/api/discover/discover.api";
 import { SearchPage } from "./pages/SearchPage";
@@ -60,8 +60,37 @@ describe("search page", () => {
       expect(mocked.search).toHaveBeenCalledWith(expect.objectContaining({ q: "spring" }));
     });
     expect(await screen.findByText("Spring 实战笔记")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "最新" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "热门" })).toHaveAttribute("aria-checked", "true");
     expect(mocked.search).toHaveBeenCalledWith(expect.objectContaining({ sort: "hot" }));
+  });
+
+  it("uses latest when the URL asks for it, and falls back to hot otherwise", async () => {
+    renderAt("/search?q=spring&sort=latest");
+    await waitFor(() => {
+      expect(mocked.search).toHaveBeenCalledWith(
+        expect.objectContaining({ q: "spring", sort: "latest" }),
+      );
+    });
+
+    mocked.search.mockClear();
+    renderAt("/search?q=spring&sort=featured");
+    await waitFor(() => {
+      expect(mocked.search).toHaveBeenCalledWith(
+        expect.objectContaining({ q: "spring", sort: "hot" }),
+      );
+    });
+  });
+
+  it("keeps the keyword when the sort changes", async () => {
+    renderAt("/search?q=spring");
+    await waitFor(() => expect(mocked.search).toHaveBeenCalled());
+    mocked.search.mockClear();
+    fireEvent.click(screen.getByRole("radio", { name: "最新" }));
+    await waitFor(() => {
+      expect(mocked.search).toHaveBeenCalledWith(
+        expect.objectContaining({ q: "spring", sort: "latest" }),
+      );
+    });
   });
 
   it("distinguishes result types and links a user by the canonical username", async () => {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { ApiError } from "@/api/client";
 import { topicsApi } from "@/api/topics/topics.api";
 import { useAuth } from "@/features/auth/auth.store";
 import type {
@@ -10,6 +11,7 @@ import type {
 import type { ContentSummary } from "@/api/common.types";
 import { PageState } from "@/components/shared/PageState";
 import type { SectionStatus } from "@/components/shared/SectionState";
+import { ArchetypeFrame } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { staggerDelay } from "@/lib/stagger";
@@ -87,7 +89,19 @@ export function TopicDetailPage() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  /*
+   * 保留错误值本身，而不是一个「失败了吗」的布尔量。
+   *
+   * 404 与 5xx/网络失败要说两句不同的话：前者是「这个话题没了，别再试」，
+   * 后者才是「服务暂时出错，请重试」。`ArticleDetailPage.tsx:114-115` 与
+   * `PublicSeriesDetailPage.tsx:55-59,226` 早就是这样分的；话题页此前只存
+   * 布尔量，把 404 也压进了通用错误文案 —— 坏 slug 因此长得像服务故障。
+   * `null` = 尚未失败（加载中或已成功）。
+   *
+   * 错误值包在 `{ error }` 里，而不是裸存：Promise 可以用 `null` 拒绝，裸值方案
+   * 会把「拒绝且理由为 null」误读成「没失败」，从而跳过错误分支。
+   */
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   const [contentStatus, setContentStatus] = useState<SectionStatus>("loading");
   const [creators, setCreators] = useState<TopicCreatorSummary[]>([]);
   const [creatorsStatus, setCreatorsStatus] = useState<SectionStatus>("loading");
@@ -102,7 +116,7 @@ export function TopicDetailPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    setError(false);
+    setFailure(null);
     topicsApi
       .getTopic(slug)
       .then((data) => {
@@ -111,9 +125,9 @@ export function TopicDetailPage() {
         setFollowing(typeof data.following === "boolean" ? data.following : null);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!active) return;
-        setError(true);
+        setFailure({ error: err });
         setLoading(false);
       });
     return () => {
@@ -189,8 +203,32 @@ export function TopicDetailPage() {
     }
   }
 
+  /*
+   * `GET /topics/{slug}` 的 404 只表示「这个 slug 没有对应的话题」：已删除、
+   * 改名，或链接本身打错了。它与 5xx/网络失败不是同一件事 —— 前者重试多少次
+   * 都不会变好，所以这里必须给出口（去话题广场），而不是给「请稍后重试」。
+   */
+  const notFound =
+    failure !== null && failure.error instanceof ApiError && failure.error.problem.status === 404;
+
   if (loading) return <PageState kind="loading" />;
-  if (error) {
+  if (notFound) {
+    return (
+      <div className="section-gap">
+        <PageState
+          kind="empty"
+          title="话题不存在或未公开"
+          description="它可能已被删除，或这个链接已经失效。"
+        />
+        <div className="text-center">
+          <Button variant="outline" asChild>
+            <Link to="/topics">去话题广场</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  if (failure !== null) {
     return (
       <div className="section-gap">
         <PageState kind="error" />
@@ -226,117 +264,148 @@ export function TopicDetailPage() {
     setPaging({ key: pagingKey, limit: limit + PAGE_SIZE });
   }
 
+  /*
+   * SK6 信息流 · H 线 / D 紧 / R 错（A §3 的 TopicDetail 行）。
+   *
+   *   skeleton="SK6"    → `[1fr 行式流 | 300 右栏]`。原来手写的
+   *                       `lg:grid-cols-[minmax(0,1fr)_300px]` 与 `<main>` 收敛到
+   *                       这里：右栏由 `SectionRail` 粘住，主列由 frame 给出。
+   *   header="line"     → H=线：`TopicHeader` 已改成无面的 `PageMasthead`（无卡片、
+   *                       无边框，标题贴内容列左缘，关注按钮在文字尾）。
+   *   density="compact" → D=紧：内容是「行」而不是卡片，行间只有发丝线。
+   *   R=错             → 主列 + 右栏（活跃创作者）。
+   *
+   * 与同为 SK6·线/紧/错的 HomePage 的区别（两页四元组相同）：
+   *   本页的报头只有一行（话题名 + 计数 + 关注），条目元信息在行**首**（头像 →
+   *   作者 → 类型徽标 → 标题 → 摘要），没有互动条；
+   *   Home 的报头是整块 hero（星空素材 + 两个入口），条目元信息在行**底**
+   *   （作者 · 类型 + 点赞/评论/收藏），并且行高更矮。同原型不同形，靠条目内部
+   *   结构与页头重量区分，不靠配色。
+   */
   return (
-    <div className="section-gap gap-5">
-      <TopicHeader
-        topic={topic}
-        isAuthenticated={isAuthenticated}
-        following={following}
-        followPending={followPending}
-        onToggleFollow={toggleFollow}
-      />
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="line"
+      density="compact"
+      headerSlot={
+        <TopicHeader
+          topic={topic}
+          isAuthenticated={isAuthenticated}
+          following={following}
+          followPending={followPending}
+          onToggleFollow={toggleFollow}
+        />
+      }
+      /*
+       * 右栏只在创作者的请求成功且有内容时出现：失败或空态下这一列整块不渲染
+       * （`TopicCreatorsPanel` 空数组也返回 null），主列自然吃满内容宽。
+       */
+      rail={creatorsStatus === "ready" ? <TopicCreatorsPanel creators={creators} /> : null}
+      /* landmark 名与面板标题不同名，否则「活跃创作者」会在无障碍树里出现两次。 */
+      railLabel="话题侧栏"
+    >
+      {/*
+        排序条与它自己的列表放在同一个块里：排序条是列表的表头，不该被区块间距
+        和列表隔开（frame 的 density-compact 给的是 32px 区块间距，用在同一块
+        功能区的内部就成了一个洞）。
+      */}
+      <div>
+        {/*
+          排序条。容器不带下内边距：按钮用 `pb-2.5` 自己撑开，于是按钮盒底正好
+          落在容器的下边框上，`after:-bottom-px` 的金线因此压住灰线而不是悬在
+          它上方（星系 tab 的容器多了一层 `pb-2`，金线悬空 8px——那是待修的小
+          瑕疵，不在这批范围内）。
+          `aria-pressed` 让「当前按哪个排」对辅助技术可读；视觉上由金线表达。
+        */}
+        <div
+          className="flex items-center gap-5 border-b border-border/70"
+          role="group"
+          aria-label="内容排序"
+        >
+          {(["latest", "hot"] as TopicContentSort[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSort(key)}
+              aria-pressed={sort === key}
+              className={cn(
+                "focus-ring relative rounded-none px-1 pb-2.5 text-sm transition-colors",
+                "after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:origin-center after:bg-accent after:transition-transform",
+                sort === key
+                  ? "font-medium text-primary after:scale-x-100"
+                  : "text-muted-foreground after:scale-x-0 hover:text-foreground",
+              )}
+            >
+              {/*
+                「最近更新」，不是「最新」。
+                这个排序在 SQL 里是 `ORDER BY sd.indexed_at DESC`，而 indexed_at 是
+                索引写入时间 —— 文章被重新索引（编辑、治理、重建索引）就会前移。它
+                不是发布时间，所以标签不能声称「最新」（同一个判断写在 HomeFeedItem
+                和 TopicContentItem 的注释里：不把 indexed_at 当内容时间展示）。
+                「最近更新」既准确，也仍然是读者想要的那个顺序。
+              */}
+              {key === "latest" ? "最近更新" : "热门"}
+            </button>
+          ))}
+        </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <main className="min-w-0">
-          {/*
-            排序条。容器不带下内边距：按钮用 `pb-2.5` 自己撑开，于是按钮盒底正好
-            落在容器的下边框上，`after:-bottom-px` 的金线因此压住灰线而不是悬在
-            它上方（星系 tab 的容器多了一层 `pb-2`，金线悬空 8px——那是待修的小
-            瑕疵，不在这批范围内）。
-            `aria-pressed` 让「当前按哪个排」对辅助技术可读；视觉上由金线表达。
-          */}
-          <div
-            className="flex items-center gap-5 border-b border-border/70"
-            role="group"
-            aria-label="内容排序"
-          >
-            {(["latest", "hot"] as TopicContentSort[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setSort(key)}
-                aria-pressed={sort === key}
-                className={cn(
-                  "focus-ring relative rounded-none px-1 pb-2.5 text-sm transition-colors",
-                  "after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:origin-center after:bg-accent after:transition-transform",
-                  sort === key
-                    ? "font-medium text-primary after:scale-x-100"
-                    : "text-muted-foreground after:scale-x-0 hover:text-foreground",
-                )}
-              >
-                {/*
-                  「最近更新」，不是「最新」。
-                  这个排序在 SQL 里是 `ORDER BY sd.indexed_at DESC`，而 indexed_at 是
-                  索引写入时间 —— 文章被重新索引（编辑、治理、重建索引）就会前移。它
-                  不是发布时间，所以标签不能声称「最新」（同一个判断写在 HomeFeedItem
-                  和 TopicContentItem 的注释里：不把 indexed_at 当内容时间展示）。
-                  「最近更新」既准确，也仍然是读者想要的那个顺序。
-                */}
-                {key === "latest" ? "最近更新" : "热门"}
-              </button>
-            ))}
-          </div>
-
-          {/*
-            内容列表（P0）直接铺在页面上。状态块同样去掉边框与底色——空话题不需要
-            一张占位卡片来撑版面（设计方案 §六 第 4 条），它需要的是把话说清楚。
-          */}
-          <section data-testid="topic-content">
-            {contentStatus === "loading" ? (
-              <PageState kind="loading" className="border-0 bg-transparent py-6" />
-            ) : null}
-            {contentStatus === "error" ? (
-              <>
-                <PageState kind="error" className="border-0 bg-transparent py-6" />
-                <div className="text-center pb-6">
-                  <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
-                    重新加载
-                  </Button>
-                </div>
-              </>
-            ) : null}
-            {contentStatus === "empty" ? (
-              <PageState kind="empty" className="border-0 bg-transparent py-6" />
-            ) : null}
-            {contentStatus === "ready" ? (
-              <div>
-                {content.map((item, index) => (
-                  <TopicContentItem
-                    key={item.id}
-                    item={item}
-                    className="animate-rise-in"
-                    /* Inline, not a class: `animate-rise-in` is the `animation`
-                       shorthand and resets `animation-delay` (see lib/stagger.ts). */
-                    style={{ animationDelay: staggerDelay(index) }}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {/*
-              「加载更多」是这页唯一的内容出口。在此之前，一个有 50 篇文章的话题
-              永远停在 12 篇，读者拿不到剩下的 38 篇 —— 这是功能缺陷，不是排版问题。
-
-              只在确实还有内容时出现：总数取自 `topic.contentCount`，所以「还有 N 篇」
-              是真话，不是估计。按钮下方的分隔线补上列表最后一行没有的那条线
-              （`TopicContentItem` 的 `last:border-0`）。
-            */}
-            {hasMore ? (
-              <div className="flex justify-center border-t border-border/50 py-5">
-                <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
-                  {loadingMore
-                    ? "加载中…"
-                    : remaining && remaining > 0
-                      ? `加载更多（还有 ${remaining} 篇）`
-                      : "加载更多"}
+        {/*
+          内容列表（P0）直接铺在页面上。状态块同样去掉边框与底色——空话题不需要
+          一张占位卡片来撑版面（设计方案 §六 第 4 条），它需要的是把话说清楚。
+        */}
+        <section data-testid="topic-content">
+          {contentStatus === "loading" ? (
+            <PageState kind="loading" className="border-0 bg-transparent py-6" />
+          ) : null}
+          {contentStatus === "error" ? (
+            <>
+              <PageState kind="error" className="border-0 bg-transparent py-6" />
+              <div className="text-center pb-6">
+                <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
+                  重新加载
                 </Button>
               </div>
-            ) : null}
-          </section>
-        </main>
+            </>
+          ) : null}
+          {contentStatus === "empty" ? (
+            <PageState kind="empty" className="border-0 bg-transparent py-6" />
+          ) : null}
+          {contentStatus === "ready" ? (
+            <div>
+              {content.map((item, index) => (
+                <TopicContentItem
+                  key={item.id}
+                  item={item}
+                  className="animate-rise-in"
+                  /* Inline, not a class: `animate-rise-in` is the `animation`
+                     shorthand and resets `animation-delay` (see lib/stagger.ts). */
+                  style={{ animationDelay: staggerDelay(index) }}
+                />
+              ))}
+            </div>
+          ) : null}
 
-        {creatorsStatus === "ready" ? <TopicCreatorsPanel creators={creators} /> : null}
+          {/*
+            「加载更多」是这页唯一的内容出口。在此之前，一个有 50 篇文章的话题
+            永远停在 12 篇，读者拿不到剩下的 38 篇 —— 这是功能缺陷，不是排版问题。
+
+            只在确实还有内容时出现：总数取自 `topic.contentCount`，所以「还有 N 篇」
+            是真话，不是估计。按钮下方的分隔线补上列表最后一行没有的那条线
+            （`TopicContentItem` 的 `last:border-0`）。
+          */}
+          {hasMore ? (
+            <div className="flex justify-center border-t border-border/50 py-5">
+              <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore
+                  ? "加载中…"
+                  : remaining && remaining > 0
+                    ? `加载更多（还有 ${remaining} 篇）`
+                    : "加载更多"}
+              </Button>
+            </div>
+          ) : null}
+        </section>
       </div>
-    </div>
+    </ArchetypeFrame>
   );
 }

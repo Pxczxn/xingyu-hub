@@ -2,8 +2,9 @@ import styles from "@/features/studio/editor/editor-workspace.module.css";
 import { cn } from "@/lib/cn";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CanvasFrame } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { ArticleEditorBody } from "@/features/studio/editor/article-editor-body";
 import { ArticleEditorOutline } from "@/features/studio/editor/article-editor-outline";
@@ -113,11 +114,16 @@ export function EditorPage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [fields, setFields] = useState<EditorDraftFields | null>(null);
   const [baseline, setBaseline] = useState<EditorDraftFields | null>(null);
-  const [lockVersion, setLockVersion] = useState(0);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [topics, setTopics] = useState<TopicSummary[]>([]);
   const [previewEnabled, setPreviewEnabled] = useState(false);
+  /**
+   * SK8 layout state only. Below `lg` the 320px inspector track is collapsed and
+   * the page owns that flag (`CanvasFrame` renders the track only when told to);
+   * it carries nothing about the document, so it is not part of the draft.
+   */
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [activeOutline, setActiveOutline] = useState(0);
   /** Editorial status; the draft DTO does not expose it (see articlesApi.getMyArticleStatus). */
@@ -140,6 +146,15 @@ export function EditorPage() {
    * retried without creating a second draft.
    */
   const [createdDraftId, setCreatedDraftId] = useState<string | null>(null);
+  /**
+   * Source of truth for an in-flight save. State updates land on the next render,
+   * so a save and a submit that overlap would both read `createdDraftId === null`
+   * and each POST a new draft. The queue below runs one write at a time, and
+   * these refs are updated before the next write starts.
+   */
+  const createdDraftIdRef = useRef<string | null>(null);
+  const lockVersionRef = useRef(0);
+  const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
   /** Set after a successful first save; the URL is adopted once the editor is clean. */
   const [adoptDraftId, setAdoptDraftId] = useState<string | null>(null);
   /* Bumping the key replays the load effect — the retry mechanism for the
@@ -205,8 +220,9 @@ export function EditorPage() {
       });
       setFields(blank);
       setBaseline(blank);
-      setLockVersion(0);
+      lockVersionRef.current = 0;
       setCreatedDraftId(null);
+      createdDraftIdRef.current = null;
       setLoadState("ready");
       return () => {
         active = false;
@@ -233,8 +249,9 @@ export function EditorPage() {
         const mapped = toEditorDraftFields(draft);
         setFields(mapped);
         setBaseline(mapped);
-        setLockVersion(draft.lockVersion);
+        lockVersionRef.current = draft.lockVersion;
         setCreatedDraftId(draft.articleId);
+        createdDraftIdRef.current = draft.articleId;
         setLoadState("ready");
         void statusPromise.then((result) => {
           if (!active) return;
@@ -359,29 +376,42 @@ export function EditorPage() {
    * PUT is retried against the same draft instead of minting a second one.
    */
   const persistDraft = useCallback(
-    async (payloadFields: EditorDraftFields): Promise<string> => {
-      let targetId = creating ? createdDraftId : articleId;
-      let expectedLockVersion = lockVersion;
+    (payloadFields: EditorDraftFields): Promise<string> => {
+      const write = async (): Promise<string> => {
+        let targetId = creating ? createdDraftIdRef.current : articleId;
+        let expectedLockVersion = lockVersionRef.current;
 
-      if (!targetId) {
-        const created = await articlesApi.createDraft();
-        targetId = created.articleId;
-        expectedLockVersion = created.lockVersion;
-        setCreatedDraftId(targetId);
-      }
+        if (!targetId) {
+          const created = await articlesApi.createDraft();
+          targetId = created.articleId;
+          expectedLockVersion = created.lockVersion;
+          // Remember the id before the PUT. A failed PUT must retry this draft,
+          // and a save that is already queued behind this one must not POST again.
+          createdDraftIdRef.current = targetId;
+          lockVersionRef.current = expectedLockVersion;
+          setCreatedDraftId(targetId);
+        }
 
-      const saved = await articlesApi.saveDraft(
-        targetId,
-        buildDraftSavePayload(payloadFields, expectedLockVersion),
+        const saved = await articlesApi.saveDraft(
+          targetId,
+          buildDraftSavePayload(payloadFields, expectedLockVersion),
+        );
+        lockVersionRef.current = saved.lockVersion;
+        // The current values become the new clean baseline.
+        setBaseline(payloadFields);
+        // Adopt the real id in the URL (see the effect below).
+        if (creating) setAdoptDraftId(targetId);
+        return targetId;
+      };
+
+      const task = persistQueueRef.current.then(write);
+      persistQueueRef.current = task.then(
+        () => undefined,
+        () => undefined,
       );
-      setLockVersion(saved.lockVersion);
-      // The current values become the new clean baseline.
-      setBaseline(payloadFields);
-      // Adopt the real id in the URL (see the effect below).
-      if (creating) setAdoptDraftId(targetId);
-      return targetId;
+      return task;
     },
-    [articleId, creating, createdDraftId, lockVersion],
+    [articleId, creating],
   );
 
   // --- manual save ---------------------------------------------------------
@@ -584,12 +614,19 @@ export function EditorPage() {
 
   return (
     <div className={cn(styles.editorPage)} data-editor-root>
+      {/*
+       * SK8 创作台 — the page's action row, full width, ABOVE the three tracks.
+       *
+       * Why the row moved out of the toolbar slot and why its sticky inset is not
+       * 0 any more: the site header is `sticky top-0 z-30` (AppLayout.tsx:345).
+       * This row used to be `sticky top: 0; z-index: 20` as well, so both lived in
+       * the band [0, header-height] and the lower layer lost — scrolling the
+       * document slid 「保存草稿 / 提交审核」 underneath the header. The row now
+       * parks at `var(--shell-header-height)` (see `.toolbar`), i.e. directly
+       * BELOW the header, and the workbench below it is an inner scroll container,
+       * so editor content cannot paint over it either.
+       */}
       <header className={cn(styles.toolbar)}>
-        <Link to="/studio" className={cn(styles.toolbarBack)}>
-          <ArrowLeft className="h-4 w-4" />
-          返回
-        </Link>
-
         <input
           className={cn(styles.toolbarTitle)}
           value={title}
@@ -606,21 +643,6 @@ export function EditorPage() {
               有未保存的修改
             </span>
           ) : null}
-          <Button
-            variant="outline"
-            type="button"
-            className={cn(
-              styles.toolbarPreviewBtn,
-              "cursor-pointer",
-              previewEnabled &&
-                "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
-            )}
-            aria-pressed={previewEnabled}
-            onClick={() => setPreviewEnabled((current) => !current)}
-          >
-            <Eye className="h-4 w-4" />
-            {previewEnabled ? "关闭预览" : "预览"}
-          </Button>
           <Button
             type="button"
             variant="outline"
@@ -642,103 +664,170 @@ export function EditorPage() {
         </div>
       </header>
 
-      {readOnly ? (
-        <p className={cn(styles.lifecycleNotice)} data-editor-lifecycle="IN_REVIEW">
-          已提交审核，等待审核处理。审核期间文章不可编辑。
-          {submissionId ? `（审核单号 ${submissionId}）` : ""}
-        </p>
-      ) : null}
+      <div className={cn(styles.workspace)}>
+        <CanvasFrame
+          /* `lg:h-full` replaces CanvasFrame's own `lg:h-[calc(100dvh-header)]`:
+             the height now has to subtract this page's action row as well, and it
+             is stated once, in `.workspace`. */
+          className="lg:h-full"
+          toolbarLabel="编辑器工具"
+          inspectorLabel="大纲与设置"
+          inspectorOpen={inspectorOpen}
+          toolbar={
+            <>
+              <Link
+                to="/studio"
+                className={cn(styles.railButton, "focus-ring")}
+                aria-label="返回创作中心"
+                title="返回创作中心"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden />
+              </Link>
+              <button
+                type="button"
+                className={cn(
+                  styles.railButton,
+                  "focus-ring",
+                  previewEnabled && "bg-muted text-foreground",
+                )}
+                aria-pressed={previewEnabled}
+                aria-label={previewEnabled ? "关闭预览" : "预览"}
+                title={previewEnabled ? "关闭预览" : "预览"}
+                onClick={() => setPreviewEnabled((current) => !current)}
+              >
+                <Eye className="h-4 w-4" aria-hidden />
+              </button>
+              {/* Below `lg` the inspector track is collapsed by CanvasFrame; the
+                  page owns that state, so the tool track owns the way in.
+                  Deliberately NOT named 「发布设置」: `scope guards` in the suite
+                  asserts that no control whose name matches /发布/ exists, because
+                  the backend has no creator-facing publish endpoint. This button
+                  toggles a track, it does not publish anything. */}
+              <button
+                type="button"
+                className={cn(styles.railButton, "focus-ring", "lg:hidden")}
+                aria-expanded={inspectorOpen}
+                aria-label={inspectorOpen ? "收起检视栏" : "展开检视栏"}
+                title={inspectorOpen ? "收起检视栏" : "展开检视栏"}
+                onClick={() => setInspectorOpen((current) => !current)}
+              >
+                <SlidersHorizontal className="h-4 w-4" aria-hidden />
+              </button>
+            </>
+          }
+          inspector={
+            <>
+              <ArticleEditorOutline
+                items={outline}
+                activeIndex={activeOutline}
+                onSelect={(item, index) => {
+                  setActiveOutline(index);
+                  scrollToOutlineItem(item.lineIndex);
+                }}
+              />
 
-      {/*
-       * PUBLISHED (Phase 1.6). The public article already exists as a frozen
-       * PublishedRevision; what the user edits now is a NEW draft. The wording
-       * must never suggest that saving updates the public article, that changes
-       * sync immediately, or that the creator can publish directly — because the
-       * backend does none of those (public reads serve the PublishedRevision, and
-       * publishing requires a fresh submit + admin approval).
-       */}
-      {lifecycle === "PUBLISHED" ? (
-        <p
-          className={cn(styles.lifecycleNotice, styles.lifecycleNoticePublished)}
-          data-editor-lifecycle="PUBLISHED"
+              <ArticleEditorSettings
+                topics={topics}
+                topicIds={topicIds}
+                visibility={visibility}
+                coverUrl={coverUrl}
+                articleId={uploadArticleId}
+                readOnly={readOnly}
+                onToggleTopic={handleToggleTopic}
+                onVisibilityChange={handleVisibilityChange}
+                onCoverUrlChange={handleCoverUrlChange}
+                onCoverUploadError={setUploadError}
+              />
+            </>
+          }
         >
-          <strong>此文章已有公开版本。</strong>
-          当前修改只会保存到草稿，不会立即影响公开内容；完成修改后需要重新提交审核。
-        </p>
-      ) : null}
+          {/* Canvas track. The scroll container is CanvasFrame's middle track, so
+              this element only supplies the canvas gutters. It is a `<div>`, not a
+              `<main>`: the shell already owns the page's `<main id="main">`
+              (AppLayout.tsx:548) and the old nested `<main>` was invalid markup. */}
+          <div className={cn(styles.main)}>
+            {/*
+             * A §7 (B-class shell): no shell chrome renders a heading for this
+             * surface, so the page owns exactly ONE h1. The visible title lives in
+             * the action row above; this is its accessible copy, with a neutral
+             * fallback for a brand-new draft.
+             */}
+            <h1 className="sr-only">{title.trim() || "编辑文章"}</h1>
 
-      {/*
-       * Status unknown. Shown INSTEAD of a lifecycle claim, never alongside one:
-       * we do not guess whether the article is published.
-       */}
-      {statusUnavailable ? (
-        <p className={cn(styles.statusNotice)} data-editor-status-unknown>
-          未能获取文章状态，暂不显示发布状态提示。编辑与保存不受影响。
-        </p>
-      ) : null}
+            {readOnly ? (
+              <p className={cn(styles.lifecycleNotice)} data-editor-lifecycle="IN_REVIEW">
+                已提交审核，等待审核处理。审核期间文章不可编辑。
+                {submissionId ? `（审核单号 ${submissionId}）` : ""}
+              </p>
+            ) : null}
 
-      {saveError ? (
-        <p className={cn(styles.uploadAlert)} role="alert" data-editor-save-error>
-          {saveError}
-        </p>
-      ) : null}
+            {/*
+             * PUBLISHED (Phase 1.6). The public article already exists as a frozen
+             * PublishedRevision; what the user edits now is a NEW draft. The wording
+             * must never suggest that saving updates the public article, that changes
+             * sync immediately, or that the creator can publish directly — because the
+             * backend does none of those (public reads serve the PublishedRevision, and
+             * publishing requires a fresh submit + admin approval).
+             */}
+            {lifecycle === "PUBLISHED" ? (
+              <p
+                className={cn(styles.lifecycleNotice, styles.lifecycleNoticePublished)}
+                data-editor-lifecycle="PUBLISHED"
+              >
+                <strong>此文章已有公开版本。</strong>
+                当前修改只会保存到草稿，不会立即影响公开内容；完成修改后需要重新提交审核。
+              </p>
+            ) : null}
 
-      {submitError ? (
-        <p className={cn(styles.uploadAlert)} role="alert" data-editor-submit-error>
-          {submitError}
-        </p>
-      ) : null}
+            {/*
+             * Status unknown. Shown INSTEAD of a lifecycle claim, never alongside one:
+             * we do not guess whether the article is published.
+             */}
+            {statusUnavailable ? (
+              <p className={cn(styles.statusNotice)} data-editor-status-unknown>
+                未能获取文章状态，暂不显示发布状态提示。编辑与保存不受影响。
+              </p>
+            ) : null}
 
-      <div className={cn(styles.shell)}>
-        <ArticleEditorOutline
-          items={outline}
-          activeIndex={activeOutline}
-          onSelect={(item, index) => {
-            setActiveOutline(index);
-            scrollToOutlineItem(item.lineIndex);
-          }}
-        />
+            {saveError ? (
+              <p className={cn(styles.uploadAlert)} role="alert" data-editor-save-error>
+                {saveError}
+              </p>
+            ) : null}
 
-        <main className={cn(styles.main)}>
-          {uploadError ? (
-            <p className={cn(styles.uploadAlert)} role="alert">
-              {uploadError}
-            </p>
-          ) : null}
+            {submitError ? (
+              <p className={cn(styles.uploadAlert)} role="alert" data-editor-submit-error>
+                {submitError}
+              </p>
+            ) : null}
 
-          <div className={cn(styles.canvas)}>
-            <ArticleEditorBody
-              bodyMode={bodyMode}
-              title={title}
-              summary={summary}
-              value={body}
-              readOnly={readOnly}
-              previewEnabled={previewEnabled}
-              onTitleChange={handleTitleChange}
-              onSummaryChange={handleSummaryChange}
-              onChange={handleBodyChange}
-              onModeChange={handleModeChange}
-              onControllerChange={(controller) => {
-                bodyControllerRef.current = controller;
-              }}
-              onUploadError={setUploadError}
-              onRichTextSettle={handleRichTextSettle}
-            />
+            {uploadError ? (
+              <p className={cn(styles.uploadAlert)} role="alert">
+                {uploadError}
+              </p>
+            ) : null}
+
+            <div className={cn(styles.canvas)}>
+              <ArticleEditorBody
+                bodyMode={bodyMode}
+                title={title}
+                summary={summary}
+                value={body}
+                readOnly={readOnly}
+                previewEnabled={previewEnabled}
+                onTitleChange={handleTitleChange}
+                onSummaryChange={handleSummaryChange}
+                onChange={handleBodyChange}
+                onModeChange={handleModeChange}
+                onControllerChange={(controller) => {
+                  bodyControllerRef.current = controller;
+                }}
+                onUploadError={setUploadError}
+                onRichTextSettle={handleRichTextSettle}
+              />
+            </div>
           </div>
-        </main>
-
-        <ArticleEditorSettings
-          topics={topics}
-          topicIds={topicIds}
-          visibility={visibility}
-          coverUrl={coverUrl}
-          articleId={uploadArticleId}
-          readOnly={readOnly}
-          onToggleTopic={handleToggleTopic}
-          onVisibilityChange={handleVisibilityChange}
-          onCoverUrlChange={handleCoverUrlChange}
-          onCoverUploadError={setUploadError}
-        />
+        </CanvasFrame>
       </div>
 
       <EditorSubmitConfirm

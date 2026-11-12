@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { BadgeCheck, ChevronDown, Mail, ShieldAlert } from "lucide-react";
+import { BadgeCheck, ChevronDown, ShieldAlert } from "lucide-react";
 import { accountApi } from "@/api/account/account.api";
 import { authApi } from "@/api/auth/auth.api";
 import { ApiError } from "@/api/client";
+import { ArchetypeFrame, TableFrame } from "@/components/layout";
+import { PageSection } from "@/components/shared/PageSection";
 import { Button } from "@/components/ui/button";
 import { PageState } from "@/components/shared/PageState";
 import { cn } from "@/lib/cn";
@@ -53,6 +55,15 @@ import { getStoredRecentAuth } from "@/features/settings/recent-auth";
  * conditionally rendered — the form stays mounted so its own tests can still
  * submit it directly, and so no field state is lost when the panel is closed.
  * ---------------------------------------------------------------------------
+ *
+ * --- 2026-11-10 批次 C：SK3 · 壳 / 表 / 错 -------------------------------
+ * 「CURRENT-VALUE CARD」换成一张两列的表：本页的主体就是「项目 / 值」的三行事实
+ * （邮箱、验证状态、生效方式），可逐行核对，属 D=表（本域只有本页与 API Token 是表）。
+ * R=错：再验证状态与"确认后会发生什么"搬进 280 侧轨 —— 它们是前置条件与后果，不是
+ * 当前值，挤在正文里会把「我的邮箱是什么」推到第二屏。侧轨不重复地址本身
+ * （否则 `getByText(email)` 会命中两个节点）。
+ * 壳：h1「修改邮箱」仍由本页的 `PageSection` h2 承担层级起点，`SettingsLayout` 出 h1。
+ * 提交逻辑 / grant 判据 / 字段校验 / 面板 toggle 一行未动。
  */
 
 type Me = { email: string; emailVerified: boolean };
@@ -134,176 +145,234 @@ export function SettingsEmailPage() {
     }
   }
 
-  if (meState === "loading") return <PageState kind="loading" />;
+  if (meState === "loading") {
+    return (
+      <ArchetypeFrame skeleton="SK3" header="shell" density="dense">
+        <PageState kind="loading" />
+      </ArchetypeFrame>
+    );
+  }
   if (meState === "error") {
     return (
-      <div className="section-gap">
+      <ArchetypeFrame skeleton="SK3" header="shell" density="dense">
         <PageState kind="error" title="无法读取账号信息" description="请确认登录状态后重试。" />
-        <div className="text-center">
+        <div>
           <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>
             重新加载
           </Button>
         </div>
-      </div>
+      </ArchetypeFrame>
     );
   }
 
   return (
-    <div className="section-gap">
-      <section aria-labelledby="email-heading">
-        <h2 id="email-heading" className="section-heading">
-          修改邮箱
-        </h2>
-        <p className="lede mt-1.5 max-w-2xl">
-          邮箱用于登录、找回密码与接收通知。更换后需要在新邮箱完成确认才会生效，确认时你会退出所有设备的登录状态。
-        </p>
-      </section>
-
-      {/* Current value first — this is the question most visits are actually asking. */}
-      <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-sunken text-muted-foreground"
-            aria-hidden
-          >
-            <Mail className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            {/* The verification state stays INSIDE `email-current` rather than
-                living only in the badge beside it: this element is what a screen
-                reader reads out as the current address, and "is it verified?" is
-                part of that answer. The badge is the visual echo.
-                No separate "当前邮箱" label above — the value line already opens
-                with it, and saying it twice was pure redundancy. */}
-            <p className="truncate text-card font-medium text-primary" data-testid="email-current">
-              当前邮箱：{me?.email ?? "—"}
-              {me && !me.emailVerified ? "（尚未验证）" : ""}
-            </p>
-          </div>
-        </div>
-
-        <span className="flex shrink-0 items-center gap-2">
-          {me && me.emailVerified ? (
-            <span className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-2 py-1 text-meta font-medium text-accent-strong">
-              <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-              已验证
-            </span>
+    <ArchetypeFrame
+      skeleton="SK3"
+      header="shell"
+      density="dense"
+      railLabel="身份验证"
+      rail={
+        /*
+          R=错：主列 + 280 侧轨。侧轨放的是**这一页的前置条件**（再验证是否还有效）
+          与后果说明 —— 它们原来挤在正文里，把"当前邮箱是什么"这个主要问题推到了
+          第二屏。侧轨不重复正文里的地址（那样 `getByText(email)` 会命中两个节点）。
+        */
+        <div className="flex flex-col gap-4 rounded-card border border-border/70 bg-card p-4">
+          {!hasGrant ? (
+            <div className="flex flex-col gap-2" data-testid="email-need-reauth">
+              <p className="text-meta leading-6 text-foreground">修改邮箱前需要先验证身份。</p>
+              <Link
+                to="/settings/security/re-authenticate?returnTo=/settings/security/email"
+                className="focus-ring w-fit rounded-control bg-primary px-3 py-2 text-meta font-medium text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                去验证身份
+              </Link>
+            </div>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-2 py-1 text-meta font-medium text-destructive">
-              <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
-              待验证
-            </span>
+            <div className="flex flex-col gap-1">
+              <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
+                身份验证
+              </p>
+              <p className="text-meta leading-6 text-foreground-soft">
+                已验证，有效期 15 分钟；过期后需要重新验证。
+              </p>
+            </div>
           )}
-        </span>
-      </div>
 
-      {!hasGrant ? (
-        <div
-          className="flex flex-col gap-2 rounded-xl border border-border/70 bg-surface-sunken/50 p-4 sm:flex-row sm:items-center sm:justify-between"
-          data-testid="email-need-reauth"
-        >
-          <p className="text-meta text-foreground">修改邮箱前需要先验证身份。</p>
-          <Link
-            to="/settings/security/re-authenticate?returnTo=/settings/security/email"
-            className="focus-ring w-fit shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            去验证身份
-          </Link>
-        </div>
-      ) : null}
-
-      {submitError ? (
-        <p
-          role="alert"
-          data-testid="email-error"
-          className="rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
-        >
-          {submitError}
-        </p>
-      ) : null}
-
-      {notice ? (
-        <p
-          role={notice.tone === "warning" ? "alert" : "status"}
-          data-testid={`email-notice-${notice.tone}`}
-          className={cn(
-            "rounded-lg border px-4 py-2.5 text-meta",
-            notice.tone === "warning"
-              ? "border-destructive/25 bg-destructive/5 text-destructive"
-              : "border-accent-line/60 bg-accent-soft text-accent-strong",
-          )}
-        >
-          {notice.message}
-        </p>
-      ) : null}
-
-      {/* The change panel. Toggled, never unmounted — see the header note. */}
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
-        <button
-          type="button"
-          aria-expanded={formOpen}
-          aria-controls="email-change-form"
-          onClick={() => setFormOpen((open) => !open)}
-          className="focus-ring flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface-sunken/50"
-        >
-          <span className="text-card font-medium text-primary">更换为新的邮箱</span>
-          <ChevronDown
-            className={cn(
-              "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-              formOpen && "rotate-180",
-            )}
-            aria-hidden
-          />
-        </button>
-
-        <form
-          id="email-change-form"
-          onSubmit={onSubmit}
-          className={cn("flex flex-col gap-3 border-t border-border/70 p-4", !formOpen && "hidden")}
-          data-testid="email-form"
-        >
-          <label className="flex flex-col gap-1.5 text-meta text-foreground-soft">
-            新邮箱
-            <input
-              type="email"
-              value={newEmail}
-              autoComplete="email"
-              aria-invalid={fieldError ? true : undefined}
-              onChange={(event) => {
-                setNewEmail(event.target.value);
-                setFieldError(null);
-              }}
-              className="focus-ring h-9 rounded-md border border-input bg-surface-sunken/60 px-3 text-sm text-foreground"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-meta text-foreground-soft">
-            当前密码
-            <input
-              type="password"
-              value={password}
-              autoComplete="current-password"
-              onChange={(event) => {
-                setPassword(event.target.value);
-                setFieldError(null);
-              }}
-              className="focus-ring h-9 rounded-md border border-input bg-surface-sunken/60 px-3 text-sm text-foreground"
-            />
-          </label>
-          {fieldError ? (
-            <p role="alert" className="text-meta text-destructive">
-              {fieldError}
+          <div className="flex flex-col gap-1 border-t border-border/60 pt-3">
+            <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
+              确认后会发生什么
             </p>
-          ) : null}
-          <p className="text-meta text-muted-foreground">
-            提交后会向新邮箱发送确认邮件，完成确认后新邮箱才会生效；确认后需要重新登录。
-          </p>
-          <div>
-            <Button type="submit" disabled={busy} data-testid="email-submit">
-              {busy ? "提交中…" : "提交更换"}
-            </Button>
+            <p className="text-meta leading-6 text-muted-foreground">
+              需在新邮箱完成确认才生效；确认时你会退出所有设备的登录状态，原邮箱立即不能用于登录。
+            </p>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      }
+    >
+      <PageSection
+        id="email-heading"
+        title="修改邮箱"
+        description="邮箱用于登录、找回密码与接收通知。更换后需要在新邮箱完成确认才会生效。"
+      >
+        {/*
+          D=表：本页的主体是「账号现在的邮箱状态」—— 项目 / 值两列，可以逐行核对，
+          所以用 `TableFrame` 而不是卡片或说明段落。这是本域两个「表」页之一
+          （另一个是 API Token），与四个「紧」页的差别就是这条表头带与对齐列。
+        */}
+        <TableFrame caption="邮箱状态">
+          <thead>
+            <tr>
+              <th scope="col" className="w-[8rem]">
+                项目
+              </th>
+              <th scope="col">当前值</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row" className="whitespace-nowrap">
+                邮箱
+              </th>
+              <td>
+                {/* The verification state stays INSIDE `email-current` rather than
+                    living only in the badge beside it: this element is what a screen
+                    reader reads out as the current address, and "is it verified?" is
+                    part of that answer. */}
+                <span
+                  data-testid="email-current"
+                  className="break-all font-medium text-primary"
+                >
+                  当前邮箱：{me?.email ?? "—"}
+                  {me && !me.emailVerified ? "（尚未验证）" : ""}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <th scope="row" className="whitespace-nowrap">
+                验证状态
+              </th>
+              <td>
+                {me && me.emailVerified ? (
+                  <span className="inline-flex items-center gap-1.5 text-meta text-success">
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-pill bg-success" />
+                    <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+                    已验证
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-meta text-destructive">
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-pill bg-destructive" />
+                    <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+                    待验证
+                  </span>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row" className="whitespace-nowrap">
+                生效方式
+              </th>
+              <td className="text-meta">提交后需在新邮箱点确认链接；确认后需重新登录。</td>
+            </tr>
+          </tbody>
+        </TableFrame>
+
+        {submitError ? (
+          <p
+            role="alert"
+            data-testid="email-error"
+            className="mt-4 rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
+          >
+            {submitError}
+          </p>
+        ) : null}
+
+        {notice ? (
+          <p
+            role={notice.tone === "warning" ? "alert" : "status"}
+            data-testid={`email-notice-${notice.tone}`}
+            className={cn(
+              "mt-4 rounded-lg border px-4 py-2.5 text-meta",
+              notice.tone === "warning"
+                ? "border-destructive/25 bg-destructive/5 text-destructive"
+                : "border-border/70 bg-surface-sunken text-foreground-soft",
+            )}
+          >
+            {notice.message}
+          </p>
+        ) : null}
+
+        {/* The change panel. Toggled, never unmounted — see the header note. */}
+        <div className="mt-4 overflow-hidden rounded-card border border-border/70 bg-card">
+          <button
+            type="button"
+            aria-expanded={formOpen}
+            aria-controls="email-change-form"
+            onClick={() => setFormOpen((open) => !open)}
+            className="focus-ring flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-sunken/60"
+          >
+            <span className="text-card font-medium text-primary">更换为新的邮箱</span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                formOpen && "rotate-180",
+              )}
+              aria-hidden
+            />
+          </button>
+
+          <form
+            id="email-change-form"
+            onSubmit={onSubmit}
+            className={cn(
+              "flex flex-col gap-3 border-t border-border/70 p-4",
+              !formOpen && "hidden",
+            )}
+            data-testid="email-form"
+          >
+            <label className="flex flex-col gap-1.5 text-meta text-foreground-soft">
+              新邮箱
+              <input
+                type="email"
+                value={newEmail}
+                autoComplete="email"
+                aria-invalid={fieldError ? true : undefined}
+                onChange={(event) => {
+                  setNewEmail(event.target.value);
+                  setFieldError(null);
+                }}
+                className="focus-ring h-9 rounded-control border border-input bg-card px-3 text-sm text-foreground"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-meta text-foreground-soft">
+              当前密码
+              <input
+                type="password"
+                value={password}
+                autoComplete="current-password"
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setFieldError(null);
+                }}
+                className="focus-ring h-9 rounded-control border border-input bg-card px-3 text-sm text-foreground"
+              />
+            </label>
+            {fieldError ? (
+              <p role="alert" className="text-meta text-destructive">
+                {fieldError}
+              </p>
+            ) : null}
+            <p className="text-meta text-muted-foreground">
+              提交后会向新邮箱发送确认邮件，完成确认后新邮箱才会生效；确认后需要重新登录。
+            </p>
+            <div>
+              <Button type="submit" disabled={busy} data-testid="email-submit">
+                {busy ? "提交中…" : "提交更换"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </PageSection>
+    </ArchetypeFrame>
   );
 }

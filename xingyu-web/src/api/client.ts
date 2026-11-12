@@ -51,6 +51,21 @@ type RequestOptions = {
    * that would overwrite `xingyu-satoken` and log the user out. (Phase 2A-2b)
    */
   persistToken?: boolean;
+  /**
+   * Declare that a 401 from this endpoint does NOT mean "the current session is
+   * dead", so the client must not delete `xingyu-satoken`.
+   *
+   * Defaults to `true` (任何 401 一律清 token), which is what almost every
+   * authenticated endpoint wants: the request carried the stored token and the
+   * backend refused it.
+   *
+   * It is WRONG for `POST /auth/login`: there the 401 answers "these credentials
+   * are wrong". The caller is a *guest* on the login form, and /login has no
+   * "already signed in → redirect" guard (router/routes.tsx), so a signed-in user
+   * opening it in a second tab and mistyping a password used to have the valid
+   * token of the whole browser deleted by that 401. (Audit 2026-11-10, A1)
+   */
+  clearTokenOn401?: boolean;
 };
 
 function buildHeaders(options: RequestOptions): Record<string, string> {
@@ -102,7 +117,17 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     return undefined as T;
   }
   if (!response.ok) {
-    if (response.status === 401 && token && getStoredToken() === token) setStoredToken(null);
+    // A 401 only means "the session died" for endpoints that authenticated with
+    // the stored token. `clearTokenOn401: false` marks the endpoints (login)
+    // where 401 answers "these credentials are wrong" instead.
+    if (
+      response.status === 401 &&
+      options.clearTokenOn401 !== false &&
+      token &&
+      getStoredToken() === token
+    ) {
+      setStoredToken(null);
+    }
     throw new ApiError(toProblemDetails(data, response.status, response.statusText));
   }
   return data as T;

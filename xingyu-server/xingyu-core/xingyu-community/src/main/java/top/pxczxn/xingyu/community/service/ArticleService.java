@@ -20,6 +20,7 @@ import top.pxczxn.xingyu.community.entity.PublishedRevision;
 import top.pxczxn.xingyu.community.entity.Topic;
 import top.pxczxn.xingyu.community.entity.WorkingDraft;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
+import top.pxczxn.xingyu.community.mapper.CollaborationMemberMapper;
 import top.pxczxn.xingyu.community.mapper.ArticleTopicMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.CreationSpaceCategoryMapper;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -58,12 +60,53 @@ public class ArticleService {
     private final TopicMapper topicMapper;
     private final SeriesMapper seriesMapper;
     private final CommunityEventSupport eventSupport;
+    private final CollaborationMemberMapper collaborationMemberMapper;
 
     public List<ArticleSummaryView> listForOwner(CommunityUser user) {
-        return articleMapper.listByOwnerId(user.getId()).stream()
+        List<Article> owned = articleMapper.listByOwnerId(user.getId());
+        List<String> otherOwnerIds = collaborationMemberMapper.listOwnerIdsByMemberId(user.getId());
+        List<Article> collaborated = otherOwnerIds.isEmpty()
+                ? List.of()
+                : articleMapper.listByOwnerIds(otherOwnerIds);
+        java.util.LinkedHashMap<String, Article> merged = new java.util.LinkedHashMap<>();
+        for (Article article : owned) {
+            merged.put(article.getId(), article);
+        }
+        for (Article article : collaborated) {
+            merged.putIfAbsent(article.getId(), article);
+        }
+        List<Article> visible = merged.values().stream()
                 .filter(ArticleStateSupport::isActiveLifecycle)
-                .map(this::toSummary)
+                .sorted((left, right) -> {
+                    Instant rightUpdated = right.getUpdatedAt();
+                    Instant leftUpdated = left.getUpdatedAt();
+                    if (rightUpdated == null && leftUpdated == null) {
+                        return 0;
+                    }
+                    if (rightUpdated == null) {
+                        return -1;
+                    }
+                    if (leftUpdated == null) {
+                        return 1;
+                    }
+                    return rightUpdated.compareTo(leftUpdated);
+                })
                 .toList();
+        Map<String, WorkingDraft> drafts = loadDrafts(visible);
+        return visible.stream()
+                .map(article -> toSummary(article, collaborationRole(user, article), drafts.get(article.getId())))
+                .toList();
+    }
+
+    private Map<String, WorkingDraft> loadDrafts(List<Article> articles) {
+        if (articles.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, WorkingDraft> drafts = new HashMap<>();
+        for (WorkingDraft draft : draftMapper.listByArticleIds(articles.stream().map(Article::getId).toList())) {
+            drafts.putIfAbsent(draft.getArticleId(), draft);
+        }
+        return drafts;
     }
 
     @Transactional
@@ -90,17 +133,17 @@ public class ArticleService {
         draft.setUpdatedAt(now);
         draftMapper.insert(draft);
 
-        return toDraftView(article, draft, List.of());
+        return toDraftView(article, draft, List.of(), "OWNER");
     }
 
     public WorkingDraftView getDraft(CommunityUser user, String articleId) {
-        Article article = requireOwnedArticle(user, articleId);
+        Article article = requireEditableArticle(user, articleId);
         WorkingDraft draft = requireDraft(articleId);
-        return toDraftView(article, draft, listTopicIds(articleId));
+        return toDraftView(article, draft, listTopicIds(articleId), collaborationRole(user, article));
     }
 
     public List<ArticleRevisionView> listRevisions(CommunityUser user, String articleId) {
-        requireOwnedArticle(user, articleId);
+        requireEditableArticle(user, articleId);
         return formalRevisionMapper.listByArticleId(articleId).stream()
                 .map(revision -> ArticleRevisionView.builder()
                         .id(revision.getId())
@@ -132,7 +175,7 @@ public class ArticleService {
      */
     @Transactional
     public WorkingDraftView saveDraft(CommunityUser user, String articleId, Map<String, Object> body) {
-        Article article = requireOwnedArticle(user, articleId);
+        Article article = requireEditableArticle(user, articleId);
         if (!ArticleStateSupport.canEditDraft(article)) {
             throw new ContractException(ErrorCode.CONFLICT, "文章当前不可编辑");
         }
@@ -208,7 +251,8 @@ public class ArticleService {
         // 响应必须反映真实持久化结果：从 DB 重读，而不是用内存实体
         Article freshArticle = articleMapper.selectById(articleId);
         WorkingDraft freshDraft = requireDraft(articleId);
-        return toDraftView(freshArticle, freshDraft, listTopicIds(articleId));
+        return toDraftView(
+                freshArticle, freshDraft, listTopicIds(articleId), collaborationRole(user, freshArticle));
     }
 
     @Transactional
@@ -234,7 +278,7 @@ public class ArticleService {
      */
     @Transactional
     public WorkingDraftView cancelSchedule(CommunityUser user, String articleId) {
-        Article article = requireOwnedArticle(user, articleId);
+        Article article = requireEditableArticle(user, articleId);
         requireDraft(articleId);
         Instant now = Instant.now();
         int updated = draftMapper.update(null, new UpdateWrapper<WorkingDraft>()
@@ -250,7 +294,7 @@ public class ArticleService {
         // 视图直接反映持久化结果（该列已确认写 NULL）
         article.setUpdatedAt(now);
         WorkingDraft fresh = requireDraft(articleId);
-        return toDraftView(article, fresh, listTopicIds(articleId));
+        return toDraftView(article, fresh, listTopicIds(articleId), collaborationRole(user, article));
     }
 
     /**
@@ -261,7 +305,7 @@ public class ArticleService {
      */
     @Transactional
     public WorkingDraftView restoreRevision(CommunityUser user, String articleId, String revisionId) {
-        Article article = requireOwnedArticle(user, articleId);
+        Article article = requireEditableArticle(user, articleId);
         if (!ArticleStateSupport.canEditDraft(article)) {
             throw new ContractException(ErrorCode.CONFLICT, "文章当前不可恢复版本");
         }
@@ -293,7 +337,8 @@ public class ArticleService {
                 .set("updated_at", now));
         Article freshArticle = articleMapper.selectById(articleId);
         WorkingDraft fresh = requireDraft(articleId);
-        return toDraftView(freshArticle, fresh, listTopicIds(articleId));
+        return toDraftView(
+                freshArticle, fresh, listTopicIds(articleId), collaborationRole(user, freshArticle));
     }
 
     public ArticlePublicView getPublicArticle(String articleId, CommunityUser viewer) {
@@ -322,11 +367,7 @@ public class ArticleService {
             }
         }
 
-        List<String> topicSlugs = listTopicIds(articleId).stream()
-                .map(topicMapper::selectById)
-                .filter(t -> t != null && isTopicSelectable(t))
-                .map(Topic::getSlug)
-                .toList();
+        List<String> topicSlugs = listSelectableTopicSlugs(articleId);
 
         return ArticlePublicView.builder()
                 .id(article.getId())
@@ -357,6 +398,20 @@ public class ArticleService {
         return article;
     }
 
+    Article requireEditableArticle(CommunityUser user, String articleId) {
+        Article article = articleMapper.selectById(articleId);
+        if (article == null) {
+            throw new ContractException(ErrorCode.NOT_FOUND);
+        }
+        if (user.getId().equals(article.getOwnerId())) {
+            return article;
+        }
+        if (collaborationMemberMapper.findByOwnerAndMember(article.getOwnerId(), user.getId()) != null) {
+            return article;
+        }
+        throw new ContractException(ErrorCode.NOT_FOUND);
+    }
+
     WorkingDraft requireDraft(String articleId) {
         WorkingDraft draft = draftMapper.findByArticleId(articleId);
         if (draft == null) {
@@ -365,8 +420,14 @@ public class ArticleService {
         return draft;
     }
 
-    private ArticleSummaryView toSummary(Article article) {
-        WorkingDraft draft = draftMapper.findByArticleId(article.getId());
+    private String collaborationRole(CommunityUser user, Article article) {
+        if (user.getId().equals(article.getOwnerId())) {
+            return "OWNER";
+        }
+        return "EDITOR";
+    }
+
+    private ArticleSummaryView toSummary(Article article, String collaborationRole, WorkingDraft draft) {
         return ArticleSummaryView.builder()
                 .id(article.getId())
                 .status(article.getStatus())
@@ -375,10 +436,12 @@ public class ArticleService {
                 .title(draft == null ? null : draft.getTitle())
                 .categoryId(article.getCategoryId())
                 .updatedAt(article.getUpdatedAt())
+                .collaborationRole(collaborationRole)
                 .build();
     }
 
-    private WorkingDraftView toDraftView(Article article, WorkingDraft draft, List<String> topicIds) {
+    private WorkingDraftView toDraftView(
+            Article article, WorkingDraft draft, List<String> topicIds, String collaborationRole) {
         return WorkingDraftView.builder()
                 .articleId(article.getId())
                 .title(draft.getTitle())
@@ -393,6 +456,7 @@ public class ArticleService {
                 .lockVersion(draft.getLockVersion() == null ? 0L : draft.getLockVersion())
                 .updatedAt(draft.getUpdatedAt())
                 .scheduledPublishAt(draft.getScheduledPublishAt())
+                .collaborationRole(collaborationRole)
                 .build();
     }
 
@@ -410,30 +474,66 @@ public class ArticleService {
     }
 
     @SuppressWarnings("unchecked")
-    private void syncTopics(String articleId, Object rawTopicIds) {
+    void syncTopics(String articleId, Object rawTopicIds) {
         articleTopicMapper.deleteByArticleId(articleId);
         if (!(rawTopicIds instanceof List<?> ids)) {
             return;
         }
-        Instant now = Instant.now();
+        List<String> topicIds = new ArrayList<>();
         for (Object raw : ids) {
             if (raw == null) {
                 continue;
             }
             String topicId = String.valueOf(raw).trim();
-            if (topicId.isBlank()) {
-                continue;
+            if (!topicId.isBlank()) {
+                topicIds.add(topicId);
             }
-            Topic topic = topicMapper.selectById(topicId);
+        }
+        if (topicIds.isEmpty()) {
+            return;
+        }
+        Map<String, Topic> topics = topicsById(topicIds);
+        for (String topicId : topicIds) {
+            Topic topic = topics.get(topicId);
             if (topic == null || !isTopicSelectable(topic)) {
                 throw new FieldContractException("topicIds", "话题不存在或未启用");
             }
+        }
+        Instant now = Instant.now();
+        List<ArticleTopic> links = new ArrayList<>();
+        for (String topicId : topicIds) {
             ArticleTopic link = new ArticleTopic();
             link.setArticleId(articleId);
             link.setTopicId(topicId);
             link.setCreatedAt(now);
-            articleTopicMapper.insert(link);
+            links.add(link);
         }
+        articleTopicMapper.insertAll(links);
+    }
+
+    List<String> listSelectableTopicSlugs(String articleId) {
+        List<String> topicIds = listTopicIds(articleId);
+        Map<String, Topic> topics = topicsById(topicIds);
+        return topicIds.stream()
+                .map(topics::get)
+                .filter(topic -> topic != null && isTopicSelectable(topic))
+                .map(Topic::getSlug)
+                .toList();
+    }
+
+    private Map<String, Topic> topicsById(List<String> topicIds) {
+        List<String> ids = topicIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Topic> topics = new HashMap<>();
+        for (Topic topic : topicMapper.selectBatchIds(ids)) {
+            topics.putIfAbsent(topic.getId(), topic);
+        }
+        return topics;
     }
 
     private static String parseBodyMode(Object raw) {

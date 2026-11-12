@@ -5,6 +5,7 @@ import { articlesApi } from "@/api/articles/articles.api";
 import type { MyArticleSummary } from "@/api/articles/articles.types";
 import { seriesApi } from "@/api/series/series.api";
 import type { SeriesDetail, SeriesStatus } from "@/api/series/series.types";
+import { ArchetypeFrame } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -35,6 +36,19 @@ type ConflictReloadState = "idle" | "confirm" | "loading";
 
 /**
  * Chapter arrangement — the creator workbench's core surface (Phase 5C).
+ *
+ * 骨架迁移（批次 D）：SK3 控制台 · H 壳 / D 表 / R 错
+ * --------------------------------------------------
+ *   SK3  `ArchetypeFrame skeleton="SK3"` + `rail` ⇒ `[minmax(0,1fr) 280px]`：
+ *        主列放章节编排、右轨放选文面板（`ArticlePickerPanel` 本来就是为「桌面粘在
+ *        右栏」写的）。这就是 R=错：主列 + 侧轨。
+ *   H=壳：`WorkbenchShell` 无 heading，页内必须恰好 1 个 `h1`；首块是量化带与
+ *        编排工具行、视觉没有标题位 → `sr-only`。系列名是 `h2`，不是第二个 h1
+ *        （一个路由只有一个 h1）。
+ *   D=表：章节列表由 `ChapterOrderList` 的**列对齐行网格**承担 —— 序号 / 标题 /
+ *        状态 / 操作四列固定，行与行同基线，正是"可比较"的表格读法。该组件不在
+ *        本批写作用域内（`features/series/components/`），所以页面不重写它，只把
+ *        它放进控制台主列。
  *
  * The API has no per-chapter endpoints. Saving is a full replacement of the
  * relation table (`PUT /me/series/{id}` with `chapterArticleIds` + `lockVersion`),
@@ -87,7 +101,11 @@ export function SeriesArticlesPage() {
     setLockVersion(detail.lockVersion);
     setChapters(entries);
     setBaselineIds(chapterIds(entries));
-    setArticles(list);
+    const bindable =
+      detail.collaborationRole === "EDITOR"
+        ? list.filter((article) => article.collaborationRole === "EDITOR")
+        : list.filter((article) => article.collaborationRole !== "EDITOR");
+    setArticles(bindable);
     setLoadedId(detail.id);
     setSaveState("idle");
     setSaveError(null);
@@ -359,15 +377,49 @@ export function SeriesArticlesPage() {
         title="有未保存的章节编排"
         description="离开当前页面会丢失尚未保存的添加、移除和排序，确定要离开吗？"
       />
-      <div className="section-gap">
-        <header>
-          <BackLink />
-          <div className="mt-2 flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+      <ArchetypeFrame
+        skeleton="SK3"
+        header="shell"
+        density="dense"
+        railLabel="添加文章"
+        rail={
+          <ArticlePickerPanel
+            articles={articles}
+            selectedIds={selectedIds}
+            open={pickerOpen}
+            onAdd={addArticle}
+            onClose={() => setPickerOpen(false)}
+          />
+        }
+      >
+        {/* B 类壳：恰好 1 个 h1，视觉隐藏；首块仍是内容。系列名是 h2。 */}
+        <h1 className="sr-only">系列章节编排</h1>
+
+        {/* 量化带：两个可复核的数字。 */}
+        <div className="overflow-hidden rounded-card border border-border/70 bg-border/60">
+          <ul aria-label="编排概况" className="grid grid-cols-2 gap-px">
+            <li className="bg-card px-4 py-3">
+              <p className="text-meta text-muted-foreground">已收录章节</p>
+              <p className="mt-1 flex items-baseline gap-1">
+                <span className="text-h2 tabular-nums text-primary">{chapters.length}</span>
+                <span className="text-caption text-muted-foreground">章</span>
+              </p>
+            </li>
+            <li className="bg-card px-4 py-3">
+              <p className="text-meta text-muted-foreground">可编排文章</p>
+              <p className="mt-1 flex items-baseline gap-1">
+                <span className="text-h2 tabular-nums text-primary">{articles.length}</span>
+                <span className="text-caption text-muted-foreground">篇</span>
+              </p>
+            </li>
+          </ul>
+        </div>
+
+        <header className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="break-words text-2xl font-semibold tracking-tight text-primary">
-                  {seriesTitle}
-                </h1>
+                <h2 className="break-words text-h2 text-primary">{seriesTitle}</h2>
                 <SeriesStatusBadge status={seriesStatus} />
               </div>
               <p className="mt-1 text-meta text-muted-foreground">
@@ -408,150 +460,142 @@ export function SeriesArticlesPage() {
           </div>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-          <section aria-labelledby="series-chapters-heading" className="order-2 min-w-0 lg:order-1">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 id="series-chapters-heading" className="section-heading">
-                已收录章节
-              </h2>
+        <section aria-labelledby="series-chapters-heading" className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 id="series-chapters-heading" className="section-heading">
+              已收录章节
+            </h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setPickerOpen((open) => !open)}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              {pickerOpen ? "收起选文" : "添加文章"}
+            </Button>
+          </div>
+
+          {lastRemoved ? (
+            <div
+              role="status"
+              className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-control border border-border-strong/40 bg-muted px-3 py-2 text-caption text-foreground"
+            >
+              <span>
+                {`已从编排中移除《${articleDisplayTitle(lastRemoved.entry.title)}》。只解除关联，文章没有被删除。`}
+              </span>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-7 px-1"
+                onClick={undoRemove}
+              >
+                撤销
+              </Button>
+            </div>
+          ) : null}
+
+          {chapters.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 rounded-card border border-dashed border-border bg-card px-4 py-8 text-center">
+              <p className="text-meta font-medium text-foreground">还没有收录章节</p>
+              <p className="mx-auto max-w-md text-meta leading-6 text-muted-foreground">
+                从你的文章中选择章节加入。草稿也可以先编排，文章公开后读者才能阅读。
+              </p>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="lg:hidden"
-                onClick={() => setPickerOpen((open) => !open)}
+                className="mt-1"
+                onClick={() => setPickerOpen(true)}
               >
-                <Plus className="h-4 w-4" aria-hidden />
-                {pickerOpen ? "收起选文" : "添加文章"}
+                添加文章
               </Button>
             </div>
+          ) : (
+            <ChapterOrderList
+              chapters={chapters}
+              articleById={articleById}
+              onMove={moveChapter}
+              onRemove={removeChapter}
+              onReorder={reorderChapters}
+            />
+          )}
 
-            {lastRemoved ? (
-              <div
-                role="status"
-                className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent-line bg-accent-soft/60 px-3 py-2 text-xs text-foreground"
-              >
-                <span>
-                  {`已从编排中移除《${articleDisplayTitle(lastRemoved.entry.title)}》。只解除关联，文章没有被删除。`}
-                </span>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-7 px-1"
-                  onClick={undoRemove}
+          <p className="mt-3 text-caption leading-5 text-muted-foreground">
+            移除只解除系列关联，不会删除文章；添加、移除和排序需保存后生效。已发布章节仍受文章可见性与访问权限限制。
+          </p>
+
+          {saveState === "conflict" ? (
+            <div
+              role="alert"
+              className="mt-3 rounded-card border border-destructive/30 bg-card p-3"
+            >
+              <p className="text-meta font-medium text-destructive">
+                版本冲突：服务端存在其他编辑的更新，请先处理冲突后再保存。
+              </p>
+              <p className="mt-1 text-caption leading-5 text-muted-foreground">
+                {`你当前的 ${chapters.length} 章编排仍保留在本页。载入服务端版本会丢弃这些未保存的修改，因此需要你确认。`}
+              </p>
+              {conflictReload === "confirm" || conflictReload === "loading" ? (
+                <div
+                  role="group"
+                  aria-label="确认载入服务端版本"
+                  className="mt-2 rounded-control border border-border bg-card p-3"
                 >
-                  撤销
-                </Button>
-              </div>
-            ) : null}
-
-            {chapters.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-card/60 px-4 py-8 text-center">
-                <p className="text-sm font-medium text-foreground">还没有收录章节</p>
-                <p className="mx-auto mt-1 max-w-md text-meta leading-5 text-muted-foreground">
-                  从你的文章中选择章节加入。草稿也可以先编排，文章公开后读者才能阅读。
-                </p>
+                  <p className="text-caption leading-5 text-foreground">
+                    载入会覆盖你当前未保存的章节顺序和移除操作。确定继续吗？
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={conflictReload === "loading"}
+                      onClick={() => void reloadServerAfterConflict()}
+                    >
+                      {conflictReload === "loading" ? "读取中…" : "确认载入"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={conflictReload === "loading"}
+                      onClick={() => setConflictReload("idle")}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              ) : (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="mt-3"
-                  onClick={() => setPickerOpen(true)}
+                  className="mt-2"
+                  onClick={() => setConflictReload("confirm")}
                 >
-                  添加文章
+                  载入服务端最新编排
                 </Button>
-              </div>
-            ) : (
-              <ChapterOrderList
-                chapters={chapters}
-                articleById={articleById}
-                onMove={moveChapter}
-                onRemove={removeChapter}
-                onReorder={reorderChapters}
-              />
-            )}
+              )}
+            </div>
+          ) : null}
 
-            <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-              移除只解除系列关联，不会删除文章；添加、移除和排序需保存后生效。已发布章节仍受文章可见性与访问权限限制。
+          {saveError ? (
+            <p role="alert" className="mt-3 text-meta text-destructive">
+              {saveError}
             </p>
+          ) : null}
+          {saveMessage ? (
+            <p role="status" aria-live="polite" className="mt-3 text-meta text-muted-foreground">
+              {saveMessage}
+            </p>
+          ) : null}
+        </section>
 
-            {saveState === "conflict" ? (
-              <div
-                role="alert"
-                className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-              >
-                <p className="text-sm font-medium text-destructive">
-                  版本冲突：服务端存在其他编辑的更新，请先处理冲突后再保存。
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {`你当前的 ${chapters.length} 章编排仍保留在本页。载入服务端版本会丢弃这些未保存的修改，因此需要你确认。`}
-                </p>
-                {conflictReload === "confirm" || conflictReload === "loading" ? (
-                  <div
-                    role="group"
-                    aria-label="确认载入服务端版本"
-                    className="mt-2 rounded-lg border border-border bg-card p-3"
-                  >
-                    <p className="text-xs leading-5 text-foreground">
-                      载入会覆盖你当前未保存的章节顺序和移除操作。确定继续吗？
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        disabled={conflictReload === "loading"}
-                        onClick={() => void reloadServerAfterConflict()}
-                      >
-                        {conflictReload === "loading" ? "读取中…" : "确认载入"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={conflictReload === "loading"}
-                        onClick={() => setConflictReload("idle")}
-                      >
-                        取消
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => setConflictReload("confirm")}
-                  >
-                    载入服务端最新编排
-                  </Button>
-                )}
-              </div>
-            ) : null}
-
-            {saveError ? (
-              <p role="alert" className="mt-3 text-sm text-destructive">
-                {saveError}
-              </p>
-            ) : null}
-            {saveMessage ? (
-              <p role="status" aria-live="polite" className="mt-3 text-meta text-muted-foreground">
-                {saveMessage}
-              </p>
-            ) : null}
-          </section>
-
-          <ArticlePickerPanel
-            articles={articles}
-            selectedIds={selectedIds}
-            open={pickerOpen}
-            onAdd={addArticle}
-            onClose={() => setPickerOpen(false)}
-          />
-        </div>
-      </div>
+        <BackLink />
+      </ArchetypeFrame>
     </>
   );
 }
@@ -560,7 +604,7 @@ function BackLink() {
   return (
     <Link
       to="/studio/series"
-      className="focus-ring inline-flex items-center gap-1 rounded-sm text-sm text-accent-strong hover:underline"
+      className="focus-ring inline-flex w-fit items-center gap-1 rounded-sm text-meta text-accent-strong hover:underline"
     >
       <ArrowLeft className="h-4 w-4" aria-hidden />
       返回系列管理

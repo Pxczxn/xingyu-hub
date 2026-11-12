@@ -1,10 +1,15 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { collaborationApi } from "@/api/collaboration/collaboration.api";
-import type { CollaborationInvite } from "@/api/collaboration/collaboration.types";
+import type {
+  CollaborationInvite,
+  CollaborationParticipant,
+} from "@/api/collaboration/collaboration.types";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   ACCEPTANCE_BOUNDARY_NOTE,
@@ -18,19 +23,26 @@ import {
 /*
  * /studio/collaboration — 邀请协作 (Phase 2M)
  *
- * Creates a shareable invite link. That is ALL this page does, because that is
- * all the backend supports: `POST /me/collaboration-invites` inserts one row and
- * returns the token (see collaboration.types.ts for the full audit).
+ * 骨架迁移（批次 D）：SK5 流程 · H 线 / D 松 / R 齐
+ * --------------------------------------------------
+ *   SK5  `ArchetypeFrame skeleton="SK5"` 给出居中窄栏（`SOLO.SK5` = 720）。流程页
+ *        的终点是**一个**动作：生成邀请链接。所以提交按钮不在表单中部，而是粘在
+ *        视口底部（`sticky bottom-0` 的收尾条），滚动到哪儿都只差一步按下。
+ *   H=线：页头用 `PageMasthead`（无面 masthead，它自带 `h1`）；页面不再手写标题，
+ *        所以整页恰好 1 个 h1。
+ *   D=松：字段组各是一块独立面（卡内 padding 24、块间 24），由 frame 的
+ *        `density="loose"` 提供。
+ *   R=齐：没有侧轨、没有出血带 —— 窄栏之内所有块同宽同边。
  *
- * ⚠️ THE PAGE STATES THE LIMIT OUT LOUD. The invite exists; the collaboration
- * does not. `acceptInvite` writes nothing and there is no relationship table, so
- * the user must not be led to believe that sending this link grants anyone
- * access. Legacy implied exactly that ("邀请协作者", "查看协作空间") and shipped a
- * button that 404'd. We keep the honest version.
+ * 为什么不用 `StepFlow`：它把子内容硬编码成 `density-compact`（`StepFlow.tsx:111`），
+ * 会把本页声明的 D=松 抹掉；这里只借它那条粘底条的形状（同样的 `z-rail` + 半透明 +
+ * backdrop-blur），密度交给 `ArchetypeFrame`。
  *
- * ⚠️ `inviteUrl` is RELATIVE (`/studio/collaboration/accept?token=...`). It is
- * made absolute here before being shown or copied — a bare path is not a link a
- * user can paste into a chat.
+ * Creates a shareable 7-day invite link. The accepter becomes an EDITOR on the
+ * inviter's drafts. Submit and trash stay with the author; the page says that.
+ *
+ * `inviteUrl` is RELATIVE (`/studio/collaboration/accept?token=...`). It is
+ * made absolute here before being shown or copied.
  */
 
 type CreatedState =
@@ -52,7 +64,40 @@ export function CollaborationInvitePage() {
   const [note, setNote] = useState("");
   const [state, setState] = useState<CreatedState>({ kind: "idle" });
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  const [editors, setEditors] = useState<CollaborationParticipant[]>([]);
+  const [hosts, setHosts] = useState<CollaborationParticipant[]>([]);
   const pendingRef = useRef(false);
+
+  const reloadMemberships = useCallback(() => {
+    return Promise.all([collaborationApi.listEditors(), collaborationApi.listHosts()]).then(
+      ([nextEditors, nextHosts]) => {
+        setEditors(nextEditors);
+        setHosts(nextHosts);
+      },
+    );
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void reloadMemberships().catch(() => {
+      if (!active) return;
+      setEditors([]);
+      setHosts([]);
+    });
+    return () => {
+      active = false;
+    };
+  }, [reloadMemberships]);
+
+  async function removeEditor(member: CollaborationParticipant) {
+    await collaborationApi.removeEditor(member.userId);
+    setEditors((current) => current.filter((item) => item.userId !== member.userId));
+  }
+
+  async function leaveHost(host: CollaborationParticipant) {
+    await collaborationApi.leaveHost(host.userId);
+    setHosts((current) => current.filter((item) => item.userId !== host.userId));
+  }
 
   const onSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -101,155 +146,212 @@ export function CollaborationInvitePage() {
   }, []);
 
   return (
-    <div className="section-gap">
-      <nav className="text-xs text-muted-foreground" aria-label="面包屑">
-        <Link to="/studio" className="hover:text-foreground">
-          创作中心
-        </Link>
-        <span aria-hidden="true"> / </span>
-        <span>邀请协作</span>
-      </nav>
-
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">邀请协作</h1>
-        <p className="text-sm text-muted-foreground">生成一条邀请链接，发给你想一起创作的人。</p>
-      </header>
-
+    <ArchetypeFrame
+      skeleton="SK5"
+      header="line"
+      density="loose"
+      headerSlot={
+        <div className="flex flex-col gap-3">
+          <Link
+            to="/studio"
+            className="focus-ring inline-flex w-fit items-center gap-1 rounded-sm text-meta text-accent-strong hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            返回创作中心
+          </Link>
+          <PageMasthead
+            title="邀请协作"
+            description="生成一条邀请链接，发给你想一起创作的人。"
+          />
+        </div>
+      }
+    >
       {/* The boundary notice sits ABOVE the form, not below it: the user should
           read what accepting does and does not do BEFORE they send the link. */}
       <p
         data-testid="collaboration-boundary"
-        className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground"
+        className="rounded-control border border-border bg-surface-sunken/60 p-3 text-meta leading-6 text-muted-foreground"
       >
         {ACCEPTANCE_BOUNDARY_NOTE}
       </p>
 
-      <Card>
-        <CardContent className="p-5">
-          <form onSubmit={(event) => void onSubmit(event)} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="collaboration-note" className="text-sm font-medium text-foreground">
-                邀请备注（可选）
-              </label>
-              <Input
-                id="collaboration-note"
-                data-testid="collaboration-note"
-                value={note}
-                maxLength={INVITE_NOTE_MAX_LENGTH}
-                disabled={state.kind === "creating"}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="想先说明一下来意吗？"
-              />
-              <p className="text-xs text-muted-foreground">
-                {note.length}/{INVITE_NOTE_MAX_LENGTH} 字，会随邀请一起展示给对方。
-              </p>
-            </div>
+      <form onSubmit={(event) => void onSubmit(event)} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]">
+          <label htmlFor="collaboration-note" className="text-meta font-medium text-foreground">
+            邀请备注（可选）
+          </label>
+          <Input
+            id="collaboration-note"
+            data-testid="collaboration-note"
+            value={note}
+            maxLength={INVITE_NOTE_MAX_LENGTH}
+            disabled={state.kind === "creating"}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="想先说明一下来意吗？"
+          />
+          <p className="text-caption text-muted-foreground">
+            {note.length}/{INVITE_NOTE_MAX_LENGTH} 字，会随邀请一起展示给对方。
+          </p>
+        </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="submit"
-                variant="default"
-                size="sm"
-                data-testid="collaboration-create"
-                disabled={state.kind === "creating"}
-              >
-                {state.kind === "creating" ? "生成中…" : "生成邀请链接"}
-              </Button>
-              <span className="text-xs text-muted-foreground">{inviteLifetimeHint()}</span>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+        {state.kind === "failed" ? (
+          <p
+            role="alert"
+            data-testid="collaboration-error"
+            className="rounded-control border border-destructive/40 bg-card p-3 text-meta text-destructive"
+          >
+            {state.message}
+          </p>
+        ) : null}
 
-      {state.kind === "failed" ? (
-        <p
-          role="alert"
-          data-testid="collaboration-error"
-          className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive"
-        >
-          {state.message}
-        </p>
-      ) : null}
+        {/* 粘底操作条：SK5 的终点动作。刻意用边框而不是阴影（E1 只给离开文档流的
+            浮层，B §3），半透明 + blur 让被压在下面的字段仍然可读。 */}
+        <div className="sticky bottom-0 z-rail -mx-4 mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-card/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+          <span className="text-caption text-muted-foreground">{inviteLifetimeHint()}</span>
+          <Button
+            type="submit"
+            size="sm"
+            data-testid="collaboration-create"
+            disabled={state.kind === "creating"}
+          >
+            {state.kind === "creating" ? "生成中…" : "生成邀请链接"}
+          </Button>
+        </div>
+      </form>
 
       {state.kind === "created" ? (
-        <Card>
-          <CardContent className="flex flex-col gap-3 p-5" data-testid="collaboration-result">
-            <h2 className="section-heading">邀请链接已生成</h2>
+        <div
+          className="flex flex-col gap-3 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
+          data-testid="collaboration-result"
+        >
+          <h2 className="section-heading">邀请链接已生成</h2>
 
-            <div className="flex flex-col gap-1">
-              <label htmlFor="collaboration-link" className="text-xs text-muted-foreground">
-                邀请链接
-              </label>
-              <code
-                id="collaboration-link"
-                data-testid="collaboration-link"
-                className="block break-all rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs text-foreground"
-              >
-                {shareUrl}
-              </code>
-            </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="collaboration-link" className="text-meta text-muted-foreground">
+              邀请链接
+            </label>
+            <code
+              id="collaboration-link"
+              data-testid="collaboration-link"
+              className="block break-all rounded-control border border-border bg-surface-sunken px-3 py-2 font-mono text-caption text-foreground"
+            >
+              {shareUrl}
+            </code>
+          </div>
 
-            {state.invite.note?.trim() ? (
-              <p className="text-sm text-muted-foreground">备注：{state.invite.note}</p>
-            ) : null}
+          {state.invite.note?.trim() ? (
+            <p className="text-meta text-muted-foreground">备注：{state.invite.note}</p>
+          ) : null}
 
-            <p className="text-xs text-muted-foreground">
-              {formatExpiry(state.invite.expiresAt)
-                ? `有效期至 ${formatExpiry(state.invite.expiresAt)}`
-                : "有效期由服务端决定，请尽快发送。"}
+          <p className="text-caption text-muted-foreground">
+            {formatExpiry(state.invite.expiresAt)
+              ? `有效期至 ${formatExpiry(state.invite.expiresAt)}`
+              : "有效期由服务端决定，请尽快发送。"}
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" data-testid="collaboration-copy" onClick={() => void copy()}>
+              {copyState === "copied" ? "已复制" : "复制链接"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid="collaboration-reset"
+              onClick={reset}
+            >
+              再创建一条
+            </Button>
+          </div>
+
+          {copyState === "copied" ? (
+            <p data-testid="collaboration-copy-status" className="text-caption text-muted-foreground">
+              已复制到剪贴板。
             </p>
+          ) : null}
+          {copyState === "failed" ? (
+            <p
+              role="alert"
+              data-testid="collaboration-copy-status"
+              className="text-caption text-destructive"
+            >
+              复制失败，请手动选中上面的链接复制。
+            </p>
+          ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                data-testid="collaboration-copy"
-                onClick={() => void copy()}
-              >
-                {copyState === "copied" ? "已复制" : "复制链接"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-testid="collaboration-reset"
-                onClick={reset}
-              >
-                再创建一条
-              </Button>
-            </div>
-
-            {copyState === "copied" ? (
-              <p data-testid="collaboration-copy-status" className="text-xs text-muted-foreground">
-                已复制到剪贴板。
-              </p>
-            ) : null}
-            {copyState === "failed" ? (
-              <p
-                role="alert"
-                data-testid="collaboration-copy-status"
-                className="text-xs text-destructive"
-              >
-                复制失败，请手动选中上面的链接复制。
-              </p>
-            ) : null}
-
-            {/* Restates the limit next to the artifact the user is about to
-                send, so the honest note cannot be missed by scrolling past it. */}
-            <p className="text-xs text-muted-foreground">{ACCEPTANCE_BOUNDARY_NOTE}</p>
-          </CardContent>
-        </Card>
+          {/* Restates the limit next to the artifact the user is about to
+              send, so the honest note cannot be missed by scrolling past it. */}
+          <p className="text-caption leading-5 text-muted-foreground">{ACCEPTANCE_BOUNDARY_NOTE}</p>
+        </div>
       ) : null}
 
-      {/* ⚠️ There is deliberately NO "协作空间" / "协作者列表" link. The backend has
-          no collaborator concept, so any such page would be empty by
-          construction — and Legacy's version pointed at /u/:username/works,
-          which is not a V2 route. */}
+      <section
+        aria-labelledby="collaboration-editors"
+        className="flex flex-col gap-[var(--density-heading-gap)]"
+      >
+        <h2 id="collaboration-editors" className="section-heading">
+          可以编辑我的草稿的人
+        </h2>
+        {editors.length === 0 ? (
+          <p className="text-meta text-muted-foreground">还没有人接受邀请。</p>
+        ) : (
+          <ul className="flex list-none flex-col divide-y divide-border/70 border-y border-border/70 p-0">
+            {editors.map((member) => (
+              <li
+                key={member.userId}
+                className="flex items-center justify-between gap-3 py-[var(--density-list-gap)] text-meta"
+              >
+                <span className="min-w-0 truncate text-foreground">
+                  {member.displayName.trim() || member.username}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => void removeEditor(member)}
+                >
+                  {`移除 ${member.username}`}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-      <Link to="/studio" className="text-sm text-accent-strong hover:underline">
-        返回创作中心
-      </Link>
-    </div>
+      <section
+        aria-labelledby="collaboration-hosts"
+        className="flex flex-col gap-[var(--density-heading-gap)]"
+      >
+        <h2 id="collaboration-hosts" className="section-heading">
+          我可以编辑的创作
+        </h2>
+        {hosts.length === 0 ? (
+          <p className="text-meta text-muted-foreground">你还没有加入别人的创作。</p>
+        ) : (
+          <ul className="flex list-none flex-col divide-y divide-border/70 border-y border-border/70 p-0">
+            {hosts.map((host) => (
+              <li
+                key={host.userId}
+                className="flex items-center justify-between gap-3 py-[var(--density-list-gap)] text-meta"
+              >
+                <span className="min-w-0 truncate text-foreground">
+                  {host.displayName.trim() || host.username}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => void leaveHost(host)}
+                >
+                  {`退出 ${host.username}`}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </ArchetypeFrame>
   );
 }

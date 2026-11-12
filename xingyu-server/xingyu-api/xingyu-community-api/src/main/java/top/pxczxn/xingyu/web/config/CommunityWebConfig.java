@@ -59,6 +59,10 @@ public class CommunityWebConfig implements WebMvcConfigurer {
                         // Galaxy Membership Closure 修复时一并收口）。
                         "/api/v1/galaxies",
                         "/api/v1/galaxies/**",
+                        // resolve 是公开 GET；accept 必须带会话。漏了这条时
+                        // requireUser() 在空上下文上抛 IllegalStateException → 500。
+                        "/api/v1/collaboration",
+                        "/api/v1/collaboration/**",
                         "/api/v1/comments",
                         "/api/v1/comments/**",
                         // 书签状态是「因人而异」的读取（同一对象，收藏过的人看到 true），

@@ -22,8 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -45,13 +47,40 @@ public class ReadingService {
         if (limit <= 0) {
             limit = 10;
         }
-        return readerStateMapper.listRecentByUser(user.getId(), limit).stream()
-                .map(this::toContinueReadingCard)
-                // `toContinueReadingCard` answers null when the series is gone AND no
-                // chapter was recorded. Without this filter that null would be
-                // serialised as a literal `null` entry inside the feed array.
-                .filter(Objects::nonNull)
-                .toList();
+        List<SeriesReaderState> states = readerStateMapper.listRecentByUser(user.getId(), limit);
+        if (states.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Series> seriesById = seriesById(states.stream().map(SeriesReaderState::getSeriesId).distinct().toList());
+        Map<String, List<SeriesChapter>> chaptersBySeries = chaptersBySeries(states.stream()
+                .map(SeriesReaderState::getSeriesId)
+                .filter(seriesById::containsKey)
+                .distinct()
+                .toList());
+        List<String> articleIds = new ArrayList<>();
+        for (SeriesReaderState state : states) {
+            String articleId = documentArticleId(state, seriesById.get(state.getSeriesId()), chaptersBySeries);
+            if (articleId != null && !articleIds.contains(articleId)) {
+                articleIds.add(articleId);
+            }
+        }
+        Map<String, SearchDocument> documents = documentsByArticle(articleIds);
+        List<String> coverIds = new ArrayList<>();
+        for (SeriesReaderState state : states) {
+            String articleId = coverArticleId(state, seriesById.get(state.getSeriesId()), chaptersBySeries, documents);
+            if (articleId != null && !coverIds.contains(articleId)) {
+                coverIds.add(articleId);
+            }
+        }
+        Map<String, String> covers = contentCoverService.resolveArticleCovers(coverIds);
+        List<ContentCardView> cards = new ArrayList<>();
+        for (SeriesReaderState state : states) {
+            ContentCardView card = continueCard(state, seriesById, chaptersBySeries, documents, covers);
+            if (card != null) {
+                cards.add(card);
+            }
+        }
+        return cards;
     }
 
     public PageResultView<ContentCardView> readingHistory(CommunityUser user, int limit, String cursor) {
@@ -74,22 +103,30 @@ public class ReadingService {
         if (limit <= 0) {
             limit = 20;
         }
-        List<ContentCardView> items = seriesSubscriptionMapper.listByUserId(user.getId(), limit).stream()
-                .map(sub -> {
-                    Series series = seriesMapper.selectById(sub.getSeriesId());
-                    if (series == null) {
-                        return null;
-                    }
-                    return ContentCardView.builder()
-                            .id(series.getId())
-                            .objectType("SERIES")
-                            .title(series.getTitle())
-                            .summary(series.getDescription())
-                            .updatedAt(sub.getCreatedAt())
-                            .build();
-                })
-                .filter(card -> card != null)
-                .toList();
+        List<SeriesSubscription> subscriptions = seriesSubscriptionMapper.listByUserId(user.getId(), limit);
+        if (subscriptions.isEmpty()) {
+            return PageResultView.<ContentCardView>builder()
+                    .items(List.of())
+                    .nextCursor(null)
+                    .total(0L)
+                    .build();
+        }
+        Map<String, Series> seriesById = seriesById(
+                subscriptions.stream().map(SeriesSubscription::getSeriesId).distinct().toList());
+        List<ContentCardView> items = new ArrayList<>();
+        for (SeriesSubscription subscription : subscriptions) {
+            Series series = seriesById.get(subscription.getSeriesId());
+            if (series == null) {
+                continue;
+            }
+            items.add(ContentCardView.builder()
+                    .id(series.getId())
+                    .objectType("SERIES")
+                    .title(series.getTitle())
+                    .summary(series.getDescription())
+                    .updatedAt(subscription.getCreatedAt())
+                    .build());
+        }
         return PageResultView.<ContentCardView>builder()
                 .items(items)
                 .nextCursor(null)
@@ -215,8 +252,13 @@ public class ReadingService {
                 .build();
     }
 
-    private ContentCardView toContinueReadingCard(SeriesReaderState state) {
-        Series series = seriesMapper.selectById(state.getSeriesId());
+    private ContentCardView continueCard(
+            SeriesReaderState state,
+            Map<String, Series> seriesById,
+            Map<String, List<SeriesChapter>> chaptersBySeries,
+            Map<String, SearchDocument> documents,
+            Map<String, String> covers) {
+        Series series = seriesById.get(state.getSeriesId());
         if (series != null) {
             ContentCardView card = ContentCardView.builder()
                     .id(series.getId())
@@ -225,10 +267,15 @@ public class ReadingService {
                     .summary(series.getDescription())
                     .updatedAt(state.getLastReadAt())
                     .build();
-            return withChapterProgress(card, state);
+            return withChapterProgress(
+                    card,
+                    state,
+                    chaptersBySeries.getOrDefault(series.getId(), List.of()),
+                    documents,
+                    covers);
         }
         if (state.getLastReadArticleId() != null) {
-            return toContentCard("ARTICLE", state.getLastReadArticleId());
+            return articleCard(state.getLastReadArticleId(), documents, covers);
         }
         return null;
     }
@@ -246,30 +293,23 @@ public class ReadingService {
      * has no cover column at all). That is deliberate: this card exists to resume
      * the chapter you stopped on, and the label alongside it names that chapter.
      */
-    private ContentCardView withChapterProgress(ContentCardView card, SeriesReaderState state) {
-        List<SeriesChapter> chapters = seriesChapterMapper.listBySeriesId(state.getSeriesId());
+    private ContentCardView withChapterProgress(
+            ContentCardView card,
+            SeriesReaderState state,
+            List<SeriesChapter> chapters,
+            Map<String, SearchDocument> documents,
+            Map<String, String> covers) {
         if (chapters.isEmpty()) {
             return card;
         }
-
-        int index = 0;
-        for (int i = 0; i < chapters.size(); i++) {
-            String articleId = chapters.get(i).getArticleId();
-            if (articleId != null && articleId.equals(state.getLastReadArticleId())) {
-                index = i + 1;
-                break;
-            }
-        }
-
+        int index = chapterIndex(chapters, state.getLastReadArticleId());
         String chapterTitle = null;
         String cover = null;
         if (index > 0) {
-            SearchDocument document =
-                    searchDocumentMapper.findByObject("ARTICLE", state.getLastReadArticleId());
+            SearchDocument document = documents.get(state.getLastReadArticleId());
             chapterTitle = document == null ? null : document.getTitle();
-            cover = contentCoverService.resolveArticleCoverUrl("ARTICLE", state.getLastReadArticleId());
+            cover = covers.get(state.getLastReadArticleId());
         }
-
         // index == 0 means the recorded chapter is no longer part of the series
         // (removed or reordered). Report the total only; a guessed index would be wrong.
         return card.toBuilder()
@@ -280,22 +320,89 @@ public class ReadingService {
                 .build();
     }
 
-    private ContentCardView toContentCard(String objectType, String objectId) {
-        SearchDocument document = searchDocumentMapper.findByObject(objectType, objectId);
+    private ContentCardView articleCard(
+            String articleId, Map<String, SearchDocument> documents, Map<String, String> covers) {
+        SearchDocument document = documents.get(articleId);
         if (document == null) {
             return ContentCardView.builder()
-                    .id(objectId)
-                    .objectType(objectType)
-                    .title(objectId)
+                    .id(articleId)
+                    .objectType("ARTICLE")
+                    .title(articleId)
                     .build();
         }
         return ContentCardView.builder()
                 .id(document.getObjectId())
-                .objectType(objectType)
+                .objectType("ARTICLE")
                 .title(document.getTitle())
                 .summary(document.getSummary())
-                .cover(contentCoverService.resolveCoverUrl(document))
+                .cover(covers.get(articleId))
                 .updatedAt(document.getIndexedAt())
                 .build();
+    }
+
+    private String documentArticleId(
+            SeriesReaderState state, Series series, Map<String, List<SeriesChapter>> chaptersBySeries) {
+        if (series != null) {
+            List<SeriesChapter> chapters = chaptersBySeries.getOrDefault(series.getId(), List.of());
+            return chapterIndex(chapters, state.getLastReadArticleId()) > 0 ? state.getLastReadArticleId() : null;
+        }
+        return state.getLastReadArticleId();
+    }
+
+    private String coverArticleId(
+            SeriesReaderState state,
+            Series series,
+            Map<String, List<SeriesChapter>> chaptersBySeries,
+            Map<String, SearchDocument> documents) {
+        if (series != null) {
+            return documentArticleId(state, series, chaptersBySeries);
+        }
+        String articleId = state.getLastReadArticleId();
+        return articleId != null && documents.containsKey(articleId) ? articleId : null;
+    }
+
+    private static int chapterIndex(List<SeriesChapter> chapters, String articleId) {
+        if (articleId == null) {
+            return 0;
+        }
+        for (int i = 0; i < chapters.size(); i++) {
+            if (articleId.equals(chapters.get(i).getArticleId())) {
+                return i + 1;
+            }
+        }
+        return 0;
+    }
+
+    private Map<String, Series> seriesById(List<String> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Series> seriesById = new HashMap<>();
+        for (Series series : seriesMapper.listByIds(ids)) {
+            seriesById.putIfAbsent(series.getId(), series);
+        }
+        return seriesById;
+    }
+
+    private Map<String, List<SeriesChapter>> chaptersBySeries(List<String> seriesIds) {
+        if (seriesIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<SeriesChapter>> chapters = new HashMap<>();
+        for (SeriesChapter chapter : seriesChapterMapper.listBySeriesIds(seriesIds)) {
+            chapters.computeIfAbsent(chapter.getSeriesId(), key -> new ArrayList<>()).add(chapter);
+        }
+        return chapters;
+    }
+
+    private Map<String, SearchDocument> documentsByArticle(List<String> articleIds) {
+        if (articleIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, SearchDocument> documents = new HashMap<>();
+        for (SearchDocument document : searchDocumentMapper.listByTypeAndIds("ARTICLE", articleIds)) {
+            documents.putIfAbsent(document.getObjectId(), document);
+        }
+        return documents;
     }
 }

@@ -40,6 +40,7 @@ export type SeriesSummary = {
   status: SeriesStatus;
   chapterCount: number;
   updatedAt: string;
+  collaborationRole?: "OWNER" | "EDITOR";
 };
 
 export type SeriesChapterRelation = {
@@ -58,6 +59,7 @@ export type SeriesDetail = {
   lockVersion: number;
   chapters: SeriesChapterRelation[];
   updatedAt: string;
+  collaborationRole?: "OWNER" | "EDITOR";
 };
 
 export type CreateSeriesPayload = {

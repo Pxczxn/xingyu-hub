@@ -15,8 +15,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -50,31 +52,54 @@ public class FeedService {
         if (followeeIds.isEmpty()) {
             return List.of();
         }
+        List<Article> articles = new ArrayList<>();
+        for (Article article : articleMapper.listByOwnerIds(followeeIds)) {
+            // Public visibility is decided by the live search document
+            // (removed_at IS NULL). Filtering on article.status == PUBLISHED here
+            // would drop the published revision while its next revision is
+            // IN_REVIEW — the same article search and detail keep serving.
+            // Lifecycle stays as a cheap guard.
+            if (ArticleStateSupport.isActiveLifecycle(article)) {
+                articles.add(article);
+            }
+        }
+        List<Moment> moments = new ArrayList<>();
+        for (Moment moment : momentMapper.listRecentByAuthorIds(followeeIds, 10)) {
+            if ("VISIBLE".equals(moment.getStatus())) {
+                moments.add(moment);
+            }
+        }
+        Map<String, SearchDocument> articleDocuments = liveDocuments(
+                "ARTICLE", articles.stream().map(Article::getId).toList());
+        Map<String, SearchDocument> momentDocuments = liveDocuments(
+                "MOMENT", moments.stream().map(Moment::getId).toList());
+        Map<String, String> covers = contentCoverService.resolveDocumentCovers(articleDocuments.values());
         List<FeedItemDTO> items = new ArrayList<>();
-        for (String followeeId : followeeIds) {
-            for (Article article : articleMapper.listByOwnerId(followeeId)) {
-                // Public visibility is decided by the live search document inside
-                // toFeedItemFromDocument (removed_at IS NULL). Filtering on
-                // article.status == PUBLISHED here would drop the published revision while
-                // its next revision is IN_REVIEW — the same article search and detail keep
-                // serving. Lifecycle stays as a cheap guard.
-                if (!ArticleStateSupport.isActiveLifecycle(article)) {
-                    continue;
-                }
-                FeedItemDTO item = toFeedItemFromDocument("ARTICLE", article.getId(), article.getOwnerId(), article.getUpdatedAt());
-                if (item != null) {
-                    items.add(item);
-                }
+        for (Article article : articles) {
+            SearchDocument document = articleDocuments.get(article.getId());
+            if (document == null) {
+                continue;
             }
-            for (Moment moment : momentMapper.listByAuthorId(followeeId, 10)) {
-                if (!"VISIBLE".equals(moment.getStatus())) {
-                    continue;
-                }
-                FeedItemDTO item = toFeedItemFromDocument("MOMENT", moment.getId(), moment.getAuthorId(), moment.getCreatedAt());
-                if (item != null) {
-                    items.add(item);
-                }
+            items.add(toFeedItem(
+                    article.getId(),
+                    "ARTICLE",
+                    document,
+                    article.getOwnerId(),
+                    article.getUpdatedAt(),
+                    covers.get(article.getId())));
+        }
+        for (Moment moment : moments) {
+            SearchDocument document = momentDocuments.get(moment.getId());
+            if (document == null) {
+                continue;
             }
+            items.add(toFeedItem(
+                    moment.getId(),
+                    "MOMENT",
+                    document,
+                    moment.getAuthorId(),
+                    moment.getCreatedAt(),
+                    null));
         }
         return items.stream()
                 .sorted(Comparator.comparing(FeedItemDTO::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -96,16 +121,19 @@ public class FeedService {
     }
 
     private List<FeedItemDTO> getHotFeed(int size) {
-        return searchDocumentMapper.listActiveByHot(null, size * 2).stream()
+        List<SearchDocument> documents = searchDocumentMapper.listActiveByHot(null, size * 2).stream()
                 .filter(doc -> doc.getRemovedAt() == null)
                 .filter(doc -> "ARTICLE".equals(doc.getObjectType()) || "MOMENT".equals(doc.getObjectType()))
                 .limit(size)
+                .toList();
+        Map<String, String> covers = contentCoverService.resolveDocumentCovers(documents);
+        return documents.stream()
                 .map(doc -> FeedItemDTO.builder()
                         .id(doc.getObjectId())
                         .type(doc.getObjectType())
                         .title(doc.getTitle())
                         .summary(doc.getSummary())
-                        .cover(contentCoverService.resolveCoverUrl(doc))
+                        .cover("ARTICLE".equals(doc.getObjectType()) ? covers.get(doc.getObjectId()) : null)
                         .createdAt(doc.getIndexedAt())
                         .build())
                 .toList();
@@ -115,17 +143,32 @@ public class FeedService {
         return getHotFeed(size);
     }
 
-    private FeedItemDTO toFeedItemFromDocument(String type, String id, String authorId, java.time.Instant createdAt) {
-        SearchDocument document = searchDocumentMapper.findByObject(type, id);
-        if (document == null || document.getRemovedAt() != null) {
-            return null;
+    private Map<String, SearchDocument> liveDocuments(String type, List<String> objectIds) {
+        if (objectIds.isEmpty()) {
+            return Map.of();
         }
+        Map<String, SearchDocument> documents = new HashMap<>();
+        for (SearchDocument document : searchDocumentMapper.findLiveByTypeAndIds(type, objectIds)) {
+            if (document != null && document.getObjectId() != null) {
+                documents.putIfAbsent(document.getObjectId(), document);
+            }
+        }
+        return documents;
+    }
+
+    private static FeedItemDTO toFeedItem(
+            String id,
+            String type,
+            SearchDocument document,
+            String authorId,
+            java.time.Instant createdAt,
+            String cover) {
         return FeedItemDTO.builder()
                 .id(id)
                 .type(type)
                 .title(document.getTitle())
                 .summary(document.getSummary())
-                .cover(contentCoverService.resolveCoverUrl(document))
+                .cover(cover)
                 .authorId(authorId)
                 .createdAt(createdAt != null ? createdAt : document.getIndexedAt())
                 .build();

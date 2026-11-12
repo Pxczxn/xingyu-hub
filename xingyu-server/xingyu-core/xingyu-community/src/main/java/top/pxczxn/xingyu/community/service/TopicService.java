@@ -7,6 +7,7 @@ import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
 import top.pxczxn.xingyu.community.dto.ContentCardView;
 import top.pxczxn.xingyu.community.dto.TopicAdminView;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 import top.pxczxn.xingyu.community.dto.TopicActivityStat;
 import top.pxczxn.xingyu.community.dto.TopicCreatorView;
 import top.pxczxn.xingyu.community.dto.TopicOwnerStat;
@@ -21,7 +22,6 @@ import top.pxczxn.xingyu.community.entity.TopicFollow;
 import top.pxczxn.xingyu.community.entity.TopicMergeRecord;
 import top.pxczxn.xingyu.community.entity.ArticleTopic;
 import top.pxczxn.xingyu.community.mapper.TopicMergeRecordMapper;
-import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.ArticleTopicMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.ReservedWordMapper;
@@ -34,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -54,7 +55,6 @@ public class TopicService {
     private final TopicAliasMapper topicAliasMapper;
     private final TopicFollowMapper topicFollowMapper;
     private final ArticleTopicMapper articleTopicMapper;
-    private final ArticleMapper articleMapper;
     private final CommunityProfileMapper profileMapper;
     private final ReservedWordMapper reservedWordMapper;
     private final TopicMergeRecordMapper topicMergeRecordMapper;
@@ -79,11 +79,18 @@ public class TopicService {
     }
 
     public List<TopicAdminView> listAdminViews(String keyword, String status) {
-        return list(keyword, status).stream()
+        List<Topic> topics = list(keyword, status);
+        if (topics.isEmpty()) {
+            return List.of();
+        }
+        List<String> topicIds = topics.stream().map(Topic::getId).toList();
+        Map<String, Long> followers = followerCounts(topicIds);
+        Map<String, Long> content = contentCounts(topicIds);
+        return topics.stream()
                 .map(topic -> TopicAdminView.from(
                         topic,
-                        topicFollowMapper.countByTopicId(topic.getId()),
-                        articleTopicMapper.countPublicContent(topic.getId())))
+                        followers.getOrDefault(topic.getId(), 0L),
+                        content.getOrDefault(topic.getId(), 0L)))
                 .toList();
     }
 
@@ -186,9 +193,22 @@ public class TopicService {
          * 一次聚合查询拿到全部话题的最近发布时间，再按 topic 取用。
          * 逐个话题查会是 N+1 —— 广场列表随话题数量增长，这条路径不能按话题发查询。
          */
+        List<Topic> topics = listPublic(keyword);
+        if (topics.isEmpty()) {
+            return List.of();
+        }
         Map<String, Instant> lastPublished = lastPublishedByTopic();
-        return listPublic(keyword).stream()
-                .map(topic -> toPublicView(topic, viewer, lastPublished.get(topic.getId())))
+        List<String> topicIds = topics.stream().map(Topic::getId).toList();
+        Map<String, Long> followers = followerCounts(topicIds);
+        Map<String, Long> content = contentCounts(topicIds);
+        Set<String> followed = followedTopicIds(viewer, topicIds);
+        return topics.stream()
+                .map(topic -> TopicPublicView.from(
+                        topic,
+                        followers.getOrDefault(topic.getId(), 0L),
+                        content.getOrDefault(topic.getId(), 0L),
+                        viewer == null ? null : followed.contains(topic.getId()),
+                        lastPublished.get(topic.getId())))
                 .toList();
     }
 
@@ -209,6 +229,29 @@ public class TopicService {
         return lastPublished;
     }
 
+    private Map<String, Long> followerCounts(List<String> topicIds) {
+        Map<String, Long> counts = new HashMap<>();
+        for (ObjectCountRow row : topicFollowMapper.countByTopicIds(topicIds)) {
+            counts.put(row.getObjectId(), row.getCount());
+        }
+        return counts;
+    }
+
+    private Map<String, Long> contentCounts(List<String> topicIds) {
+        Map<String, Long> counts = new HashMap<>();
+        for (ObjectCountRow row : articleTopicMapper.countPublicContentByTopicIds(topicIds)) {
+            counts.put(row.getObjectId(), row.getCount());
+        }
+        return counts;
+    }
+
+    private Set<String> followedTopicIds(CommunityUser viewer, List<String> topicIds) {
+        if (viewer == null) {
+            return Set.of();
+        }
+        return new HashSet<>(topicFollowMapper.listTopicIdsByUser(viewer.getId(), topicIds));
+    }
+
     public List<ContentCardView> listContent(String rawSlug, String sort, int limit) {
         Topic topic = requireEnabledBySlug(rawSlug);
         if (limit <= 0) {
@@ -217,7 +260,10 @@ public class TopicService {
         List<SearchDocument> documents = "hot".equalsIgnoreCase(sort)
                 ? articleTopicMapper.listHotContent(topic.getId(), limit)
                 : articleTopicMapper.listLatestContent(topic.getId(), limit);
-        List<ContentCardView> cards = documents.stream().map(this::toContentCard).toList();
+        Map<String, String> covers = articleCovers(documents);
+        List<ContentCardView> cards = documents.stream()
+                .map(document -> toContentCard(document, covers.get(document.getObjectId())))
+                .toList();
         // Phase 6（2026-10-11）：ARTICLE 卡作者改走批量富化通道（与首页/发现
         // 同源，每类型一批 owner + 一批 profile）。话题内容契约只含 ARTICLE
         // （article_topic 表设计即文章挂载，下游 SQL 硬编码 object_type='ARTICLE'）；
@@ -231,8 +277,24 @@ public class TopicService {
         if (limit <= 0) {
             limit = 12;
         }
-        return articleTopicMapper.listTopOwners(topic.getId(), limit).stream()
-                .map(this::toCreatorView)
+        List<TopicOwnerStat> stats = articleTopicMapper.listTopOwners(topic.getId(), limit);
+        if (stats.isEmpty()) {
+            return List.of();
+        }
+        List<String> ownerIds = new ArrayList<>();
+        for (TopicOwnerStat stat : stats) {
+            if (stat.getOwnerId() != null && !ownerIds.contains(stat.getOwnerId())) {
+                ownerIds.add(stat.getOwnerId());
+            }
+        }
+        Map<String, CommunityProfile> profiles = new HashMap<>();
+        if (!ownerIds.isEmpty()) {
+            for (CommunityProfile profile : profileMapper.findByUserIds(ownerIds)) {
+                profiles.putIfAbsent(profile.getUserId(), profile);
+            }
+        }
+        return stats.stream()
+                .map(stat -> toCreatorView(stat, profiles.get(stat.getOwnerId())))
                 .toList();
     }
 
@@ -275,32 +337,31 @@ public class TopicService {
         return TopicPublicView.from(topic, followerCount, contentCount, following, lastPublishedAt);
     }
 
-    private ContentCardView toContentCard(SearchDocument document) {
-        String authorName = null;
-        if ("ARTICLE".equals(document.getObjectType())) {
-            var article = articleMapper.selectById(document.getObjectId());
-            if (article != null) {
-                CommunityProfile profile = profileMapper.findByUserId(article.getOwnerId());
-                if (profile != null) {
-                    authorName = profile.getDisplayName() == null || profile.getDisplayName().isBlank()
-                            ? profile.getUsername()
-                            : profile.getDisplayName();
-                }
-            }
-        }
+    private ContentCardView toContentCard(SearchDocument document, String cover) {
         return ContentCardView.builder()
                 .id(document.getObjectId())
                 .objectType(document.getObjectType())
                 .title(document.getTitle())
                 .summary(document.getSummary())
-                .cover(contentCoverService.resolveCoverUrl(document))
-                .authorName(authorName)
+                .cover("ARTICLE".equals(document.getObjectType()) ? cover : null)
                 .updatedAt(document.getIndexedAt())
                 .build();
     }
 
-    private TopicCreatorView toCreatorView(TopicOwnerStat stat) {
-        CommunityProfile profile = profileMapper.findByUserId(stat.getOwnerId());
+    private Map<String, String> articleCovers(List<SearchDocument> documents) {
+        List<String> articleIds = documents.stream()
+                .filter(document -> "ARTICLE".equals(document.getObjectType()))
+                .map(SearchDocument::getObjectId)
+                .filter(objectId -> objectId != null && !objectId.isBlank())
+                .distinct()
+                .toList();
+        if (articleIds.isEmpty()) {
+            return Map.of();
+        }
+        return contentCoverService.resolveArticleCovers(articleIds);
+    }
+
+    private TopicCreatorView toCreatorView(TopicOwnerStat stat, CommunityProfile profile) {
         return TopicCreatorView.builder()
                 .username(profile == null ? stat.getOwnerId() : profile.getUsername())
                 .displayName(profile == null ? null : profile.getDisplayName())

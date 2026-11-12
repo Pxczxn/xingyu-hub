@@ -1,8 +1,10 @@
 package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 import top.pxczxn.xingyu.community.entity.ChatMessage;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -52,6 +54,21 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
             """)
     ChatMessage findLastByConversationId(String conversationId);
 
+    @Select("""
+            <script>
+            SELECT m.* FROM chat_message m
+            INNER JOIN (
+                SELECT conversation_id, MAX(sequence_number) AS sequence_number
+                FROM chat_message
+                WHERE conversation_id IN
+                <foreach collection='conversationIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+                GROUP BY conversation_id
+            ) latest ON latest.conversation_id = m.conversation_id
+                    AND latest.sequence_number = m.sequence_number
+            </script>
+            """)
+    List<ChatMessage> listLastByConversationIds(@Param("conversationIds") List<String> conversationIds);
+
     /**
      * 未读条数 —— <b>排除自己发送的消息</b>。
      *
@@ -68,6 +85,22 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
                    WHERE conversation_id = #{conversationId} AND user_id = #{userId}), 0)
             """)
     long countUnread(String conversationId, String userId);
+
+    @Select("""
+            <script>
+            SELECT m.conversation_id AS objectId, COUNT(*) AS count
+            FROM chat_message m
+            INNER JOIN conversation_member cm
+                ON cm.conversation_id = m.conversation_id AND cm.user_id = #{userId}
+            WHERE m.conversation_id IN
+              <foreach collection='conversationIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+              AND m.sender_id &lt;&gt; #{userId}
+              AND m.sequence_number &gt; COALESCE(cm.last_read_sequence, 0)
+            GROUP BY m.conversation_id
+            </script>
+            """)
+    List<ObjectCountRow> countUnreadByConversationIds(
+            @Param("userId") String userId, @Param("conversationIds") List<String> conversationIds);
 
     /**
      * 会话内序号大于 {@code afterSequence} 的消息，<b>升序</b>。

@@ -6,25 +6,19 @@ import { cn } from "@/lib/cn";
 import heroSpaceArt from "@/assets/xingyu-hero-space-art.webp";
 
 /*
- * 素材的三边渐隐。作用在 alpha 上，所以边缘是真透明而不是「画成纸色」：
- * 它下面是什么（纸色、将来的深色主题、任何父级背景）就露出什么，不会出现
- * 与背景差一两个色阶的硬边，也不需要再用 mask-composite 把两个方向合成。
- *
- * 数值按实测取的：上缘 0→34% 拉开，是因为素材顶部那片深色天空和纸色差得多，
- * 短距离内退不干净；左缘 0→38% 更长，因为它要压住行星左半边，让标题栏永远
- * 落在干净的纸上；右缘只留 0→18%，这里的素材本身就接近纸色，太长的渐隐会
- * 把山脊右麓吃掉。
+ * 一张径向遮罩盖住四边。两层 linear-gradient 要靠 mask-composite 相乘，
+ * 合不上时上下缘会保持不透明，报头底边就是一条直线。
+ * 椭圆在碰到元素边框之前已经全透明，直角和直边都落在透明区里。
  */
-const HERO_MASK_X: CSSProperties = {
+const HERO_ART_MASK: CSSProperties = {
   WebkitMaskImage:
-    "linear-gradient(to right, transparent 0%, #000 38%, #000 82%, transparent 100%)",
-  maskImage: "linear-gradient(to right, transparent 0%, #000 38%, #000 82%, transparent 100%)",
-};
-
-const HERO_MASK_Y: CSSProperties = {
-  WebkitMaskImage:
-    "linear-gradient(to bottom, transparent 0%, #000 34%, #000 78%, transparent 100%)",
-  maskImage: "linear-gradient(to bottom, transparent 0%, #000 34%, #000 78%, transparent 100%)",
+    "radial-gradient(ellipse 52% 50% at 58% 38%, #000 0%, #000 20%, transparent 70%)",
+  maskImage:
+    "radial-gradient(ellipse 52% 50% at 58% 38%, #000 0%, #000 20%, transparent 70%)",
+  WebkitMaskSize: "100% 100%",
+  maskSize: "100% 100%",
+  WebkitMaskRepeat: "no-repeat",
+  maskRepeat: "no-repeat",
 };
 
 /*
@@ -55,41 +49,20 @@ export function EnhancedHero({ isAuthenticated }: { isAuthenticated: boolean }) 
       aria-labelledby="home-nameplate"
       className="relative isolate overflow-hidden border-b border-border/50"
     >
-      {/*
-       * Hero 插画：素材原样铺开，三边溶进背景。
-       *
-       * 素材的纸底和页面纸色只差一两个色阶，但画面顶部是大片偏冷的深色天空，
-       * 一旦被 section 的 overflow-hidden 切断，天际线处就是一条横向直角边。
-       * 山脊与云在底部本来就要被裁掉（视觉稿就是这个效果），问题只在上边和左右。
-       *
-       * 用 MASK 而不是盖一层纸色渐变：遮罩直接作用在图片的 alpha 上，边缘是
-       * 真透明，露出的就是它底下真正的东西（纸色、将来任何背景、深色主题），
-       * 不依赖「叠加色正好等于背景色」这种巧合。之前那版用纸色渐变叠图，实测
-       * 右缘是一条 2px 宽、11 级亮度的硬切（x=1597 亮度 234 → x=1600 亮度 245），
-       * 因为渐变层的右缘和图片被裁后的可见右缘并不重合。
-       *
-       * 横向在容器上、纵向在 img 上，两层 mask 天然相乘，不需要 mask-composite，
-       * 各浏览器行为一致。
-       */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -bottom-8 hidden xl:block"
-      >
-        <div className="ml-auto h-full w-[66%]" style={HERO_MASK_X}>
-          <img
-            src={heroSpaceArt}
-            alt=""
-            decoding="async"
-            className="h-full w-full object-cover object-[62%_center]"
-            style={HERO_MASK_Y}
-          />
-        </div>
+      <div aria-hidden className="pointer-events-none absolute inset-0 hidden xl:block">
+        <img
+          src={heroSpaceArt}
+          alt=""
+          decoding="async"
+          className="absolute inset-y-0 right-0 h-full w-[72%] object-cover object-[70%_center]"
+          style={HERO_ART_MASK}
+        />
       </div>
       <div className="relative z-10 grid gap-8 py-10 md:grid-cols-[minmax(0,32rem)_1fr] md:items-center md:py-14">
         <div className="min-w-0">
           <h1
             id="home-nameplate"
-            className="font-display text-[40px] font-semibold leading-[1.05] tracking-tight text-primary sm:text-[60px]"
+            className="font-display text-display-lg text-primary"
           >
             {isAuthenticated ? "欢迎回来" : "欢迎来到星语"}
             <span aria-hidden className="ml-2 align-top text-lg text-accent">
@@ -97,7 +70,7 @@ export function EnhancedHero({ isAuthenticated }: { isAuthenticated: boolean }) 
             </span>
           </h1>
 
-          <p className="mt-4 max-w-[26rem] text-[15px] leading-8 text-foreground-soft sm:text-base">
+          <p className="mt-4 max-w-[26rem] text-body leading-7 text-foreground-soft">
             {isAuthenticated ? "继续探索你的关注与创作。" : "在这里，遇见好内容，和同频的人。"}
           </p>
 

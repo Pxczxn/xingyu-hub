@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.dto.SeriesChapterView;
 import top.pxczxn.xingyu.community.dto.PublicIdentityView;
@@ -15,9 +16,12 @@ import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityCreationSpace;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
+import top.pxczxn.xingyu.community.entity.SearchDocument;
 import top.pxczxn.xingyu.community.entity.Series;
 import top.pxczxn.xingyu.community.entity.SeriesChapter;
+import top.pxczxn.xingyu.community.entity.WorkingDraft;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
+import top.pxczxn.xingyu.community.mapper.CollaborationMemberMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesChapterMapper;
@@ -34,6 +38,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -59,10 +65,13 @@ public class SeriesService {
     private final SearchDocumentMapper searchDocumentMapper;
     private final CommunityEventSupport eventSupport;
     private final WorkingDraftMapper workingDraftMapper;
+    private final CollaborationMemberMapper collaborationMemberMapper;
 
     public List<SeriesSummaryView> listForOwner(CommunityUser user) {
-        return seriesMapper.listByOwnerId(user.getId()).stream()
-                .map(this::toSummary)
+        List<Series> accessible = listAccessible(user);
+        Map<String, Integer> chapterCounts = chapterCounts(accessible);
+        return accessible.stream()
+                .map(series -> toSummary(series, collaborationRole(user, series), chapterCounts.getOrDefault(series.getId(), 0)))
                 .toList();
     }
 
@@ -78,9 +87,12 @@ public class SeriesService {
                         series.stream().map(Series::getOwnerId).collect(Collectors.toSet()))
                 .stream()
                 .collect(Collectors.toMap(CommunityProfile::getUserId, Function.identity()));
-        return series.stream()
+        List<Series> visible = series.stream()
                 .filter(item -> profiles.containsKey(item.getOwnerId()))
-                .map(item -> toPublicSummary(item, profiles.get(item.getOwnerId())))
+                .toList();
+        Map<String, Integer> chapterCounts = chapterCounts(visible);
+        return visible.stream()
+                .map(item -> toPublicSummary(item, profiles.get(item.getOwnerId()), chapterCounts.getOrDefault(item.getId(), 0)))
                 .toList();
     }
 
@@ -150,9 +162,12 @@ public class SeriesService {
                                 page.stream().map(Series::getOwnerId).collect(Collectors.toSet()))
                         .stream()
                         .collect(Collectors.toMap(CommunityProfile::getUserId, Function.identity()));
-        List<PublicSeriesSummaryView> items = page.stream()
+        List<Series> visible = page.stream()
                 .filter(item -> profiles.containsKey(item.getOwnerId()))
-                .map(item -> toPublicSummary(item, profiles.get(item.getOwnerId())))
+                .toList();
+        Map<String, Integer> chapterCounts = chapterCounts(visible);
+        List<PublicSeriesSummaryView> items = visible.stream()
+                .map(item -> toPublicSummary(item, profiles.get(item.getOwnerId()), chapterCounts.getOrDefault(item.getId(), 0)))
                 .toList();
 
         String nextCursor = hasMore
@@ -193,12 +208,12 @@ public class SeriesService {
         series.setUpdatedAt(now);
         seriesMapper.insert(series);
         publishSeriesChanged(series);
-        return toView(series, List.of());
+        return toView(series, List.of(), "OWNER");
     }
 
     public SeriesView getForOwner(CommunityUser user, String seriesId) {
-        Series series = requireOwnedSeries(user, seriesId);
-        return toView(series, chapterMapper.listBySeriesId(seriesId));
+        Series series = requireEditableSeries(user, seriesId);
+        return toView(series, chapterMapper.listBySeriesId(seriesId), collaborationRole(user, series));
     }
 
     public PublicSeriesView getPublic(String username, String slug) {
@@ -227,7 +242,7 @@ public class SeriesService {
      * 条件 UPDATE 内原子完成（WHERE id + lock_version = expected，SET lock_version =
      * expected + 1），affected=0 即并发冲突 → 409，本次写库整体未发生。
      *
-     * <p>影响行数为 0 的归因：不存在/非本人系列已在 {@link #requireOwnedSeries} 以 404
+     * <p>影响行数为 0 的归因：不存在/无编辑权的系列已在 {@link #requireEditableSeries} 以 404
      * 拒绝；系列无删除端点，行不可能在此间消失——因此到达条件 UPDATE 后 affected=0
      * 只能是版本冲突。
      *
@@ -236,7 +251,10 @@ public class SeriesService {
      */
     @Transactional
     public SeriesView update(CommunityUser user, String seriesId, Map<String, Object> body) {
-        Series series = requireOwnedSeries(user, seriesId);
+        Series series = requireEditableSeries(user, seriesId);
+        if (body.containsKey("status") && !user.getId().equals(series.getOwnerId())) {
+            throw new ContractException(ErrorCode.CONFLICT, "只有作者可以更改系列状态");
+        }
         /*
          * 乐观锁令牌是契约的必需字段。旧实现允许缺省并回退到"当前版本"，
          * 这让一个忘记带 lockVersion 的客户端永远成功——等于关掉了并发保护。
@@ -306,7 +324,7 @@ public class SeriesService {
 
         Series fresh = seriesMapper.selectById(seriesId);
         publishSeriesChanged(fresh);
-        return toView(fresh, chapterMapper.listBySeriesId(seriesId));
+        return toView(fresh, chapterMapper.listBySeriesId(seriesId), collaborationRole(user, fresh));
     }
 
     /**
@@ -387,6 +405,7 @@ public class SeriesService {
             return;
         }
         Instant now = Instant.now();
+        List<SeriesChapter> chapters = new java.util.ArrayList<>();
         int position = 1;
         for (String articleId : articleIds) {
             SeriesChapter chapter = new SeriesChapter();
@@ -395,37 +414,91 @@ public class SeriesService {
             chapter.setArticleId(articleId);
             chapter.setPosition(position++);
             chapter.setCreatedAt(now);
-            chapterMapper.insert(chapter);
+            chapters.add(chapter);
         }
+        chapterMapper.insertAll(chapters);
     }
 
-    private Series requireOwnedSeries(CommunityUser user, String seriesId) {
+    private Series requireEditableSeries(CommunityUser user, String seriesId) {
         Series series = seriesMapper.selectById(seriesId);
-        if (series == null || !user.getId().equals(series.getOwnerId())) {
+        if (series == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        return series;
+        if (user.getId().equals(series.getOwnerId())) {
+            return series;
+        }
+        if (collaborationMemberMapper.findByOwnerAndMember(series.getOwnerId(), user.getId()) != null) {
+            return series;
+        }
+        throw new ContractException(ErrorCode.NOT_FOUND);
     }
 
-    private SeriesSummaryView toSummary(Series series) {
+    private String collaborationRole(CommunityUser user, Series series) {
+        return user.getId().equals(series.getOwnerId()) ? "OWNER" : "EDITOR";
+    }
+
+    private List<Series> listAccessible(CommunityUser user) {
+        List<Series> owned = seriesMapper.listByOwnerId(user.getId());
+        List<String> otherOwnerIds = collaborationMemberMapper.listOwnerIdsByMemberId(user.getId());
+        List<Series> collaborated = otherOwnerIds.isEmpty()
+                ? List.of()
+                : seriesMapper.listByOwnerIds(otherOwnerIds);
+        LinkedHashMap<String, Series> merged = new LinkedHashMap<>();
+        for (Series series : owned) {
+            merged.put(series.getId(), series);
+        }
+        for (Series series : collaborated) {
+            merged.putIfAbsent(series.getId(), series);
+        }
+        return merged.values().stream()
+                .sorted((left, right) -> {
+                    Instant rightUpdated = right.getUpdatedAt();
+                    Instant leftUpdated = left.getUpdatedAt();
+                    if (rightUpdated == null && leftUpdated == null) {
+                        return 0;
+                    }
+                    if (rightUpdated == null) {
+                        return -1;
+                    }
+                    if (leftUpdated == null) {
+                        return 1;
+                    }
+                    return rightUpdated.compareTo(leftUpdated);
+                })
+                .toList();
+    }
+
+    private Map<String, Integer> chapterCounts(List<Series> series) {
+        if (series.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Integer> counts = new HashMap<>();
+        for (ObjectCountRow row : chapterMapper.countBySeriesIds(series.stream().map(Series::getId).distinct().toList())) {
+            counts.put(row.getObjectId(), (int) row.getCount());
+        }
+        return counts;
+    }
+
+    private SeriesSummaryView toSummary(Series series, String collaborationRole, int chapterCount) {
         return SeriesSummaryView.builder()
                 .id(series.getId())
                 .title(series.getTitle())
                 .slug(series.getSlug())
                 .description(series.getDescription())
                 .status(series.getStatus())
-                .chapterCount((int) chapterMapper.countBySeriesId(series.getId()))
+                .chapterCount(chapterCount)
                 .updatedAt(series.getUpdatedAt())
+                .collaborationRole(collaborationRole)
                 .build();
     }
 
-    private PublicSeriesSummaryView toPublicSummary(Series series, CommunityProfile profile) {
+    private PublicSeriesSummaryView toPublicSummary(Series series, CommunityProfile profile, int chapterCount) {
         return PublicSeriesSummaryView.builder()
                 .id(series.getId())
                 .title(series.getTitle())
                 .slug(series.getSlug())
                 .description(series.getDescription())
-                .chapterCount((int) chapterMapper.countBySeriesId(series.getId()))
+                .chapterCount(chapterCount)
                 .author(toPublicIdentity(profile))
                 .build();
     }
@@ -443,16 +516,48 @@ public class SeriesService {
      *       title 仍为 null，绝不向公开系列接口泄露私人草稿的标题信息。</li>
      * </ul>
      */
-    private SeriesChapterView toChapterView(SeriesChapter chapter, boolean includeDraftTitle) {
+    private List<SeriesChapterView> toChapterViews(List<SeriesChapter> chapters, boolean includeDraftTitle) {
+        if (chapters.isEmpty()) {
+            return List.of();
+        }
+        List<String> articleIds = chapters.stream().map(SeriesChapter::getArticleId).distinct().toList();
+        Map<String, SearchDocument> documents = new HashMap<>();
+        for (SearchDocument document : searchDocumentMapper.listByTypeAndIds("ARTICLE", articleIds)) {
+            documents.putIfAbsent(document.getObjectId(), document);
+        }
+        Map<String, WorkingDraft> drafts = Map.of();
+        if (includeDraftTitle) {
+            List<String> missingDocumentIds = articleIds.stream()
+                    .filter(articleId -> !documents.containsKey(articleId))
+                    .toList();
+            drafts = loadDrafts(missingDocumentIds);
+        }
+        Map<String, WorkingDraft> draftTitles = drafts;
+        return chapters.stream()
+                .map(chapter -> toChapterView(
+                        chapter,
+                        documents.get(chapter.getArticleId()),
+                        draftTitles.get(chapter.getArticleId())))
+                .toList();
+    }
+
+    private Map<String, WorkingDraft> loadDrafts(List<String> articleIds) {
+        if (articleIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, WorkingDraft> drafts = new HashMap<>();
+        for (WorkingDraft draft : workingDraftMapper.listByArticleIds(articleIds)) {
+            drafts.putIfAbsent(draft.getArticleId(), draft);
+        }
+        return drafts;
+    }
+
+    private SeriesChapterView toChapterView(SeriesChapter chapter, SearchDocument document, WorkingDraft draft) {
         String title = null;
-        var document = searchDocumentMapper.findByObject("ARTICLE", chapter.getArticleId());
         if (document != null) {
             title = document.getTitle();
-        } else if (includeDraftTitle) {
-            var draft = workingDraftMapper.findByArticleId(chapter.getArticleId());
-            if (draft != null) {
-                title = draft.getTitle();
-            }
+        } else if (draft != null) {
+            title = draft.getTitle();
         }
         return SeriesChapterView.builder()
                 .id(chapter.getId())
@@ -462,7 +567,7 @@ public class SeriesService {
                 .build();
     }
 
-    private SeriesView toView(Series series, List<SeriesChapter> chapters) {
+    private SeriesView toView(Series series, List<SeriesChapter> chapters, String collaborationRole) {
         return SeriesView.builder()
                 .id(series.getId())
                 .title(series.getTitle())
@@ -470,8 +575,9 @@ public class SeriesService {
                 .description(series.getDescription())
                 .status(series.getStatus())
                 .lockVersion(series.getLockVersion() == null ? 0L : series.getLockVersion())
-                .chapters(chapters.stream().map(chapter -> toChapterView(chapter, true)).toList())
+                .chapters(toChapterViews(chapters, true))
                 .updatedAt(series.getUpdatedAt())
+                .collaborationRole(collaborationRole)
                 .build();
     }
 
@@ -488,7 +594,7 @@ public class SeriesService {
                 .title(series.getTitle())
                 .slug(series.getSlug())
                 .description(series.getDescription())
-                .chapters(chapters.stream().map(chapter -> toChapterView(chapter, false)).toList())
+                .chapters(toChapterViews(chapters, false))
                 .author(toPublicIdentity(profile))
                 .hasSubscribed(hasSubscribed)
                 .build();

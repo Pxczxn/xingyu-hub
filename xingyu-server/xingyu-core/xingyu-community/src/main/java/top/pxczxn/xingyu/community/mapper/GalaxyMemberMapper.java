@@ -1,8 +1,10 @@
 package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 import top.pxczxn.xingyu.community.entity.GalaxyMember;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -34,4 +36,15 @@ public interface GalaxyMemberMapper extends BaseMapper<GalaxyMember> {
 
     @Select("SELECT COUNT(*) FROM galaxy_member WHERE galaxy_id = #{galaxyId}")
     long countByGalaxyId(String galaxyId);
+
+    @Select("""
+            <script>
+            SELECT galaxy_id AS objectId, COUNT(*) AS count
+            FROM galaxy_member
+            WHERE galaxy_id IN
+            <foreach collection='galaxyIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            GROUP BY galaxy_id
+            </script>
+            """)
+    List<ObjectCountRow> countByGalaxyIds(@Param("galaxyIds") List<String> galaxyIds);
 }

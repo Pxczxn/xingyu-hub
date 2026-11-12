@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +34,33 @@ public class SavedMessageService {
 
     public List<SavedMessageView> listSaved(CommunityUser user, int limit) {
         int capped = Math.min(Math.max(limit, 1), 100);
-        return savedMessageMapper.listByUserId(user.getId(), capped).stream()
-                .map(saved -> toView(saved))
+        List<SavedMessage> saved = savedMessageMapper.listByUserId(user.getId(), capped);
+        if (saved.isEmpty()) {
+            return List.of();
+        }
+        Map<String, ChatMessage> messages = new HashMap<>();
+        List<String> messageIds = saved.stream().map(SavedMessage::getMessageId).distinct().toList();
+        if (!messageIds.isEmpty()) {
+            for (ChatMessage message : messageMapper.selectBatchIds(messageIds)) {
+                if (message != null) {
+                    messages.putIfAbsent(message.getId(), message);
+                }
+            }
+        }
+        Map<String, Conversation> conversations = new HashMap<>();
+        List<String> conversationIds = saved.stream().map(SavedMessage::getConversationId).distinct().toList();
+        if (!conversationIds.isEmpty()) {
+            for (Conversation conversation : conversationMapper.selectBatchIds(conversationIds)) {
+                if (conversation != null) {
+                    conversations.putIfAbsent(conversation.getId(), conversation);
+                }
+            }
+        }
+        return saved.stream()
+                .map(row -> toView(
+                        row,
+                        messages.get(row.getMessageId()),
+                        conversations.get(row.getConversationId())))
                 .toList();
     }
 
@@ -73,8 +100,13 @@ public class SavedMessageService {
     }
 
     private SavedMessageView toView(SavedMessage saved) {
-        ChatMessage message = messageMapper.findById(saved.getMessageId());
-        Conversation conversation = conversationMapper.selectById(saved.getConversationId());
+        return toView(
+                saved,
+                messageMapper.findById(saved.getMessageId()),
+                conversationMapper.selectById(saved.getConversationId()));
+    }
+
+    private SavedMessageView toView(SavedMessage saved, ChatMessage message, Conversation conversation) {
         if (message == null || conversation == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }

@@ -5,6 +5,7 @@ import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
 import top.pxczxn.xingyu.community.context.CommunityAuthContext;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 import top.pxczxn.xingyu.community.dto.GalaxyContentView;
 import top.pxczxn.xingyu.community.dto.GalaxyContentSubmissionView;
 import top.pxczxn.xingyu.community.dto.GalaxyJoinRequestView;
@@ -33,6 +34,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -53,7 +56,7 @@ public class GalaxyService {
     private final HomeFeedEnrichmentService enrichmentService;
 
     public List<GalaxyView> list() {
-        return galaxyMapper.listAll().stream().map(this::toView).toList();
+        return toListViews(galaxyMapper.listAll());
     }
 
     /**
@@ -82,11 +85,29 @@ public class GalaxyService {
     }
 
     public List<GalaxyView> listMine(CommunityUser user) {
-        return memberMapper.listByUserId(user.getId()).stream()
-                .map(member -> galaxyMapper.selectById(member.getGalaxyId()))
-                .filter(galaxy -> galaxy != null)
-                .map(this::toView)
-                .toList();
+        List<String> galaxyIds = new ArrayList<>();
+        for (GalaxyMember member : memberMapper.listByUserId(user.getId())) {
+            if (member.getGalaxyId() != null && !galaxyIds.contains(member.getGalaxyId())) {
+                galaxyIds.add(member.getGalaxyId());
+            }
+        }
+        if (galaxyIds.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Galaxy> galaxies = new HashMap<>();
+        for (Galaxy galaxy : galaxyMapper.selectBatchIds(galaxyIds)) {
+            if (galaxy != null) {
+                galaxies.putIfAbsent(galaxy.getId(), galaxy);
+            }
+        }
+        List<Galaxy> ordered = new ArrayList<>();
+        for (String galaxyId : galaxyIds) {
+            Galaxy galaxy = galaxies.get(galaxyId);
+            if (galaxy != null) {
+                ordered.add(galaxy);
+            }
+        }
+        return toListViews(ordered);
     }
 
     @Transactional
@@ -219,8 +240,19 @@ public class GalaxyService {
         if (limit <= 0) {
             limit = 50;
         }
-        return memberMapper.listByGalaxyId(galaxy.getId(), limit).stream()
-                .map(this::toMemberView)
+        List<GalaxyMember> members = memberMapper.listByGalaxyId(galaxy.getId(), limit);
+        if (members.isEmpty()) {
+            return List.of();
+        }
+        Map<String, CommunityProfile> profiles = new HashMap<>();
+        List<String> userIds = members.stream().map(GalaxyMember::getUserId).distinct().toList();
+        if (!userIds.isEmpty()) {
+            for (CommunityProfile profile : profileMapper.findByUserIds(userIds)) {
+                profiles.putIfAbsent(profile.getUserId(), profile);
+            }
+        }
+        return members.stream()
+                .map(member -> toMemberView(member, profiles.get(member.getUserId())))
                 .toList();
     }
 
@@ -258,6 +290,8 @@ public class GalaxyService {
             }
         }
 
+        Map<String, String> covers = contentCoverService.resolveDocumentCovers(liveDocs.values());
+
         // 批量补 authorName（viewer=null：静态展示，无 viewer 态）
         List<HomeFeedEnrichmentService.FeedObject> refs = rows.stream()
                 .map(row -> new HomeFeedEnrichmentService.FeedObject(
@@ -282,7 +316,7 @@ public class GalaxyService {
                     .objectId(row.getObjectId())
                     .title(doc.getTitle())
                     .summary(doc.getSummary())
-                    .cover(contentCoverService.resolveCoverUrl(doc))
+                    .cover("ARTICLE".equals(doc.getObjectType()) ? covers.get(doc.getObjectId()) : null)
                     .authorName(presentation == null ? null : presentation.authorName())
                     .updatedAt(doc.getIndexedAt())
                     .pinned(Boolean.TRUE.equals(row.getPinned()))
@@ -632,8 +666,7 @@ public class GalaxyService {
         return galaxy;
     }
 
-    private GalaxyMemberView toMemberView(GalaxyMember member) {
-        CommunityProfile profile = profileMapper.findByUserId(member.getUserId());
+    private GalaxyMemberView toMemberView(GalaxyMember member, CommunityProfile profile) {
         return GalaxyMemberView.builder()
                 .userId(member.getUserId())
                 .username(profile == null ? member.getUserId() : profile.getUsername())
@@ -664,6 +697,29 @@ public class GalaxyService {
      * joined/contentCount 仅由 {@link #getBySlug} 填充——列表端点不逐行查
      * viewer 状态（N+1），builder 缺省即 null。
      */
+    private List<GalaxyView> toListViews(List<Galaxy> galaxies) {
+        if (galaxies.isEmpty()) {
+            return List.of();
+        }
+        List<String> galaxyIds = galaxies.stream().map(Galaxy::getId).toList();
+        Map<String, Long> memberCounts = new HashMap<>();
+        for (ObjectCountRow row : memberMapper.countByGalaxyIds(galaxyIds)) {
+            memberCounts.put(row.getObjectId(), row.getCount());
+        }
+        return galaxies.stream()
+                .map(galaxy -> GalaxyView.builder()
+                        .id(galaxy.getId())
+                        .slug(galaxy.getSlug())
+                        .name(galaxy.getName())
+                        .official(Boolean.TRUE.equals(galaxy.getOfficial()))
+                        .joinMode(galaxy.getJoinMode())
+                        .description(galaxy.getDescription())
+                        .coverUrl(galaxy.getCoverUrl())
+                        .memberCount(memberCounts.getOrDefault(galaxy.getId(), 0L))
+                        .build())
+                .toList();
+    }
+
     private GalaxyView toView(Galaxy galaxy) {
         return GalaxyView.builder()
                 .id(galaxy.getId())

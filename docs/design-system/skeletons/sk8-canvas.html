@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SK8 创作台 · 桌面 1440 / 移动 390 | 星语骨架原型</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* ===== SK8 创作台：全宽三栏 [48 工具轨 | 画布 | 320 检视轨] =====
+         不吃 content-shell（与 AppLayout 对编辑路由关闭内容边距一致）：
+         这一屏没有 56px 页面边距，画布吃剩余宽度，两侧栏都是控件。 */
+
+      .e-top {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        height: 56px;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .e-top .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+
+      .e-top .state {
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+
+      .e-top .grow {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .e-body {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr) 320px;
+        height: 656px;
+        grid-template-rows: minmax(0, 1fr);
+      }
+
+      /* 工具轨：图标列，active 用极浅灰底 + 左侧 2px 蓝线（蓝色用点之一） */
+      .e-tools {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 10px 0;
+        border-right: 1px solid var(--line);
+        background: var(--surface-2);
+        overflow: hidden;
+      }
+
+      .e-tools button {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--ink-3);
+        cursor: pointer;
+        position: relative;
+      }
+
+      .e-tools button:hover {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+
+      .e-tools button[aria-pressed="true"] {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+
+      .e-tools button[aria-pressed="true"]::before {
+        content: "";
+        position: absolute;
+        left: -7px;
+        top: 8px;
+        bottom: 8px;
+        width: 2px;
+        background: var(--accent);
+      }
+
+      .e-tools svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .e-tools .sep {
+        width: 20px;
+        height: 1px;
+        background: var(--line);
+        margin: 6px 0;
+      }
+
+      /* 画布 */
+      .e-canvas {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--canvas);
+        padding: 34px 48px 0;
+      }
+
+      .e-canvasInner {
+        max-width: 68ch;
+        margin: 0 auto;
+      }
+
+      .e-title {
+        font-family: var(--display);
+        font-size: 32px;
+        line-height: 1.35;
+        letter-spacing: -0.01em;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .e-byline {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        font-size: 12.5px;
+        color: var(--ink-3);
+      }
+
+      .e-p {
+        margin-top: 20px;
+        font-family: var(--display);
+        font-size: 18px;
+        line-height: 1.85;
+        color: var(--ink-2);
+      }
+
+      /* 被选中的块：左侧 2px 蓝线 + 上浮迷你工具条（蓝色用点之二） */
+      .e-block {
+        position: relative;
+        margin-top: 46px; /* 给上浮的迷你工具条留出位置，别压住上一段文字 */
+        padding: 2px 0 2px 14px;
+        border-left: 2px solid var(--accent);
+      }
+
+      .e-blockToolbar {
+        position: absolute;
+        top: -34px;
+        left: -2px;
+        display: flex;
+        gap: 2px;
+        padding: 4px;
+        background: var(--ink);
+        border-radius: 8px;
+        box-shadow: var(--shadow-3);
+      }
+
+      .e-blockToolbar button {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 24px;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--on-dark);
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .e-blockToolbar button:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .e-quote {
+        margin: 22px 0;
+        padding-left: 16px;
+        border-left: 2px solid var(--line-2);
+        color: var(--ink-2);
+        font-family: var(--display);
+        font-size: 17px;
+        line-height: 1.85;
+      }
+
+      .e-figure {
+        margin-top: 20px;
+        border: 1px dashed var(--line-2);
+        border-radius: 10px;
+        padding: 12px;
+      }
+
+      /* 近黑迷你工具栏上的焦点环改白：蓝 #2563EB 压在 #111827 上只有 2.5:1 */
+      .e-blockToolbar button:focus-visible {
+        outline-color: #ffffff;
+      }
+
+      .e-figure .ph {
+        height: 132px;
+        border-radius: 8px;
+      }
+
+      .e-figure figcaption {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+
+      /* 检视轨：dense 间距 */
+      .e-inspect {
+        min-height: 0;
+        overflow: hidden;
+        border-left: 1px solid var(--line);
+        background: var(--surface-2);
+        padding: 18px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .e-inspect h2 {
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+
+      .e-field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 6px 0;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+
+      .e-field select,
+      .e-field input {
+        font: inherit;
+        font-size: 12.5px;
+        color: var(--ink);
+        background: var(--surface);
+        border: 1px solid var(--line-field);
+        border-radius: 6px;
+        padding: 4px 8px;
+        max-width: 168px;
+      }
+
+      .e-outline li {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-3);
+        padding: 5px 0;
+      }
+
+      .e-outline li[aria-current="true"] {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .e-outline li.lv2 {
+        padding-left: 14px;
+      }
+
+      .e-ver li {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 0;
+        font-size: 12.5px;
+        color: var(--ink-3);
+        border-top: 1px solid var(--line);
+      }
+
+      /* 移动：工具轨转顶部图标条，检视轨消失并入底部条 */
+      .frame[data-width="390"] .e-top {
+        height: 50px;
+        padding: 0 12px;
+      }
+
+      .frame[data-width="390"] .e-body {
+        grid-template-columns: minmax(0, 1fr);
+        /* 行高必须显式给：grid 的 auto 行在定高容器里会被拉伸，
+           工具条就会变成一大块空白（实测过）。 */
+        grid-template-rows: auto minmax(0, 1fr);
+        height: 620px;
+      }
+
+      .frame[data-width="390"] .e-tools {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 0;
+        padding: 6px 8px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        overflow-x: auto;
+      }
+
+      .frame[data-width="390"] .e-tools .sep {
+        width: 1px;
+        height: 20px;
+        margin: 0 6px;
+      }
+
+      .frame[data-width="390"] .e-tools button[aria-pressed="true"]::before {
+        left: 8px;
+        right: 8px;
+        top: auto;
+        bottom: -7px;
+        width: auto;
+        height: 2px;
+      }
+
+      .frame[data-width="390"] .e-canvas {
+        padding: 20px 20px 0;
+      }
+
+      .frame[data-width="390"] .e-title {
+        font-size: 24px;
+      }
+
+      .frame[data-width="390"] .e-p {
+        font-size: 17px;
+      }
+
+      .frame[data-width="390"] .e-inspect {
+        display: none;
+      }
+
+      .frame[data-width="390"] .e-dock {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-top: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .e-dock {
+        display: none;
+      }
+    </style>
+  </head>
+  <body data-sk="SK8">
+    <input id="zfit" class="sr-only" type="radio" name="zoom" checked />
+    <input id="z1" class="sr-only" type="radio" name="zoom" />
+
+    <header class="ghead">
+      <a class="gback" href="index.html">← 返回总览</a>
+      <div class="grow">
+        <span class="gnum">SK8</span>
+        <h1>创作台</h1>
+      </div>
+      <p class="gsub gpages">
+        <b>真实页面</b>（A §3，共 2 例以上）：<br />
+        <code>xingyu-web/src/features/studio/pages/EditorPage.tsx</code>
+        <code>xingyu-web/src/features/studio/editor/**</code>
+      </p>
+      <p class="gsub">
+        文章编辑器（唯一一页）。构图：<b>全宽三栏</b> <code style="font-family: var(--mono); font-size: 12px">[48 工具轨 | 画布 | 320 检视轨]</code>，
+        画布吃剩余宽度、三栏各自滚动；<b>不吃 content-shell</b>（没有 56px 页面边距）。
+        与其它七类的根本区别：这一屏没有「页面」，只有一块正在写的画布和两侧的控件。
+      </p>
+      <div class="gmeta">
+        <span class="chip">三栏 · 48 / 画布 / 320</span>
+        <span class="chip">无内容边距</span>
+        <span class="chip">画布优先</span>
+      </div>
+      <div class="gtool">
+        <span>缩放</span>
+        <div class="seg" role="group" aria-label="桌面原型缩放">
+          <label for="zfit">适应宽度 58%</label>
+          <label for="z1">1:1 原尺寸</label>
+        </div>
+      </div>
+      <nav class="gswitcher" aria-label="原型切换">
+        <a href="sk1-reading.html">SK1 阅读栏</a>
+        <a href="sk2-gallery.html">SK2 画廊</a>
+        <a href="sk3-console.html">SK3 控制台</a>
+        <a href="sk4-inbox.html">SK4 收件箱</a>
+        <a href="sk5-flow.html">SK5 流程</a>
+        <a href="sk6-feed.html">SK6 信息流</a>
+        <a href="sk7-reader.html">SK7 阅读器</a>
+        <a href="sk8-canvas.html" aria-current="page">SK8 创作台</a>
+      </nav>
+    </header>
+
+    <main class="stage" id="main">
+      <figure class="shot">
+        <figcaption>
+          <strong>1440</strong> 桌面
+          <em>· 三栏定高 / 画布吃剩余宽 / 检视轨 dense</em>
+        </figcaption>
+        <div class="frame" data-sk="SK8" data-width="1440" role="group" aria-label="桌面原型，1440 宽">
+          <div class="e-top">
+            <a class="back" href="#">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="m11.5 5-5 5 5 5" />
+              </svg>
+              返回
+            </a>
+            <span class="state" role="status">草稿 · 已自动保存 14:32</span>
+            <div class="grow">
+              <button class="btn btn--outline btn--sm" type="button">预览</button>
+              <button class="btn btn--primary btn--sm" type="button">提交审核</button>
+            </div>
+          </div>
+
+          <div class="e-body">
+            <div class="e-tools" role="toolbar" aria-label="插入块">
+              <button type="button" aria-pressed="false" aria-label="段落"><span aria-hidden="true" style="font-size: 13px">¶</span></button>
+              <button type="button" aria-pressed="true" aria-label="标题">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 4v12M15 4v12M5 10h10" /></svg>
+              </button>
+              <button type="button" aria-pressed="false" aria-label="图片">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4.5" width="14" height="11" rx="1.5" /><path d="m4 13 4-4 3.5 3.5L14 10l2 2" /></svg>
+              </button>
+              <button type="button" aria-pressed="false" aria-label="引用">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 6H4v4h4zm8 0h-4v4h4z" /></svg>
+              </button>
+              <button type="button" aria-pressed="false" aria-label="有序列表">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 6h9M8 10h9M8 14h9M4 5.5h1v2M3.6 13.5h2" /></svg>
+              </button>
+              <span class="sep" aria-hidden="true"></span>
+              <button type="button" aria-pressed="false" aria-label="链接">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 12l4-4M7.5 8.5 6 10a2.5 2.5 0 0 0 3.5 3.5L11 12M12.5 11.5 14 10a2.5 2.5 0 0 0-3.5-3.5L9 8" /></svg>
+              </button>
+              <button type="button" aria-pressed="false" aria-label="分割线">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 10h14" /></svg>
+              </button>
+            </div>
+
+            <div class="e-canvas">
+              <div class="e-canvasInner">
+                <h1 class="e-title">县城的早市为什么在七点半就散了</h1>
+                <div class="e-byline">
+                  <span class="avatar" aria-hidden="true" style="width: 22px; height: 22px; font-size: 10px">周</span>
+                  <span>周野</span>
+                  <span>草稿 · 已自动保存</span>
+                </div>
+
+                <p class="e-p">
+                  七点二十，最后一个卖豆花的摊子开始收。他不着急，把锅盖反过来扣在案板上，
+                  再一件一件把碗摞进筐里。
+                </p>
+
+                <div class="e-block">
+                  <div class="e-blockToolbar" role="toolbar" aria-label="当前块的格式">
+                    <button type="button" aria-label="加粗" style="font-weight: 700">B</button>
+                    <button type="button" aria-label="斜体" style="font-style: italic">I</button>
+                    <button type="button" aria-label="链接">⌘</button>
+                    <button type="button" aria-label="删除块">✕</button>
+                  </div>
+                  <p class="e-p" style="margin-top: 0">
+                    散场不是结束，是一场没有人宣布、但所有人都遵守的默契：谁先收，谁就替别人定了时间。
+                  </p>
+                </div>
+
+                <blockquote class="e-quote">
+                  「早市不是在卖东西，是在把一天的开头排好队。」
+                </blockquote>
+
+                <figure class="e-figure">
+                  <div class="ph cover" aria-hidden="true" style="height: 132px"></div>
+                  <figcaption>图 1 · 七点二十的早市，最后的豆花摊。图注可用于说明来源。</figcaption>
+                </figure>
+
+                <p class="e-p">他在这里卖了十九年。摊子从路口往里挪了三次，每一次都因为路变宽了。</p>
+              </div>
+            </div>
+
+            <aside class="e-inspect" aria-label="文档设置与大纲">
+              <section aria-labelledby="e-pub-d">
+                <h2 id="e-pub-d">发布设置</h2>
+                <div class="e-field"><label for="e-vis-d">可见性</label><select id="e-vis-d"><option>公开</option><option>仅登录可见</option></select></div>
+                <div class="e-field"><label for="e-series-d">所属系列</label><select id="e-series-d"><option>城市观察笔记</option><option>不加入系列</option></select></div>
+                <div class="e-field"><label for="e-cat-d">分类</label><select id="e-cat-d"><option>非虚构</option><option>散文</option></select></div>
+                <div class="e-field"><span>封面</span><button class="btn btn--outline btn--sm" type="button">更换</button></div>
+              </section>
+
+              <section aria-labelledby="e-outline-d">
+                <h2 id="e-outline-d">大纲</h2>
+                <ul class="e-outline">
+                  <li aria-current="true">七点二十，最后一个摊子</li>
+                  <li class="lv2">十九年里的三次挪动</li>
+                  <li>散场是一场默契</li>
+                  <li class="lv2">谁先收，谁就定了时间</li>
+                </ul>
+              </section>
+
+              <section aria-labelledby="e-ver-d">
+                <h2 id="e-ver-d">版本</h2>
+                <ul class="e-ver">
+                  <li><span>当前草稿</span><span>14:32</span></li>
+                  <li><span>自动保存</span><span>14:12</span></li>
+                  <li><span>自动保存</span><span>13:48</span></li>
+                </ul>
+              </section>
+            </aside>
+          </div>
+
+          <div class="e-dock">
+            <span class="state" role="status">草稿 · 已自动保存</span>
+            <button class="btn btn--outline btn--sm" type="button" style="margin-left: auto">预览</button>
+            <button class="btn btn--primary btn--sm" type="button">提交</button>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="shot">
+        <figcaption>
+          <strong>390</strong> 移动
+          <em>· 工具轨转顶部条 / 检视轨入底部</em>
+        </figcaption>
+        <div class="frame" data-sk="SK8" data-width="390" role="group" aria-label="移动原型，390 宽">
+          <div class="e-top">
+            <a class="back" href="#" aria-label="返回">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="m11.5 5-5 5 5 5" />
+              </svg>
+            </a>
+            <span class="state" role="status">已保存 14:32</span>
+            <div class="grow">
+              <button class="btn btn--outline btn--sm" type="button">预览</button>
+            </div>
+          </div>
+
+          <div class="e-body">
+            <div class="e-tools" role="toolbar" aria-label="插入块">
+              <button type="button" aria-label="段落"><span aria-hidden="true" style="font-size: 12px">¶</span></button>
+              <button type="button" aria-pressed="true" aria-label="标题"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 4v12M15 4v12M5 10h10" /></svg></button>
+              <button type="button" aria-label="图片"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4.5" width="14" height="11" rx="1.5" /><path d="m4 13 4-4 3.5 3.5L14 10l2 2" /></svg></button>
+              <button type="button" aria-label="引用"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 6H4v4h4zm8 0h-4v4h4z" /></svg></button>
+              <span class="sep" aria-hidden="true"></span>
+              <button type="button" aria-label="链接"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 12l4-4M7.5 8.5 6 10a2.5 2.5 0 0 0 3.5 3.5L11 12M12.5 11.5 14 10a2.5 2.5 0 0 0-3.5-3.5L9 8" /></svg></button>
+            </div>
+
+            <div class="e-canvas">
+              <div class="e-canvasInner">
+                <h1 class="e-title">县城的早市为什么在七点半就散了</h1>
+                <div class="e-byline"><span>草稿 · 已自动保存</span></div>
+                <p class="e-p">
+                  七点二十，最后一个卖豆花的摊子开始收。他不着急，把锅盖反过来扣在案板上。
+                </p>
+                <div class="e-block">
+                  <div class="e-blockToolbar" role="toolbar" aria-label="当前块的格式">
+                    <button type="button" aria-label="加粗" style="font-weight: 700">B</button>
+                    <button type="button" aria-label="斜体" style="font-style: italic">I</button>
+                    <button type="button" aria-label="删除块">✕</button>
+                  </div>
+                  <p class="e-p" style="margin-top: 0">
+                    散场不是结束，是一场没有人宣布、但所有人都遵守的默契。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="e-dock">
+            <button class="btn btn--outline btn--sm" type="button">发布设置</button>
+            <button class="btn btn--primary btn--sm" type="button" style="margin-left: auto">提交</button>
+          </div>
+        </div>
+      </figure>
+    </main>
+
+    <footer class="gfoot">
+      真实字段来源：<code>EditorPage.tsx</code>（文章编辑器，29KB）与
+      <code>studio/editor/**</code>（工具栏、插图、链接、斜杠菜单）；
+      「提交审核 / 待审核 / 需修改」来自 <code>submissions.types.ts:81-103</code>，
+      「草稿 · 已自动保存」对应草稿 <code>updatedAt</code>。「大纲」字段来自
+      <code>extractArticleOutline</code>（与 SK1 同一套逻辑），「版本」对应
+      <code>ArticleVersionsPage</code> 的版本列表。
+    </footer>
+  </body>
+</html>

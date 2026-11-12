@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import { AuthProvider } from "@/features/auth/auth.store";
+import { getStoredToken, setStoredToken } from "@/lib/storage";
 import { LoginPage } from "./pages/LoginPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -125,6 +126,66 @@ describe("login error feedback", () => {
     const alert = await screen.findByTestId("login-error");
     expect(alert.className).toContain("border-destructive/25");
     expect(alert.className).toContain("bg-destructive/5");
+  });
+
+  /*
+   * A1 regression (audit 2026-11-10).
+   *
+   * /login has no "already signed in" redirect (router/routes.tsx:1165), so a
+   * signed-in user can open it in a second tab and mistype their password. The
+   * page used to call `setStoredToken(null)` on that failure, which destroyed the
+   * session this browser still held — every other tab was signed out by a typo.
+   * A failed login must only *report* the failure.
+   */
+  it("keeps the current session token when a login attempt fails", async () => {
+    setStoredToken("existing-session");
+    mocked.getMe.mockResolvedValue({ email: "a@b.c", emailVerified: true, username: "alice" });
+    mocked.login.mockRejectedValue(
+      new ApiError({
+        type: "about:blank",
+        title: "Unauthorized",
+        status: 401,
+        detail: "账号或密码错误",
+        code: "UNAUTHORIZED",
+      }),
+    );
+
+    renderLogin();
+
+    await userEvent.type(await screen.findByLabelText("账号"), "alice");
+    await userEvent.type(screen.getByLabelText("密码"), "wrong-password");
+    await userEvent.click(screen.getByRole("button", { name: "登录" }));
+
+    await screen.findByTestId("login-error");
+    expect(getStoredToken()).toBe("existing-session");
+  });
+
+  /*
+   * Same 401 semantics: on the guest-facing login form a 401 means "these
+   * credentials are wrong", never "your session expired". A guard/interceptor
+   * problem detail such as「会话已过期，请重新登录」on the login page is nonsense
+   * and actively misleads the user (there is no session to expire).
+   */
+  it("explains a 401 on the login form as bad credentials, not an expired session", async () => {
+    mocked.login.mockRejectedValue(
+      new ApiError({
+        type: "about:blank",
+        title: "Unauthorized",
+        status: 401,
+        detail: "会话已过期，请重新登录",
+        code: "UNAUTHORIZED",
+      }),
+    );
+
+    renderLogin();
+
+    await userEvent.type(await screen.findByLabelText("账号"), "alice");
+    await userEvent.type(screen.getByLabelText("密码"), "wrong-password");
+    await userEvent.click(screen.getByRole("button", { name: "登录" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("账号或密码不正确");
+    expect(alert).not.toHaveTextContent("会话已过期");
   });
 });
 

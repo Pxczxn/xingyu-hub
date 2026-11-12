@@ -4,6 +4,8 @@ import { LoaderCircle } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { messagesApi } from "@/api/messages/messages.api";
 import type { Conversation } from "@/api/messages/messages.types";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageHero } from "@/components/shared/PageHero";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +51,22 @@ import {
  *   announcement, members, leave, remove-member) but this phase ships none of
  *   them, so a group the caller owns shows a role chip and nothing more. A
  *   "群设置" button with no page behind it is the fake-control anti-pattern.
+ *
+ * 骨架（A §3 `/me/*` 表 · MyGroups = SK2 · 幅/松/错）
+ * -------------------------------------------------
+ * H=幅：`PageHero` —— 有面横幅（边框 + 角落底色 + 几何母题 `motif-orbit`），
+ *       与同域 SK6 页的 `PageMasthead`（无面）在首屏就能分开。
+ * D=松：每条群聊是**独立卡面**，卡与卡之间走 `--density-grid-gap`、卡内走
+ *       `--density-card-pad`，与「行式紧」的列表页是两种读法。
+ * R=错：`rail` 存在 —— 右轨只放从 `filterGroups()` 结果派生的统计，没有新增请求。
+ *
+ * 同 SK 区分（本批 5 个 SK2）：本页是唯一「横幅 + 双列群聊卡 + 右侧统计轨」的
+ * 组合；徽章页是「横幅 + 方形徽章块（无轨）」，探索页是「线头 + chip 行 + 轨」，
+ * 收藏夹列表是「横幅 + 双链接卡」，公开收藏夹是「出血带 + 三列卡格」。
+ *
+ * 右栏刻意不复制群聊标题：`my-groups-page.test.tsx` 用 `getByText("前端交流")`
+ * 断言卡面只有一处，右栏再印一遍标题会让那条查询变成「找到多个」。所以右轨只给
+ * 计数（总数 / 未读合计 / 我管理的 / 角色分布），全部可从 `groups` 复核。
  */
 
 type LoadState =
@@ -158,12 +176,21 @@ export function MyGroupsPage() {
   }
 
   return (
-    <div className="section-gap">
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">我的群聊</h1>
-        <p className="lede mt-2 max-w-2xl">你参与或创建的群聊会话。</p>
-      </header>
-
+    <ArchetypeFrame
+      skeleton="SK2"
+      header="banner"
+      density="loose"
+      headerSlot={
+        <PageHero
+          title="我的群聊"
+          description="你参与或创建的群聊会话。"
+          className="motif-orbit"
+        />
+      }
+      /* 空态下不挂右轨：三块统计全是 0，只会把空态文案复述一遍。 */
+      rail={state.groups.length > 0 ? <GroupsRail groups={state.groups} /> : null}
+      railLabel="群聊侧栏"
+    >
       {/*
         创建入口暂时下线（2026-10-06）。
 
@@ -178,8 +205,8 @@ export function MyGroupsPage() {
 
       {/* 表单不属于页头：它出现时是页头之后的第一个区块，而不是标题的一部分。 */}
       {creating ? (
-        <div className="rounded-xl border border-border/70 bg-muted/40 p-4">
-          <label htmlFor="new-group-title" className="text-sm font-medium text-foreground">
+        <div className="rounded-card border border-border/70 bg-muted/40 p-[var(--density-card-pad)]">
+          <label htmlFor="new-group-title" className="text-meta font-medium text-foreground">
             群聊名称
           </label>
           <div className="mt-2 flex max-w-md gap-2">
@@ -215,11 +242,11 @@ export function MyGroupsPage() {
               取消
             </Button>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-caption text-muted-foreground">
             最多 {MAX_GROUP_TITLE_LENGTH} 个字符。
           </p>
           {formError ? (
-            <p role="alert" className="mt-2 text-sm text-destructive">
+            <p role="alert" className="mt-2 text-meta text-destructive">
               {formError}
             </p>
           ) : null}
@@ -229,35 +256,32 @@ export function MyGroupsPage() {
       {state.groups.length === 0 ? (
         <PageState kind="empty" title="暂无群聊" description="创建群聊，与创作者或读者交流。" />
       ) : (
-        <ul aria-label="我的群聊列表" className="grid gap-3">
+        /* D=松：等权卡格，卡面 + 卡内 padding 都走密度变量。整卡是链接，所以
+           `card-lift` 说的是真话；`focus-ring` 给键盘用户可见焦点。 */
+        <ul
+          aria-label="我的群聊列表"
+          className="grid gap-[var(--density-grid-gap)] md:grid-cols-2"
+        >
           {state.groups.map((group) => {
             const updated = groupUpdatedLabel(group.updatedAt);
             const role = roleLabel(group.myRole);
             const mode = joinModeNote(group.joinMode);
             return (
-              <li key={group.id}>
+              <li key={group.id} className="flex">
                 <Link
                   to={groupHref(group)}
-                  className="card-lift focus-ring block rounded-xl border border-border/70 bg-card p-4"
+                  className="card-lift focus-ring flex h-full w-full flex-col gap-3 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {groupTitle(group)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {updated ? `最近更新 ${updated}` : "尚无消息"}
-                        {mode ? ` · ${mode}` : ""}
-                      </p>
-                    </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 truncate text-h3 text-primary">{groupTitle(group)}</p>
                     <div className="flex shrink-0 items-center gap-2">
                       {role ? (
                         <span
                           data-testid={`group-role-${group.id}`}
                           className={cn(
-                            "rounded-full border px-2 py-0.5 text-xs",
+                            "rounded-pill border px-2 py-0.5 text-caption",
                             canAdminister(group)
-                              ? "border-accent/50 text-accent-strong"
+                              ? "border-border-strong text-primary"
                               : "border-border text-muted-foreground",
                           )}
                         >
@@ -267,13 +291,17 @@ export function MyGroupsPage() {
                       {group.unreadCount > 0 ? (
                         <span
                           data-testid={`group-unread-${group.id}`}
-                          className="rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground"
+                          className="rounded-pill bg-primary px-2 py-0.5 text-caption tabular-nums text-primary-foreground"
                         >
                           {group.unreadCount}
                         </span>
                       ) : null}
                     </div>
                   </div>
+                  <p className="mt-auto text-caption text-muted-foreground">
+                    {updated ? `最近更新 ${updated}` : "尚无消息"}
+                    {mode ? ` · ${mode}` : ""}
+                  </p>
                 </Link>
               </li>
             );
@@ -282,10 +310,78 @@ export function MyGroupsPage() {
       )}
 
       <p className="text-center">
-        <Link to="/messages" className="text-sm text-accent-strong hover:underline">
+        <Link to="/messages" className="focus-ring text-meta text-accent-strong hover:underline">
           去消息中心
         </Link>
       </p>
+    </ArchetypeFrame>
+  );
+}
+
+/**
+ * 右栏（R=错）。四块都从 `filterGroups()` 之后的那份数组派生，**不印群聊标题**
+ * （见文件顶部注释：卡片里的标题必须是文档里唯一一处）。
+ */
+function GroupsRail({ groups }: { groups: Conversation[] }) {
+  const unread = groups.reduce((sum, group) => sum + (group.unreadCount || 0), 0);
+  const administrable = groups.filter(canAdminister).length;
+  const byRole = groups.reduce<Record<string, number>>((acc, group) => {
+    const label = roleLabel(group.myRole);
+    if (!label) return acc;
+    acc[label] = (acc[label] ?? 0) + 1;
+    return acc;
+  }, {});
+  const roleRows = Object.entries(byRole);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <section
+        aria-labelledby="groups-rail-overview"
+        className="rounded-card border border-border/70 bg-card p-4"
+      >
+        <h2 id="groups-rail-overview" className="text-h3 text-primary">
+          群聊概览
+        </h2>
+        <dl className="mt-3 flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-caption text-muted-foreground">群聊数量</dt>
+            <dd className="shrink-0 text-meta tabular-nums text-foreground-soft">
+              {groups.length}
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-caption text-muted-foreground">未读消息</dt>
+            <dd className="shrink-0 text-meta tabular-nums text-foreground-soft">{unread}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-caption text-muted-foreground">我管理的</dt>
+            <dd className="shrink-0 text-meta tabular-nums text-foreground-soft">
+              {administrable}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      {roleRows.length > 0 ? (
+        <section
+          aria-labelledby="groups-rail-roles"
+          className="rounded-card border border-border/70 bg-card p-4"
+        >
+          <h2 id="groups-rail-roles" className="text-h3 text-primary">
+            我的角色
+          </h2>
+          <ul className="mt-3 flex flex-col gap-2">
+            {roleRows.map(([label, count]) => (
+              <li key={label} className="flex items-baseline justify-between gap-3">
+                <span className="text-meta text-foreground-soft">{label}</span>
+                <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
+                  {count}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { ApiError } from "@/api/client";
 import { messagesApi } from "@/api/messages/messages.api";
 import type { MyGroupJoinRequest } from "@/api/messages/messages.types";
 import { GROUP_JOIN_REQUEST_LIMIT } from "@/api/messages/messages.types";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -41,6 +43,16 @@ import {
  * Note the DTO distinction this page depends on: `/me/group-join-requests` returns
  * `MyGroupJoinRequestView` (with title + resolvedAt), NOT the owner-side
  * `GroupJoinRequestView`. See the type's doc comment.
+ *
+ * 骨架（A §3 `/me/*` 表 · GroupJoinRequests = SK6 · 线/紧/齐）
+ * ---------------------------------------------------------
+ * H=线：`PageMasthead`，无面页头，首屏由「待处理」的第一条开始。
+ * D=紧：两个分组都变成「小标题 + 发丝线行」，不再往每组外面套一张卡面 ——
+ *       行是要一条条扫的，套卡会把两段读成两张互相竞争的卡片。
+ * R=齐：没有 rail，页头与全部区块共用内容列的一条左缘。
+ * 与 MyLikes / MyFollowing（同为 紧，但 错）的差别就在这条：那两页有右轨，本页没有。
+ * 条目内部结构也刻意不同：这里是「群名 + 申请于/处理于 两行元信息 + 行尾状态 chip」，
+ * 没有头像、没有缩略图 —— 状态 chip 是本页独有的。
  */
 
 type LoadState =
@@ -126,15 +138,18 @@ export function GroupJoinRequestsPage() {
   const { pending, resolved } = splitByPending(state.requests);
 
   return (
-    <div className="section-gap">
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">关系请求</h1>
-        {/* Scope stated up front — following is open, so only join requests exist. */}
-        <p className="lede mt-2 max-w-2xl">
-          这里显示你发起的群聊入群申请。关注是开放模式，不需要申请，所以不会出现在这里。
-        </p>
-      </header>
-
+    <ArchetypeFrame
+      skeleton="SK6"
+      header="line"
+      density="compact"
+      headerSlot={
+        <PageMasthead
+          title="关系请求"
+          /* Scope stated up front — following is open, so only join requests exist. */
+          description="这里显示你发起的群聊入群申请。关注是开放模式，不需要申请，所以不会出现在这里。"
+        />
+      }
+    >
       {state.requests.length === 0 ? (
         <PageState
           kind="empty"
@@ -144,12 +159,14 @@ export function GroupJoinRequestsPage() {
       ) : (
         <>
           {pending.length > 0 ? (
-            <section aria-label="待处理" className="rounded-xl border border-border/70 bg-card">
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <section aria-label="待处理" className="min-w-0">
+              <div className="flex items-baseline justify-between gap-4 border-b border-border/70 pb-2">
                 <h2 className="section-heading">待处理</h2>
-                <span className="text-xs text-muted-foreground">{pending.length} 条</span>
+                <span className="text-caption tabular-nums text-muted-foreground">
+                  {pending.length} 条
+                </span>
               </div>
-              <ul className="divide-y divide-border">
+              <ul className="flex flex-col">
                 {pending.map((request) => (
                   <RequestRow key={requestKey(request)} request={request} />
                 ))}
@@ -158,12 +175,14 @@ export function GroupJoinRequestsPage() {
           ) : null}
 
           {resolved.length > 0 ? (
-            <section aria-label="历史记录" className="rounded-xl border border-border/70 bg-card">
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <section aria-label="历史记录" className="min-w-0">
+              <div className="flex items-baseline justify-between gap-4 border-b border-border/70 pb-2">
                 <h2 className="section-heading">历史记录</h2>
-                <span className="text-xs text-muted-foreground">{resolved.length} 条</span>
+                <span className="text-caption tabular-nums text-muted-foreground">
+                  {resolved.length} 条
+                </span>
               </div>
-              <ul className="divide-y divide-border">
+              <ul className="flex flex-col">
                 {resolved.map((request) => (
                   <RequestRow key={requestKey(request)} request={request} />
                 ))}
@@ -174,7 +193,7 @@ export function GroupJoinRequestsPage() {
       )}
 
       {state.requests.length > 0 ? (
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-caption text-muted-foreground">
           最多显示 {GROUP_JOIN_REQUEST_LIMIT} 条最近记录。
         </p>
       ) : null}
@@ -184,10 +203,11 @@ export function GroupJoinRequestsPage() {
           去消息中心
         </Link>
       </p>
-    </div>
+    </ArchetypeFrame>
   );
 }
 
+/** 行式条目（D=紧）：发丝线分隔、无卡面、状态 chip 压行尾。 */
 function RequestRow({ request }: { request: MyGroupJoinRequest }) {
   const gone = groupIsGone(request);
   const href = requestConversationHref(request);
@@ -195,18 +215,21 @@ function RequestRow({ request }: { request: MyGroupJoinRequest }) {
   const modeNote = joinModeNote(request.joinMode);
 
   return (
-    <li className="grid gap-2 px-5 py-4">
+    <li className="flex flex-col gap-1.5 border-b border-border/60 px-1 py-4 last:border-b-0">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           {gone ? (
             // The conversation row is gone — say so instead of inventing a name.
-            <p className="text-sm text-muted-foreground" data-testid={`request-gone-${request.id}`}>
+            <p
+              className="text-body text-muted-foreground"
+              data-testid={`request-gone-${request.id}`}
+            >
               该群聊已不存在
             </p>
           ) : (
-            <p className="truncate text-sm font-medium text-foreground">{requestTitle(request)}</p>
+            <p className="truncate text-h3 text-primary">{requestTitle(request)}</p>
           )}
-          <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+          <p className="mt-1 text-caption tabular-nums text-muted-foreground">
             申请于 {formatTime(request.createdAt)}
             {request.resolvedAt ? ` · 处理于 ${formatTime(request.resolvedAt)}` : ""}
           </p>
@@ -214,9 +237,9 @@ function RequestRow({ request }: { request: MyGroupJoinRequest }) {
         <span
           data-testid={`request-status-${request.id}`}
           className={cn(
-            "shrink-0 rounded-full border px-2 py-0.5 text-xs",
+            "shrink-0 rounded-pill border px-2 py-0.5 text-caption",
             request.status === "PENDING"
-              ? "border-accent/50 text-accent-strong"
+              ? "border-border-strong text-primary"
               : "border-border text-muted-foreground",
           )}
         >
@@ -224,14 +247,14 @@ function RequestRow({ request }: { request: MyGroupJoinRequest }) {
         </span>
       </div>
 
-      {note ? <p className="text-sm text-muted-foreground">{note}</p> : null}
+      {note ? <p className="text-meta text-muted-foreground">{note}</p> : null}
 
-      {modeNote ? <p className="text-xs text-muted-foreground">{modeNote}</p> : null}
+      {modeNote ? <p className="text-caption text-muted-foreground">{modeNote}</p> : null}
 
       {href ? (
         // V2 routes /messages/:conversationId for groups too (tries DIRECT, then
         // falls back to GROUP on 404) — unlike Legacy's unrouted /messages/group/{id}.
-        <Link to={href} className="text-sm text-accent-strong hover:underline">
+        <Link to={href} className="focus-ring text-meta text-accent-strong hover:underline">
           查看群聊
         </Link>
       ) : null}

@@ -21,6 +21,10 @@ vi.mock("@/api/collaboration/collaboration.api", () => ({
     createInvite: vi.fn(),
     resolveInvite: vi.fn(),
     acceptInvite: vi.fn(),
+    listEditors: vi.fn(),
+    removeEditor: vi.fn(),
+    listHosts: vi.fn(),
+    leaveHost: vi.fn(),
   },
 }));
 
@@ -50,14 +54,17 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedApi.listEditors.mockResolvedValue([]);
+  mockedApi.listHosts.mockResolvedValue([]);
 });
 
 describe("collaboration invite page", () => {
-  it("shows the capability boundary before anything is created", () => {
+  it("shows the capability boundary before anything is created", async () => {
     renderPage();
     expect(screen.getByTestId("collaboration-boundary")).toHaveTextContent(
-      "不会因此获得任何协作权限",
+      "编辑对方的文章草稿",
     );
+    expect(await screen.findByText("还没有人接受邀请。")).toBeInTheDocument();
   });
 
   it("creates an invite and shows an ABSOLUTE url", async () => {
@@ -105,7 +112,7 @@ describe("collaboration invite page", () => {
     fireEvent.click(screen.getByTestId("collaboration-create"));
     const result = await screen.findByTestId("collaboration-result");
 
-    expect(result).toHaveTextContent("不会因此获得任何协作权限");
+    expect(result).toHaveTextContent("编辑对方的文章草稿");
   });
 
   it("copies the absolute url to the clipboard", async () => {
@@ -202,6 +209,7 @@ describe("collaboration invite page", () => {
 
   it("does not link to a collaborator list or Legacy's dead works url", async () => {
     renderPage();
+    await screen.findByText("还没有人接受邀请。");
     const links = screen.getAllByRole("link");
     for (const link of links) {
       const href = link.getAttribute("href") ?? "";
@@ -223,5 +231,38 @@ describe("collaboration invite page", () => {
     // "已加入协作" is Legacy's wording; it must not appear here.
     expect(text).not.toContain("已加入协作");
     expect(text).not.toContain("协作空间");
+  });
+
+  it("removes an editor and leaves a host", async () => {
+    mockedApi.listEditors.mockResolvedValue([
+      {
+        userId: "m1",
+        username: "editor_one",
+        displayName: "编辑",
+        role: "EDITOR",
+        joinedAt: "2026-10-30T00:00:00Z",
+      },
+    ]);
+    mockedApi.listHosts.mockResolvedValue([
+      {
+        userId: "o1",
+        username: "host_one",
+        displayName: "",
+        role: "EDITOR",
+        joinedAt: "2026-10-30T00:00:00Z",
+      },
+    ]);
+    mockedApi.removeEditor.mockResolvedValue(undefined);
+    mockedApi.leaveHost.mockResolvedValue(undefined);
+    renderPage();
+
+    expect(await screen.findByText("编辑")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "移除 editor_one" }));
+    await waitFor(() => expect(mockedApi.removeEditor).toHaveBeenCalledWith("m1"));
+    expect(screen.queryByText("编辑")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "退出 host_one" }));
+    await waitFor(() => expect(mockedApi.leaveHost).toHaveBeenCalledWith("o1"));
+    expect(screen.queryByText("host_one")).not.toBeInTheDocument();
   });
 });

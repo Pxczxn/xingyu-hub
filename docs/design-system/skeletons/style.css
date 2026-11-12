@@ -1,0 +1,1133 @@
+﻿/* ==========================================================================
+   xingyu-web · 页面骨架静态原型（SK-C）共享样式 · v2「白底干净风」
+   --------------------------------------------------------------------------
+   用途：docs/design-system/skeletons/ 下的 index.html 与 sk1..sk8.html
+   共享的全部 token 与基础组件。纯 HTML + CSS，无外部依赖、无字体、无构建。
+
+   视觉口径（用户 2026-11-10 定稿，覆盖此前「蓝白 SaaS」与「深蓝+米白+金」两版）：
+     画布纯白 #FFFFFF（不是灰底）· 卡片白 + 1px #EAEAEA 发丝线 + 极轻阴影
+     标题 #111827 / 正文 #374151 / 可读辅助 #6B7280 / 装饰与禁用 #9CA3AF
+     主按钮近黑 #111827 + 白字；蓝 #2563EB 只作功能性强调（链接 / 选中 / 进度 /
+     focus ring），每屏 ≤2 处；无蓝色 hero、无蓝色 tint 面、无大面积色块。
+     层次靠留白、字号对比、发丝线与 #F7F7F8 极浅灰面，不靠色块。
+
+   可达性约束（本文件按此写，改值前先看 README 的实测对比度表）：
+     - #EAEAEA 对白只有 1.2:1，只能做装饰性发丝线，**不得**作为输入框边界；
+       输入框 / 开关轨道这类「边界即识别手段」的控件用 --line-field #878E96（3.31:1）。
+     - #9CA3AF 对白 2.54:1，只允许装饰与禁用态，不承载需要读的小字。
+   ========================================================================== */
+
+:root {
+  /* ---- 画布与表面：白底，只有一层极浅灰 ---- */
+  --canvas: #ffffff; /* 画布：纯白 */
+  --surface: #ffffff; /* 卡片 / 输入面：白 */
+  --surface-2: #f7f7f8; /* 次级面：表头、代码、量化带、选中底、侧栏 */
+  --on-dark: #ffffff; /* 近黑面上的文字 */
+
+  /* ---- 文字 ---- */
+  --ink: #111827; /* 标题 / 数据指标（白上 17.7:1） */
+  --ink-2: #374151; /* 正文（白上 10.2:1） */
+  --ink-3: #6b7280; /* 可读辅助：时间、说明、eyebrow（白上 4.83:1） */
+  --ink-4: #9ca3af; /* 装饰 / 禁用（白上 2.54:1，不承载可读文本） */
+  --placeholder: #c7cbd1; /* 占位符，按口径值 */
+
+  /* ---- 线 ---- */
+  --line: #eaeaea; /* 发丝线（中性淡灰） */
+  --line-2: #dfe1e4; /* 略强发丝线：分隔、chip 边、图标按钮边 */
+  --line-field: #878e96; /* 输入框 / 开关边界（白上 3.31:1，过 1.4.11） */
+
+  /* ---- 功能性蓝：只做链接 / 选中 / 进度 / focus，每屏 ≤2 处 ---- */
+  --accent: #2563eb; /* 白上 5.17:1 */
+  --accent-strong: #1d4ed8; /* 白上 6.66:1，用于蓝字 hover */
+
+  /* ---- 阴影：三级，都是极轻 ---- */
+  --shadow-1: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-2: 0 4px 12px rgba(17, 24, 39, 0.06);
+  --shadow-3: 0 8px 24px rgba(17, 24, 39, 0.1);
+
+  /* ---- 字体：全部系统字体，不加载任何远程字体 ---- */
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* 展示字体不再是衬线：口径里只有一套系统无衬线栈。
+     标题与正文的差别交给字号/字重/字距，不靠换字体。 */
+  --display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --lh-body: 1.6; /* UI 正文（中文下限 1.6） */
+  --lh-meta: 1.55;
+
+  /* ---- 圆角：8（标签/小按钮）/ 12（输入框/小卡）/ 16（普通卡片） ---- */
+  --r-card: 16px;
+  --r-compact: 8px;
+  --r-input: 12px;
+  --r-pill: 999px;
+
+  /* ---- 动效：150/200/300ms ease ---- */
+  --t-fast: 150ms ease;
+  --t: 200ms ease;
+  --t-slow: 300ms ease;
+}
+
+/* 字号阶梯：桌面 / 移动两套，都挂在 .frame[data-width] 上，逐级分明。
+   对齐口径：hero 44/34·700 · 页面标题 32/26·600 · 模块标题 22/19·600 ·
+   卡片标题 17/16·600 · 正文 15 · 阅读 18/17 · 辅助 13 · 微 12。
+   移动端最小字号 12px。 */
+.frame[data-width="1440"] {
+  --fs-display: 44px;
+  --fs-h1: 32px;
+  --fs-h2: 22px;
+  --fs-h3: 16px;
+  --fs-card: 17px;
+  --fs-body: 15px;
+  --fs-read: 18px;
+  --fs-meta: 13px;
+  --fs-micro: 12px;
+  --pad: 80px; /* 1440 - 80*2 = 1280 内容宽（口径 1200–1280） */
+}
+
+.frame[data-width="390"] {
+  --fs-display: 34px;
+  --fs-h1: 26px;
+  --fs-h2: 19px;
+  --fs-h3: 16px;
+  --fs-card: 16px;
+  --fs-body: 15px;
+  --fs-read: 17px;
+  --fs-meta: 13px;
+  --fs-micro: 12px;
+  --pad: 20px;
+}
+
+/* ==========================================================================
+   0 · 基础
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink-2);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+ul,
+ol,
+dl,
+dd,
+figure,
+blockquote {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+time {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 焦点态：可见、且对比度够（WCAG 1.4.11 要求 ≥3:1）。
+   蓝 #2563EB 压白 5.17:1；这是「功能性蓝」的合法用法之一（focus ring）。
+   近黑面上的控件改用白描边（蓝压 #111827 只有 2.5:1，不合格）。 */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+[role="switch"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.on-ink a:focus-visible,
+.on-ink button:focus-visible,
+.on-ink [tabindex]:focus-visible,
+.on-dark button:focus-visible,
+.on-dark a:focus-visible,
+.on-dark [tabindex]:focus-visible {
+  outline-color: #ffffff;
+}
+
+/* 只在键盘聚焦时出现的跳转链接 */
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 9;
+  padding: 8px 14px;
+  background: var(--ink);
+  color: var(--on-dark);
+  border-radius: var(--r-compact);
+  font-size: 13px;
+  transition: top var(--t-fast);
+}
+
+.skip:focus {
+  top: 12px;
+}
+
+/* ==========================================================================
+   1 · 画廊外壳（index.html 与每个原型页的页头，不属于产品界面）
+   ========================================================================== */
+
+.gallery {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 48px 28px 80px;
+}
+
+.ghead {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 24px;
+}
+
+.gback {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-3);
+  transition: color var(--t-fast);
+}
+
+.gback:hover {
+  color: var(--ink);
+}
+
+.grow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-top: 14px;
+}
+
+.gnum {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  padding-top: 6px;
+}
+
+.gallery h1 {
+  font-family: var(--display);
+  font-size: 34px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.gsub {
+  font-size: 14px;
+  color: var(--ink-3);
+  max-width: 38em;
+  line-height: 1.75;
+}
+
+.gsub + .gsub {
+  margin-top: 16px;
+}
+
+.gsub b {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+/* 每屏页首的「真实页面举例」：两三个路径，用次级面小代码块排，不抢标题 */
+.gpages {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-input);
+  line-height: 2;
+}
+
+.gpages code {
+  display: inline-block;
+  margin-right: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+.gmeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.gtool {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.gtool > span {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.seg label {
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: var(--surface);
+}
+
+.seg label + label {
+  border-left: 1px solid var(--line-2);
+}
+
+.gswitcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.gswitcher a {
+  color: var(--ink-3);
+  padding: 2px 0;
+  border-bottom: 1px solid transparent;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+
+.gswitcher a:hover {
+  color: var(--ink);
+  border-bottom-color: var(--line-2);
+}
+
+.gswitcher a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  font-weight: 600;
+}
+
+/* 舞台：两态并排。桌面按 58% 等比缩放（可用右上角切到 1:1），移动端原尺寸。 */
+.stage {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 28px 0 8px;
+  overflow-x: auto;
+}
+
+.shot {
+  flex: 0 0 auto;
+}
+
+.shot figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 2px 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.shot figcaption strong {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.shot figcaption em {
+  font-style: normal;
+  color: var(--ink-3);
+}
+
+#zfit:checked ~ .stage .frame[data-width="1440"] {
+  zoom: 0.58;
+}
+
+#z1:checked ~ .stage .frame[data-width="1440"] {
+  zoom: 1;
+}
+
+/* 让缩放开关本身有选中态（纯 CSS，两态都由 radio 驱动） */
+#zfit:checked ~ .ghead .seg label[for="zfit"],
+#z1:checked ~ .ghead .seg label[for="z1"] {
+  background: var(--ink);
+  color: var(--on-dark);
+  font-weight: 600;
+}
+
+.frame[data-width="390"] {
+  zoom: 1;
+}
+
+.gfoot {
+  margin-top: 40px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.8;
+}
+
+.gfoot code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 6px;
+  color: var(--ink-2);
+}
+
+/* ==========================================================================
+   2 · 设备框
+   ========================================================================== */
+
+.frame {
+  position: relative;
+  background: var(--canvas);
+  color: var(--ink-2);
+  font-size: var(--fs-body);
+  overflow: hidden;
+  flex: 0 0 auto;
+  box-shadow: var(--shadow-1);
+}
+
+.frame[data-width="1440"] {
+  width: 1440px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.frame[data-width="390"] {
+  width: 390px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+}
+
+/* ==========================================================================
+   3 · 产品外壳（对齐 src/layouts/AppLayout.tsx：居中搜索、7 项导航、右簇）
+   ========================================================================== */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: 64px;
+  padding: 0 var(--pad);
+  border-bottom: 1px solid var(--line);
+  background: var(--canvas);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* 品牌点：中性墨点，不用彩色（口径里没有品牌色块） */
+.brand::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 14px;
+}
+
+.nav a {
+  padding: 6px 11px;
+  border-radius: var(--r-compact);
+  color: var(--ink-2);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.nav a:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.nav a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--surface-2);
+}
+
+.search {
+  flex: 1 1 240px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.search svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.dock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--r-compact);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+
+.icon:hover {
+  background: var(--surface-2);
+}
+
+.icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* 未读徽标：近黑，不是蓝色（蓝色留给每屏 ≤2 处功能强调） */
+.dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--on-dark);
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 移动端外壳：抽屉按钮 + 更矮的顶栏 */
+.frame[data-width="390"] .topbar {
+  height: 54px;
+  gap: 8px;
+  padding: 0 14px;
+}
+
+.frame[data-width="390"] .nav,
+.frame[data-width="390"] .search {
+  display: none;
+}
+
+.frame[data-width="390"] .brand {
+  font-size: 17px;
+}
+
+.frame[data-width="390"] .icon {
+  width: 32px;
+  height: 32px;
+}
+
+.frame[data-width="390"] .avatar {
+  width: 28px;
+  height: 28px;
+}
+
+/* ==========================================================================
+   4 · 页面容器与出血
+   ========================================================================== */
+
+.page {
+  padding: 0 var(--pad);
+}
+
+.section {
+  padding: 48px 0;
+}
+
+.section + .section {
+  border-top: 1px solid var(--line);
+}
+
+.frame[data-width="390"] .section {
+  padding: 30px 0;
+}
+
+/* 出血区：撑到 frame 的边缘，用于封面、身份带、分栏面板、底部 composer。 */
+.bleed {
+  margin-left: calc(var(--pad) * -1);
+  margin-right: calc(var(--pad) * -1);
+}
+
+.foot {
+  border-top: 1px solid var(--line);
+  padding: 20px var(--pad) 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.foot a {
+  color: var(--ink-3);
+}
+
+.foot a:hover {
+  color: var(--ink);
+}
+
+/* ==========================================================================
+   5 · 排版阶梯
+   ========================================================================== */
+
+.eyebrow {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.display {
+  font-family: var(--display);
+  font-size: var(--fs-display);
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.h1 {
+  font-family: var(--display);
+  font-size: var(--fs-h1);
+  line-height: 1.26;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.h2 {
+  font-family: var(--display);
+  font-size: var(--fs-h2);
+  line-height: 1.38;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.h3 {
+  font-family: var(--display);
+  font-size: var(--fs-h3);
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.card-t {
+  font-family: var(--display);
+  font-size: var(--fs-card);
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+/*
+ * 导语与说明文字的测量用 em，不用 ch。
+ *
+ * 原因（实测）：`ch` 是「0」字宽，CJK 字宽约是它的两倍，同一条 `62ch` 写在 14px
+ * 无衬线正文上只有 ~380px（约 27 个汉字），写在 18px 正文上却有 ~740px。
+ * 所以正文列统一收进 `.measure` 一个绝对测量（68ch，见下），其余副文本一律用 em。
+ */
+.lede {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 36em;
+}
+
+.frame[data-width="390"] .lede {
+  font-size: 15px;
+}
+
+.meta {
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-3);
+}
+
+.micro {
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+/* 正文测量：68ch 上限（18px 约 717px，与 tokens.css --reading-measure 同宽） */
+.measure {
+  max-width: 68ch;
+}
+
+.read {
+  font-family: var(--display);
+  font-size: var(--fs-read);
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+
+.read p + p {
+  margin-top: 1.1em;
+}
+
+.read h3 {
+  margin-top: 1.8em;
+  font-family: var(--display);
+  font-size: var(--fs-h3);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* 引用：灰色发丝线立住，不用彩色竖线 */
+.read blockquote {
+  margin: 1.6em 0;
+  padding-left: 18px;
+  border-left: 2px solid var(--line-2);
+  color: var(--ink-2);
+}
+
+/* ==========================================================================
+   6 · 组件
+   ========================================================================== */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-1);
+  padding: 22px;
+}
+
+.card--quiet {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.rule {
+  height: 1px;
+  background: var(--line);
+  border: 0;
+  margin: 0;
+}
+
+.dot-sep::before {
+  content: "·";
+  margin: 0 8px;
+  color: var(--ink-4);
+}
+
+/* ---- 按钮：主按钮近黑 + 白字；其余全是描边/文字按钮 ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--r-compact);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--t-fast), border-color var(--t-fast),
+    color var(--t-fast);
+}
+
+.btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.btn--primary,
+.btn--ink {
+  background: var(--ink);
+  color: var(--on-dark);
+  font-weight: 500;
+}
+
+.btn--primary:hover,
+.btn--ink:hover {
+  background: #000000;
+}
+
+.btn--outline {
+  background: transparent;
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+
+.btn--outline:hover {
+  border-color: var(--ink-3);
+  background: var(--surface-2);
+}
+
+.btn--quiet {
+  background: transparent;
+  color: var(--ink-3);
+  padding-inline: 4px;
+}
+
+.btn--quiet:hover {
+  color: var(--ink);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--sm {
+  min-height: 30px;
+  padding: 4px 11px;
+  font-size: 12px;
+}
+
+/* 标签：只有发丝线，没有底色（选中/强调面在需要时用 #F7F7F8） */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  background: transparent;
+}
+
+.chip--on {
+  border-color: var(--line-field);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.avatar--soft {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.avatar--ink {
+  background: var(--ink);
+  color: var(--on-dark);
+  border-color: var(--ink);
+}
+
+.avatar--lg {
+  width: 96px;
+  height: 96px;
+  font-size: 32px;
+}
+
+/* 数据行（不是等高卡片） */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 22px;
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+
+.stats b {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+
+/* 竖线左侧强调（章节索引、目录当前项）：中性墨线，不占蓝色预算 */
+.spine {
+  position: relative;
+  padding-left: 14px;
+}
+
+.spine::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  bottom: 0.45em;
+  width: 2px;
+  background: var(--line-2);
+}
+
+.spine--on::before {
+  background: var(--ink);
+  top: 0;
+  bottom: 0;
+}
+
+/* 进度条（系列进度、发布完成度）：蓝色合法用法之一 */
+.meter {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.meter > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* 开关（设置页）：静态原型里保留真实 role/aria-checked。
+   轨道是「边界即识别手段」的控件，关闭态用 --line-field（3.31:1）。 */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 22px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--line-field);
+  border: 0;
+  cursor: pointer;
+}
+
+.switch[aria-checked="true"] {
+  background: var(--ink);
+  justify-content: flex-end;
+}
+
+.switch > i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+/* 输入控件：边界 #878E96（白上 3.31:1），圆角 12 */
+.field {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--r-input);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.field::placeholder {
+  color: var(--placeholder);
+}
+
+.field:hover {
+  border-color: var(--ink-3);
+}
+
+.field:focus-visible {
+  border-color: var(--ink);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+textarea.field {
+  min-height: 88px;
+  resize: vertical;
+}
+
+/* 抽象封面：纯 CSS 渐变，中性灰，不使用任何外部图片、不用色块 */
+.cover {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 12% 8%, rgba(17, 24, 39, 0.055), transparent 58%),
+    radial-gradient(90% 80% at 88% 92%, rgba(17, 24, 39, 0.04), transparent 62%),
+    linear-gradient(160deg, #eff1f3 0%, #e6e9ec 58%, #dde0e4 100%);
+}
+
+.cover::after {
+  content: "";
+  position: absolute;
+  inset: auto -8% -60% 42%;
+  height: 120%;
+  border-radius: 50%;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  transform: rotate(-14deg);
+}
+
+.cover .cover-note {
+  position: absolute;
+  left: var(--pad);
+  bottom: 22px;
+  right: var(--pad);
+  color: var(--ink);
+}
+
+/* 极浅灰面上的 eyebrow / kicker：降到 --ink-2，保证 10.2:1 */
+.on-soft .eyebrow,
+.on-soft .kicker {
+  color: var(--ink-2);
+}
+
+/* 深色面（近黑）上的小字：只用于按钮、工具栏、聊天气泡这类小组件，
+   不再用于大面积横幅 —— 口径要求「白底、发丝线、不靠色块」。 */
+.on-ink {
+  background: var(--ink);
+  color: var(--on-dark);
+}
+
+.on-ink .meta,
+.on-ink .micro {
+  color: #e5e7eb;
+}
+
+.on-ink .lede {
+  color: #f3f4f6;
+}
+
+.on-ink .rule {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ==========================================================================
+   7 · 打印
+   ========================================================================== */
+
+@media print {
+  .gtool,
+  .gswitcher,
+  .gback {
+    display: none;
+  }
+}

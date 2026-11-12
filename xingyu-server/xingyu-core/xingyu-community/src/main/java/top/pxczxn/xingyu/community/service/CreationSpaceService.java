@@ -24,9 +24,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -214,31 +216,39 @@ public class CreationSpaceService {
         } catch (Exception ex) {
             return List.of();
         }
+        if (published.isEmpty()) {
+            return List.of();
+        }
 
-        List<WorkDraft> drafts = new ArrayList<>();
+        Map<String, Article> articles = rowsById(
+                distinctIds(published, PublishedRevision::getArticleId),
+                articleMapper::selectBatchIds,
+                Article::getId);
+        Map<String, FormalRevision> revisions = rowsById(
+                distinctIds(published, PublishedRevision::getFormalRevisionId),
+                formalRevisionMapper::selectBatchIds,
+                FormalRevision::getId);
+        List<VisibleWork> candidates = new ArrayList<>();
+        List<String> categoryIds = new ArrayList<>();
         for (PublishedRevision revisionPointer : published) {
-            Article article = articleMapper.selectById(revisionPointer.getArticleId());
+            Article article = articles.get(revisionPointer.getArticleId());
             if (article == null) {
                 continue;
             }
             if (categoryId != null && !categoryId.equals(article.getCategoryId())) {
                 continue;
             }
-            FormalRevision revision = formalRevisionMapper.selectById(revisionPointer.getFormalRevisionId());
+            FormalRevision revision = revisions.get(revisionPointer.getFormalRevisionId());
             if (revision == null) {
                 continue;
             }
             if ("PRIVATE".equals(revision.getVisibility()) && !isOwner) {
                 continue;
             }
-            String resolvedCategorySlug = null;
-            if (article.getCategoryId() != null) {
-                CreationSpaceCategory category = categoryMapper.selectById(article.getCategoryId());
-                if (category != null) {
-                    resolvedCategorySlug = category.getSlug();
-                }
+            if (article.getCategoryId() != null && !categoryIds.contains(article.getCategoryId())) {
+                categoryIds.add(article.getCategoryId());
             }
-            drafts.add(new WorkDraft(
+            candidates.add(new VisibleWork(
                     article.getId(),
                     revision.getTitle(),
                     revision.getSummary(),
@@ -246,7 +256,22 @@ public class CreationSpaceService {
                             ? revision.getCoverUrl()
                             : ArticleCoverSupport.extractCoverUrl(revision.getBody()),
                     revisionPointer.getPublishedAt(),
-                    resolvedCategorySlug));
+                    article.getCategoryId()));
+        }
+        Map<String, CreationSpaceCategory> categories = rowsById(
+                categoryIds, categoryMapper::selectBatchIds, CreationSpaceCategory::getId);
+        List<WorkDraft> drafts = new ArrayList<>();
+        for (VisibleWork candidate : candidates) {
+            CreationSpaceCategory category = candidate.categoryId() == null
+                    ? null
+                    : categories.get(candidate.categoryId());
+            drafts.add(new WorkDraft(
+                    candidate.articleId(),
+                    candidate.title(),
+                    candidate.summary(),
+                    candidate.coverUrl(),
+                    candidate.publishedAt(),
+                    category == null ? null : category.getSlug()));
         }
 
         if (drafts.isEmpty()) {
@@ -286,6 +311,40 @@ public class CreationSpaceService {
 
         return works;
     }
+
+    private static List<String> distinctIds(
+            List<PublishedRevision> published, Function<PublishedRevision, String> idOf) {
+        List<String> ids = new ArrayList<>();
+        for (PublishedRevision pointer : published) {
+            String id = idOf.apply(pointer);
+            if (id != null && !ids.contains(id)) {
+                ids.add(id);
+            }
+        }
+        return ids;
+    }
+
+    private static <T> Map<String, T> rowsById(
+            List<String> ids, Function<List<String>, List<T>> load, Function<T, String> idOf) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, T> rows = new HashMap<>();
+        for (T row : load.apply(ids)) {
+            if (row != null && idOf.apply(row) != null) {
+                rows.putIfAbsent(idOf.apply(row), row);
+            }
+        }
+        return rows;
+    }
+
+    private record VisibleWork(
+            String articleId,
+            String title,
+            String summary,
+            String coverUrl,
+            java.time.Instant publishedAt,
+            String categoryId) {}
 
     private record WorkDraft(
             String articleId,

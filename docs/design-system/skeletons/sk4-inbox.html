@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SK4 收件箱 · 桌面 1440 / 移动 390 | 星语骨架原型</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* ---- A2 专属：320px 列表 + 线程，两块各自封顶、各自滚动 ---- */
+
+      .a2-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 30px 0 20px;
+      }
+
+      .a2-wrap {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 24px;
+        height: 624px;
+        grid-template-rows: minmax(0, 1fr);
+      }
+
+      .a2-list {
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      /* 列表 pane 自己是一个可滚动区域（tabindex + role=region 在 HTML 上），
+         min-width: 0 让它能在 320px 栏里被压缩而不是撑破栅格。 */
+      .a2-listPane {
+        min-width: 0;
+      }
+
+      .a2-row {
+        display: flex;
+        gap: 11px;
+        align-items: flex-start;
+        padding: 11px 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-card);
+        background: var(--surface);
+        transition: border-color 120ms ease, background 120ms ease;
+      }
+
+      .a2-row:hover {
+        background: var(--surface-2);
+      }
+
+      .a2-row[aria-current="true"] {
+        border-color: var(--line-field);
+        background: var(--surface-2);
+      }
+
+      .a2-row__b {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+
+      .a2-row__t {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .a2-row__t b {
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .a2-row__t time {
+        margin-left: auto;
+        font-size: 11.5px;
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+
+      .a2-row__p {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 3px;
+        font-size: 13px;
+        color: var(--ink-3);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .a2-unread {
+        min-width: 17px;
+        height: 17px;
+        padding: 0 5px;
+        border-radius: var(--r-pill);
+        background: var(--accent);
+        color: #ffffff;
+        font-size: 10.5px;
+        font-weight: 700;
+        line-height: 17px;
+        text-align: center;
+        flex: 0 0 auto;
+      }
+
+      /* 线程面板：整个面板是一条边界，消息区通栏出血 */
+      .a2-thread {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--line);
+        border-radius: var(--r-card);
+        background: var(--surface);
+        overflow: hidden;
+      }
+
+      .a2-thread > header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .a2-thread > header .h3 {
+        font-size: 15px;
+      }
+
+      .a2-msgs {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--sunken);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .a2-day {
+        align-self: center;
+        font-size: 11px;
+        color: var(--ink-2);
+        border: 1px solid var(--line);
+        background: var(--canvas);
+        padding: 2px 10px;
+        border-radius: var(--r-pill);
+      }
+
+      .a2-m {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        max-width: 72%;
+      }
+
+      .a2-m__b {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px 12px 12px 3px;
+        padding: 9px 13px;
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--ink);
+      }
+
+      .a2-m time {
+        font-size: 10.5px;
+        color: var(--ink-3);
+        flex: 0 0 auto;
+        padding-bottom: 2px;
+      }
+
+      .a2-m--me {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+      }
+
+      .a2-m--me .a2-m__b {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--on-dark);
+        border-radius: 12px 12px 3px 12px;
+      }
+
+      .a2-file {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-compact);
+        background: var(--canvas);
+      }
+
+      .a2-file .ic {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        background: var(--surface-2);
+        color: var(--ink-2);
+        font-size: 11px;
+        font-weight: 700;
+        font-family: var(--mono);
+        flex: 0 0 auto;
+      }
+
+      .a2-recall {
+        align-self: center;
+        font-size: 11.5px;
+        color: var(--ink-3);
+      }
+
+      .a2-compose {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 14px;
+        border-top: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .a2-compose .field {
+        min-height: 34px;
+        padding: 6px 11px;
+        font-size: 13px;
+        background: var(--canvas);
+      }
+
+      .a2-empty {
+        display: grid;
+        place-items: center;
+        height: 100%;
+        font-size: 13px;
+        color: var(--ink-3);
+      }
+
+      /* 移动：线程接管整屏，列表收进「返回」后面 */
+      .frame[data-width="390"] .a2-head {
+        padding: 18px 0 12px;
+      }
+
+      .frame[data-width="390"] .a2-wrap {
+        display: flex;
+        flex-direction: column;
+        height: 596px;
+        gap: 0;
+      }
+
+      .frame[data-width="390"] .a2-list {
+        display: none;
+      }
+
+      .frame[data-width="390"] .a2-thread {
+        flex: 1 1 auto;
+        min-height: 0;
+        border: 0;
+        border-radius: 0;
+        margin-left: calc(var(--pad) * -1);
+        margin-right: calc(var(--pad) * -1);
+      }
+
+      .frame[data-width="390"] .a2-msgs {
+        max-width: none;
+      }
+
+      .frame[data-width="390"] .a2-m {
+        max-width: 84%;
+      }
+    </style>
+  </head>
+  <body data-sk="SK4">
+    <input id="zfit" class="sr-only" type="radio" name="zoom" checked />
+    <input id="z1" class="sr-only" type="radio" name="zoom" />
+
+    <header class="ghead">
+      <a class="gback" href="index.html">← 返回总览</a>
+      <div class="grow">
+        <span class="gnum">SK4</span>
+        <h1>收件箱</h1>
+      </div>
+      <p class="gsub gpages">
+        <b>真实页面</b>（A §3，共 2 例以上）：<br />
+        <code>xingyu-web/src/features/messages/pages/MailboxPage.tsx</code>
+        <code>xingyu-web/src/features/messages/pages/ConversationThreadPage.tsx</code>
+        <code>xingyu-web/src/features/notifications/pages/NotificationsPage.tsx</code>
+        <code>xingyu-web/src/features/messages/pages/SavedMessagesPage.tsx</code>
+      </p>
+      <p class="gsub">
+        私信 / 会话 / 通知 / 消息搜索 / 收藏（5 页）。构图：页头只留标题与两个安静动作 →
+        <b>[320 列表 | 1fr 详情] 定高双栏</b>，<b>页面自身不滚、两栏各自滚</b> →
+        未选详情时右栏给一句占位陈述（「选择一个会话开始聊天」），不留空白 →
+        详情顶部一条返回条（移动端一次一屏，列表 ↔ 详情页内切换）。<br />
+        区别：唯一「页面不滚、两栏各滚」的原型；SK1 也有右轨，但整页滚动。
+      </p>
+      <div class="gmeta">
+        <span class="chip">双栏 · 320 主从</span>
+        <span class="chip">两栏各滚 · 页面不滚</span>
+        <span class="chip">行是卡 · 未读自带状态</span>
+      </div>
+      <div class="gtool">
+        <span>缩放</span>
+        <div class="seg" role="group" aria-label="桌面原型缩放">
+          <label for="zfit">适应宽度 58%</label>
+          <label for="z1">1:1 原尺寸</label>
+        </div>
+      </div>
+      <nav class="gswitcher" aria-label="原型切换">
+        <a href="sk1-reading.html">SK1 阅读栏</a>
+        <a href="sk2-gallery.html">SK2 画廊</a>
+        <a href="sk3-console.html">SK3 控制台</a>
+        <a href="sk4-inbox.html" aria-current="page">SK4 收件箱</a>
+        <a href="sk5-flow.html">SK5 流程</a>
+        <a href="sk6-feed.html">SK6 信息流</a>
+        <a href="sk7-reader.html">SK7 阅读器</a>
+        <a href="sk8-canvas.html">SK8 创作台</a>
+      </nav>
+    </header>
+
+    <main class="stage" id="main">
+      <!-- ================= 桌面 1440 ================= -->
+      <figure class="shot">
+        <figcaption>
+          <strong>1440</strong> 桌面
+          <em>· 列表与线程各自滚动 / 消息面通栏</em>
+        </figcaption>
+        <div class="frame" data-sk="SK4" data-width="1440" role="group" aria-label="桌面原型，1440 宽">
+          <header class="topbar">
+            <a class="brand" href="index.html">星语</a>
+            <nav class="nav" aria-label="主导航">
+              <a href="#">首页</a>
+              <a href="#">探索</a>
+              <a href="#">话题</a>
+              <a href="#">系列</a>
+              <a href="#">星系</a>
+              <a href="#">动态</a>
+              <a href="#">指南</a>
+            </nav>
+            <p class="search">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="9" cy="9" r="5.5" />
+                <path d="m13.5 13.5 3 3" />
+              </svg>
+              搜索文章、话题或作者
+            </p>
+            <div class="dock">
+              <button class="btn btn--ink btn--sm" type="button">创作</button>
+              <button class="icon" type="button" aria-label="通知（3 条未读）">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M10 3.2a5 5 0 0 0-5 5v3.3L4 14.2h12l-1-2.7V8.2a5 5 0 0 0-5-5Z" />
+                  <path d="M8.2 16.4a1.9 1.9 0 0 0 3.6 0" />
+                </svg>
+                <span class="dot">3</span>
+              </button>
+              <span class="avatar" aria-hidden="true">周</span>
+            </div>
+          </header>
+
+          <div class="page">
+            <header class="a2-head">
+              <h1 class="h2">私信</h1>
+              <div style="display: flex; align-items: center; gap: 14px">
+                <a class="meta" href="#" style="display: inline-flex; align-items: center; gap: 5px">
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                    <circle cx="9" cy="9" r="5.5" />
+                    <path d="m13.5 13.5 3 3" />
+                  </svg>
+                  搜索消息
+                </a>
+                <button class="btn btn--ink btn--sm" type="button">新建私信</button>
+              </div>
+            </header>
+
+            <div class="a2-wrap">
+              <div class="a2-listPane" tabindex="0" role="region" aria-label="会话列表，可滚动">
+                <ul class="a2-list" aria-label="会话列表">
+                  <li>
+                    <a class="a2-row" href="#" aria-current="true">
+                      <span class="avatar avatar--ink" aria-hidden="true">城</span>
+                      <span class="a2-row__b">
+                        <span class="a2-row__t">
+                          <b>城市观察笔记 · 作者群</b>
+                          <span class="chip" style="padding: 0 5px; font-size: 10.5px">群聊</span>
+                          <time datetime="2026-11-10T14:12">11/10 14:12</time>
+                        </span>
+                        <span class="a2-row__p">
+                          <span class="sr-only">2 条未读，</span>
+                          <span>许姐说第三批书目已经排好了，等你确认</span>
+                        </span>
+                      </span>
+                      <span class="a2-unread" aria-hidden="true">2</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="a2-row" href="#">
+                      <span class="avatar" aria-hidden="true">陈</span>
+                      <span class="a2-row__b">
+                        <span class="a2-row__t">
+                          <b>陈叙</b>
+                          <time datetime="2026-11-10T11:40">11/10 11:40</time>
+                        </span>
+                        <span class="a2-row__p">
+                          <span class="sr-only">4 条未读，</span>
+                          <span>那本地方志我拍了内页，你看看是不是同一个版本</span>
+                        </span>
+                      </span>
+                      <span class="a2-unread" aria-hidden="true">4</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="a2-row" href="#">
+                      <span class="avatar" aria-hidden="true">禾</span>
+                      <span class="a2-row__b">
+                        <span class="a2-row__t">
+                          <b>阿禾</b>
+                          <time datetime="2026-11-09T20:03">11/09 20:03</time>
+                        </span>
+                        <span class="a2-row__p"><span>[图片]</span></span>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="a2-row" href="#">
+                      <span class="avatar avatar--ink" aria-hidden="true">县</span>
+                      <span class="a2-row__b">
+                        <span class="a2-row__t">
+                          <b>县域写作小组</b>
+                          <span class="chip" style="padding: 0 5px; font-size: 10.5px">群聊</span>
+                          <time datetime="2026-11-08T09:15">11/08 09:15</time>
+                        </span>
+                        <span class="a2-row__p"><span>[文件] 县域写作小组-11月选题.pdf</span></span>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="a2-row" href="#">
+                      <span class="avatar" aria-hidden="true">周</span>
+                      <span class="a2-row__b">
+                        <span class="a2-row__t">
+                          <b>周野</b>
+                          <time datetime="2026-11-05T18:22">11/05 18:22</time>
+                        </span>
+                        <span class="a2-row__p"><span>[消息已撤回]</span></span>
+                      </span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              <section class="a2-thread" aria-labelledby="a2-thread-title-d">
+                <header>
+                  <span class="avatar avatar--ink" aria-hidden="true" style="width: 28px; height: 28px; font-size: 11px">城</span>
+                  <div style="min-width: 0">
+                    <h2 class="h3" id="a2-thread-title-d">城市观察笔记 · 作者群</h2>
+                    <p class="micro">群聊 · 12 人</p>
+                  </div>
+                  <button class="btn btn--outline btn--sm" type="button" style="margin-left: auto">查看成员</button>
+                </header>
+
+                <div class="a2-msgs" tabindex="0" role="region" aria-label="消息内容，可滚动">
+                  <span class="a2-day">今天</span>
+
+                  <div class="a2-m">
+                    <span class="avatar" aria-hidden="true" style="width: 26px; height: 26px; font-size: 10.5px">许</span>
+                    <div class="a2-m__b">
+                      第三批书目排好了，一共 14 篇。缺的那本地方志我放在了第二章后面，
+                      你看要不要单列一节。
+                    </div>
+                    <time datetime="2026-11-10T14:06">14:06</time>
+                  </div>
+
+                  <div class="a2-m">
+                    <span class="avatar" aria-hidden="true" style="width: 26px; height: 26px; font-size: 10.5px">许</span>
+                    <div class="a2-m__b a2-file">
+                      <span class="ic" aria-hidden="true">PDF</span>
+                      <span>
+                        <span style="display: block; font-size: 13px; font-weight: 600">城市观察笔记-第三批书目.pdf</span>
+                        <span class="micro">2.1 MB · 14 篇</span>
+                      </span>
+                    </div>
+                    <time datetime="2026-11-10T14:07">14:07</time>
+                  </div>
+
+                  <div class="a2-m a2-m--me">
+                    <div class="a2-m__b">
+                      收到了。地方志那篇我倾向于单列，它跟你写的第四、第五篇不是同一条线。
+                    </div>
+                    <time datetime="2026-11-10T14:10">14:10</time>
+                  </div>
+
+                  <div class="a2-m a2-m--me">
+                    <div class="a2-m__b">我先把第一章的目录截图发你确认，剩下的按这个结构推。</div>
+                    <time datetime="2026-11-10T14:11">14:11</time>
+                  </div>
+
+                  <span class="a2-recall">[消息已撤回]</span>
+
+                  <div class="a2-m">
+                    <span class="avatar" aria-hidden="true" style="width: 26px; height: 26px; font-size: 10.5px">许</span>
+                    <div class="a2-m__b">行，那就单列。第四篇的标题我想再改一次，等你确认后我改。</div>
+                    <time datetime="2026-11-10T14:12">14:12</time>
+                  </div>
+                </div>
+
+                <form class="a2-compose" aria-label="发送消息">
+                  <button class="icon" type="button" aria-label="添加附件">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                      <path d="M10 4v12M4 10h12" />
+                    </svg>
+                  </button>
+                  <label class="sr-only" for="a2-msg-d">消息内容</label>
+                  <input class="field" id="a2-msg-d" type="text" placeholder="回复 城市观察笔记 · 作者群…" />
+                  <button class="btn btn--primary btn--sm" type="submit">发送</button>
+                </form>
+              </section>
+            </div>
+          </div>
+
+          <footer class="foot">
+            <span>星语</span>
+            <a href="#">公告</a>
+            <a href="#">社区活动</a>
+            <a href="#">社区规则</a>
+            <span style="margin-left: auto">© 2026 星语社区</span>
+          </footer>
+        </div>
+      </figure>
+
+      <!-- ================= 移动 390 ================= -->
+      <figure class="shot">
+        <figcaption>
+          <strong>390</strong> 移动
+          <em>· 会话接管整屏 / 返回在哪一行</em>
+        </figcaption>
+        <div class="frame" data-sk="SK4" data-width="390" role="group" aria-label="移动原型，390 宽">
+          <header class="topbar">
+            <a class="brand" href="index.html">星语</a>
+            <div class="dock">
+              <button class="icon" type="button" aria-label="搜索消息">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <circle cx="9" cy="9" r="5.5" />
+                  <path d="m13.5 13.5 3 3" />
+                </svg>
+              </button>
+              <button class="icon" type="button" aria-label="新建私信">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M10 4v12M4 10h12" />
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="page">
+            <!-- B 类壳（A §7）：页内必须恰有 1 个 h1。移动端一次只显示线程，
+                 视觉上没有标题位，所以用 sr-only h1 标出这个路由是什么。 -->
+            <h1 class="sr-only">私信</h1>
+            <header class="a2-head">
+              <a class="meta" href="#" style="display: inline-flex; align-items: center; gap: 5px">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="m11.5 5-5 5 5 5" />
+                </svg>
+                返回会话列表
+              </a>
+            </header>
+
+            <div class="a2-wrap">
+              <section class="a2-thread" aria-labelledby="a2-thread-title-m">
+                <header>
+                  <span class="avatar avatar--ink" aria-hidden="true" style="width: 26px; height: 26px; font-size: 10.5px">城</span>
+                  <div style="min-width: 0">
+                    <h2 class="h3" id="a2-thread-title-m">城市观察笔记 · 作者群</h2>
+                    <p class="micro">群聊 · 12 人</p>
+                  </div>
+                  <button class="icon" type="button" aria-label="会话详情" style="margin-left: auto">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                      <circle cx="10" cy="4.5" r="1.2" />
+                      <circle cx="10" cy="10" r="1.2" />
+                      <circle cx="10" cy="15.5" r="1.2" />
+                    </svg>
+                  </button>
+                </header>
+
+                <div class="a2-msgs" tabindex="0" role="region" aria-label="消息内容，可滚动">
+                  <span class="a2-day">今天</span>
+                  <div class="a2-m">
+                    <span class="avatar" aria-hidden="true" style="width: 24px; height: 24px; font-size: 10px">许</span>
+                    <div class="a2-m__b a2-file">
+                      <span class="ic" aria-hidden="true">PDF</span>
+                      <span>
+                        <span style="display: block; font-size: 12.5px; font-weight: 600">第三批书目.pdf</span>
+                        <span class="micro">2.1 MB · 14 篇</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="a2-m">
+                    <span class="avatar" aria-hidden="true" style="width: 24px; height: 24px; font-size: 10px">许</span>
+                    <div class="a2-m__b">地方志那篇，你看要不要单列一节？</div>
+                  </div>
+                  <div class="a2-m a2-m--me">
+                    <div class="a2-m__b">倾向于单列，它跟第四、第五篇不是同一条线。</div>
+                  </div>
+                  <span class="a2-recall">[消息已撤回]</span>
+                  <div class="a2-m">
+                    <span class="avatar" aria-hidden="true" style="width: 24px; height: 24px; font-size: 10px">许</span>
+                    <div class="a2-m__b">行，那就单列。</div>
+                  </div>
+                </div>
+
+                <form class="a2-compose" aria-label="发送消息">
+                  <button class="icon" type="button" aria-label="添加附件">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                      <path d="M10 4v12M4 10h12" />
+                    </svg>
+                  </button>
+                  <label class="sr-only" for="a2-msg-m">消息内容</label>
+                  <input class="field" id="a2-msg-m" type="text" placeholder="回复…" />
+                  <button class="btn btn--primary btn--sm" type="submit">发送</button>
+                </form>
+              </section>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </main>
+
+    <footer class="gfoot">
+      真实字段来源：<code>MailboxPage.tsx:131-223</code>（页头 + 主从网格 +
+      <code>lg:h-[calc(100vh-12rem)]</code> 双栏各自滚动）、<code>ConversationRow.tsx:56-139</code>
+      （<code>conversationLabel</code> / <code>unreadCount</code> / <code>type==="GROUP"</code> 的「群聊」/ 时间）：
+      会话预览文案 <code>lastMessage</code> 是服务端给的纯文本（「[图片]」「[文件] name」「[消息已撤回]」），
+      原型照原样渲染，不二次推导。
+    </footer>
+  </body>
+</html>

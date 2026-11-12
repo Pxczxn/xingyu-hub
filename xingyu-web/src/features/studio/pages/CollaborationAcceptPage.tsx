@@ -6,9 +6,10 @@ import type {
   CollaborationAcceptResult,
   CollaborationInviteResolve,
 } from "@/api/collaboration/collaboration.types";
+import { ArchetypeFrame, SectionRail } from "@/components/layout";
+import { PageHero } from "@/components/shared/PageHero";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   ACCEPTANCE_BOUNDARY_NOTE,
   acceptedHeadline,
@@ -21,26 +22,23 @@ import {
 /*
  * /studio/collaboration/accept?token=... — 确认协作邀请 (Phase 2M)
  *
- * ⚠️ THE WHOLE POINT OF THIS PAGE IS THE DISCLOSURE, NOT THE BUTTON.
+ * 骨架迁移（批次 D）：SK5 流程 · H 幅 / D 松 / R 错
+ * --------------------------------------------------
+ *   SK5  `ArchetypeFrame skeleton="SK5"` 给出居中窄栏；本页传 `className` 把上限
+ *        抬到 880 —— 因为 R=错 需要在窄栏里再分出「主列 + 侧轨」，720 会让主列
+ *        窄到读不动。宽度仍然只有一档（B §2：一页一档宽度）。
+ *   H=幅：页头是 `PageHero`（有面横幅，自带 `h1`），页面不再手写标题，所以整页
+ *        恰好 1 个 h1 —— 成功态的那句结果语因此是 `h2`，不是第二个 h1。
+ *   D=松：主列是一张独立卡面，说明与操作都在卡内；块间 24 / 卡内 24。
+ *   R=错：主列右侧 `SectionRail`（邀请人 / 备注 / 有效期），lg 起粘住。A §2 说的
+ *        「主列+侧轨（sticky rail 或偏移网格）」就是它。`ArchetypeFrame` 对 SK5
+ *        没有 `[1fr|rail]` 栅格（SK5 的窄栏不带轨），所以这里由页面自己排这一层
+ *        两列，轨道本身仍然是共享的 `SectionRail`。
  *
- * `POST /collaboration/invites/accept` writes nothing (see collaboration.types.ts
- * for the source-level audit: the service's only insert is the invite row itself,
- * the table has no accepted_by column, no collaborator table exists, and nothing
- * in the backend reads "who accepted"). So confirming the invite changes nothing
- * for either party.
- *
- * Legacy printed 「已接受协作邀请」 with a "查看协作空间" button that linked to
- * `/u/{username}/works` — a route that does not exist in V2, so the flow ended in
- * a 404 right after telling the user they had joined a collaboration. Both halves
- * of that are lies this page does not tell:
- *
- *   1. the copy says 「已确认邀请」 and repeats ACCEPTANCE_BOUNDARY_NOTE;
- *   2. the follow-up link goes to `/u/:username`, which DOES exist and already
- *      renders that user's public works.
- *
- * Two-phase load: resolve the token first (public, no session needed), and only
- * offer the accept button once the token is known good. Resolving does not
- * consume the token, so this is safe to do on mount.
+ * Accept writes collaboration_member. The copy states the real grant: draft
+ * edit, not submit/trash. The follow-up link is `/u/:username` (not Legacy's
+ * missing `/u/:username/works`). Resolve is public and does not consume the
+ * token, so it is safe on mount.
  */
 
 type State =
@@ -155,133 +153,129 @@ export function CollaborationAcceptPage() {
   const { invite } = state;
   const inviter = inviterDisplayName(invite);
   const expiry = formatExpiry(invite.expiresAt);
-
-  if (accept.kind === "done") {
-    const href = inviterSpaceHref(accept.result);
-    return (
-      <div className="section-gap">
-        <header className="flex flex-col gap-1">
-          <h1
-            className="text-2xl font-semibold tracking-tight text-primary"
-            data-testid="accept-headline"
-          >
-            {acceptedHeadline(accept.result)}
-          </h1>
-        </header>
-
-        {/* The disclosure is the headline's equal here, not a footnote: the user
-            has just pressed a button labelled like a permission grant. */}
-        <p
-          role="status"
-          data-testid="accept-boundary"
-          className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
-        >
-          {ACCEPTANCE_BOUNDARY_NOTE}
-        </p>
-
-        <Card>
-          <CardContent className="flex flex-col gap-2 p-5">
-            {invite.note?.trim() ? (
-              <p className="text-sm text-muted-foreground">
-                {inviter} 的留言：{invite.note}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">{inviter} 没有留下备注。</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="flex flex-wrap gap-2">
-          {/* ⚠️ `/u/:username` — NOT Legacy's `/u/:username/works`, which is not a
-              route in V2. A missing username hides the button rather than
-              rendering a link to /u/undefined. */}
-          {href ? (
-            <Link to={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              查看 {inviter} 的主页
-            </Link>
-          ) : null}
-          <Link to="/studio" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            返回创作中心
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const done = accept.kind === "done";
 
   return (
-    <div className="section-gap">
-      <nav className="text-xs text-muted-foreground" aria-label="面包屑">
-        <Link to="/studio" className="hover:text-foreground">
-          创作中心
-        </Link>
-        <span aria-hidden="true"> / </span>
-        <span>确认邀请</span>
-      </nav>
+    <ArchetypeFrame
+      skeleton="SK5"
+      header="banner"
+      density="loose"
+      className="max-w-[880px]"
+      headerSlot={
+        <PageHero
+          title="确认协作邀请"
+          description={
+            done
+              ? `${inviter} 的邀请已确认。`
+              : `${inviter} 邀请你一起创作。确认前请先看完下面的说明。`
+          }
+        />
+      }
+    >
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start lg:gap-6">
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* The disclosure is the headline's equal here, not a footnote: the user
+              has just pressed a button labelled like a permission grant. */}
+          <p
+            role={done ? "status" : undefined}
+            data-testid="accept-boundary"
+            className="rounded-control border border-border bg-surface-sunken/60 p-3 text-meta leading-6 text-muted-foreground"
+          >
+            {ACCEPTANCE_BOUNDARY_NOTE}
+          </p>
 
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">确认协作邀请</h1>
-        <p className="text-sm text-muted-foreground">
-          {inviter} 邀请你一起创作。确认前请先看完下面的说明。
-        </p>
-      </header>
+          {done ? (
+            <div className="flex flex-col gap-4 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]">
+              <h2 data-testid="accept-headline" className="text-h2 break-words text-primary">
+                {acceptedHeadline(accept.result)}
+              </h2>
 
-      <p
-        data-testid="accept-boundary"
-        className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
-      >
-        {ACCEPTANCE_BOUNDARY_NOTE}
-      </p>
+              {invite.note?.trim() ? (
+                <p className="text-meta leading-6 text-muted-foreground">
+                  {inviter} 的留言：{invite.note}
+                </p>
+              ) : (
+                <p className="text-meta leading-6 text-muted-foreground">
+                  {inviter} 没有留下备注。
+                </p>
+              )}
 
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-5">
-          <dl className="flex flex-col gap-2 text-sm">
-            <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 border-t border-border/70 pt-4">
+                {/* ⚠️ `/u/:username` — NOT Legacy's `/u/:username/works`, which is not a
+                    route in V2. A missing username hides the button rather than
+                    rendering a link to /u/undefined. */}
+                {inviterSpaceHref(accept.result) ? (
+                  <Link
+                    to={inviterSpaceHref(accept.result) ?? "/studio"}
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    查看 {inviter} 的主页
+                  </Link>
+                ) : null}
+                <Link
+                  to="/studio"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  返回创作中心
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]">
+              {accept.kind === "failed" ? (
+                <p
+                  role="alert"
+                  data-testid="accept-error"
+                  className="rounded-control border border-destructive/40 bg-card p-3 text-meta text-destructive"
+                >
+                  {accept.message}
+                </p>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  data-testid="accept-confirm"
+                  disabled={accept.kind === "pending"}
+                  onClick={() => void onAccept()}
+                >
+                  {accept.kind === "pending" ? "确认中…" : "确认邀请"}
+                </Button>
+                <Link
+                  to="/studio"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  暂不处理
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <SectionRail label="邀请信息">
+          <dl className="density-loose flex flex-col gap-3 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)] text-meta">
+            <div className="flex flex-col gap-1">
               <dt className="text-muted-foreground">邀请人</dt>
               <dd className="font-medium text-foreground" data-testid="accept-inviter">
                 {inviter}
               </dd>
             </div>
             {invite.note?.trim() ? (
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-1">
                 <dt className="text-muted-foreground">备注</dt>
                 <dd className="whitespace-pre-wrap text-foreground">{invite.note}</dd>
               </div>
             ) : null}
             {expiry ? (
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-1">
                 <dt className="text-muted-foreground">有效期至</dt>
-                <dd className="text-foreground">{expiry}</dd>
+                <dd className="tabular-nums text-foreground">{expiry}</dd>
               </div>
             ) : null}
           </dl>
-
-          {accept.kind === "failed" ? (
-            <p
-              role="alert"
-              data-testid="accept-error"
-              className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive"
-            >
-              {accept.message}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              data-testid="accept-confirm"
-              disabled={accept.kind === "pending"}
-              onClick={() => void onAccept()}
-            >
-              {accept.kind === "pending" ? "确认中…" : "确认邀请"}
-            </Button>
-            <Link to="/studio" className={buttonVariants({ variant: "outline", size: "sm" })}>
-              暂不处理
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </SectionRail>
+      </div>
+    </ArchetypeFrame>
   );
 }

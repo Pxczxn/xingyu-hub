@@ -2,7 +2,6 @@ package top.pxczxn.xingyu.community.service;
 
 import top.pxczxn.xingyu.community.dto.BadgeView;
 import top.pxczxn.xingyu.community.dto.InsightsView;
-import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
@@ -10,6 +9,7 @@ import top.pxczxn.xingyu.community.mapper.CommentMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.ContentLikeMapper;
 import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
+import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,21 +28,17 @@ public class MeEngagementService {
     private final OnboardingService onboardingService;
 
     public InsightsView insights(CommunityUser user) {
-        List<Article> articles = articleMapper.listByOwnerId(user.getId());
-        long published = articles.stream().filter(a -> "PUBLISHED".equals(a.getStatus())).count();
-        long drafts = articles.stream().filter(a -> "DRAFT".equals(a.getStatus())).count();
         return new InsightsView(
-                published,
-                drafts,
+                articleMapper.countByOwnerAndStatus(user.getId(), ArticleStateSupport.EDITORIAL_PUBLISHED),
+                articleMapper.countByOwnerAndStatus(user.getId(), ArticleStateSupport.EDITORIAL_DRAFT),
                 userFollowMapper.countFollowers(user.getId()),
                 userFollowMapper.countFollowing(user.getId()),
-                commentMapper.countByAuthorId(user.getId()),
-                likeMapper.countByUserId(user.getId()));
+                commentMapper.countVisibleOnOwnedContent(user.getId()),
+                likeMapper.countReceivedByOwner(user.getId()));
     }
 
     public List<BadgeView> badges(CommunityUser user) {
-        List<Article> articles = articleMapper.listByOwnerId(user.getId());
-        long articleCount = articles.size();
+        long articleCount = articleMapper.countByOwnerId(user.getId());
         boolean onboardingDone = onboardingService.get(user).isCompleted();
         long followers = userFollowMapper.countFollowers(user.getId());
         CommunityProfile profile = profileMapper.findByUserId(user.getId());

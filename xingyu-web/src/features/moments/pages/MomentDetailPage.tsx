@@ -8,8 +8,17 @@ import {
   momentAuthorLabel,
 } from "@/api/moments/moments.types";
 import { ApiError } from "@/api/client";
+import { ArchetypeFrame } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { ArticleInteractions } from "@/features/article/components/ArticleInteractions";
 import { CommentSection } from "@/features/article/components/CommentSection";
 import { ReportLink } from "@/features/moderation/components/ReportLink";
@@ -175,20 +184,45 @@ export function MomentDetailPage() {
   const canEdit = ownerConfirmed && editWindowOpen(moment.createdAt);
   const windowHint = ownerConfirmed && !editWindowOpen(moment.createdAt);
 
+  /*
+   * SK1 阅读栏 · H 线 / D 松 / R 错（A §3 的 MomentDetail 行）。
+   *
+   *   skeleton="SK1"    → `[measure | 220px]`，右轨由 `SectionRail` 粘住 —— 这就是
+   *                       R=错（主列 + 侧轨）。右轨放的是这条动态的作者、发布时刻
+   *                       与编辑窗口规则：它们是「关于这条」的事实，不是正文。
+   *   header="line"     → H=线：无面 masthead —— 本页的页头只有「返回动态」一行，
+   *                       没有横幅、没有卡面。
+   *   density="loose"   → D=松：动态本身、编辑表单、确认删除、评论区各是独立块。
+   *
+   * 页内 h1 用 `sr-only`：「动态」没有标题，视觉上的第一块就是正文本身，而 A §7.3
+   * 允许「视觉上没有标题位」的页面用 `sr-only` h1 承担可访问性标识（`SeriesList`/
+   * `EditorPage` 补 h1 时同一条判据）。所以这一页仍然恰好 1 个 h1，且不造横幅。
+   *
+   * Batch 14 的宽度结论保留：整页仍锁 `MOMENT_MEASURE`（46rem）。它现在挂在
+   * 「动态正文」这张卡上（`<article>`），因为 SK1 的主列已经被 `--reading-measure`
+   * 锁住，两处都只是上界 —— 阅读时正文宽度仍与动态广场一致，点进再退回不会重新折行。
+   */
   return (
-    /*
-      Batch 14 — the whole page lives on the feed's measure.
-      The card used to span the shell's full 1234.5px, which put a 15px body at
-      ~80 Chinese characters per line; the feed at the same font size now sits
-      at ~47. Reading a moment here and then tapping back into the list meant
-      the text changed width under you. One column, centred, same 46rem the
-      feed uses — the edits form and the comment thread ride along with it, so
-      the page has one edge instead of three.
-    */
-    <article className={cn("section-gap mx-auto w-full", MOMENT_MEASURE)}>
-      <Link to="/moments" className="text-sm text-accent-strong hover:underline">
-        返回动态
-      </Link>
+    <ArchetypeFrame
+      skeleton="SK1"
+      header="line"
+      density="loose"
+      headerSlot={
+        <div className="flex flex-col gap-3">
+          {/* 页面标识：没有可见标题位，但路由需要一个名字。 */}
+          <h1 className="sr-only">动态</h1>
+          <Link
+            to="/moments"
+            className="focus-ring self-start rounded-sm text-meta text-accent-strong hover:underline"
+          >
+            返回动态
+          </Link>
+        </div>
+      }
+      rail={<MomentDetailRail moment={moment} />}
+      /* landmark 名与右轨里两块卡的标题都不同名。 */
+      railLabel="动态侧栏"
+    >
       {/*
         P0 — the moment itself, as one surface.
 
@@ -214,7 +248,7 @@ export function MomentDetailPage() {
         optional on the contract, and /u/:username would 404 on an empty
         segment — the same rule CommentSection applies to its own authors.
       */}
-      <div className="rounded-xl border border-border/70 bg-card">
+      <article className={cn("mx-auto w-full rounded-card border border-border/70 bg-card", MOMENT_MEASURE)}>
         <div className="p-4">
           <span className="flex flex-wrap items-center gap-x-2 text-meta text-muted-foreground">
             {moment.authorUsername ? (
@@ -263,20 +297,43 @@ export function MomentDetailPage() {
                   编辑动态
                 </Button>
               ) : null}
-              <Button
-                variant="outline"
-                className="w-fit border-destructive/40 text-destructive hover:border-destructive/60 hover:text-destructive"
-                onClick={() => setConfirmDelete(true)}
-                disabled={pendingRef.current}
-              >
-                删除动态
-              </Button>
+              <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-fit border-destructive/40 text-destructive hover:border-destructive/60 hover:text-destructive"
+                    disabled={pendingRef.current}
+                  >
+                    删除动态
+                  </Button>
+                </DialogTrigger>
+                <DialogContent role="alertdialog" className="max-w-sm rounded-xl bg-card">
+                  <DialogTitle className="text-base font-semibold text-primary">
+                    删除动态？
+                  </DialogTitle>
+                  <DialogDescription className="text-sm leading-6 text-muted-foreground">
+                    确定删除这条动态吗？删除后将无法继续公开访问。
+                  </DialogDescription>
+                  <DialogFooter className="gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={pendingRef.current}
+                    >
+                      取消
+                    </Button>
+                    <Button variant="destructive" onClick={() => void onTrash()}>
+                      确认删除
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           ) : (
             <ReportLink objectType="MOMENT" objectId={moment.id} className="ml-auto" />
           )}
         </div>
-      </div>
+      </article>
 
       {editing ? (
         <form
@@ -307,29 +364,6 @@ export function MomentDetailPage() {
         </p>
       ) : null}
 
-      {confirmDelete ? (
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-label="确认删除动态"
-          className="rounded-lg border border-border bg-card p-4"
-        >
-          <p className="text-sm text-foreground">确定删除这条动态吗？删除后将无法继续公开访问。</p>
-          <div className="mt-3 flex gap-2">
-            <Button variant="destructive" onClick={() => void onTrash()}>
-              确认删除
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDelete(false)}
-              disabled={pendingRef.current}
-            >
-              取消
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
       {/*
         P2 — comments, on the same generic endpoint the article view uses.
         `MOMENT` is a first-class interaction object type on the server: the
@@ -338,6 +372,67 @@ export function MomentDetailPage() {
         component handles itself — sign-in prompt, no doomed request.
       */}
       <CommentSection objectType="MOMENT" objectId={moment.id} />
-    </article>
+    </ArchetypeFrame>
+  );
+}
+
+/**
+ * 右轨（R=错 的那条侧轨）：关于这条动态 + 动态规则。
+ *
+ * 它只是一个**内容组件** —— 粘住、滚动与 landmark 由 `ArchetypeFrame` 里的
+ * `SectionRail` 负责（`SectionRail.tsx:41-56`），所以这里没有再包一层 `<aside>`。
+ *
+ * 两块都只用本页已有的字段：作者展示名（`momentAuthorLabel` 已处理服务端未解析
+ * username 的情况）、发布精确时刻、以及产品规则里本来就有的编辑窗口
+ * （`MOMENT_EDIT_WINDOW_SECONDS` —— 同页 `editWindowOpen` 用的就是它）。不发请求、
+ * 不编造计数：单条动态的接口不返回点赞/评论计数，所以侧轨里没有这两个数字。
+ */
+function MomentDetailRail({ moment }: { moment: MomentView }) {
+  const authorName = momentAuthorLabel(moment);
+  const publishedAt = formatDateTime(moment.createdAt);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <section aria-labelledby="moment-rail-about" className="rounded-card border border-border/70 bg-card p-4">
+        <h2 id="moment-rail-about" className="text-h3 font-semibold text-primary">
+          关于这条动态
+        </h2>
+        <dl className="mt-3 flex flex-col gap-3">
+          <div>
+            <dt className="text-caption text-muted-foreground">作者</dt>
+            <dd className="mt-1 text-meta text-foreground">
+              {moment.authorUsername ? (
+                <Link
+                  to={`/u/${moment.authorUsername}`}
+                  className="focus-ring rounded-sm font-medium transition-colors hover:text-accent-strong"
+                >
+                  {authorName}
+                </Link>
+              ) : (
+                <span className="font-medium">{authorName}</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-caption text-muted-foreground">发布</dt>
+            <dd className="mt-1 text-meta">
+              <time dateTime={moment.createdAt} className="tabular-nums text-foreground">
+                {publishedAt ?? formatRelativeTime(moment.createdAt) ?? "时间未知"}
+              </time>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="moment-rail-rules" className="rounded-card border border-border/70 bg-card p-4">
+        <h2 id="moment-rail-rules" className="text-h3 font-semibold text-primary">
+          动态规则
+        </h2>
+        <p className="mt-2 text-meta leading-6 text-muted-foreground">
+          发布后立即公开可见，{Math.round(MOMENT_EDIT_WINDOW_SECONDS / 60)} 分钟内可编辑；
+          删除后将从动态广场消失。
+        </p>
+      </section>
+    </div>
   );
 }

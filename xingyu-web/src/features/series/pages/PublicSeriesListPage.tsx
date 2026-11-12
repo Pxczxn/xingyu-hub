@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { PageMasthead } from "@/components/shared/PageMasthead";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageHero } from "@/components/shared/PageHero";
 import { PageSection } from "@/components/shared/PageSection";
 import { SearchField } from "@/components/shared/SearchField";
 import { PageState } from "@/components/shared/PageState";
@@ -55,14 +56,34 @@ export function PublicSeriesListPage() {
     browse.items.length === 0 &&
     browse.total === 0;
 
+  /*
+   * SK2 画廊 · H=幅 / D=松 / R=齐（`.team/design/A-archetypes.md` §3 的
+   * /series/* 域 PublicSeriesList 行）。骨架由 `ArchetypeFrame` 提供：页面只声明
+   * 身份，不再手写 `section-gap` / `max-w-*`。
+   *
+   *   H=幅：页头是 `PageHero`（有面横幅、自带 `<h1>`）。原来是 `PageMasthead`
+   *   —— 那是 H=线 的构件，用在「幅」上等于把本页和系列详情（同为 SK1/线 一族）
+   *   画成了同一种开头。`motif-orbit` 给它一块几何轨道母题（B §6：一页 ≤1 种
+   *   母题，本页只有这一处）。
+   *   D=松：`density="loose"` 让卡面之间的间距走 `--density-grid-gap`，而不是
+   *   手写 16/20px；每张卡仍是独立卡面（`SeriesWorkCard` 自带的 `rounded-xl`）。
+   *   R=齐：没有 `rail`，所以 frame 退回单列、与内容列同宽同边 —— 本页不做出血带
+   *   （那是 R=出），也不做侧轨（那是 R=错）。
+   */
   return (
-    <div className="section-gap">
-      <PageMasthead
-        eyebrow="SERIES"
-        title="系列广场"
-        description="沿着一条主题线索，完整读完一个系列。"
-      />
-
+    <ArchetypeFrame
+      skeleton="SK2"
+      header="banner"
+      density="loose"
+      headerSlot={
+        <PageHero
+          eyebrow="SERIES"
+          title="系列广场"
+          description="沿着一条主题线索，完整读完一个系列。"
+          className="motif-orbit"
+        />
+      }
+    >
       {catalogEmpty ? (
         <PageState
           kind="empty"
@@ -121,7 +142,7 @@ export function PublicSeriesListPage() {
               */}
               <ul
                 data-testid="series-work-grid"
-                className="grid list-none grid-cols-1 gap-4 p-0 lg:grid-cols-2 lg:gap-5"
+                className="grid list-none grid-cols-1 gap-[var(--density-grid-gap)] p-0 lg:grid-cols-2"
               >
                 {feed.items.map((item) => (
                   <SeriesWorkCard key={item.id} item={item} />
@@ -153,6 +174,6 @@ export function PublicSeriesListPage() {
           ) : null}
         </PageSection>
       )}
-    </div>
+    </ArchetypeFrame>
   );
 }

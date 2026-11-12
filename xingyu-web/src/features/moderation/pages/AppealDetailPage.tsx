@@ -10,6 +10,8 @@ import {
   targetDescription,
   type AppealDetailView,
 } from "@/api/moderation/moderation.types";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 
@@ -126,78 +128,118 @@ export function AppealDetailPage() {
   const rejected = appeal.outcome === "REJECTED";
   const originalMeasure = measureTypeLabel(appeal.measureType);
 
+  /*
+    SK1 阅读栏 · H=线 / D=松 / R=错（`.team/design/A-archetypes.md` §3 的单页域 AppealDetail 行）。
+
+    与 /reports/:id 同族但不同构图：两页都是陈述型（不是操作台），差别在节奏 ——
+    /reports/:id 是 R=齐 的一条竖列，本页是 R=错 的主列 + 右轨。
+
+      H=线：`PageMasthead` 出 h1，替掉手写的 `<header>` + `text-2xl`（A §4 点名的 30 处之一）。
+        页头兼作 LOCKED SECTION ORDER 的第一节「原处理对象 / 原决定」：状态徽章走 `actions` 槽，
+        两行 dl 紧贴 masthead 之下 —— 顺序不变，也没有把同一件事在首屏说两遍。
+      D=松：主列四块各一张独立卡面，块间由 `density-loose` 给间距。
+      R=错：右轨由 frame 的 `rail` 出（`SectionRail` 自带 `<aside aria-labelledby>` + sticky），
+        承载「时间」这一块与「查看我的举报」出口。两者都是页内既有的内容与文案，
+        没有为凑侧轨新造一块；主列因此只剩「理由 → 结果 → 说明」这条叙述链。
+
+    「已批准」在页头徽章与「最终结果」各出现一次是刻意的（同一句话在同一个词上），
+    右轨没有动它。整页仍不做错峰入场：五个固定区块由 AppLayout 的 `animate-page-enter`
+    统一负责，理由与 EventDetailPage 的注释相同。
+  */
   return (
-    <div className="section-gap">
-      <p>
-        <Link
-          to="/appeals"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-strong"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-          返回申诉列表
-        </Link>
-      </p>
-
-      {/*
-        页头（2026-10-13，批次 08c）—— 与 /reports/:id 同形：去卡片、去图标、改分隔
-        线式。完整判据见 MyReportsPage 的注释，这里不重复。两页详情必须逐字同形，
-        理由与 /reports 和 /appeals 列表页相同：读者在同一套流程里来回走。
-
-        页头兼作 §一「原处理对象 / 原决定」，与 /reports/:id 把「对象」并入页头是同
-        一条理由 —— LOCKED SECTION ORDER 的第一节就是这一页的身份，单独发卡等于把
-        同一件事在首屏说两遍。状态徽章留在 h1 正下方：测试逐字记着「已批准」在这里
-        和「最终结果」各出现一次是刻意的，同一个词说同一件事。
-
-        h1 里的 Gavel 一并去掉（图标是卡片页头的伴生物）。
-
-        动效：本页**整页不错峰**。EventDetailPage 的注释逐字写过判据 —— AppLayout
-        的 `animate-page-enter` 已经负责每次路由切换的入场，在一个长度固定的区块栈
-        上再叠一层入场只会让页面更慢读完。本页五个区块全是固定的，也没有列表，所以
-        一处 staggerDelay 都不加；/reports/:id 的补充说明列表是全库唯一例外，因为它
-        的长度由服务端决定。
-      */}
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">申诉详情</h1>
-        <p className="mt-3">
-          {/* The appeal's current status is always visible, decided or not. */}
-          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
-            {appealStatusLabel(appeal.status)}
-          </span>
-        </p>
-        <dl className="mt-3 flex flex-col gap-3 text-sm">
-          <div>
-            <dt className="text-xs text-muted-foreground">原处理对象</dt>
-            <dd className="mt-1 text-foreground">
-              <span className="text-xs font-medium text-muted-foreground">
-                {objectTypeLabel(appeal.targetType)}
+    <ArchetypeFrame
+      skeleton="SK1"
+      header="line"
+      density="loose"
+      railLabel="时间与出口"
+      headerSlot={
+        <div className="flex flex-col gap-4">
+          <p>
+            <Link
+              to="/appeals"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-sm text-meta text-muted-foreground hover:text-accent-strong"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              返回申诉列表
+            </Link>
+          </p>
+          <PageMasthead
+            title="申诉详情"
+            actions={
+              /* The appeal's current status is always visible, decided or not. */
+              <span className="rounded-pill bg-muted px-2.5 py-1 text-meta font-medium text-foreground">
+                {appealStatusLabel(appeal.status)}
               </span>
-              <span className="ml-2">{targetDescription(appeal)}</span>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">原决定</dt>
-            <dd className="mt-1 text-foreground">{originalMeasure ?? "无对应治理措施"}</dd>
-          </div>
-        </dl>
-      </header>
+            }
+          />
+          <dl className="flex flex-col gap-3 text-body">
+            <div>
+              <dt className="text-meta text-muted-foreground">原处理对象</dt>
+              <dd className="mt-1 text-foreground">
+                <span className="text-meta font-medium text-muted-foreground">
+                  {objectTypeLabel(appeal.targetType)}
+                </span>
+                <span className="ml-2">{targetDescription(appeal)}</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-meta text-muted-foreground">原决定</dt>
+              <dd className="mt-1 text-foreground">{originalMeasure ?? "无对应治理措施"}</dd>
+            </div>
+          </dl>
+        </div>
+      }
+      rail={
+        <div className="flex flex-col gap-4">
+          <section
+            aria-labelledby="appeal-time-heading"
+            className="rounded-card border border-border/70 bg-card p-4"
+          >
+            <h2 id="appeal-time-heading" className="section-heading">
+              时间
+            </h2>
+            <dl className="mt-3 flex flex-col gap-3 text-meta">
+              <div>
+                <dt className="text-muted-foreground">提交时间</dt>
+                <dd className="mt-1 text-foreground">{formatTime(appeal.createdAt)}</dd>
+              </div>
+              {decided && appeal.decidedAt ? (
+                <div>
+                  <dt className="text-muted-foreground">处理时间</dt>
+                  <dd className="mt-1 text-foreground">{formatTime(appeal.decidedAt)}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </section>
 
+          <p>
+            <Link
+              to="/reports"
+              className="focus-ring rounded-sm text-meta text-accent-strong hover:underline"
+            >
+              查看我的举报
+            </Link>
+          </p>
+        </div>
+      }
+    >
       {/* ② 我的申诉理由 */}
-      <section className="rounded-xl border border-border/70 bg-card p-5">
+      <section className="rounded-card border border-border/70 bg-card p-5">
         <h2 className="section-heading">我的申诉理由</h2>
-        <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{appeal.body}</p>
+        <p className="mt-3 whitespace-pre-wrap text-body text-foreground">{appeal.body}</p>
       </section>
 
       {/* ③ 最终结果 —— 只表达系统真正执行过的 */}
-      <section className="rounded-xl border border-border/70 bg-card p-5">
+      <section className="rounded-card border border-border/70 bg-card p-5">
         <h2 className="section-heading">最终结果</h2>
         {decided ? (
           <>
             <p className="mt-3">
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+              <span className="rounded-pill bg-muted px-2.5 py-1 text-meta font-medium text-foreground">
                 {appealStatusLabel(appeal.outcome)}
               </span>
             </p>
-            <p className="mt-3 text-sm text-foreground">
+            <p className="mt-3 text-body text-foreground">
               {approved
                 ? "申诉已批准，原处理措施已撤销。"
                 : rejected
@@ -206,7 +248,7 @@ export function AppealDetailPage() {
             </p>
           </>
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-3 text-body text-muted-foreground">
             申诉正在处理中，处理完成后可在此查看结果。
           </p>
         )}
@@ -214,40 +256,17 @@ export function AppealDetailPage() {
 
       {/* ④ 处理说明 */}
       {decided ? (
-        <section className="rounded-xl border border-border/70 bg-card p-5">
+        <section className="rounded-card border border-border/70 bg-card p-5">
           <h2 className="section-heading">处理说明</h2>
           {appeal.decisionNote?.trim() ? (
-            <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
+            <p className="mt-3 whitespace-pre-wrap text-body text-foreground">
               {appeal.decisionNote}
             </p>
           ) : (
-            <p className="mt-3 text-sm text-muted-foreground">未附处理说明。</p>
+            <p className="mt-3 text-body text-muted-foreground">未附处理说明。</p>
           )}
         </section>
       ) : null}
-
-      {/* ⑤ 时间 */}
-      <section className="rounded-xl border border-border/70 bg-card p-5">
-        <h2 className="section-heading">时间</h2>
-        <dl className="mt-3 flex flex-col gap-3 text-sm">
-          <div>
-            <dt className="text-muted-foreground">提交时间</dt>
-            <dd className="mt-1 text-foreground">{formatTime(appeal.createdAt)}</dd>
-          </div>
-          {decided && appeal.decidedAt ? (
-            <div>
-              <dt className="text-muted-foreground">处理时间</dt>
-              <dd className="mt-1 text-foreground">{formatTime(appeal.decidedAt)}</dd>
-            </div>
-          ) : null}
-        </dl>
-      </section>
-
-      <p className="text-center">
-        <Link to="/reports" className="text-sm text-accent-strong hover:underline">
-          查看我的举报
-        </Link>
-      </p>
-    </div>
+    </ArchetypeFrame>
   );
 }

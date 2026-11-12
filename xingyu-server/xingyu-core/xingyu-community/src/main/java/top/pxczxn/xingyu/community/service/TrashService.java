@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +36,19 @@ public class TrashService {
     private final SearchIndexService searchIndexService;
 
     public List<TrashItemView> listForOwner(CommunityUser user) {
-        return trashMapper.listByOwnerId(user.getId()).stream()
-                .map(this::toView)
+        List<ContentTrash> rows = trashMapper.listByOwnerId(user.getId());
+        List<String> articleIds = rows.stream()
+                .filter(row -> OBJECT_TYPE_ARTICLE.equals(row.getObjectType()))
+                .map(ContentTrash::getObjectId)
+                .toList();
+        Map<String, WorkingDraft> drafts = new HashMap<>();
+        if (!articleIds.isEmpty()) {
+            for (WorkingDraft draft : draftMapper.listByArticleIds(articleIds)) {
+                drafts.putIfAbsent(draft.getArticleId(), draft);
+            }
+        }
+        return rows.stream()
+                .map(row -> toView(row, drafts))
                 .toList();
     }
 
@@ -109,9 +122,15 @@ public class TrashService {
     }
 
     private TrashItemView toView(ContentTrash trash) {
+        return toView(trash, null);
+    }
+
+    private TrashItemView toView(ContentTrash trash, Map<String, WorkingDraft> drafts) {
         String title = null;
         if (OBJECT_TYPE_ARTICLE.equals(trash.getObjectType())) {
-            WorkingDraft draft = draftMapper.findByArticleId(trash.getObjectId());
+            WorkingDraft draft = drafts == null
+                    ? draftMapper.findByArticleId(trash.getObjectId())
+                    : drafts.get(trash.getObjectId());
             if (draft != null) {
                 title = draft.getTitle();
             }

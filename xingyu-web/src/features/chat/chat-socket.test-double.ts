@@ -28,6 +28,7 @@ export const chatSocket = {
   conversationsStatus: "ready" as ChatSocketContextValue["conversationsStatus"],
   conversationsError: null as string | null,
   conversationsExpired: false,
+  backfill: "idle" as ChatSocketContextValue["backfill"],
   unreadTotal: 0 as number | null,
   watchConversation: vi.fn(),
   refreshConversations: vi.fn(async () => {}),
@@ -43,6 +44,7 @@ export function resetChatSocketDouble(): void {
   chatSocket.conversationsStatus = "ready";
   chatSocket.conversationsError = null;
   chatSocket.conversationsExpired = false;
+  chatSocket.backfill = "idle";
   chatSocket.unreadTotal = 0;
   chatSocket.watched = [];
   chatSocket.watchConversation.mockClear();
@@ -59,6 +61,7 @@ export function chatSocketValue(): ChatSocketContextValue {
     conversationsStatus: chatSocket.conversationsStatus,
     conversationsError: chatSocket.conversationsError,
     conversationsExpired: chatSocket.conversationsExpired,
+    backfill: chatSocket.backfill,
     unreadTotal: chatSocket.unreadTotal,
     refreshConversations: chatSocket.refreshConversations,
     watchConversation: (conversationId, knownMaxSequence) => {

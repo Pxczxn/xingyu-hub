@@ -209,4 +209,20 @@ describe("SeriesEditPage", () => {
     addSpy.mockRestore();
     removeSpy.mockRestore();
   });
+
+  it("hides status controls for an editor and omits status on save", async () => {
+    mocked.getMine.mockResolvedValue({ ...DETAIL, collaborationRole: "EDITOR" });
+    mocked.update.mockResolvedValue({ ...DETAIL, collaborationRole: "EDITOR", lockVersion: 2 });
+    renderEdit();
+    fireEvent.change(await screen.findByLabelText("简介"), { target: { value: "协作者改简介" } });
+    expect(screen.queryByRole("radio", { name: /公开中/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "保存修改" }));
+    await waitFor(() => {
+      expect(mocked.update).toHaveBeenCalledWith("ser-1", {
+        title: "星语开发日志",
+        description: "协作者改简介",
+        lockVersion: 1,
+      });
+    });
+  });
 });

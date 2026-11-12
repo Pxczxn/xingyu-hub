@@ -3,6 +3,7 @@ package top.pxczxn.xingyu.community.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import top.pxczxn.xingyu.community.entity.Article;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -16,6 +17,55 @@ public interface ArticleMapper extends BaseMapper<Article> {
             ORDER BY updated_at DESC
             """)
     List<Article> listByOwnerId(String ownerId);
+
+    @Select("""
+            SELECT COUNT(*) FROM article
+            WHERE owner_id = #{ownerId} AND status = #{status}
+            """)
+    long countByOwnerAndStatus(@Param("ownerId") String ownerId, @Param("status") String status);
+
+    @Select("""
+            SELECT COUNT(*) FROM article
+            WHERE owner_id = #{ownerId}
+            """)
+    long countByOwnerId(String ownerId);
+
+    @Select("""
+            SELECT * FROM article
+            WHERE owner_id = #{ownerId}
+              AND status = 'DRAFT'
+              AND (
+                lifecycle_status IS NULL
+                OR TRIM(lifecycle_status) = ''
+                OR UPPER(TRIM(lifecycle_status)) = 'ACTIVE'
+              )
+            ORDER BY updated_at DESC
+            LIMIT #{limit}
+            """)
+    List<Article> listRecentActiveDrafts(@Param("ownerId") String ownerId, @Param("limit") int limit);
+
+    @Select("""
+            SELECT id FROM article
+            WHERE owner_id = #{ownerId}
+              AND status = 'IN_REVIEW'
+              AND (
+                lifecycle_status IS NULL
+                OR TRIM(lifecycle_status) = ''
+                OR UPPER(TRIM(lifecycle_status)) = 'ACTIVE'
+              )
+            ORDER BY updated_at DESC
+            """)
+    List<String> listActiveInReviewIds(String ownerId);
+
+    @Select("""
+            <script>
+            SELECT * FROM article
+            WHERE owner_id IN
+            <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            ORDER BY updated_at DESC
+            </script>
+            """)
+    List<Article> listByOwnerIds(@Param("ownerIds") List<String> ownerIds);
 
     /**
      * Every article that belongs in the public index: published at least once, not trashed,

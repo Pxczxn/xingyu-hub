@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -45,8 +46,17 @@ public class ExplorationService {
     private final RecommendationService recommendationService;
 
     public List<ExploreDomainView> listOfficialMap() {
-        return exploreDomainMapper.listRootSystemDomains().stream()
-                .map(this::toDomainViewWithChildren)
+        List<ExploreDomain> roots = exploreDomainMapper.listRootSystemDomains();
+        if (roots.isEmpty()) {
+            return List.of();
+        }
+        Map<String, List<ExploreDomain>> childrenByParent = new HashMap<>();
+        for (ExploreDomain child : exploreDomainMapper.listSystemChildrenByParentIds(
+                roots.stream().map(ExploreDomain::getId).toList())) {
+            childrenByParent.computeIfAbsent(child.getParentId(), key -> new ArrayList<>()).add(child);
+        }
+        return roots.stream()
+                .map(root -> toDomainView(root, childrenByParent.getOrDefault(root.getId(), List.of())))
                 .toList();
     }
 
@@ -141,9 +151,24 @@ public class ExplorationService {
 
         userExploreDomainMapper.deleteByUserId(user.getId());
 
-        int sort = 0;
+        List<String> lookupIds = new ArrayList<>();
         for (String domainId : domainIds) {
-            ExploreDomain domain = exploreDomainMapper.findActiveById(domainId);
+            if (domainId != null && !domainId.isBlank() && !lookupIds.contains(domainId)) {
+                lookupIds.add(domainId);
+            }
+        }
+        Map<String, ExploreDomain> activeDomains = new HashMap<>();
+        if (!lookupIds.isEmpty()) {
+            for (ExploreDomain domain : exploreDomainMapper.listActiveByIds(lookupIds)) {
+                if (domain != null && domain.getId() != null) {
+                    activeDomains.putIfAbsent(domain.getId(), domain);
+                }
+            }
+        }
+        int sort = 0;
+        List<UserExploreDomain> systemLinks = new ArrayList<>();
+        for (String domainId : domainIds) {
+            ExploreDomain domain = activeDomains.get(domainId);
             if (domain == null || !"SYSTEM".equals(domain.getDomainType())) {
                 continue;
             }
@@ -153,20 +178,33 @@ public class ExplorationService {
             link.setDomainId(domain.getId());
             link.setSortOrder(sort++);
             link.setCreatedAt(Instant.now());
-            userExploreDomainMapper.insert(link);
+            systemLinks.add(link);
+        }
+        if (!systemLinks.isEmpty()) {
+            userExploreDomainMapper.insertAll(systemLinks);
         }
 
         List<ExploreDomain> existingPersonal = exploreDomainMapper.listPersonalByUser(user.getId());
         Set<String> keepNames = new LinkedHashSet<>(customLabels);
-        for (ExploreDomain personal : existingPersonal) {
-            if (!keepNames.contains(personal.getName())) {
-                personal.setStatus("ARCHIVED");
-                exploreDomainMapper.updateById(personal);
+        if (!existingPersonal.isEmpty()) {
+            List<String> retainedNames = new ArrayList<>();
+            for (String name : keepNames) {
+                if (name != null && !name.isBlank()) {
+                    retainedNames.add(name);
+                }
+            }
+            if (retainedNames.isEmpty()) {
+                exploreDomainMapper.archiveAllPersonalByUser(user.getId());
             } else {
-                keepNames.remove(personal.getName());
+                exploreDomainMapper.archivePersonalExceptNames(user.getId(), retainedNames);
             }
         }
+        for (ExploreDomain personal : existingPersonal) {
+            keepNames.remove(personal.getName());
+        }
 
+        List<ExploreDomain> createdPersonal = new ArrayList<>();
+        List<UserExploreDomain> personalLinks = new ArrayList<>();
         for (String label : keepNames) {
             if (label == null || label.isBlank()) {
                 continue;
@@ -181,7 +219,7 @@ public class ExplorationService {
             personal.setStatus("ACTIVE");
             personal.setSortOrder(sort++);
             personal.setCreatedAt(Instant.now());
-            exploreDomainMapper.insert(personal);
+            createdPersonal.add(personal);
 
             UserExploreDomain link = new UserExploreDomain();
             link.setId(TokenSupport.newId());
@@ -189,10 +227,25 @@ public class ExplorationService {
             link.setDomainId(personal.getId());
             link.setSortOrder(sort++);
             link.setCreatedAt(Instant.now());
-            userExploreDomainMapper.insert(link);
+            personalLinks.add(link);
+        }
+        if (!createdPersonal.isEmpty()) {
+            exploreDomainMapper.insertAll(createdPersonal);
+            userExploreDomainMapper.insertAll(personalLinks);
         }
 
         return getUserExploration(user);
+    }
+
+    /**
+     * 用户主动选择的探索领域，含子领域。没有选择时返回空，不回退到全部官方领域。
+     */
+    public List<String> selectedDomainIds(String userId) {
+        List<ExploreDomain> selected = exploreDomainMapper.listByUserExploration(userId);
+        if (selected.isEmpty()) {
+            return List.of();
+        }
+        return expandDomainIds(selected);
     }
 
     public List<ContentCardView> feedForDomain(CommunityUser user, String domainSlug, String sort, int limit) {
@@ -242,10 +295,16 @@ public class ExplorationService {
             return List.of();
         }
         List<String> articleIds = contentTagMapper.listArticleIdsByDomains(domainIds, limit);
+        Map<String, SearchDocument> documents = new HashMap<>();
+        if (!articleIds.isEmpty()) {
+            for (SearchDocument document : searchDocumentMapper.findLiveByTypeAndIds("ARTICLE", articleIds)) {
+                documents.putIfAbsent(document.getObjectId(), document);
+            }
+        }
         List<ContentCardView> cards = new ArrayList<>();
         for (String articleId : articleIds) {
-            SearchDocument document = searchDocumentMapper.findByObject("ARTICLE", articleId);
-            if (document == null || document.getRemovedAt() != null) {
+            SearchDocument document = documents.get(articleId);
+            if (document == null) {
                 continue;
             }
             cards.add(ContentCardView.builder()
@@ -296,18 +355,25 @@ public class ExplorationService {
     }
 
     private List<String> expandDomainIds(List<ExploreDomain> domains) {
+        if (domains.isEmpty()) {
+            return List.of();
+        }
+        Map<String, List<String>> childrenByParent = new HashMap<>();
+        for (ExploreDomain child : exploreDomainMapper.listActiveChildrenByParentIds(
+                domains.stream().map(ExploreDomain::getId).toList())) {
+            if (child.getId() != null && child.getParentId() != null) {
+                childrenByParent.computeIfAbsent(child.getParentId(), key -> new ArrayList<>()).add(child.getId());
+            }
+        }
         LinkedHashSet<String> ids = new LinkedHashSet<>();
         for (ExploreDomain domain : domains) {
             ids.add(domain.getId());
-            ids.addAll(exploreDomainMapper.listChildIds(domain.getId()));
+            ids.addAll(childrenByParent.getOrDefault(domain.getId(), List.of()));
         }
         return List.copyOf(ids);
     }
 
-    private ExploreDomainView toDomainViewWithChildren(ExploreDomain domain) {
-        List<ExploreDomainView> children = exploreDomainMapper.listChildren(domain.getId()).stream()
-                .map(this::toDomainView)
-                .toList();
+    private ExploreDomainView toDomainView(ExploreDomain domain, List<ExploreDomain> children) {
         return ExploreDomainView.builder()
                 .id(domain.getId())
                 .slug(domain.getSlug())
@@ -317,7 +383,7 @@ public class ExplorationService {
                 .parentId(domain.getParentId())
                 .domainType(domain.getDomainType())
                 .personal("PERSONAL".equals(domain.getDomainType()))
-                .children(children)
+                .children(children.stream().map(this::toDomainView).toList())
                 .build();
     }
 

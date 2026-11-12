@@ -452,4 +452,15 @@ describe("SeriesArticlesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "放弃修改并离开" }));
     expect(await screen.findByTestId("list-page")).toBeInTheDocument();
   });
+
+  it("lets an editor pick the host's articles, not their own", async () => {
+    mockedSeries.getMine.mockResolvedValueOnce({ ...DETAIL, chapters: [], collaborationRole: "EDITOR" });
+    mockedArticles.listMine.mockResolvedValueOnce([
+      article({ id: "own-1", title: "我自己的稿", collaborationRole: "OWNER" }),
+      article({ id: "host-1", title: "主人的稿", collaborationRole: "EDITOR" }),
+    ]);
+    renderPage();
+    expect(await screen.findByRole("button", { name: "添加：主人的稿" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "添加：我自己的稿" })).not.toBeInTheDocument();
+  });
 });

@@ -112,6 +112,21 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
             """)
     SearchDocument findByObject(String objectType, String objectId);
 
+    /**
+     * 与 {@link #findByObject} 同一行集，含已下架文档。系列章节标题要保留下架文档的标题，
+     * 不能改用 {@link #findLiveByTypeAndIds}。
+     */
+    @Select("""
+            <script>
+            SELECT * FROM search_document
+            WHERE object_type = #{objectType}
+              AND object_id IN
+              <foreach collection='objectIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            </script>
+            """)
+    List<SearchDocument> listByTypeAndIds(@Param("objectType") String objectType,
+                                          @Param("objectIds") List<String> objectIds);
+
     @Select("""
             SELECT * FROM search_document
             WHERE removed_at IS NULL AND object_type = #{objectType}
@@ -205,6 +220,46 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
     List<SearchDocument> listDiscoverFiltered(
             @Param("topicId") String topicId,
             @Param("type") String type,
+            @Param("cursorIndexedAt") Instant cursorIndexedAt,
+            @Param("cursorObjectType") String cursorObjectType,
+            @Param("cursorId") String cursorId,
+            @Param("limit") int limit);
+
+    /**
+     * 兴趣排序：只保留挂在所选领域标签上的公开文章，游标与最新流相同。
+     */
+    @Select("""
+            <script>
+            SELECT sd.* FROM search_document sd
+            WHERE sd.removed_at IS NULL
+              AND sd.object_type = 'ARTICLE'
+              AND EXISTS (
+                SELECT 1 FROM article_tag at
+                INNER JOIN domain_tag_relation dtr ON dtr.tag_id = at.tag_id
+                WHERE at.article_id = sd.object_id
+                  AND dtr.domain_id IN
+                  <foreach collection='domainIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+              )
+            <if test="topicId != null">
+              AND EXISTS (
+                SELECT 1 FROM article_topic tp
+                WHERE tp.article_id = sd.object_id AND tp.topic_id = #{topicId}
+              )
+            </if>
+            <if test="cursorIndexedAt != null">
+              AND (sd.indexed_at &lt; #{cursorIndexedAt}
+                   OR (sd.indexed_at = #{cursorIndexedAt}
+                       AND (sd.object_type &gt; #{cursorObjectType}
+                            OR (sd.object_type = #{cursorObjectType}
+                                AND sd.object_id &lt; #{cursorId}))))
+            </if>
+            ORDER BY sd.indexed_at DESC, sd.object_type ASC, sd.object_id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    List<SearchDocument> listDiscoverByDomains(
+            @Param("domainIds") List<String> domainIds,
+            @Param("topicId") String topicId,
             @Param("cursorIndexedAt") Instant cursorIndexedAt,
             @Param("cursorObjectType") String cursorObjectType,
             @Param("cursorId") String cursorId,

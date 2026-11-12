@@ -1,5 +1,5 @@
-import { Hash, BookOpen, Users, LayoutList, MessageSquare, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { Hash, BookOpen, Users, LayoutList, MessageSquare, Search, X } from "lucide-react";
+import { useRef, useCallback, useState, useMemo } from "react";
 import type { DiscoverInput } from "@/api/discover/discover.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { cn } from "@/lib/cn";
@@ -9,11 +9,12 @@ type ContentType = NonNullable<DiscoverInput["type"]> | "ALL";
 interface DiscoverSidebarProps {
   activeTopic: string;
   onTopicChange: (topic: string) => void;
+  sort: "latest" | "featured" | "interest";
+  onSortChange: (sort: "latest" | "featured" | "interest") => void;
   contentType: ContentType;
   onContentTypeChange: (type: ContentType) => void;
   topics: TopicSummary[];
   topicsError?: boolean;
-  focused?: boolean;
   className?: string;
 }
 
@@ -24,39 +25,51 @@ const CONTENT_TYPES = [
   { id: "MOMENT", label: "动态", icon: MessageSquare },
 ] as const;
 
-/*
- * 视觉稿里话题是一长列，默认只露若干行，其余折在「展开其余话题」下面，否则
- * 「内容类型」整组会被挤出首屏。
- *
- * 折叠只裁可见区域，不裁 DOM：话题列表必须完整渲染 —— 每个话题都是一个真实
- * 筛选入口，数量多少与内容计数无关，这是既有契约（discover-filters.test.tsx
- * 用 10 个话题断言每个都能点）。被裁掉的那几行同时退出 Tab 序，键盘用户不会
- * 落在看不见的按钮上，展开后自动恢复。
- *
- * 选中项落在折叠区时要自动展开：否则筛选状态在侧栏里没有可见的落点。
- */
-const COLLAPSED_TOPIC_COUNT = 6;
-const OPTION_ROW_HEIGHT = 36;
-const OPTION_GAP = 2;
-
 export function DiscoverSidebar({
   activeTopic,
   onTopicChange,
+  sort,
+  onSortChange,
   contentType,
   onContentTypeChange,
   topics,
   topicsError,
-  focused = false,
   className,
 }: DiscoverSidebarProps) {
-  const [topicsExpanded, setTopicsExpanded] = useState(false);
-  const activeIndex = topics.findIndex((topic) => topic.slug === activeTopic);
-  const activeIsCollapsed = activeIndex >= COLLAPSED_TOPIC_COUNT;
-  const showAll = topicsExpanded || activeIsCollapsed;
-  const hasMore = topics.length > COLLAPSED_TOPIC_COUNT;
-  // 「全部话题」占第一行，其后才是折叠区里的 6 行。
-  const visibleRows = COLLAPSED_TOPIC_COUNT + 1;
-  const collapsedHeight = visibleRows * OPTION_ROW_HEIGHT + (visibleRows - 1) * OPTION_GAP;
+  const topicsScrollRef = useRef<HTMLDivElement>(null);
+  const [isHovering, setIsHovering] = useState(false);
+  const [topicSearch, setTopicSearch] = useState("");
+
+  // 根据搜索词筛选话题
+  const filteredTopics = useMemo(() => {
+    if (!topicSearch.trim()) return topics;
+    const searchLower = topicSearch.toLowerCase();
+    return topics.filter((topic) =>
+      topic.name.toLowerCase().includes(searchLower) ||
+      topic.slug.toLowerCase().includes(searchLower)
+    );
+  }, [topics, topicSearch]);
+
+  // 处理话题列表的滚动事件，只在鼠标悬停且到达边界时才允许冒泡
+  const handleTopicsWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    // 如果鼠标不在容器内，不拦截滚动
+    if (!isHovering) return;
+
+    const container = topicsScrollRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isAtTop = scrollTop === 0;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+    // 向上滚动且已到顶部，或向下滚动且已到底部，允许冒泡
+    if ((e.deltaY < 0 && isAtTop) || (e.deltaY > 0 && isAtBottom)) {
+      return;
+    }
+
+    // 否则阻止冒泡，只滚动话题列表
+    e.stopPropagation();
+  }, [isHovering]);
 
   const optionClass = (active: boolean) =>
     cn(
@@ -69,7 +82,13 @@ export function DiscoverSidebar({
   return (
     <aside
       className={cn(
-        "flex h-fit min-w-0 flex-col lg:sticky lg:top-20 lg:border-r lg:border-border/70 lg:pr-7",
+        "flex h-fit min-w-0 flex-col",
+        // Sticky 定位
+        "lg:sticky lg:top-[calc(var(--shell-header-height)+1rem)]",
+        // 最大高度和滚动
+        "lg:max-h-[calc(100vh-var(--shell-header-height)-2rem)]",
+        "lg:overflow-y-auto lg:overscroll-contain",
+        "lg:border-r lg:border-border/70 lg:pr-7",
         className,
       )}
       aria-label="探索筛选"
@@ -79,14 +98,36 @@ export function DiscoverSidebar({
         <span aria-hidden className="h-px flex-1 bg-border/80" />
       </p>
 
+      <section aria-labelledby="discover-sort" className="mb-5">
+        <h2 id="discover-sort" className="mb-3 text-sm font-bold text-foreground">
+          排序
+        </h2>
+        <div role="radiogroup" aria-label="排序" className="flex gap-1">
+          {(
+            [
+              ["latest", "最新"],
+              ["featured", "精选"],
+              ["interest", "兴趣"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={sort === value}
+              onClick={() => onSortChange(value)}
+              className={optionClass(sort === value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div aria-hidden className="mb-5 h-px bg-border/70" />
+
       <section aria-labelledby="discover-topic-filter" className="mb-5">
         <div className="mb-3">
-          {/*
-           * The heading never wraps. Opening a row narrows this column from
-           * 244px to 156px over 260ms, and the heading is the one thing here
-           * with no slack: `nowrap` keeps every frame of that transition from
-           * reflowing it into several lines.
-           */}
           <h2
             id="discover-topic-filter"
             className="whitespace-nowrap text-sm font-bold text-foreground"
@@ -94,9 +135,36 @@ export function DiscoverSidebar({
             按话题筛选
           </h2>
         </div>
+
+        {/* 话题搜索框 */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={topicSearch}
+            onChange={(e) => setTopicSearch(e.target.value)}
+            placeholder="搜索话题..."
+            className="focus-ring h-9 w-full rounded-lg border border-border/50 bg-background pl-9 pr-9 text-sm transition-colors placeholder:text-muted-foreground/60 hover:border-border focus:border-accent-strong"
+          />
+          {topicSearch && (
+            <button
+              type="button"
+              onClick={() => setTopicSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="清除搜索"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* 话题列表 - 固定高度 + 滚动 + 隐藏滚动条 + 智能滚动冒泡 */}
         <div
-          className="overflow-hidden"
-          style={hasMore && !showAll ? { maxHeight: collapsedHeight } : undefined}
+          ref={topicsScrollRef}
+          onWheel={handleTopicsWheel}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+          className="scrollbar-none max-h-[400px] overflow-y-auto rounded-lg border border-border/50 bg-muted/30 p-2"
         >
           <ul className="flex flex-col gap-0.5">
             <li>
@@ -110,18 +178,17 @@ export function DiscoverSidebar({
                 全部话题
               </button>
             </li>
-            {topics.map((topic, index) => (
+            {filteredTopics.map((topic) => (
               <li key={topic.id}>
                 <button
                   type="button"
                   onClick={() => onTopicChange(topic.slug)}
                   aria-pressed={activeTopic === topic.slug}
-                  tabIndex={!showAll && index >= COLLAPSED_TOPIC_COUNT ? -1 : undefined}
                   className={optionClass(activeTopic === topic.slug)}
                 >
                   <Hash className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
                   <span className="min-w-0 flex-1 truncate">{topic.name}</span>
-                  {topic.contentCount !== undefined && !focused && (
+                  {topic.contentCount !== undefined && (
                     <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/80">
                       {topic.contentCount}
                     </span>
@@ -129,22 +196,13 @@ export function DiscoverSidebar({
                 </button>
               </li>
             ))}
+            {filteredTopics.length === 0 && (
+              <li className="py-4 text-center text-sm text-muted-foreground">
+                未找到匹配的话题
+              </li>
+            )}
           </ul>
         </div>
-        {hasMore && (
-          <button
-            type="button"
-            onClick={() => setTopicsExpanded((value) => !value)}
-            aria-expanded={showAll}
-            className="focus-ring mt-1.5 flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-accent-strong/85 transition-colors hover:text-accent-strong"
-          >
-            {showAll ? "收起话题" : "展开其余话题"}
-            <ChevronDown
-              className={cn("h-3.5 w-3.5 transition-transform", showAll && "rotate-180")}
-              aria-hidden
-            />
-          </button>
-        )}
         {topicsError && (
           <p role="status" className="mt-2 text-xs text-muted-foreground">
             话题暂时无法加载。

@@ -32,13 +32,50 @@ import { cn } from "@/lib/cn";
  *    the target is the heading, and any other in-page link to a heading (a
  *    footnote backref, a shared deep link) gets the same compensation.
  */
-export function ArticleOutline({ items }: { items: ArticleOutlineItem[] }) {
+export function ArticleOutline({
+  items,
+  label = "文章目录",
+  rail = false,
+}: {
+  items: ArticleOutlineItem[];
+  /** Accessible name. Articles keep the default; other readers pass their own. */
+  label?: string;
+  /**
+   * `rail` = the outline is rendered INSIDE a `ReaderFrame` side track
+   * (`C-reader.md` §2: 工具 → 进度 → 目录). In that context the frame's
+   * `<aside>` already owns stickiness and the bounded scroll, and the outline
+   * never appears below 1440 — so the disclosure row and the second sticky
+   * container would be dead weight inside it. The standalone variant is kept
+   * for callers that still render the outline in the document flow.
+   */
+  rail?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const listId = useId();
 
+  if (rail) {
+    return (
+      <nav aria-label={label} className="min-w-0">
+        <p className="eyebrow mb-3">目录</p>
+        <ul className="flex list-none flex-col gap-2 p-0">
+          {items.map((item) => (
+            <li key={item.id} style={{ paddingLeft: `${(item.level - 2) * 12}px` }}>
+              <a
+                href={`#${item.id}`}
+                className="focus-ring block rounded-sm text-meta leading-5 text-muted-foreground transition-colors hover:text-accent-strong"
+              >
+                {item.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    );
+  }
+
   return (
     <nav
-      aria-label="文章目录"
+      aria-label={label}
       className={cn(
         "order-1 rounded-xl border border-border/70 bg-card px-4 py-3",
         "lg:order-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-4 lg:py-4",

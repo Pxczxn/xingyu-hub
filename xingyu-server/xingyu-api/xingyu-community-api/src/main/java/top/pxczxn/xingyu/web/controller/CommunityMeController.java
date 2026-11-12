@@ -28,6 +28,7 @@ import top.pxczxn.xingyu.community.dto.UserReportDetailView;
 import top.pxczxn.xingyu.community.dto.UserReportView;
 import top.pxczxn.xingyu.community.dto.BadgeView;
 import top.pxczxn.xingyu.community.dto.CollaborationInviteView;
+import top.pxczxn.xingyu.community.dto.CollaborationParticipantView;
 import top.pxczxn.xingyu.community.dto.InsightsView;
 import top.pxczxn.xingyu.community.dto.RecommendationFeedbackView;
 import top.pxczxn.xingyu.community.service.ClientSettingsService;
@@ -476,6 +477,28 @@ public class CommunityMeController {
         return collaborationService.createInvite(
                 CommunityAuthContext.requireUser(),
                 body.get("note"));
+    }
+
+    @GetMapping("/collaboration-members")
+    public List<CollaborationParticipantView> collaborationMembers() {
+        return collaborationService.listEditors(CommunityAuthContext.requireUser());
+    }
+
+    @DeleteMapping("/collaboration-members/{memberId}")
+    public ResponseEntity<Void> removeCollaborationMember(@PathVariable String memberId) {
+        collaborationService.removeEditor(CommunityAuthContext.requireUser(), memberId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/collaboration-memberships")
+    public List<CollaborationParticipantView> collaborationMemberships() {
+        return collaborationService.listHosts(CommunityAuthContext.requireUser());
+    }
+
+    @DeleteMapping("/collaboration-memberships/{ownerId}")
+    public ResponseEntity<Void> leaveCollaboration(@PathVariable String ownerId) {
+        collaborationService.leave(CommunityAuthContext.requireUser(), ownerId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/api-tokens")

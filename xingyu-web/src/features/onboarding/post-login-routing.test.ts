@@ -53,6 +53,7 @@ describe("resolveOnboardingExitPath", () => {
   it("rejects open redirects and onboarding loops", () => {
     expect(resolveOnboardingExitPath("https://evil.example")).toBe("/");
     expect(resolveOnboardingExitPath("//evil.example")).toBe("/");
+    expect(resolveOnboardingExitPath("/\\evil.example")).toBe("/");
     expect(resolveOnboardingExitPath("/onboarding")).toBe("/");
   });
 
@@ -89,9 +90,22 @@ describe("resolvePostLoginPath", () => {
     await expect(resolvePostLoginPath("/me")).resolves.toBe("/me");
   });
 
-  it("falls through to returnTo when GET onboarding fails", async () => {
+  it("sends a completed user to home when returnTo points at another site", async () => {
+    mockedGet.mockResolvedValue({
+      step: "DONE",
+      interestsJson: null,
+      completed: true,
+    });
+
+    await expect(resolvePostLoginPath("https://evil.example")).resolves.toBe("/");
+    await expect(resolvePostLoginPath("//evil.example")).resolves.toBe("/");
+    await expect(resolvePostLoginPath("/\\evil.example")).resolves.toBe("/");
+  });
+
+  it("falls through to a safe returnTo when GET onboarding fails", async () => {
     mockedGet.mockRejectedValue(new Error("network"));
 
     await expect(resolvePostLoginPath("/discover")).resolves.toBe("/discover");
+    await expect(resolvePostLoginPath("https://evil.example/phish")).resolves.toBe("/");
   });
 });

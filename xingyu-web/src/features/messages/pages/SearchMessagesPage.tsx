@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { messagesApi } from "@/api/messages/messages.api";
 import type { ChatMessage } from "@/api/messages/messages.types";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,17 +103,33 @@ export function SearchMessagesPage() {
     setParams(next, { replace: true });
   }
 
+  /*
+   * SK4 收件箱 · H=线 / D=紧 / R=齐（A §3 的 /messages/* 域 SearchMessages 行）。
+   *
+   * 它是「收件箱的列表侧」而不是主从结构：搜索结果没有可并排的详情面板——
+   * 点一条跳回那个会话，不是在本页展开——所以这里只有一栏，R=齐（全部区块与内容列
+   * 同宽同边）。有详情栏的那两个 SK4 页（Mailbox / Thread）才用 `SplitPane` 的
+   * 定高双栏；把本页也塞成两栏会造出一个永远空着的右栏。
+   *
+   * H=线：页头是 `PageMasthead`（无面、标题贴内容列左缘，带本路由唯一的 h1）。
+   * 原来的手写 `text-2xl` 标题与它下面三条同权重的文字链接一并收敛：「返回私信」
+   * 是页头的动作，不是第三个同级导航。
+   * D=紧：结果是行（谁 · 在哪 · 何时 + 气泡 + 跳转），不是卡。
+   *
+   * 1400 上一条 FOLLOW 式的短消息不该横跨整个内容区，所以整页锁 `max-w-2xl`。
+   */
   return (
-    <div className="section-gap">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">搜索消息</h1>
-        <p className="text-sm text-muted-foreground">在你参与的所有会话中查找消息内容。</p>
-        <nav className="text-sm">
-          <Link to="/messages" className="text-accent-strong hover:underline">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <PageMasthead
+        eyebrow="私信 · 搜索"
+        title="搜索消息"
+        description="在你参与的所有会话中查找消息内容。"
+        actions={
+          <Link to="/messages" className="focus-ring rounded-sm text-sm text-accent-strong hover:underline">
             返回私信
           </Link>
-        </nav>
-      </header>
+        }
+      />
 
       <form onSubmit={submit} className="flex items-center gap-2" role="search">
         <Input
@@ -135,7 +152,7 @@ export function SearchMessagesPage() {
       {state.kind === "loading" ? <PageState kind="loading" /> : null}
 
       {state.kind === "error" ? (
-        <div className="section-gap">
+        <div className="flex flex-col gap-4">
           <PageState
             kind="error"
             title="搜索失败"
@@ -172,7 +189,7 @@ export function SearchMessagesPage() {
       ) : null}
 
       {state.kind === "ready" && state.items.length > 0 ? (
-        <ul aria-label="搜索结果" className="flex flex-col gap-4">
+        <ul aria-label="搜索结果" className="flex flex-col gap-3">
           {state.items.map((message) => {
             const who = senderName(message);
             // 2026-10-06: a search hit has to answer three questions on its own —

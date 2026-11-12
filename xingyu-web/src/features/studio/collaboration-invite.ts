@@ -1,9 +1,8 @@
 /*
  * Pure helpers for the collaboration invite pages (Phase 2M).
  *
- * ⚠️ The single most important thing here is `acceptanceBoundaryNote`. Read the
- * header of collaboration.types.ts for why: accepting an invite writes nothing
- * server-side, so the UI must not imply a permission change.
+ * Accepting an invite writes a collaboration_member row. The accepter can edit
+ * that author's drafts. Submit and trash stay with the author.
  */
 import { INVITE_VALID_DAYS } from "@/api/collaboration/collaboration.types";
 import type {
@@ -22,7 +21,7 @@ export const INVITE_NOTE_MAX_LENGTH = 512;
  * without changing this string is the failure mode this guards against.
  */
 export const ACCEPTANCE_BOUNDARY_NOTE =
-  "接受邀请目前只会确认这条邀请，双方都不会因此获得任何协作权限。协作权限尚未实现。";
+  "接受后你可以编辑对方的文章草稿。送审和移入回收站仍由作者本人操作。";
 
 /**
  * Turns the backend's RELATIVE `inviteUrl` into something a user can share.
@@ -110,12 +109,11 @@ export function normalizeNote(note: string): string | undefined {
 /**
  * Result copy for a successful accept, naming the inviter when we know them.
  *
- * Deliberately says 「已确认邀请」 rather than 「已加入协作」 (Legacy's wording):
- * nothing was joined.
+ * Names the inviter when known. The membership row is what "加入" refers to.
  */
 export function acceptedHeadline(result: CollaborationAcceptResult | null): string {
   const name = result ? inviterDisplayName(result) : null;
-  return name ? `已确认 ${name} 的邀请` : "已确认邀请";
+  return name ? `已加入 ${name} 的协作` : "已加入协作";
 }
 
 /**

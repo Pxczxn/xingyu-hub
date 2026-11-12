@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -45,9 +46,10 @@ public class SearchService {
                     : searchDocumentMapper.searchActiveByHot(escapedQuery, normalizedType, limit);
         }
 
+        Map<String, String> covers = contentCoverService.resolveDocumentCovers(docs);
         List<SearchResultView> results = new ArrayList<>();
         for (SearchDocument doc : docs) {
-            results.add(toView(doc));
+            results.add(toView(doc, covers));
         }
 
         if (normalizedType == null && query != null && !query.isBlank()) {
@@ -73,13 +75,13 @@ public class SearchService {
                 .toList();
     }
 
-    private SearchResultView toView(SearchDocument doc) {
+    private SearchResultView toView(SearchDocument doc, Map<String, String> covers) {
         return SearchResultView.builder()
                 .objectType(doc.getObjectType())
                 .objectId(doc.getObjectId())
                 .title(doc.getTitle())
                 .summary(doc.getSummary())
-                .cover(contentCoverService.resolveCoverUrl(doc))
+                .cover("ARTICLE".equals(doc.getObjectType()) ? covers.get(doc.getObjectId()) : null)
                 .updatedAt(formatInstant(doc.getIndexedAt()))
                 .build();
     }

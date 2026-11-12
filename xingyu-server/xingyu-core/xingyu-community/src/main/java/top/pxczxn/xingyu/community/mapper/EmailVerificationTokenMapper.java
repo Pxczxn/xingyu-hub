@@ -38,4 +38,16 @@ public interface EmailVerificationTokenMapper extends BaseMapper<EmailVerificati
             WHERE id = #{id} AND consumed_at IS NULL AND expires_at > #{now}
             """)
     int consumeOnce(@Param("id") String id, @Param("now") Instant now);
+
+    @Update("""
+            UPDATE email_verification_token
+            SET consumed_at = #{consumedAt}
+            WHERE user_id = #{userId}
+              AND purpose = #{purpose}
+              AND consumed_at IS NULL
+            """)
+    int consumePending(
+            @Param("userId") String userId,
+            @Param("purpose") String purpose,
+            @Param("consumedAt") Instant consumedAt);
 }

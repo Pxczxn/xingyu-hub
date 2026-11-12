@@ -16,6 +16,15 @@ public interface WorkingDraftMapper extends BaseMapper<WorkingDraft> {
     @Select("SELECT * FROM working_draft WHERE article_id = #{articleId} LIMIT 1")
     WorkingDraft findByArticleId(String articleId);
 
+    @Select("""
+            <script>
+            SELECT * FROM working_draft
+            WHERE article_id IN
+            <foreach collection='articleIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>
+            </script>
+            """)
+    List<WorkingDraft> listByArticleIds(@Param("articleIds") List<String> articleIds);
+
     /**
      * 扫描到期定时送审（2026-10-09 修正：原条件 {@code lifecycle_status IN ('DRAFT','ACTIVE')}
      * 里的 'DRAFT' 不是 lifecycle 合法值（合法值只有 ACTIVE/TRASHED），恒假子句属语义错误；

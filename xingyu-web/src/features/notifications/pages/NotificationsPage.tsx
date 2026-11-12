@@ -8,6 +8,7 @@ import {
   notificationHref,
   type Notification,
 } from "@/api/notifications/notifications.types";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { NotificationRow } from "../NotificationRow";
@@ -53,8 +54,13 @@ const LIMIT = 50;
  * with its timestamp marooned at the far right. 42rem keeps the sentence and its
  * time in one comfortable glance. Centred so the column reads as a deliberate
  * measure rather than a left-hugging fragment.
+ *
+ * SK4 · R=齐: this one measured column IS the page grid — every block (masthead,
+ * day groups, empty state) shares it, and there is no rail and no bleed band. The
+ * block rhythm comes from `density-compact` (D=紧), so the gap is the tier's
+ * `--density-section-gap` rather than a second hard-coded number here.
  */
-const READING_COLUMN = "mx-auto w-full max-w-2xl";
+const READING_COLUMN = "mx-auto flex w-full max-w-2xl flex-col density-compact";
 
 function isAuthError(err: unknown): boolean {
   return (
@@ -302,26 +308,41 @@ export function NotificationsPage() {
   const { items } = state;
   const unread = serverUnread ?? countUnread(items);
 
+  /*
+   * SK4 收件箱 · H=线 / D=紧 / R=齐（A §3 的 Notifications 行）。
+   *
+   *   H=线：页头是 `PageMasthead` —— 无面 masthead，标题贴内容列左缘、动作落在基线尾。
+   *   原来的 `border-b` 自制 header 就是这样一条线，现在由共享构件出，且它承载本路由
+   *   唯一的 `<h1>`。
+   *   D=紧：通知是「行」——按天分组、发丝线分隔、无逐项卡面。行本身由 `NotificationRow`
+   *   出自己的左侧未读竖条，但不再有圆角/边框/卡底；分隔线归这一层的 `<ul>`
+   *   （`divide-y`），所以一行就是一整条发丝线，而不是又一张卡。
+   *   R=齐：全页一条 `max-w-2xl` 的测量列，没有侧轨、没有出血带。所以「全部已读」不再是
+   *   一条独立的对齐行，而是页头的动作 —— 它本来就是本页唯一的批量动作。
+   *
+   * 不进页时的订阅：本页只在进入时拉一次（`notificationsApi.list` +
+   * `getUnreadCount`），没有轮询、没有实时通道，这里不动那条纪律。
+   */
   return (
-    <div className={`section-gap ${READING_COLUMN}`}>
-      <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">通知中心</h1>
-        <p className="lede mt-2">{unread > 0 ? `${unread} 条未读` : "没有未读通知"}</p>
-      </header>
-
-      {/* One bulk action, no filters. The filter strip that used to sit here offered
-          全部/互动/系统 over a backend that only ever produces FOLLOW. */}
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={busy || unread === 0}
-          onClick={() => void onMarkAllRead()}
-        >
-          <CheckCheck className="mr-1.5 h-4 w-4" aria-hidden />
-          {busy ? "处理中…" : "全部已读"}
-        </Button>
-      </div>
+    <div className={READING_COLUMN}>
+      <PageMasthead
+        eyebrow="通知"
+        title="通知中心"
+        description={unread > 0 ? `${unread} 条未读` : "没有未读通知"}
+        actions={
+          /* One bulk action, no filters. The filter strip that used to sit here offered
+             全部/互动/系统 over a backend that only ever produces FOLLOW. */
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy || unread === 0}
+            onClick={() => void onMarkAllRead()}
+          >
+            <CheckCheck className="mr-1.5 h-4 w-4" aria-hidden />
+            {busy ? "处理中…" : "全部已读"}
+          </Button>
+        }
+      />
 
       {actionError ? (
         <p role="alert" className="text-sm text-destructive">
@@ -351,7 +372,7 @@ export function NotificationsPage() {
           is no nesting — so the page keeps a two-level outline: h1 (通知中心)
           then one h2 per day.
         */
-        <div className="flex flex-col gap-7">
+        <div className="flex flex-col gap-6">
           {groupByDay(items).map((group) => (
             <section key={group.key} aria-labelledby={`notification-day-${group.key}`}>
               <div className="mb-3 flex items-center gap-3">
@@ -367,7 +388,7 @@ export function NotificationsPage() {
                 </span>
               </div>
 
-              <ul className="flex list-none flex-col gap-2 p-0">
+              <ul className="list-none divide-y divide-border/70 p-0">
                 {/*
                   07d: staggered by position WITHIN the day, and the stagger restarts at
                   each group — a day is its own visual unit, so its first row is the first

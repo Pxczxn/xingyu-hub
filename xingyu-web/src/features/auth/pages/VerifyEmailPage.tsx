@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Loader2, MailWarning, RefreshCw } from "lucide-react";
 import { authApi } from "@/api/auth/auth.api";
+import { ArchetypeFrame } from "@/components/layout";
 import { AuthFormError } from "@/features/auth/components/AuthFormError";
 import { Button } from "@/components/ui/button";
 import { setStoredToken } from "@/lib/storage";
@@ -139,21 +140,56 @@ export function VerifyEmailPage() {
     }
   }
 
+  const failed = status === "error";
+
+  /*
+    SK5 · 幅 / 松 / 错（2026-11-10 批次 C）
+    -------------------------------------
+    幅：四种状态都用 `AuthStatusPanel variant="banner"` —— 结论落在一块带
+        `motif-orbit` 母题的面（B §6 M1）上，而不是四张互不相同的白卡。
+    松：`density="loose"`，块之间 40px（B §2 宽松档）。
+    错：`lg` 起「结论 | 13rem 操作栏」两列 —— 主列 + 侧轨，打破单一竖列。
+        侧轨放的是**本页已有的动作**（重发 / 返回登录 / 去登录），不是复述结论：
+        正文里的邮箱地址、邮件状态在测试与读屏里都必须只出现一次，把结论再抄一遍
+        侧轨会让 `getByText(email)` 命中两个节点（实测踩中过）。
+        面板里的 h1 仍是页面唯一的 h1；侧轨里没有任何 heading。
+  */
+  const withShell = (panel: ReactNode, actions?: ReactNode) => (
+    <ArchetypeFrame skeleton="SK5" header="shell" density="loose">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-start lg:gap-8">
+        {panel}
+        {actions ? (
+          <aside
+            aria-label="接下来的操作"
+            className="flex flex-col gap-3 rounded-card border border-border/70 bg-card px-4 py-4"
+          >
+            <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
+              接下来的操作
+            </p>
+            {actions}
+          </aside>
+        ) : null}
+      </div>
+    </ArchetypeFrame>
+  );
+
   if (status === "verifying") {
-    return (
+    return withShell(
       <AuthStatusPanel
+        variant="banner"
         live
         icon={<Loader2 className="h-5 w-5 animate-spin" />}
         disc="bg-surface-sunken text-muted-foreground"
         title="正在验证邮箱"
         body="正在验证，请稍候…"
-      />
+      />,
     );
   }
 
   if (status === "changed") {
-    return (
+    return withShell(
       <AuthStatusPanel
+        variant="banner"
         icon={<RefreshCw className="h-5 w-5" />}
         disc="bg-accent-soft text-accent-strong"
         title="邮箱已更换"
@@ -166,32 +202,27 @@ export function VerifyEmailPage() {
             为保护账号安全，本次操作已退出你所有设备的登录状态，请用新邮箱重新登录。
           </>
         }
-        action={
-          <Link to="/login" className={authStatusPrimaryClass}>
-            用新邮箱登录
-          </Link>
-        }
-      />
+      />,
+      <Link to="/login" className={authStatusPrimaryClass}>
+        用新邮箱登录
+      </Link>,
     );
   }
 
   if (status === "verified") {
-    return (
+    return withShell(
       <AuthStatusPanel
+        variant="banner"
         icon={<CheckCircle2 className="h-5 w-5" />}
         disc="bg-accent-soft text-accent-strong"
         title="邮箱验证成功"
         body="你的邮箱已验证，现在可以登录了。"
-        action={
-          <Link to="/login" className={authStatusPrimaryClass}>
-            前往登录
-          </Link>
-        }
-      />
+      />,
+      <Link to="/login" className={authStatusPrimaryClass}>
+        前往登录
+      </Link>,
     );
   }
-
-  const failed = status === "error";
 
   /*
     Body copy is chosen by what the backend actually confirmed, not by how the
@@ -222,39 +253,39 @@ export function VerifyEmailPage() {
     </>
   );
 
-  return (
+  return withShell(
     <AuthStatusPanel
+      variant="banner"
       icon={<MailWarning className="h-5 w-5" />}
       disc={
         failed ? "bg-destructive/10 text-destructive" : "bg-surface-sunken text-foreground-soft"
       }
       title={failed ? "验证未完成" : mailPending ? "验证邮件未发出" : "验证你的邮箱"}
       body={body}
-      action={
-        <>
-          {failed && message ? <AuthFormError>{message}</AuthFormError> : null}
+    />,
+    <>
+      {failed && message ? <AuthFormError>{message}</AuthFormError> : null}
 
-          {message && !failed ? <p className="text-meta text-muted-foreground">{message}</p> : null}
+      {message && !failed ? <p className="text-meta text-muted-foreground">{message}</p> : null}
 
-          {email ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void resend()}
-              disabled={resending}
-            >
-              {/* 「已发送」是断言，而 resend 的成功响应无法区分"真发出"与
-                  三种短路情形（同 resendVerification 契约），所以按钮回到
-                  「重新发送验证邮件」并保持可用，让读者能再试一次。 */}
-              {resending ? "发送中…" : "重新发送验证邮件"}
-            </Button>
-          ) : null}
+      {email ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void resend()}
+          disabled={resending}
+          className="w-full"
+        >
+          {/* 「已发送」是断言，而 resend 的成功响应无法区分"真发出"与
+              三种短路情形（同 resendVerification 契约），所以按钮回到
+              「重新发送验证邮件」并保持可用，让读者能再试一次。 */}
+          {resending ? "发送中…" : "重新发送验证邮件"}
+        </Button>
+      ) : null}
 
-          <Link to="/login" className={authStatusLinkClass}>
-            返回登录
-          </Link>
-        </>
-      }
-    />
+      <Link to="/login" className={authStatusLinkClass}>
+        返回登录
+      </Link>
+    </>,
   );
 }

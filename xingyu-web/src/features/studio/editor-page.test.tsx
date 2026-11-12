@@ -1109,6 +1109,32 @@ describe("submit for review (the real creator-side lifecycle action)", () => {
     );
   });
 
+  it("on /new: an overlapping save and submit share one create", async () => {
+    const created = deferred<ArticleDraft>();
+    createDraftMock.mockReturnValue(created.promise);
+    saveDraftMock.mockResolvedValue(draftFixture({ articleId: "fresh-9", lockVersion: 1 }));
+    submitForReviewMock.mockResolvedValue({ submissionId: "sub-overlap" });
+
+    const { container } = renderEditor(NEW_DRAFT_ROUTE_ID);
+    await screen.findByRole("toolbar", { name: "正文编辑工具" });
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "[WEB-V2 TEST] 新文章" } });
+    fireEvent.change(bodyTextarea(container), { target: { value: "# 新文章\n\n正文。\n" } });
+
+    fireEvent.click(saveButton());
+    fireEvent.click(submitButton());
+    await confirmSubmit();
+
+    await waitFor(() => expect(createDraftMock).toHaveBeenCalledTimes(1));
+    expect(saveDraftMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      created.resolve(draftFixture({ articleId: "fresh-9", lockVersion: 0 }));
+    });
+
+    await waitFor(() => expect(submitForReviewMock).toHaveBeenCalledWith("fresh-9"));
+    expect(createDraftMock).toHaveBeenCalledTimes(1);
+  });
+
   it("on /new: a failed create never reaches submit", async () => {
     createDraftMock.mockRejectedValue(problem(500, "创建炸了"));
     const { container } = renderEditor(NEW_DRAFT_ROUTE_ID);

@@ -23,8 +23,18 @@ export const authApi = {
 
   getCaptcha: (): Promise<CaptchaResult> => apiRequest<CaptchaResult>("/api/v1/auth/captcha"),
 
+  /*
+   * A 401 from /auth/login answers "these credentials are wrong", not "the
+   * session in this browser died": /login has no "already signed in" guard, so a
+   * signed-in user can open it in another tab and typo their password. Clearing
+   * the token here used to sign the whole browser out. (Audit 2026-11-10, A1)
+   */
   login: (payload: LoginPayload): Promise<LoginResult> =>
-    apiRequest<LoginResult>("/api/v1/auth/login", { method: "POST", body: payload }),
+    apiRequest<LoginResult>("/api/v1/auth/login", {
+      method: "POST",
+      body: payload,
+      clearTokenOn401: false,
+    }),
 
   register: (payload: RegisterPayload, idempotencyKey?: string): Promise<RegisterResult> =>
     apiRequest<RegisterResult>("/api/v1/auth/register", {

@@ -2,6 +2,14 @@ import { useCallback, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { blockUser, unblockUser } from "@/features/blocks/blocked-users.store";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 /*
  * Block / unblock control for a public profile (Phase 2A-2a).
@@ -11,9 +19,12 @@ import { Button } from "@/components/ui/button";
  *   DELETE /api/v1/me/blocks/{username}   -> 204 (idempotent)
  *   blocking yourself                      -> 400 "username: 不能屏蔽自己"
  *
- * Blocking is a destructive relationship action, so it needs an explicit inline
+ * Blocking is a destructive relationship action, so it needs an explicit
  * confirmation (no window.confirm — that stays testable and keyboard-accessible,
- * matching the sessions page). The confirmation states exactly what the backend
+ * matching the sessions page). 浮层统一（第四轮）后确认框走 `components/ui/dialog`
+ * （role="alertdialog"）：Esc、焦点陷阱、滚动锁与关闭后的焦点归位都由基础件提供，
+ * 不再是一个挂了 aria-modal 却没有遮罩、也没有焦点管理的行内块。
+ * The confirmation states exactly what the backend
  * does and nothing more: blocking removes any follow in both directions and stops
  * either side from opening a direct conversation or sending messages. It does NOT
  * hide the profile or its content, so the copy must not claim that.
@@ -85,28 +96,53 @@ export function ProfileBlockControl({
 
   return (
     <div className="flex flex-col items-start gap-2">
-      {confirming ? (
-        /*
-         * 就地确认块，不是一行横幅。
-         *
-         * 上一版是 `flex flex-wrap items-center gap-2`：一句 24 字的事实说明 +
-         * 「确认屏蔽」+「取消」摊成一整行。它作为身份区右侧操作区的一员时，这一行
-         * 会把操作区从 156px 撑到 654px（1440/1920 实测同值），横向拉出一片只有
-         * 文字的带子，而「关注」被留在最左端孤零零的 —— 主操作与破坏性确认挤在
-         * 同一视觉层里。
-         *
-         * 现在收成一块：说明在上、按钮在下，整体限宽 `max-w-sm`、加淡底色与边框
-         * 把它和常驻操作区分开。破坏性动作需要读者停顿，视觉上也应当是一个
-         * 单独的、要处理的东西，而不是一条可以扫过去的提示。
-         */
-        <div
+      {/*
+       * 浮层统一：确认框收敛到 `components/ui/dialog`（role="alertdialog"）。
+       *
+       * 上一版是就地展开的行内确认块：它作为身份区右侧操作区的一员时，会把
+       * 操作区从 156px 撑到 654px（1440/1920 实测同值），横向拉出一片只有
+       * 文字的带子，而「关注」被留在最左端孤零零的 —— 主操作与破坏性确认挤在
+       * 同一视觉层里。但那个块挂了 aria-modal，实际却不遮罩、不锁焦点、不锁滚动，
+       * 语义和行为对不上。
+       *
+       * 改成真正的模态后，说明/按钮各自成层，不再挤压常驻操作区；Esc 与点击遮罩
+       * 等于取消（不会静默执行破坏性动作），焦点陷阱与滚动锁由 Radix 提供，
+       * 关闭后焦点回到「屏蔽此用户」触发按钮。错误仍显示在触发按钮下方。
+       */}
+      <Dialog open={confirming} onOpenChange={setConfirming}>
+        <DialogTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            data-testid="profile-block"
+          >
+            屏蔽此用户
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          role="alertdialog"
           data-testid="profile-block-confirm"
-          className="flex w-full max-w-sm flex-col items-start gap-2.5 rounded-lg border border-border bg-surface-sunken px-3 py-2.5"
+          className="max-w-sm rounded-xl bg-card"
         >
-          <span className="text-sm leading-5 text-muted-foreground">
-            屏蔽后，你们之间的关注关系会被解除，双方无法互发私信。确认屏蔽？
-          </span>
-          <div className="flex items-center gap-2">
+          <DialogTitle className="text-base font-semibold text-primary">
+            确认屏蔽此用户？
+          </DialogTitle>
+          <DialogDescription className="text-sm leading-6 text-muted-foreground">
+            屏蔽后，你们之间的关注关系会被解除，双方无法互发私信。
+          </DialogDescription>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              data-testid="profile-block-cancel"
+              onClick={() => setConfirming(false)}
+            >
+              取消
+            </Button>
             <Button
               type="button"
               variant="destructive"
@@ -117,30 +153,9 @@ export function ProfileBlockControl({
             >
               {pending ? "处理中" : "确认屏蔽"}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={pending}
-              data-testid="profile-block-cancel"
-              onClick={() => setConfirming(false)}
-            >
-              取消
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          data-testid="profile-block"
-          onClick={() => setConfirming(true)}
-        >
-          屏蔽此用户
-        </Button>
-      )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {error ? (
         <span role="alert" data-testid="profile-block-error" className="text-sm text-destructive">
           {error}

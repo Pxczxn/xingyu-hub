@@ -35,12 +35,35 @@ import { staggerDelay } from "@/lib/stagger";
  *   - The time and the body move `text-xs` -> `text-meta`. `text-meta` is the app's
  *     prose step, and it is also what the day-group count on this very page already
  *     uses — two numbers that belong to one timeline cannot be two sizes.
- *   - `rounded-lg border-border` -> `rounded-xl border-border/70`: the surface pair
- *     every other row in the app uses.
+ * 2026-11-10 (layout batch E) — the row loses its card surface. Notifications is
+ * SK4 · H=线 / D=紧 / R=齐 (`.team/design/A-archetypes.md` §3): a notification is
+ * a ROW in one timeline, not a card of its own, so the per-row `rounded-xl` +
+ * border + `bg-card` box is gone and the page's `<ul>` owns the hairline
+ * (`divide-y`). What that changes here:
+ *
+ *   - no radius and no border, so a row can be full-bleed inside the measured
+ *     column without its corners drifting 2px per unread/read state;
+ *   - hover is a surface tint (`hover:bg-surface-sunken`) instead of a border
+ *     colour change, because there is no border left to change;
+ *   - `px-2` keeps the text off the accent bar while the hairline still runs the
+ *     full column width.
  *
  * `border-l-2` is untouched and stays on BOTH states. It is not decoration: it is what
  * lets the eye find where the unread run stops without reading a single title, and
  * keeping the width on the read rows is what stops them shifting 2px sideways.
+ *
+ * 2026-11-10 (R1 cleanup) — the unread icon disc loses its tinted surface. It was
+ * `bg-accent/15 text-accent-strong`: after the 2026-11-10 token remap `--accent` is
+ * ink, so the wash was already grey rather than blue, but it was still a BACKGROUND
+ * that switched on read state — and B v2 §4 / R1 only allows colour emphasis as
+ * link / selection / progress / focus ring / dot / bar, never as a face. The disc is
+ * now the same `bg-muted` in both states (one of the two page tones R1 permits) and
+ * only the glyph differs: `text-foreground` unread, `text-muted-foreground` read.
+ *
+ * The row therefore still carries three unread signals that cost no coloured surface
+ * — the ink `border-l-2` bar described above, the `bg-accent` dot beside the title,
+ * and the `font-medium` title — so dropping the tint does not make an unread row
+ * harder to find. The glyph contrast (ink vs muted grey) is a fourth, quieter one.
  */
 
 const ICONS: Record<string, LucideIcon> = {
@@ -104,8 +127,8 @@ export function NotificationRow({
       <span
         aria-hidden
         className={cn(
-          "grid h-9 w-9 shrink-0 place-items-center rounded-full",
-          unread ? "bg-accent/15 text-accent-strong" : "bg-muted text-muted-foreground",
+          "grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted",
+          unread ? "text-foreground" : "text-muted-foreground",
         )}
       >
         <Icon className="h-4 w-4" />
@@ -148,10 +171,8 @@ export function NotificationRow({
    * read row would shift 2px relative to the unread ones.
    */
   const className = cn(
-    "flex w-full items-start gap-3 rounded-xl border border-border/70 border-l-2 p-4 text-left transition-colors",
-    unread
-      ? "border-l-accent bg-card hover:border-accent"
-      : "border-l-transparent bg-muted/30 hover:bg-muted",
+    "focus-ring flex w-full items-start gap-3 border-l-2 px-2 py-3 text-left transition-colors",
+    unread ? "border-l-accent hover:bg-surface-sunken" : "border-l-transparent hover:bg-surface-sunken",
     pending && "opacity-60",
   );
 

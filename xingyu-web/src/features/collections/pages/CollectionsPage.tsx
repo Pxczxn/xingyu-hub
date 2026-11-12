@@ -8,9 +8,28 @@ import {
   type CollectionVisibility,
 } from "@/api/collections/collections.types";
 import { ApiError } from "@/api/client";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { ArchetypeFrame } from "@/components/layout";
+import { PageHero } from "@/components/shared/PageHero";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+
+/*
+ * /me/collections — 我的收藏夹（列表）
+ *
+ * 骨架（A §3 `/me/*` 表 · Collections = SK2 · 幅/松/齐）
+ * --------------------------------------------------
+ * H=幅：`PageHero` 横幅。原来用的是 `PageHeader` —— A §4 已把它降级为「线」的一个
+ *       变体，所以「幅」这一档必须换横幅组件，否则 11 页里所有列表页会共用同一个
+ *       页头，H 轴形同不存在。主操作（新建收藏夹）落在横幅的 `actions` 槽：
+ *       横幅的操作位在描述下方，是「下一步」，不是标题旁的第二个列。
+ * D=松：每个收藏夹是一张独立卡面（标题链接 + 元信息 + 可选「公开页」链接），
+ *       卡间距走 `--density-grid-gap`、卡内走 `--density-card-pad`。
+ * R=齐：没有 rail。本页与徽章页（同为 幅/松/齐）的区分点在条目内部：这里每条有
+ *       两个可能的目的地（管理页 / 公开页），徽章页只有状态，没有第二个链接。
+ *
+ * 新建表单仍是页头之后的第一个区块（不是页头的一部分），字段、标签、校验与提交
+ * 逻辑一行未改；`loadState` 三态与 `reload()` 重试也原样保留。
+ */
 
 type LoadState = "loading" | "error" | "ready";
 
@@ -81,62 +100,66 @@ export function CollectionsPage() {
     return (
       <div className="section-gap">
         <PageState kind="error" />
-        <Button variant="outline" onClick={reload}>
-          重新加载
-        </Button>
+        <div className="text-center">
+          <Button variant="outline" onClick={reload}>
+            重新加载
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="section-gap">
-      {/* PageHeader's `actions` slot, not a hand-rolled flex row: the primary
-          control belongs to the page's identity line, and the shared header
-          already owns the hairline + the "primary one is last" rule. */}
-      <PageHeader
-        title="我的收藏夹"
-        description="按可见范围整理收藏夹。"
-        actions={
-          <Button
-            variant="accent"
-            onClick={() => {
-              setCreating(true);
-              setTitleError(null);
-              setCreateError(null);
-            }}
-          >
-            新建收藏夹
-          </Button>
-        }
-      />
-
+    <ArchetypeFrame
+      skeleton="SK2"
+      header="banner"
+      density="loose"
+      headerSlot={
+        <PageHero
+          title="我的收藏夹"
+          description="按可见范围整理收藏夹。"
+          actions={
+            <Button
+              variant="accent"
+              onClick={() => {
+                setCreating(true);
+                setTitleError(null);
+                setCreateError(null);
+              }}
+            >
+              新建收藏夹
+            </Button>
+          }
+        />
+      }
+    >
       {creating ? (
         <form
           onSubmit={(event) => void onCreate(event)}
-          className="space-y-3 rounded-xl border border-border/70 bg-card p-4"
+          className="space-y-3 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
         >
-          <label className="block text-sm font-medium text-foreground">
+          <label className="block text-meta font-medium text-foreground">
             名称
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               // Hand-written rather than the shared Input, so it carries its own
               // focus ring — same recipe as the feedback textarea.
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-1 w-full rounded-control border border-input bg-background px-3 py-2 text-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               name="title"
               aria-invalid={Boolean(titleError)}
             />
           </label>
           {titleError ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-meta text-destructive">
               {titleError}
             </p>
           ) : null}
           <fieldset>
-            <legend className="text-sm font-medium text-foreground">可见范围</legend>
+            <legend className="text-meta font-medium text-foreground">可见范围</legend>
             <div className="mt-2 space-y-2">
               {COLLECTION_VISIBILITIES.map((value) => (
-                <label key={value} className="flex items-center gap-2 text-sm">
+                <label key={value} className="flex items-center gap-2 text-meta">
                   <input
                     type="radio"
                     name="visibility"
@@ -150,7 +173,7 @@ export function CollectionsPage() {
             </div>
           </fieldset>
           {createError ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-meta text-destructive">
               {createError}
             </p>
           ) : null}
@@ -174,25 +197,28 @@ export function CollectionsPage() {
       {items.length === 0 ? (
         <PageState kind="empty" title="还没有收藏夹" description="可以先新建一个收藏夹。" />
       ) : (
-        <ul className="grid gap-3">
-          {/* Not whole-card links: two links with different destinations live in
-              each item, so `.card-lift` would promise a click the card cannot
-              honour. Surface only. */}
+        /* D=松：等权卡面。Not whole-card links: two links with different
+           destinations live in each item, so `.card-lift` would promise a click
+           the card cannot honour. Surface only. */
+        <ul className="grid gap-[var(--density-grid-gap)] md:grid-cols-2">
           {items.map((item) => (
-            <li key={item.id} className="rounded-xl border border-border/70 bg-card p-4">
+            <li
+              key={item.id}
+              className="flex flex-col gap-2 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
+            >
               <Link
                 to={`/me/collections/${encodeURIComponent(item.id)}`}
-                className="text-sm font-medium text-foreground hover:text-accent-strong"
+                className="focus-ring text-h3 text-primary hover:text-accent-strong"
               >
                 {item.title}
               </Link>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 {`${visibilityLabel(item.visibility)} · ${item.itemCount} 项`}
               </p>
               {item.visibility === "PUBLIC" ? (
                 <Link
                   to={`/collections/${encodeURIComponent(item.id)}`}
-                  className="mt-2 inline-block text-xs text-accent-strong hover:underline"
+                  className="focus-ring mt-auto w-fit text-caption text-accent-strong hover:underline"
                 >
                   公开页
                 </Link>
@@ -201,6 +227,6 @@ export function CollectionsPage() {
           ))}
         </ul>
       )}
-    </div>
+    </ArchetypeFrame>
   );
 }

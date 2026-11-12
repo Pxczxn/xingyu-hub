@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import { ApiError } from "@/api/client";
 import { authApi } from "@/api/auth/auth.api";
 import { AuthProvider, useAuth } from "@/features/auth/auth.store";
 import { setStoredToken, getStoredToken, TOKEN_KEY } from "@/lib/storage";
@@ -35,6 +36,17 @@ const mocked = vi.mocked(authApi);
 const ME = { email: "alice@example.com", emailVerified: true, username: "alice" };
 const ME_B = { email: "bob@example.com", emailVerified: true, username: "bob" };
 const ME_C = { email: "carol@example.com", emailVerified: true, username: "carol" };
+
+/** A real "the server rejected this token" failure (as opposed to a network fault). */
+function tokenRejected(status: 401 | 403 = 401) {
+  return new ApiError({
+    type: "about:blank",
+    title: status === 401 ? "Unauthorized" : "Forbidden",
+    status,
+    detail: "登录状态已失效",
+    code: "UNAUTHORIZED",
+  });
+}
 
 /** Simulate another tab writing the token: no in-page custom event, only `storage`. */
 function switchTokenFromAnotherTab(next: string | null) {
@@ -90,14 +102,64 @@ describe("auth store", () => {
     expect(mocked.getMe).toHaveBeenCalled();
   });
 
-  it("falls back to unauthenticated when restore fails", async () => {
+  /*
+   * A2 regression (audit 2026-11-10): the restore `catch` used to treat EVERY
+   * failure as "the token is dead" and call `setStoredToken(null)`. A dropped
+   * connection, a 502 from the proxy or a timeout therefore signed the user out
+   * of a session that was still perfectly valid — and told them nothing about
+   * the fact that it was the network, not their password.
+   * Only an explicit 401/403 (the backend rejecting THIS token) may clear it;
+   * anything else keeps the token and leaves a retryable state.
+   */
+  it("clears the token when the restore is rejected with 401", async () => {
     setStoredToken("expired-token");
-    mocked.getMe.mockRejectedValue(new Error("401"));
+    mocked.getMe.mockRejectedValue(tokenRejected(401));
 
     renderProbe();
 
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
     expect(getStoredToken()).toBeNull();
+  });
+
+  it("clears the token when the restore is rejected with 403", async () => {
+    setStoredToken("expired-token");
+    mocked.getMe.mockRejectedValue(tokenRejected(403));
+
+    renderProbe();
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+    expect(getStoredToken()).toBeNull();
+  });
+
+  it("keeps the stored token when the restore fails with a network error", async () => {
+    setStoredToken("valid-token");
+    // `fetch` rejects like this when the connection drops / the browser is offline.
+    mocked.getMe.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    renderProbe();
+
+    // The session is NOT signed out, and the state is distinguishable from it.
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+    expect(getStoredToken()).toBe("valid-token");
+    expect(screen.getByTestId("user")).toHaveTextContent("");
+  });
+
+  it("keeps the stored token when the restore fails with 502", async () => {
+    setStoredToken("valid-token");
+    mocked.getMe.mockRejectedValue(
+      new ApiError({
+        type: "about:blank",
+        title: "Bad Gateway",
+        status: 502,
+        detail: "网关不可用",
+        code: "UPSTREAM_ERROR",
+      }),
+    );
+
+    renderProbe();
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+    expect(getStoredToken()).toBe("valid-token");
   });
 
   it("reports unauthenticated when there is no stored token", async () => {
@@ -238,7 +300,7 @@ describe("cross-tab account switch", () => {
     renderProbe();
     await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("alice"));
 
-    mocked.getMe.mockRejectedValueOnce(new Error("401"));
+    mocked.getMe.mockRejectedValueOnce(tokenRejected(401));
     switchTokenFromAnotherTab("token-b");
 
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));

@@ -6,6 +6,7 @@ import { authApi } from "@/api/auth/auth.api";
 import { onboardingApi } from "@/api/onboarding/onboarding.api";
 import { AuthProvider } from "@/features/auth/auth.store";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
+import { getStoredToken, setStoredToken } from "@/lib/storage";
 import { clearPublicConfigCache } from "@/lib/public-config";
 
 vi.mock("@/api/auth/auth.api", () => ({
@@ -146,5 +147,29 @@ describe("login onboarding gate", () => {
       expect(screen.getByTestId("current-url")).toHaveTextContent("/force-change-password");
     });
     expect(mockedOnboarding.get).not.toHaveBeenCalled();
+  });
+
+  it("keeps the new session when returnTo would leave the site", async () => {
+    mockedAuth.login.mockImplementation(async () => {
+      setStoredToken("session-token");
+      return { token: "session-token" };
+    });
+    mockedOnboarding.get.mockResolvedValue({
+      step: "DONE",
+      interestsJson: null,
+      completed: true,
+    });
+    const user = userEvent.setup();
+    renderLogin("/login?returnTo=%2F%5Cevil.example");
+
+    await user.type(await screen.findByLabelText("账号"), "alice");
+    await user.type(screen.getByLabelText("密码"), "Passw0rd!");
+    await user.click(screen.getByRole("button", { name: "登录" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("current-url").textContent).toBe("/");
+    });
+    expect(screen.queryByText("登录失败，请检查账号或密码。")).not.toBeInTheDocument();
+    expect(getStoredToken()).toBe("session-token");
   });
 });

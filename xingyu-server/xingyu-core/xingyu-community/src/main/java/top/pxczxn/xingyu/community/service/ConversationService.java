@@ -10,6 +10,7 @@ import top.pxczxn.xingyu.community.dto.ConversationMemberView;
 import top.pxczxn.xingyu.community.dto.ConversationView;
 import top.pxczxn.xingyu.community.dto.GroupJoinRequestView;
 import top.pxczxn.xingyu.community.dto.MyGroupJoinRequestView;
+import top.pxczxn.xingyu.community.dto.ObjectCountRow;
 import top.pxczxn.xingyu.community.dto.PageResultView;
 import top.pxczxn.xingyu.community.entity.ChatMessage;
 import top.pxczxn.xingyu.community.entity.CommunityProfile;
@@ -78,9 +79,117 @@ public class ConversationService {
     }
 
     public List<ConversationView> listConversations(CommunityUser user) {
-        return conversationMapper.listByUserId(user.getId()).stream()
-                .map(c -> buildConversationView(c, user.getId(), List.of()))
+        List<Conversation> conversations = conversationMapper.listByUserId(user.getId());
+        if (conversations.isEmpty()) {
+            return List.of();
+        }
+        List<String> conversationIds = conversations.stream().map(Conversation::getId).toList();
+        Map<String, List<ConversationMember>> members = membersByConversation(conversationIds);
+        Map<String, ChatMessage> lastMessages = lastMessages(conversationIds);
+        Map<String, Long> unread = unreadCounts(user.getId(), conversationIds);
+        Map<String, CommunityProfile> profiles = counterpartProfiles(conversations, members, user.getId());
+        return conversations.stream()
+                .map(conversation -> toMailboxView(
+                        conversation, user.getId(), members, lastMessages, unread, profiles))
                 .toList();
+    }
+
+    private ConversationView toMailboxView(
+            Conversation conversation,
+            String userId,
+            Map<String, List<ConversationMember>> members,
+            Map<String, ChatMessage> lastMessages,
+            Map<String, Long> unread,
+            Map<String, CommunityProfile> profiles) {
+        List<ConversationMember> conversationMembers = members.getOrDefault(conversation.getId(), List.of());
+        ConversationMember mine = conversationMembers.stream()
+                .filter(member -> userId.equals(member.getUserId()))
+                .findFirst()
+                .orElse(null);
+        return ConversationView.builder()
+                .id(conversation.getId())
+                .type(conversation.getType())
+                .title(conversation.getTitle())
+                .updatedAt(conversation.getUpdatedAt())
+                .lastMessage(formatLastMessagePreview(lastMessages.get(conversation.getId())))
+                .unreadCount(unread.getOrDefault(conversation.getId(), 0L))
+                .announcement(conversation.getAnnouncement())
+                .announcementUpdatedAt(conversation.getAnnouncementUpdatedAt())
+                .joinMode(conversation.getJoinMode() == null ? JOIN_OPEN : conversation.getJoinMode())
+                .myRole(mine == null ? null : mine.getRole())
+                .counterpartDisplayName(counterpartName(conversation, userId, conversationMembers, profiles))
+                .messages(List.of())
+                .build();
+    }
+
+    private Map<String, List<ConversationMember>> membersByConversation(List<String> conversationIds) {
+        Map<String, List<ConversationMember>> members = new HashMap<>();
+        for (ConversationMember member : memberMapper.listByConversationIds(conversationIds)) {
+            members.computeIfAbsent(member.getConversationId(), key -> new ArrayList<>()).add(member);
+        }
+        return members;
+    }
+
+    private Map<String, ChatMessage> lastMessages(List<String> conversationIds) {
+        Map<String, ChatMessage> messages = new HashMap<>();
+        for (ChatMessage message : messageMapper.listLastByConversationIds(conversationIds)) {
+            messages.putIfAbsent(message.getConversationId(), message);
+        }
+        return messages;
+    }
+
+    private Map<String, Long> unreadCounts(String userId, List<String> conversationIds) {
+        Map<String, Long> counts = new HashMap<>();
+        for (ObjectCountRow row : messageMapper.countUnreadByConversationIds(userId, conversationIds)) {
+            counts.put(row.getObjectId(), row.getCount());
+        }
+        return counts;
+    }
+
+    private Map<String, CommunityProfile> counterpartProfiles(
+            List<Conversation> conversations,
+            Map<String, List<ConversationMember>> members,
+            String userId) {
+        List<String> userIds = new ArrayList<>();
+        for (Conversation conversation : conversations) {
+            if (!"DIRECT".equals(conversation.getType())) {
+                continue;
+            }
+            for (ConversationMember member : members.getOrDefault(conversation.getId(), List.of())) {
+                if (!userId.equals(member.getUserId()) && !userIds.contains(member.getUserId())) {
+                    userIds.add(member.getUserId());
+                }
+            }
+        }
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return profileMapper.findByUserIds(userIds).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        CommunityProfile::getUserId, Function.identity(), (left, right) -> left));
+    }
+
+    private static String counterpartName(
+            Conversation conversation,
+            String userId,
+            List<ConversationMember> members,
+            Map<String, CommunityProfile> profiles) {
+        if (!"DIRECT".equals(conversation.getType())) {
+            return null;
+        }
+        return members.stream()
+                .filter(member -> !userId.equals(member.getUserId()))
+                .findFirst()
+                .map(member -> displayName(profiles.get(member.getUserId())))
+                .orElse(null);
+    }
+
+    private static String displayName(CommunityProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        String displayName = profile.getDisplayName();
+        return displayName == null || displayName.isBlank() ? profile.getUsername() : displayName;
     }
 
     public ConversationView getDirectConversation(CommunityUser user, String conversationId) {
@@ -268,9 +377,27 @@ public class ConversationService {
 
     public List<MyGroupJoinRequestView> listMyGroupJoinRequests(CommunityUser user, int limit) {
         int capped = Math.min(Math.max(limit, 1), 100);
-        return joinRequestMapper.listByUserId(user.getId(), capped).stream()
+        List<GroupJoinRequest> requests = joinRequestMapper.listByUserId(user.getId(), capped);
+        if (requests.isEmpty()) {
+            return List.of();
+        }
+        List<String> conversationIds = new ArrayList<>();
+        for (GroupJoinRequest request : requests) {
+            if (request.getConversationId() != null && !conversationIds.contains(request.getConversationId())) {
+                conversationIds.add(request.getConversationId());
+            }
+        }
+        Map<String, Conversation> conversations = new HashMap<>();
+        if (!conversationIds.isEmpty()) {
+            for (Conversation conversation : conversationMapper.selectBatchIds(conversationIds)) {
+                if (conversation != null) {
+                    conversations.putIfAbsent(conversation.getId(), conversation);
+                }
+            }
+        }
+        return requests.stream()
                 .map(request -> {
-                    Conversation conversation = conversationMapper.selectById(request.getConversationId());
+                    Conversation conversation = conversations.get(request.getConversationId());
                     return new MyGroupJoinRequestView(
                             request.getId(),
                             request.getConversationId(),
@@ -291,13 +418,40 @@ public class ConversationService {
         }
         int capped = Math.min(Math.max(limit, 1), 100);
         List<ChatMessage> hits = messageMapper.searchForUser(user.getId(), trimmed, capped);
-        // 命中行要能回答「谁说的、来自哪个会话」，所以这里顺带把会话类型与对方展示名解析出来。
-        // 之前两样都没有，实测结果行既无 sender 也无会话名（sender 由 toViews 统一填）。
-        Map<String, Conversation> conversations = new HashMap<>();
-        for (ChatMessage message : hits) {
-            conversations.computeIfAbsent(
-                    message.getConversationId(), conversationMapper::selectById);
+        if (hits.isEmpty()) {
+            return List.of();
         }
+        // 命中行要能回答「谁说的、来自哪个会话」。会话、私信成员和对方资料各查一次。
+        List<String> conversationIds = new ArrayList<>();
+        for (ChatMessage message : hits) {
+            if (message.getConversationId() != null && !conversationIds.contains(message.getConversationId())) {
+                conversationIds.add(message.getConversationId());
+            }
+        }
+        Map<String, Conversation> conversations = new HashMap<>();
+        if (!conversationIds.isEmpty()) {
+            for (Conversation conversation : conversationMapper.selectBatchIds(conversationIds)) {
+                if (conversation != null) {
+                    conversations.putIfAbsent(conversation.getId(), conversation);
+                }
+            }
+        }
+        List<Conversation> loaded = new ArrayList<>();
+        List<String> directIds = new ArrayList<>();
+        for (String conversationId : conversationIds) {
+            Conversation conversation = conversations.get(conversationId);
+            if (conversation == null) {
+                continue;
+            }
+            loaded.add(conversation);
+            if ("DIRECT".equals(conversation.getType())) {
+                directIds.add(conversation.getId());
+            }
+        }
+        Map<String, List<ConversationMember>> members = directIds.isEmpty()
+                ? Map.of()
+                : membersByConversation(directIds);
+        Map<String, CommunityProfile> profiles = counterpartProfiles(loaded, members, user.getId());
         Map<String, ChatMessageSenderView> senders = resolveSenders(hits);
         List<ChatMessageView> views = new ArrayList<>(hits.size());
         for (ChatMessage message : hits) {
@@ -306,7 +460,13 @@ public class ConversationService {
                     message,
                     conversation == null ? null : conversation.getType(),
                     senders,
-                    conversation == null ? null : resolveCounterpartDisplayName(conversation, user.getId())));
+                    conversation == null
+                            ? null
+                            : counterpartName(
+                                    conversation,
+                                    user.getId(),
+                                    members.getOrDefault(conversation.getId(), List.of()),
+                                    profiles)));
         }
         return views;
     }
@@ -401,8 +561,14 @@ public class ConversationService {
     public List<GroupJoinRequestView> listJoinRequests(CommunityUser user, String conversationId) {
         requireOwnerOrAdmin(user, conversationId);
         requireGroup(conversationId);
-        return joinRequestMapper.listPending(conversationId).stream()
-                .map(this::toJoinRequestView)
+        List<GroupJoinRequest> requests = joinRequestMapper.listPending(conversationId);
+        if (requests.isEmpty()) {
+            return List.of();
+        }
+        Map<String, CommunityProfile> profiles = profilesFor(
+                requests.stream().map(GroupJoinRequest::getUserId).toList());
+        return requests.stream()
+                .map(request -> toJoinRequestView(request, profiles.get(request.getUserId())))
                 .toList();
     }
 
@@ -499,9 +665,15 @@ public class ConversationService {
 
     public List<ConversationMemberView> listMembers(CommunityUser user, String conversationId) {
         requireMember(user, conversationId);
-        return memberMapper.listByConversationId(conversationId).stream()
+        List<ConversationMember> members = memberMapper.listByConversationId(conversationId);
+        if (members.isEmpty()) {
+            return List.of();
+        }
+        Map<String, CommunityProfile> profiles = profilesFor(
+                members.stream().map(ConversationMember::getUserId).toList());
+        return members.stream()
                 .map(member -> {
-                    CommunityProfile profile = profileMapper.findByUserId(member.getUserId());
+                    CommunityProfile profile = profiles.get(member.getUserId());
                     return ConversationMemberView.builder()
                             .userId(member.getUserId())
                             .username(profile == null ? member.getUserId() : profile.getUsername())
@@ -696,11 +868,9 @@ public class ConversationService {
      * null when the counterpart's profile cannot be read, so the client falls
      * back to its own label instead of rendering a blank.
      *
-     * Cost: two extra lookups per DIRECT conversation (members, then profile).
-     * The caller already performs three per conversation (member, last message,
-     * unread count), so this does not introduce a new class of problem — but it
-     * does mean a mailbox of N conversations is 5N queries, and this loop is the
-     * obvious place to batch if that ever becomes the bottleneck.
+     * Cost: a single conversation still looks up its members and one profile.
+     * The mailbox list loads members, last messages, unread counts, and profiles
+     * once for the whole page.
      */
     // Package-private, not private, so it can be unit-tested with mocked mappers.
     // It touches no database directly, so a mock is enough to verify the
@@ -730,8 +900,28 @@ public class ConversationService {
                 .orElse(null);
     }
 
+    private Map<String, CommunityProfile> profilesFor(List<String> userIds) {
+        List<String> ids = new ArrayList<>();
+        for (String userId : userIds) {
+            if (userId != null && !ids.contains(userId)) {
+                ids.add(userId);
+            }
+        }
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, CommunityProfile> profiles = new HashMap<>();
+        for (CommunityProfile profile : profileMapper.findByUserIds(ids)) {
+            profiles.putIfAbsent(profile.getUserId(), profile);
+        }
+        return profiles;
+    }
+
     private GroupJoinRequestView toJoinRequestView(GroupJoinRequest request) {
-        CommunityProfile profile = profileMapper.findByUserId(request.getUserId());
+        return toJoinRequestView(request, profileMapper.findByUserId(request.getUserId()));
+    }
+
+    private GroupJoinRequestView toJoinRequestView(GroupJoinRequest request, CommunityProfile profile) {
         return new GroupJoinRequestView(
                 request.getId(),
                 request.getConversationId(),

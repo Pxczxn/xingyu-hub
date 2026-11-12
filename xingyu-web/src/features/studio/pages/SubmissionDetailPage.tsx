@@ -11,9 +11,17 @@ import {
   submissionStatusLabel,
   submissionTitle,
 } from "@/api/submissions/submissions.types";
+import { ArchetypeFrame } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type State =
   | { kind: "loading" }
@@ -29,8 +37,7 @@ type State =
  * be `undefined` (not merely an empty string). `setActionError(undefined)` is a
  * no-op for React's state comparison, so the whole alert block never renders —
  * the user clicks 确认撤回 and simply nothing appears. That was a real bug in
- * this page, found 2026-09-27 with a DOM probe (`alert count: 0` even though
- * `withdraw` had been called).
+ * this page, found 2026-09-27 with a DOM probe.
  */
 function describeError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
@@ -41,6 +48,18 @@ function describeError(error: unknown, fallback: string): string {
 
 /*
  * /studio/submissions/:submissionId — 投稿详情 (Phase 2K-2)
+ *
+ * 骨架迁移（批次 D）：SK3 控制台 · H 壳 / D 松 / R 错
+ * --------------------------------------------------
+ *   SK3  `ArchetypeFrame skeleton="SK3"` + 传 `rail` ⇒ `WITH_RAIL.SK3` 的
+ *        `[minmax(0,1fr) 280px]`，右轨由 `SectionRail` 粘住。那就是 R=错：
+ *        主列 + 侧轨，打破单一竖列。
+ *   H=壳：`WorkbenchShell` 无 heading，页内必须恰好 1 个 `h1`；首块是状态陈述与
+ *        卡面、没有视觉标题位 → `sr-only`（A §7.2）。注意投稿标题是 `h2`，
+ *        不是第二个 h1（一个路由只有一个 h1）。
+ *   D=松：主列是一张独立卡面（一张卡 = 一个可独立理解的内容），卡内 padding 与
+ *        卡间距走 `--density-card-pad` / `--density-list-gap`，由 frame 的
+ *        `density="loose"` 重新指向 24 / 16。
  *
  * ⚠️ The withdraw control is NEW FUNCTIONALITY, not a migration.
  * Legacy defined `withdrawReviewSubmission` in its API module but NEVER called it
@@ -150,102 +169,142 @@ export function SubmissionDetailPage() {
   const withdrawable = canWithdraw(submission.status);
 
   return (
-    <div className="section-gap">
-      <nav className="text-xs text-muted-foreground" aria-label="面包屑">
-        <Link to="/studio/submissions" className="hover:text-foreground">
-          我的投稿
-        </Link>
-        <span aria-hidden="true"> / </span>
-        <span>投稿详情</span>
-      </nav>
+    <ArchetypeFrame
+      skeleton="SK3"
+      header="shell"
+      density="loose"
+      railLabel="提交信息"
+      rail={
+        <div className="density-loose flex flex-col gap-4 p-[var(--density-card-pad)]">
+          <div className="flex flex-col gap-1">
+            <p className="text-meta text-muted-foreground">当前状态</p>
+            <span
+              data-testid="submission-status"
+              className="w-fit rounded-pill border border-border px-2 py-0.5 text-caption text-foreground"
+            >
+              {submissionStatusLabel(submission.status)}
+            </span>
+          </div>
 
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">投稿详情</h1>
-        <p className="text-sm text-muted-foreground">
-          {submissionStatusDescription(submission.status)}
-        </p>
-      </header>
+          <div className="flex flex-col gap-1">
+            <p className="text-meta text-muted-foreground">提交时间</p>
+            <time
+              dateTime={submission.submittedAt}
+              className="break-all text-meta tabular-nums text-foreground"
+            >
+              {submission.submittedAt}
+            </time>
+          </div>
+
+          {/* 一句静态说明，不是数据：审核通过之后文章才会对读者可见，而在待审期间
+              正文仍可编辑但不会外显。放在轨道上是因为它是"这一页怎么读"的背景，
+              不属于眼前这一条投稿的具体内容。 */}
+          <p className="text-caption leading-5 text-muted-foreground">
+            审核通过后文章才会公开。待审核期间正文仍可编辑，但不会对外可见。
+          </p>
+
+          <Link
+            to="/studio/submissions"
+            className="focus-ring w-fit rounded-sm text-meta text-accent-strong hover:underline"
+          >
+            返回我的投稿
+          </Link>
+        </div>
+      }
+    >
+      {/* B 类壳：恰好 1 个 h1，视觉隐藏；首块仍是内容。 */}
+      <h1 className="sr-only">投稿详情</h1>
+
+      <p className="text-meta leading-6 text-muted-foreground">
+        {submissionStatusDescription(submission.status)}
+      </p>
 
       {actionError ? (
         <p
           role="alert"
-          className="rounded-md border border-destructive/40 bg-card p-3 text-sm text-destructive"
+          className="rounded-control border border-destructive/40 bg-card p-3 text-meta text-destructive"
         >
           {actionError}
         </p>
       ) : null}
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 p-5">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <h2 className="section-heading">{submissionTitle(submission)}</h2>
-              <span
-                className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground"
-                data-testid="submission-status"
-              >
-                {submissionStatusLabel(submission.status)}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              提交于 <time dateTime={submission.submittedAt}>{submission.submittedAt}</time>
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-medium text-foreground">审核意见</h3>
-            {feedback ? (
-              <p className="whitespace-pre-wrap text-sm text-muted-foreground">{feedback}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground" data-testid="submission-no-feedback">
-                暂无审核意见。
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-            {href ? (
-              <Link to={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
-                {submission.status?.toUpperCase() === "APPROVED" ? "查看文章" : "去编辑稿件"}
-              </Link>
-            ) : null}
-
-            {withdrawable ? (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                className="ml-auto"
-                disabled={pending}
-                onClick={() => setConfirming(true)}
-              >
-                撤回投稿
-              </Button>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
-
-      {confirming ? (
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-label="确认撤回投稿"
-          className="rounded-lg border border-border bg-card p-4"
-        >
-          <p className="text-sm text-foreground">
-            确定撤回这次投稿吗？撤回后稿件会回到可编辑状态，需要修改后可重新提交。
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Button variant="destructive" disabled={pending} onClick={() => void onWithdraw()}>
-              确认撤回
-            </Button>
-            <Button variant="outline" disabled={pending} onClick={() => setConfirming(false)}>
-              取消
-            </Button>
-          </div>
+      <section
+        aria-labelledby="submission-title"
+        className="flex flex-col gap-4 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
+      >
+        <div className="flex flex-col gap-2">
+          <h2 id="submission-title" className="section-heading break-words">
+            {submissionTitle(submission)}
+          </h2>
         </div>
-      ) : null}
-    </div>
+
+        <div className="flex flex-col gap-1">
+          <h3 className="text-meta font-medium text-foreground">审核意见</h3>
+          {feedback ? (
+            <p className="whitespace-pre-wrap text-meta leading-6 text-muted-foreground">
+              {feedback}
+            </p>
+          ) : (
+            <p className="text-meta text-muted-foreground" data-testid="submission-no-feedback">
+              暂无审核意见。
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-4">
+          {href ? (
+            <Link to={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              {submission.status?.toUpperCase() === "APPROVED" ? "查看文章" : "去编辑稿件"}
+            </Link>
+          ) : null}
+
+          {withdrawable ? (
+            /* 浮层统一：撤回确认收敛到 `components/ui/dialog`（role="alertdialog"），
+               取消在左、破坏性动作在右；关闭后焦点回到这个 DialogTrigger。 */
+            <Dialog open={confirming} onOpenChange={setConfirming}>
+              <DialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="ml-auto"
+                  disabled={pending}
+                >
+                  撤回投稿
+                </Button>
+              </DialogTrigger>
+              <DialogContent role="alertdialog" className="max-w-sm rounded-xl bg-card">
+                <DialogTitle className="text-base font-semibold text-primary">
+                  确认撤回投稿
+                </DialogTitle>
+                <DialogDescription className="text-sm leading-6 text-muted-foreground">
+                  确定撤回这次投稿吗？撤回后稿件会回到可编辑状态，需要修改后可重新提交。
+                </DialogDescription>
+                <DialogFooter className="gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => setConfirming(false)}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => void onWithdraw()}
+                  >
+                    确认撤回
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          ) : null}
+        </div>
+      </section>
+    </ArchetypeFrame>
   );
 }

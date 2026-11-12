@@ -1,13 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { discoverApi } from "@/api/discover/discover.api";
+import type { SearchSort } from "@/api/discover/discover.types";
 import type { ContentSummary } from "@/api/common.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { ContentCard } from "@/components/shared/ContentCard";
+import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
+import { ArchetypeFrame } from "@/components/layout";
 
 /*
  * Search (Phase 1A).
@@ -18,10 +21,14 @@ import { PageState } from "@/components/shared/PageState";
  */
 
 /*
- * Type filters are intentionally NOT offered.
  * Type filters are intentionally not offered: the page is a compact all-type
  * search surface, while every returned object carries its own visible type.
+ * Sort is the one axis the search API already honors: hot (default) or latest.
  */
+
+function searchSort(value: string | null): SearchSort {
+  return value === "latest" ? "latest" : "hot";
+}
 
 function UserSearchResult({ item }: { item: ContentSummary }) {
   const fallback = (item.title || item.id).trim().charAt(0).toUpperCase();
@@ -58,6 +65,7 @@ function UserSearchResult({ item }: { item: ContentSummary }) {
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
+  const sort = searchSort(params.get("sort"));
 
   const [draft, setDraft] = useState(query);
   const [items, setItems] = useState<ContentSummary[]>([]);
@@ -84,7 +92,7 @@ export function SearchPage() {
     setError(false);
     setSearched(true);
     discoverApi
-      .search({ q: query, sort: "hot" })
+      .search({ q: query, sort })
       .then((page) => {
         if (!active) return;
         setItems(page.items);
@@ -98,7 +106,14 @@ export function SearchPage() {
     return () => {
       active = false;
     };
-  }, [query, reloadKey]);
+  }, [query, sort, reloadKey]);
+
+  function setSort(next: SearchSort) {
+    const nextParams = new URLSearchParams(params.toString());
+    if (next === "hot") nextParams.delete("sort");
+    else nextParams.set("sort", next);
+    setParams(nextParams, { replace: true });
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,8 +124,31 @@ export function SearchPage() {
     setParams(next, { replace: true });
   }
 
+  /*
+   * SK2 画廊 · H 线 / D 松 / R 齐（A §3 的 Search 行）。
+   *
+   *   skeleton="SK2"  → 画廊原型：等权卡格，卡即链接；页面不再手写 `section-gap`
+   *                     的块间距（密度由 frame 的 `density-loose` 提供）。
+   *   header="line"   → H=线：`PageMasthead`（无面、标题贴内容列左缘、首屏即内容）。
+   *   density="loose" → D=松：每张结果卡独立成块，首屏 ≤3 块。
+   *   R=齐           → 全页只有一列：页头、搜索表单、排序、结果格全部与内容列同宽
+   *                     同左缘，没有出血带（那是 R=出）、也没有侧轨（那是 R=错）。
+   *                     与同为 SK2 的 Discover（出，出血带+筛选列）和 Topics（出，
+   *                     出血带+卡格）的区别就在这里：本页是「齐」的纯单列。
+   */
   return (
-    <div className="section-gap">
+    <ArchetypeFrame
+      skeleton="SK2"
+      header="line"
+      density="loose"
+      headerSlot={
+        <PageMasthead
+          eyebrow="SEARCH"
+          title="搜索"
+          description="按关键词查找公开的文章、系列、动态与用户。"
+        />
+      }
+    >
       <form onSubmit={submit} className="flex items-center gap-2" role="search">
         <Input
           value={draft}
@@ -121,9 +159,36 @@ export function SearchPage() {
         <Button type="submit">搜索</Button>
       </form>
 
-      <p className="text-meta text-muted-foreground">
-        可搜索文章、系列、动态与用户，结果按热门程度排列。
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-meta text-muted-foreground">
+          {sort === "latest"
+            ? "可搜索文章、系列、动态与用户，结果按更新时间排列。"
+            : "可搜索文章、系列、动态与用户，结果按热门程度排列。"}
+        </p>
+        <div role="radiogroup" aria-label="排序" className="flex gap-1">
+          {(
+            [
+              ["hot", "热门"],
+              ["latest", "最新"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={sort === value}
+              onClick={() => setSort(value)}
+              className={
+                sort === value
+                  ? "rounded-md bg-accent-soft px-2.5 py-1 text-sm font-semibold text-accent-strong focus-ring"
+                  : "rounded-md px-2.5 py-1 text-sm text-muted-foreground hover:bg-muted/50 focus-ring"
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* empty query */}
       {!query ? <PageState kind="empty" /> : null}
@@ -149,7 +214,10 @@ export function SearchPage() {
       ) : null}
 
       {query && !loading && !error && items.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="search-results">
+        <div
+          className="grid gap-[var(--density-grid-gap)] sm:grid-cols-2 lg:grid-cols-3"
+          data-testid="search-results"
+        >
           {items.map((item) =>
             (item.objectType ?? "").toUpperCase() === "USER" ? (
               <UserSearchResult key={`USER-${item.id}`} item={item} />
@@ -163,6 +231,6 @@ export function SearchPage() {
           )}
         </div>
       ) : null}
-    </div>
+    </ArchetypeFrame>
   );
 }

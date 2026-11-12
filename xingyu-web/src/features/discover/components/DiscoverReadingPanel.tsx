@@ -172,7 +172,9 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
                     <DropdownMenu.Content
                       align="end"
                       sideOffset={4}
-                      className="discover-chapter-menu z-50 max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))] w-max min-w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(22rem,92vw)] overflow-y-auto rounded-lg border border-border/70 p-1 text-foreground"
+                      // `z-menu` (--z-menu: 40): this is a menu-layer portal, not
+                      // a popover — it must not outrank the popover rung (50).
+                      className="discover-chapter-menu z-menu max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))] w-max min-w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(22rem,92vw)] overflow-y-auto rounded-lg border border-border/70 p-1 text-foreground"
                     >
                       <DropdownMenu.RadioGroup
                         value={chapterId}

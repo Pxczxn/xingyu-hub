@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>8 类页面骨架（SK1–SK8）· 静态原型总览 | 星语设计系统</title>
+    <meta
+      name="description"
+      content="xingyu-web 八类页面骨架（SK1–SK8）的静态可预览原型总览：白底干净风、真实中文文案、桌面 1440 与移动 390 双形态。"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* ---- index 专属：一份「原型目录」，用发丝线分行，不用卡片墙 ---- */
+      .lede2 {
+        margin-top: 20px;
+        font-size: 15px;
+        line-height: 1.8;
+        color: var(--ink-2);
+        max-width: 40em;
+      }
+
+      .lede2 code {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink-2);
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 1px 5px;
+      }
+
+      .palette {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1px;
+        margin-top: 20px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-input);
+        overflow: hidden;
+        background: var(--line);
+      }
+
+      .palette div {
+        background: var(--canvas);
+        padding: 12px 14px;
+        font-size: 11.5px;
+        line-height: 1.7;
+        color: var(--ink-3);
+      }
+
+      .palette b {
+        display: block;
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: 0.02em;
+      }
+
+      .palette .sw {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        border: 1px solid var(--line-2);
+        vertical-align: -2px;
+        margin-right: 6px;
+      }
+
+      .how {
+        margin-top: 22px;
+        border-left: 2px solid var(--line-2);
+        padding: 4px 0 4px 18px;
+        font-size: 13.5px;
+        line-height: 1.8;
+        color: var(--ink-2);
+        max-width: 48em;
+      }
+
+      .how b {
+        color: var(--ink);
+      }
+
+      .how code {
+        font-family: var(--mono);
+        font-size: 12px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 1px 5px;
+      }
+
+      .cards {
+        margin-top: 28px;
+        border-top: 1px solid var(--line);
+      }
+
+      .c {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 0 24px;
+        padding: 26px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .c__n {
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        color: var(--ink-3);
+        padding-top: 5px;
+      }
+
+      .c__b {
+        min-width: 0;
+      }
+
+      .c__name {
+        font-family: var(--display);
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        line-height: 1.4;
+        color: var(--ink);
+      }
+
+      .c__count {
+        margin-left: 8px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        font-weight: 400;
+        color: var(--ink-3);
+      }
+
+      .c__pages {
+        margin-top: 8px;
+        line-height: 2;
+      }
+
+      .c__pages code {
+        display: inline-block;
+        margin-right: 6px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--ink-2);
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 1px 6px;
+      }
+
+      .c__facts {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 4px 16px;
+        margin-top: 14px;
+        font-size: 13.5px;
+        line-height: 1.75;
+      }
+
+      .c__facts dt {
+        color: var(--ink-3);
+        font-size: 12.5px;
+        padding-top: 1px;
+      }
+
+      .c__facts dd {
+        margin: 0;
+        color: var(--ink-2);
+      }
+
+      .c__facts dd b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .c__go {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 14px;
+        padding: 6px 14px;
+        min-height: 34px;
+        border: 1px solid var(--line-2);
+        border-radius: var(--r-compact);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink);
+        transition: background var(--t-fast), border-color var(--t-fast);
+      }
+
+      .c__go:hover {
+        background: var(--surface-2);
+        border-color: var(--ink-3);
+      }
+
+      @media (max-width: 860px) {
+        .palette {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .c {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 6px;
+          padding: 22px 0;
+        }
+
+        .c__n {
+          padding-top: 0;
+        }
+
+        .c__facts {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 2px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="gallery">
+      <header class="ghead">
+        <p class="gsub"><span class="tag">SK-C v2</span> · 现代化美化 · 第一轮设计 · 可预览静态原型</p>
+        <div class="grow">
+          <h1>8 类页面骨架，各是一种构图</h1>
+        </div>
+        <p class="lede2">
+          命名与解剖对齐 <code>.team/design/A-archetypes.md</code> 的 SK1–SK8（8 / 17 / 22 / 5 / 17 / 14 / 2 / 1 = 86 页）。
+          这里不是设计稿的替代品，而是判断依据 —— 八屏放在一起，<b>首屏第一块、栏宽、字号阶梯是否真的不同</b>，一眼可辨。
+          文案与字段从 <code>xingyu-web/src</code> 的真实页面抄来。
+        </p>
+        <p class="lede2">
+          配色是 <b>2026-11-10 定稿的白底干净风</b>：不抄参考站的蓝色 SaaS 皮肤，也不再有深蓝 / 米白 / 金。
+          白底、发丝线、大留白、克制的字重；层次只靠留白、字号对比、<code>#EAEAEA</code> 发丝线与
+          <code>#F7F7F8</code> 极浅灰面制造，不靠色块。
+        </p>
+
+        <div class="palette" role="list" aria-label="核心色板（含实测对比度）">
+          <div role="listitem">
+            <b><span class="sw" style="background: #ffffff"></span>#FFFFFF</b>
+            画布 / 卡片 · 纯白
+          </div>
+          <div role="listitem">
+            <b><span class="sw" style="background: #111827"></span>#111827</b>
+            标题 · 主按钮底（白上 17.7:1）
+          </div>
+          <div role="listitem">
+            <b><span class="sw" style="background: #374151"></span>#374151</b>
+            正文（白上 10.2:1）
+          </div>
+          <div role="listitem">
+            <b><span class="sw" style="background: #6b7280"></span>#6B7280</b>
+            可读辅助（白上 4.83:1）
+          </div>
+          <div role="listitem">
+            <b><span class="sw" style="background: #eaeaea"></span>#EAEAEA</b>
+            发丝线（只做分隔，不做控件边界）
+          </div>
+          <div role="listitem">
+            <b><span class="sw" style="background: #f7f7f8"></span>#F7F7F8</b>
+            次级面：表头 / 代码 / 量化带
+          </div>
+          <div role="listitem">
+            <b><span class="sw" style="background: #878e96"></span>#878E96</b>
+            输入框边界（白上 3.31:1）
+          </div>
+          <div role="listitem">
+            <b><span class="sw" style="background: #2563eb"></span>#2563EB</b>
+            功能蓝：选中 / 进度 / focus，每屏 ≤2 处（白上 5.17:1）
+          </div>
+        </div>
+
+        <div class="how">
+          <b>怎么读：</b>点任一卡片进入该类的整屏原型，页面里并排给出
+          <code>data-width="1440"</code> 与 <code>data-width="390"</code> 两个框；
+          桌面框默认按 <b>58%</b> 等比缩放以适应窗口，右上角可切到 <b>1:1</b> 原尺寸 ——
+          逐像素校对请切 1:1。全部为纯 HTML + CSS，无脚本、无 CDN、无外部字体，
+          双击 <code>index.html</code> 即可离线打开。
+        </div>
+      </header>
+
+      <section aria-label="八类骨架原型">
+        <div class="cards">
+          <article class="c" data-sk="SK1">
+            <div class="c__n" aria-hidden="true">SK1</div>
+            <div class="c__b">
+              <h2 class="c__name">阅读栏<span class="c__count">8 页</span></h2>
+              <p class="c__pages">
+                <code>xingyu-web/src/features/article/pages/ArticleDetailPage.tsx</code>
+                <code>xingyu-web/src/features/announcements/pages/AnnouncementDetailPage.tsx</code>
+                <code>xingyu-web/src/features/guide/pages/GuideDetailPage.tsx</code>
+              </p>
+              <dl class="c__facts">
+                <dt>首屏第一块</dt>
+                <dd><b>正文标题</b>（标题就是正文首块，落在内容列上、不作横幅）</dd>
+                <dt>一句话差异</dt>
+                <dd>正文锁在 68ch 测量列 + 右轨 220 放目录；评论与相关也锁同列，整页只有一条主线。</dd>
+              </dl>
+              <a class="c__go" href="sk1-reading.html">查看原型 →</a>
+            </div>
+          </article>
+
+          <article class="c" data-sk="SK2">
+            <div class="c__n" aria-hidden="true">SK2</div>
+            <div class="c__b">
+              <h2 class="c__name">画廊<span class="c__count">17 页</span></h2>
+              <p class="c__pages">
+                <code>xingyu-web/src/features/discover/pages/DiscoverPage.tsx</code>
+                <code>xingyu-web/src/features/topics/pages/TopicsPage.tsx</code>
+                <code>xingyu-web/src/features/galaxies/pages/GalaxyListPage.tsx</code>
+              </p>
+              <dl class="c__facts">
+                <dt>首屏第一块</dt>
+                <dd><b>等权卡格</b>（上面压一条无卡面的发现带 + 筛选排序条）</dd>
+                <dt>一句话差异</dt>
+                <dd>首屏全是格子、卡即链接，没有正文段落也没有量化带 —— 这一屏是「逛」。</dd>
+              </dl>
+              <a class="c__go" href="sk2-gallery.html">查看原型 →</a>
+            </div>
+          </article>
+
+          <article class="c" data-sk="SK3">
+            <div class="c__n" aria-hidden="true">SK3</div>
+            <div class="c__b">
+              <h2 class="c__name">控制台<span class="c__count">22 页</span></h2>
+              <p class="c__pages">
+                <code>xingyu-web/src/features/studio/pages/StudioPage.tsx</code>
+                <code>xingyu-web/src/features/studio/pages/ContentListPage.tsx</code>
+                <code>xingyu-web/src/features/settings/pages/SettingsProfilePage.tsx</code>
+              </p>
+              <dl class="c__facts">
+                <dt>首屏第一块</dt>
+                <dd><b>量化带</b>（计数 / 进度 / 状态，一条通栏浅灰面，数字不是卡片）</dd>
+                <dt>一句话差异</dt>
+                <dd>分区壳（页签或 200 左轨，标题归壳层）+ 表格式主区；目的是操作与比较，不是读也不是逛。</dd>
+              </dl>
+              <a class="c__go" href="sk3-console.html">查看原型 →</a>
+            </div>
+          </article>
+
+          <article class="c" data-sk="SK4">
+            <div class="c__n" aria-hidden="true">SK4</div>
+            <div class="c__b">
+              <h2 class="c__name">收件箱<span class="c__count">5 页</span></h2>
+              <p class="c__pages">
+                <code>xingyu-web/src/features/messages/pages/MailboxPage.tsx</code>
+                <code>xingyu-web/src/features/messages/pages/ConversationThreadPage.tsx</code>
+                <code>xingyu-web/src/features/notifications/pages/NotificationsPage.tsx</code>
+              </p>
+              <dl class="c__facts">
+                <dt>首屏第一块</dt>
+                <dd><b>双栏列表</b>（[320 列表 | 1fr 详情]，页面自身不滚、两栏各滚）</dd>
+                <dt>一句话差异</dt>
+                <dd>唯一「页面不滚、两栏各自滚」的原型；未选详情时右栏给一句占位陈述而不是空白。</dd>
+              </dl>
+              <a class="c__go" href="sk4-inbox.html">查看原型 →</a>
+            </div>
+          </article>
+
+          <article class="c" data-sk="SK5">
+            <div class="c__n" aria-hidden="true">SK5</div>
+            <div class="c__b">
+              <h2 class="c__name">流程<span class="c__count">17 页</span></h2>
+              <p class="c__pages">
+                <code>xingyu-web/src/features/auth/pages/LoginPage.tsx</code>
+                <code>xingyu-web/src/features/onboarding/pages/OnboardingPage.tsx</code>
+                <code>xingyu-web/src/features/events/pages/EventSubmitPage.tsx</code>
+              </p>
+              <dl class="c__facts">
+                <dt>首屏第一块</dt>
+                <dd><b>浅灰横幅</b>（#F7F7F8 + 发丝线）+ 居中 720 窄栏，紧跟粘底操作条</dd>
+                <dt>一句话差异</dt>
+                <dd>一页只有一个终点动作（提交）；SK3 的终点是「继续工作」，同屏还有别的入口。</dd>
+              </dl>
+              <a class="c__go" href="sk5-flow.html">查看原型 →</a>
+            </div>
+          </article>
+
+          <article class="c" data-sk="SK6">
+            <div class="c__n" aria-hidden="true">SK6</div>
+            <div class="c__b">
+              <h2 class="c__name">信息流<span class="c__count">14 页</span></h2>
+              <p class="c__pages">
+                <code>xingyu-web/src/features/home/pages/HomePage.tsx</code>
+                <code>xingyu-web/src/features/bookshelf/pages/BookshelfPage.tsx</code>
+                <code>xingyu-web/src/features/profile/pages/UserProfilePage.tsx</code>
+              </p>
+              <dl class="c__facts">
+                <dt>首屏第一块</dt>
+                <dd><b>行式条目</b>（[1fr 行式流 | 300 右栏]，条目无卡面、靠发丝线分隔）</dd>
+                <dt>一句话差异</dt>
+                <dd>SK2 是「格」，这一屏是「行」；右栏常驻 2–3 个面板，也是唯一允许页头退化的原型。</dd>
+              </dl>
+              <a class="c__go" href="sk6-feed.html">查看原型 →</a>
+            </div>
+          </article>
+
+          <article class="c" data-sk="SK7">
+            <div class="c__n" aria-hidden="true">SK7</div>
+            <div class="c__b">
+              <h2 class="c__name">阅读器<span class="c__count">2 页</span></h2>
+              <p class="c__pages">
+                <code>xingyu-web/src/features/series/pages/PublicSeriesReadPage.tsx</code>
+                <code>xingyu-web/src/features/rules/pages/RulesPage.tsx</code>
+              </p>
+              <dl class="c__facts">
+                <dt>首屏第一块</dt>
+                <dd><b>吸顶阅读工具条 + 全幅出血头图</b>（工具条常驻，头图整幅出血）</dd>
+                <dt>一句话差异</dt>
+                <dd>SK1 是「读一篇文章」（无工具条、标题即正文首块），SK7 是「读一本书」（工具条 + 左目录 256 + 进度）。</dd>
+              </dl>
+              <a class="c__go" href="sk7-reader.html">查看原型 →</a>
+            </div>
+          </article>
+
+          <article class="c" data-sk="SK8">
+            <div class="c__n" aria-hidden="true">SK8</div>
+            <div class="c__b">
+              <h2 class="c__name">创作台<span class="c__count">1 页</span></h2>
+              <p class="c__pages">
+                <code>xingyu-web/src/features/studio/pages/EditorPage.tsx</code>
+                <code>xingyu-web/src/features/studio/editor/**</code>
+              </p>
+              <dl class="c__facts">
+                <dt>首屏第一块</dt>
+                <dd><b>画布</b>（全宽三栏 [48 工具轨 | 画布 | 320 检视轨]，画布吃剩余宽度）</dd>
+                <dt>一句话差异</dt>
+                <dd>唯一没有「页面边距」的原型：不吃 content-shell，两侧栏都是控件，三栏各自滚。</dd>
+              </dl>
+              <a class="c__go" href="sk8-canvas.html">查看原型 →</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <footer class="gfoot">
+        八类的命名、页数分布与 H/D/R 三轴取值以 <code>.team/design/A-archetypes.md</code> 为准；
+        本目录只把它们变成可看的屏幕。配色是 2026-11-10 定稿的<b>白底干净风</b>：
+        主按钮近黑、蓝色只作功能性强调（每屏 ≤2 处）。逐类构成说明、旧名→SK 映射、
+        对比度实测与可访问性证据见 <a href="README.md">README.md</a>。
+      </footer>
+    </main>
+  </body>
+</html>

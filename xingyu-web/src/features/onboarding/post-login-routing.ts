@@ -17,8 +17,9 @@ export const AUTH_PATHS = [
  * Login-gate helpers (Phase 2A-3).
  *
  * The GET lives HERE, not in RequireAuth / AuthProvider: one extra request at
- * login, never on every route change. Fail-open (GET error -> original returnTo)
- * matches the verified "do not block login" decision.
+ * login, never on every route change. Fail-open (GET error -> the sanitized
+ * return path) matches the verified "do not block login" decision. The raw
+ * query is never handed to the router.
  */
 export function shouldSkipOnboardingGate(returnTo: string): boolean {
   if (
@@ -46,18 +47,37 @@ export function resolveOnboardingExitPath(returnTo: string | null): string {
 }
 
 export async function resolvePostLoginPath(returnTo: string): Promise<string> {
-  if (shouldSkipOnboardingGate(returnTo)) return returnTo;
+  const safe = sanitizeInAppPath(returnTo, "/");
+  if (shouldSkipOnboardingGate(safe)) return safe;
   try {
     const onboarding = await onboardingApi.get();
-    if (!onboarding.completed) return buildOnboardingPath(returnTo);
+    if (!onboarding.completed) return buildOnboardingPath(safe);
   } catch {
-    return returnTo;
+    return safe;
   }
-  return returnTo;
+  return safe;
 }
 
+/**
+ * Keep a return path inside this app.
+ *
+ * `/\evil.example` starts with a single slash, but the URL parser treats the
+ * backslash as a slash and resolves it to `https://evil.example/`. Reject that
+ * shape, and anything else whose parsed origin is not the dummy app origin,
+ * before React Router throws "External navigation is not allowed".
+ */
+const IN_APP_ORIGIN = "https://xingyu.invalid";
+
 export function sanitizeInAppPath(raw: string, fallback: string): string {
-  if (!raw.startsWith("/")) return fallback;
-  if (raw.startsWith("//")) return fallback;
-  return raw;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return fallback;
+  // eslint-disable-next-line no-control-regex -- intentional security check for control characters in URL paths
+  if (raw.includes("\\") || /[\u0000-\u001F]/.test(raw)) return fallback;
+  try {
+    const url = new URL(raw, IN_APP_ORIGIN);
+    if (url.origin !== IN_APP_ORIGIN) return fallback;
+    if (!url.pathname.startsWith("/") || url.pathname.startsWith("//")) return fallback;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
 }

@@ -1,10 +1,9 @@
 /*
  * Discover + Search API (extracted from the Legacy community API module — NOT the whole file).
  * Endpoints:
- *   GET /api/v1/discover            (cursor page; optional topic slug and ARTICLE/SERIES type)
- *   GET /api/v1/discover/nav        (section copy; its domain/sort tabs are NOT
- *                                    honored by /api/v1/discover on the current
- *                                    backend — verified during Phase 1A acceptance)
+ *   GET /api/v1/discover            (cursor page; topic, type, sort=latest|featured)
+ *   GET /api/v1/discover/nav        (section copy; nav sort tabs still list hot
+ *                                    and interest, which /discover rejects)
  *   GET /api/v1/search              (keyword search)
  *
  * NOTE: /api/v1/explore/feed is intentionally NOT used — it returns
@@ -32,7 +31,13 @@ function qs(params: Record<string, string | number | undefined>): string {
 export const discoverApi = {
   getDiscover: (input: DiscoverInput = {}): Promise<PageResult<ContentSummary>> =>
     apiRequest<PageResult<ContentSummary>>(
-      `/api/v1/discover${qs({ cursor: input.cursor, limit: input.limit, topic: input.topic, type: input.type })}`,
+      `/api/v1/discover${qs({
+        cursor: input.cursor,
+        limit: input.limit,
+        topic: input.topic,
+        type: input.type,
+        sort: input.sort === "featured" || input.sort === "interest" ? input.sort : undefined,
+      })}`,
     ),
 
   getDiscoverNav: (): Promise<ExploreNav> => apiRequest<ExploreNav>("/api/v1/discover/nav"),

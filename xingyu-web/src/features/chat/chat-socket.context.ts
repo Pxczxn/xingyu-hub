@@ -51,6 +51,12 @@ export type ChatSocketContextValue = {
    * 已登录的人赶去登录页 —— 那是两种完全不同的错误。
    */
   conversationsExpired: boolean;
+  /**
+   * 当前打开会话的重连补齐。
+   * idle = 还没补过；caught-up = 已追平；behind = 请求失败或游标卡住，缺口还在。
+   * 连接显示为 open 并不等于已经补齐。
+   */
+  backfill: "idle" | "caught-up" | "behind";
   /** 全账户未读合计（各会话 unreadCount 之和）。null = 尚未读到。 */
   unreadTotal: number | null;
   /** 重新拉会话列表。失败时保留旧值 —— 绝不把失败伪装成 0。 */
@@ -78,6 +84,7 @@ const NOOP_VALUE: ChatSocketContextValue = {
   conversationsStatus: "idle",
   conversationsError: null,
   conversationsExpired: false,
+  backfill: "idle",
   unreadTotal: null,
   refreshConversations: async () => {},
   watchConversation: () => {},
