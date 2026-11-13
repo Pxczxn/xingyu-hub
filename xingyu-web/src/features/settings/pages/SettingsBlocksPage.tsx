@@ -132,6 +132,7 @@ export function SettingsBlocksPage() {
       skeleton="SK3"
       header="shell"
       density="compact"
+      railAt="settings"
       railLabel="屏蔽说明"
       rail={
         /*

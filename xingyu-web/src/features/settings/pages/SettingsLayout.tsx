@@ -27,7 +27,13 @@ export function SettingsLayout() {
         </p>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+      {/*
+        The 200px rail waits for `lg`, the same point the shell swaps the
+        hamburger for the desktop nav. At 768–1023 the content box is only
+        ~630–860px; a fixed 200px column leaves the form about 406px at 768.
+        Below `lg` the nav wraps (SettingsNav) and the form keeps the full box.
+      */}
+      <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
         <SettingsNav />
         <div className="min-w-0">
           <Outlet />

@@ -39,6 +39,13 @@ export type ArchetypeFrameProps = {
   /** Trailing rail (SK1/2/3/6) or leading contents rail (SK7). */
   rail?: ReactNode;
   railLabel?: string;
+  /**
+   * When a trailing SK3 rail becomes a column. `lg` is the archetype default.
+   * `settings` is only for pages nested inside the 200px settings nav: the
+   * side-by-side column waits until the main track can hold the email line
+   * (measured at 1176px). Other skeletons ignore this.
+   */
+  railAt?: "lg" | "settings";
   /** SK8 leading 48px tool track. */
   toolbar?: ReactNode;
   toolbarLabel?: string;
@@ -87,6 +94,17 @@ const WITH_RAIL: Record<ColumnSkeleton, string> = {
   SK7: "mx-auto lg:grid lg:grid-cols-[256px_minmax(0,var(--reading-measure))] lg:gap-10",
 };
 
+/*
+ * Settings shell is already `200px + content` from `lg`. Starting the 280px
+ * rail at the same point left the form ~332px at 1024 (privacy label 55×70,
+ * email address wrapping mid-token). Measured with a 16px root: the address
+ * line is 313px and still wraps at 1170 (main track 464px); at 1176 the main
+ * track is 469px and the address is one line. Below that the rail stays in
+ * document order, under the form, at the full content width.
+ */
+const SK3_SETTINGS_RAIL =
+  "min-[1176px]:grid min-[1176px]:grid-cols-[minmax(0,1fr)_280px] min-[1176px]:gap-6";
+
 /** The same archetypes with no rail: the main column alone. */
 const SOLO: Record<ColumnSkeleton, string> = {
   SK1: "mx-auto w-full max-w-[var(--reading-measure)]",
@@ -104,6 +122,7 @@ export function ArchetypeFrame({
   density = "compact",
   rail,
   railLabel,
+  railAt = "lg",
   toolbar,
   toolbarLabel,
   list,
@@ -132,9 +151,14 @@ export function ArchetypeFrame({
 
   const railNode = rail ? <SectionRail label={railLabel ?? "侧栏"}>{rail}</SectionRail> : null;
   const leadRail = skeleton === "SK7";
+  const columns = railNode
+    ? skeleton === "SK3" && railAt === "settings"
+      ? SK3_SETTINGS_RAIL
+      : WITH_RAIL[skeleton]
+    : SOLO[skeleton];
 
   return (
-    <div className={cn("min-w-0", railNode ? WITH_RAIL[skeleton] : SOLO[skeleton], className)}>
+    <div className={cn("min-w-0", columns, className)}>
       {leadRail ? railNode : null}
       <div className="min-w-0">
         {header === "shell" || headerSlot === undefined ? null : (

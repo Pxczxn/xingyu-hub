@@ -145,6 +145,7 @@ export function SettingsPrivacyPage() {
       skeleton="SK3"
       header="shell"
       density="loose"
+      railAt="settings"
       railLabel="隐私说明"
       rail={
         /*

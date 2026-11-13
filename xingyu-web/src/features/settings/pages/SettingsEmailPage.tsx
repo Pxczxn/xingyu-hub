@@ -170,6 +170,7 @@ export function SettingsEmailPage() {
       skeleton="SK3"
       header="shell"
       density="dense"
+      railAt="settings"
       railLabel="身份验证"
       rail={
         /*

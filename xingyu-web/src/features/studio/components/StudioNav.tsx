@@ -54,13 +54,13 @@ const STUDIO_NAV = [
 export function StudioNav() {
   return (
     <nav aria-label="创作中心导航" className="min-w-0">
-      {/* Horizontal strip on small screens, a vertical rail from md up — the same
-          responsive shape Settings uses, for the same two reasons:
-          `min-w-0` is load-bearing (without it the grid item takes its
-          max-content width and the tabs push the document wider than a 375px
-          viewport), and the strip WRAPS rather than scrolling, because a scroll
-          container with no affordance is a hidden nav. */}
-      <ul className="flex flex-wrap gap-1 border-b border-border pb-2 md:flex-col md:flex-nowrap md:border-b-0 md:pb-0">
+      {/* Horizontal wrap below `lg`, a vertical rail from `lg` up — the same
+          breakpoint as WorkbenchShell and Settings. `min-w-0` is load-bearing
+          (without it the grid item takes its max-content width and the tabs
+          push the document wider than a 375px viewport), and the strip WRAPS
+          rather than scrolling, because a scroll container with no affordance
+          is a hidden nav. */}
+      <ul className="flex flex-wrap gap-1 border-b border-border pb-2 lg:flex-col lg:flex-nowrap lg:border-b-0 lg:pb-0">
         {STUDIO_NAV.map((item) => {
           const Icon = item.icon;
           return (

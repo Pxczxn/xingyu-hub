@@ -60,7 +60,8 @@ const SETTINGS_NAV = [
 export function SettingsNav() {
   return (
     <nav aria-label="设置导航" className="min-w-0">
-      {/* Horizontal strip on small screens, a vertical rail from md up.
+      {/* Horizontal wrap below `lg`, a vertical rail from `lg` up — the same
+          breakpoint as SettingsLayout's 200px column and the shell nav.
           `min-w-0` is load-bearing: without it the grid item takes its
           max-content width, so the tabs push the whole document wider than a
           375px viewport.
@@ -69,8 +70,8 @@ export function SettingsNav() {
           destinations (API Token / 数据导出) reachable only by an invisible
           horizontal scroll — and the active item sat half-clipped at the right
           edge. A scroll container with no scroll affordance is a hidden nav. It
-          now WRAPS instead, so every destination is visible without a gesture. */}
-      <ul className="flex flex-wrap gap-1 border-b border-border pb-2 md:flex-col md:flex-nowrap md:border-b-0 md:pb-0">
+          WRAPS instead, so every destination is visible without a gesture. */}
+      <ul className="flex flex-wrap gap-1 border-b border-border pb-2 lg:flex-col lg:flex-nowrap lg:border-b-0 lg:pb-0">
         {SETTINGS_NAV.map((item) => {
           const Icon = item.icon;
           return (
@@ -78,7 +79,7 @@ export function SettingsNav() {
               key={item.to}
               className={cn(
                 "shrink-0",
-                item.danger && "md:mt-2 md:border-t md:border-border md:pt-2",
+                item.danger && "lg:mt-2 lg:border-t lg:border-border lg:pt-2",
               )}
             >
               <NavLink

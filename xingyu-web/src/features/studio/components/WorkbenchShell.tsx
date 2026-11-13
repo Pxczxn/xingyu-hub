@@ -38,8 +38,10 @@ import { StudioNav } from "@/features/studio/components/StudioNav";
  * route. It is a flow step opened from an invite link, not a place you work.
  */
 export function WorkbenchShell() {
+  // The 200px rail starts at `lg`, with SettingsLayout. At `md` the shell is
+  // still on the hamburger and a fixed column leaves the workbench ~406px wide.
   return (
-    <div className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+    <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
       <StudioNav />
       {/* `min-w-0` on the content column for the same reason as in SettingsNav:
           a grid item defaults to its max-content width, and a wide table inside
