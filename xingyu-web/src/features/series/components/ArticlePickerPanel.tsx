@@ -57,10 +57,10 @@ export function ArticlePickerPanel({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 id="series-picker-heading" className="text-sm font-semibold text-primary">
+          <h2 id="series-picker-heading" className="text-h2 text-primary">
             添加文章
           </h2>
-          <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-1 text-caption !leading-4 text-muted-foreground">
             {articles.length === 0 ? "你的文章会显示在这里" : `${availableCount} 篇可添加`}
           </p>
         </div>
@@ -112,7 +112,7 @@ export function ArticlePickerPanel({
                     <div className="mt-1 flex items-center gap-2">
                       <ArticleStateBadge state={state} />
                       {added ? (
-                        <span className="text-[11px] text-muted-foreground">已在系列中</span>
+                        <span className="text-caption text-muted-foreground">已在系列中</span>
                       ) : null}
                     </div>
                   </div>
@@ -141,7 +141,7 @@ export function ArticlePickerPanel({
         </>
       )}
 
-      <p className="border-t border-border/60 pt-2 text-[11px] leading-4 text-muted-foreground">
+      <p className="border-t border-border/60 pt-2 text-caption !leading-4 text-muted-foreground">
         草稿和审核中的文章可以先编排；加入系列不会改变文章的可见性。回收站文章不在此列表。
       </p>
     </section>

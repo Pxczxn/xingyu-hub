@@ -29,7 +29,7 @@ import { cn } from "@/lib/cn";
  *
  * What it standardises, IF you use it
  * -----------------------------------
- *   <h2>    section-heading token (18px)     — one step under the page title
+ *   <h2>    section-heading token (h2)       — one step under the page title
  *   count   13px tabular, muted               — a fact about the set, not a heading
  *   desc    13px muted, max 2 lines           — optional, explains the section
  *   action  trailing, baseline-aligned        — one control, never a toolbar

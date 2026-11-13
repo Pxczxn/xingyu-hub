@@ -65,12 +65,12 @@ export function CommunityEventsPanel({
   return (
     <section
       aria-labelledby="home-events"
-      className="rounded-2xl border border-border/60 bg-card/60 p-4"
+      className="rounded-card border border-border/60 bg-card/60 p-4"
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <h2
           id="home-events"
-          className="flex items-center gap-2 text-[13px] font-semibold text-foreground"
+          className="flex items-center gap-2 text-h2 text-primary"
         >
           <span className="grid h-6 w-6 place-items-center rounded-md bg-accent-soft text-accent-strong">
             <Calendar className="h-3.5 w-3.5" aria-hidden />
@@ -79,7 +79,7 @@ export function CommunityEventsPanel({
         </h2>
         <Link
           to="/events"
-          className="shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-accent-strong"
+          className="shrink-0 text-sm text-accent-strong hover:underline"
         >
           查看全部 →
         </Link>
@@ -106,19 +106,19 @@ export function CommunityEventsPanel({
                       aria-hidden
                       className="w-11 shrink-0 rounded-lg bg-accent-soft py-1 text-center"
                     >
-                      <span className="block text-[10px] font-medium leading-4 text-accent-strong">
+                      <span className="block text-[length:var(--type-caption)] font-medium leading-4 text-accent-strong">
                         {day.month}月
                       </span>
-                      <span className="block text-[17px] font-semibold leading-5 tabular-nums text-accent-strong">
+                      <span className="block text-[length:var(--type-h3)] font-semibold leading-5 tabular-nums text-accent-strong">
                         {day.day}
                       </span>
                     </span>
                   ) : null}
                   <span className="min-w-0 flex-1">
-                    <span className="line-clamp-2 block text-[13.5px] font-semibold leading-snug text-foreground">
+                    <span className="line-clamp-2 block text-meta font-semibold !leading-snug text-foreground">
                       {event.title}
                     </span>
-                    <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="mt-1 flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
                       {ended ? (
                         <span className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-0.5 font-medium">
                           已结束

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -97,7 +99,9 @@ describe("article detail", () => {
     mocked.getArticle.mockResolvedValue(ARTICLE);
     renderAt("a1");
 
-    expect(await screen.findByRole("heading", { name: "真实文章标题" })).toBeInTheDocument();
+    const title = await screen.findByRole("heading", { name: "真实文章标题" });
+    expect(title.className).toContain("text-h1");
+    expect(screen.getByText("摘要").className).toContain("text-base");
     expect(screen.getByRole("link", { name: /pxczxn/ })).toHaveAttribute("href", "/u/pxczxn");
   });
 
@@ -115,6 +119,14 @@ describe("article detail", () => {
     expect(body?.querySelector("strong")?.textContent).toBe("粗体");
     expect(body?.querySelector("a")?.getAttribute("href")).toBe("https://example.com");
     expect(body?.querySelector("pre code")?.textContent).toContain("const a = 1;");
+  });
+
+  it("gives quotes, images and captions their reading-surface chrome", () => {
+    const css = readFileSync(resolve("src/styles/globals.css"), "utf8");
+    expect(css).toContain("border-l-[3px] border-accent bg-muted/30 px-4 py-3");
+    expect(css).toContain("mx-auto block h-auto max-w-full rounded-lg border border-border/50");
+    expect(css).toContain(".article-body figcaption");
+    expect(css).toContain("text-center text-meta leading-5 text-muted-foreground");
   });
 
   it("does not render an empty series context", async () => {

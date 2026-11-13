@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { AppRoutes } from "@/router/routes";
 import { AppProviders } from "@/app/providers/AppProviders";
@@ -103,9 +103,24 @@ describe("phase 2H galaxy routes", () => {
     expect(screen.getByTestId("current-path")).toHaveTextContent("/galaxies/xingyu-official");
   });
 
-  it("exposes 星系 in the global nav", async () => {
+  it("exposes the three primary nav items and the md search field", async () => {
     renderAt("/galaxies");
     const nav = await screen.findByRole("navigation", { name: "主导航" });
-    expect(nav).toHaveTextContent("星系");
+    expect(within(nav).getByRole("link", { name: "首页" })).toHaveAttribute("href", "/");
+    expect(within(nav).getByRole("link", { name: "发现" })).toHaveAttribute("href", "/discover");
+    expect(within(nav).getByRole("link", { name: "星系" })).toHaveAttribute("href", "/galaxies");
+    expect(within(nav).queryByRole("link", { name: "话题" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "系列" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "动态" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "指南" })).not.toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "星系" }).querySelector("svg")).toHaveClass(
+      "lg:block",
+    );
+    const search = screen.getByRole("search");
+    expect(search.className).toContain("md:block");
+    expect(search.className).not.toContain("min-[1440px]:block");
+    expect(await screen.findByRole("tablist", { name: "星系" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "探索星系" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "我的星系" })).toBeInTheDocument();
   });
 });

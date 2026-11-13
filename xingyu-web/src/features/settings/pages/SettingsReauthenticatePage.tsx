@@ -155,7 +155,7 @@ export function SettingsReauthenticatePage() {
              */}
               <h1
                 id="reauth-heading"
-                className="text-2xl font-semibold tracking-tight text-primary"
+                className="text-h1 text-primary"
               >
                 身份再验证
               </h1>

@@ -73,7 +73,7 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
         </p>
         {import.meta.env.DEV ? (
           <>
-            <pre className="max-w-full overflow-x-auto rounded-lg bg-surface-sunken px-3 py-2 text-left font-mono text-[12px] text-muted-foreground">
+            <pre className="max-w-full overflow-x-auto rounded-lg bg-surface-sunken px-3 py-2 text-left font-mono text-caption text-muted-foreground">
               {this.state.error.message}
             </pre>
             {this.state.error.message.includes("Failed to fetch dynamically imported module") ? (
@@ -130,7 +130,7 @@ export function RouteErrorPage({ className }: { className?: string }) {
         className="flex w-full max-w-md flex-col items-center gap-3 rounded-xl border border-border/70 bg-card px-6 py-12 text-center"
       >
         {status ? (
-          <p className="font-mono text-2xl font-semibold tabular-nums text-muted-foreground/60">
+          <p className="font-mono text-[length:var(--type-h2)] font-semibold tabular-nums text-muted-foreground/60">
             {status}
           </p>
         ) : null}
@@ -141,7 +141,7 @@ export function RouteErrorPage({ className }: { className?: string }) {
 
         {/* In dev only: production should not print a stack trace to the reader. */}
         {import.meta.env.DEV && !isResponse && error instanceof Error ? (
-          <pre className="max-w-full overflow-x-auto rounded-lg bg-surface-sunken px-3 py-2 text-left font-mono text-[12px] text-muted-foreground">
+          <pre className="max-w-full overflow-x-auto rounded-lg bg-surface-sunken px-3 py-2 text-left font-mono text-caption text-muted-foreground">
             {error.message}
           </pre>
         ) : null}

@@ -38,7 +38,7 @@ export function ContinueReadingStrip({
     >
       <h2
         id="home-continue-reading"
-        className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+        className="px-4 pb-1 pt-3 text-[length:var(--type-caption)] font-semibold uppercase tracking-wide text-muted-foreground"
       >
         继续阅读
       </h2>

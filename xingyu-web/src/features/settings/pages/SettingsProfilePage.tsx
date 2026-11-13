@@ -280,7 +280,7 @@ export function SettingsProfilePage() {
               legible at a glance.
             */}
             <fieldset className="flex flex-col gap-2 border-t border-border/60 p-6 pt-5" disabled={saving}>
-              <legend className="text-meta font-medium text-foreground-soft">资料可见性</legend>
+              <legend className="text-meta font-semibold text-foreground-soft">资料可见性</legend>
               <div className="mt-2 flex flex-col gap-2">
                 {VISIBILITY_OPTIONS.map((option) => {
                   const selected = values.visibility === option.value;

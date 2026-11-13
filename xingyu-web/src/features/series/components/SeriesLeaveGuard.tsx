@@ -70,7 +70,7 @@ export function SeriesLeaveGuard({
         }}
         onPointerDownOutside={(event) => event.preventDefault()}
       >
-        <DialogTitle className="text-base font-semibold text-primary">{title}</DialogTitle>
+        <DialogTitle className="text-primary">{title}</DialogTitle>
         <DialogDescription className="text-sm leading-6 text-muted-foreground">
           {description}
         </DialogDescription>

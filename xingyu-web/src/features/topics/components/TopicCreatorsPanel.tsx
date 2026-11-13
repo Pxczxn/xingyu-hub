@@ -30,7 +30,7 @@ export function TopicCreatorsPanel({ creators }: { creators: TopicCreatorSummary
       aria-labelledby="topic-creators"
       className="animate-rise-in rounded-card border border-border/60 bg-card p-4"
     >
-      <h2 id="topic-creators" className="text-h3 text-primary">
+      <h2 id="topic-creators" className="text-h2 text-primary">
         活跃创作者
       </h2>
       <ul className="mt-3 flex flex-col gap-2.5">
@@ -42,7 +42,7 @@ export function TopicCreatorsPanel({ creators }: { creators: TopicCreatorSummary
                 to={`/u/${encodeURIComponent(creator.username)}`}
                 className="group focus-ring flex items-center gap-2.5"
               >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] text-muted-foreground">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-caption text-muted-foreground">
                   {name.trim().charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0">

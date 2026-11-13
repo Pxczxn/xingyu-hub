@@ -138,7 +138,7 @@ export function CollectionsPage() {
           onSubmit={(event) => void onCreate(event)}
           className="space-y-3 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
         >
-          <label className="block text-meta font-medium text-foreground">
+          <label className="block text-meta font-semibold text-foreground">
             名称
             <input
               value={title}
@@ -156,7 +156,7 @@ export function CollectionsPage() {
             </p>
           ) : null}
           <fieldset>
-            <legend className="text-meta font-medium text-foreground">可见范围</legend>
+            <legend className="text-meta font-semibold text-foreground">可见范围</legend>
             <div className="mt-2 space-y-2">
               {COLLECTION_VISIBILITIES.map((value) => (
                 <label key={value} className="flex items-center gap-2 text-meta">

@@ -114,7 +114,7 @@ export function ForceChangePasswordPage() {
             <ShieldAlert className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight text-primary">请修改密码</h1>
+            <h1 className="text-h1 text-primary">请修改密码</h1>
             <p className="mt-1.5 text-meta leading-6 text-muted-foreground">
               设置新密码后即可继续使用账号。
             </p>

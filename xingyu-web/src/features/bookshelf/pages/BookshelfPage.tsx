@@ -184,7 +184,7 @@ function BookshelfRail({ items }: { items: BookshelfCard[] }) {
         aria-labelledby="bookshelf-rail-overview"
         className="rounded-xl border border-border/70 bg-card p-4"
       >
-        <h2 id="bookshelf-rail-overview" className="text-h3 text-primary">
+        <h2 id="bookshelf-rail-overview" className="text-h2 text-primary">
           书架概览
         </h2>
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
@@ -205,7 +205,7 @@ function BookshelfRail({ items }: { items: BookshelfCard[] }) {
         aria-labelledby="bookshelf-rail-latest"
         className="rounded-xl border border-border/70 bg-card p-4"
       >
-        <h2 id="bookshelf-rail-latest" className="text-h3 text-primary">
+        <h2 id="bookshelf-rail-latest" className="text-h2 text-primary">
           最近更新
         </h2>
         <ul className="mt-3 flex flex-col gap-3">

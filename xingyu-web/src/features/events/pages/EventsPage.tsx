@@ -365,7 +365,7 @@ function EventRow({
         <>
           <span
             className={cn(
-              "rounded border px-1.5 py-0.5 text-[11px] font-medium",
+              "rounded border px-1.5 py-0.5 text-[length:var(--type-caption)] font-medium",
               ended
                 ? "border-border bg-surface-sunken text-muted-foreground"
                 : "border-accent-line/60 bg-accent-soft text-accent-strong",
@@ -387,7 +387,7 @@ function EventRow({
         </span>
       }
     >
-      <h3 className={cn("truncate text-primary", featured ? "text-h3" : "text-card font-semibold")}>
+      <h3 className="truncate text-h3 text-primary">
         {event.title}
       </h3>
       <p className="mt-0.5 line-clamp-2 text-meta text-muted-foreground">
@@ -493,7 +493,7 @@ function EventsRail({
             above 13px numbers is not a hierarchy.
           */}
           {WEEKDAYS.map((weekday) => (
-            <span key={weekday} className="text-[11px] text-muted-foreground">
+            <span key={weekday} className="text-caption text-muted-foreground">
               {weekday}
             </span>
           ))}

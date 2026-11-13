@@ -182,7 +182,7 @@ export function AnnouncementsPage() {
                     不是把每条公告做成文章卡片，所以纯文本、最多两行、无富文本。
                     `break-words` 是移动端 390 宽度的保险：标题里出现长串无空格文本时，
                     三列栅格降级成的单列不能把它顶成横向滚动。 */}
-                <h2 className="break-words text-h3 text-primary">{item.title}</h2>
+                <h2 className="break-words text-h2 text-primary">{item.title}</h2>
                 {announcementPreview(item.body) ? (
                   <p className="mt-2 line-clamp-2 text-sm leading-6 text-foreground-soft">
                     {announcementPreview(item.body)}

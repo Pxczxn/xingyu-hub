@@ -106,7 +106,7 @@
   border: 0;
   background: transparent;
   color: hsl(var(--foreground));
-  font-size: 0.875rem;
+  font-size: var(--type-meta);
   font-weight: 500;
   text-align: left;
   outline: none;
@@ -130,7 +130,7 @@
   align-items: center;
   gap: 0.35rem;
   color: hsl(var(--muted-foreground));
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   white-space: nowrap;
 }
 
@@ -150,7 +150,7 @@
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   line-height: 1.5;
 }
 
@@ -187,7 +187,7 @@
   margin: 0 0 0.75rem;
   padding-left: 0.5rem;
   color: hsl(var(--muted-foreground));
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -206,7 +206,7 @@
   border-left: 3px solid transparent;
   background: transparent;
   color: hsl(var(--muted-foreground));
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   line-height: 1.45;
   text-align: left;
   transition:
@@ -231,17 +231,17 @@
 
 .outlineItem.isLevel3 {
   padding-left: 1.35rem;
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
 }
 
 .outlineItem.isLevel4 {
   padding-left: 1.7rem;
-  font-size: 0.625rem;
+  font-size: var(--type-caption);
 }
 
 .outlineEmpty {
   cursor: default;
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
 }
 
 .main {
@@ -259,7 +259,7 @@
   background: hsl(var(--destructive) / 0.08);
   padding: 0.75rem 1rem;
   color: hsl(var(--destructive));
-  font-size: 0.875rem;
+  font-size: var(--type-meta);
 }
 
 .canvas {
@@ -297,7 +297,7 @@
   background: transparent;
   color: hsl(var(--muted-foreground));
   font-family: inherit;
-  font-size: 0.9375rem;
+  font-size: var(--type-body);
   line-height: 1.75;
   text-align: left;
   outline: none;
@@ -387,7 +387,7 @@
   margin: 0;
   padding-left: 0;
   color: hsl(var(--muted-foreground));
-  font-size: 0.8125rem;
+  font-size: var(--type-meta);
   font-weight: 600;
   letter-spacing: 0.01em;
   text-transform: none;
@@ -398,7 +398,7 @@
   align-items: center;
   gap: 0.5rem;
   color: hsl(var(--muted-foreground) / 0.8);
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
   line-height: 1.4;
 }
 
@@ -410,7 +410,7 @@
   border-radius: 999px;
   background: hsl(var(--card));
   color: hsl(var(--muted-foreground));
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
   font-weight: 500;
 }
 
@@ -493,7 +493,7 @@
   border-radius: 999px;
   background: transparent;
   color: hsl(var(--muted-foreground));
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -640,7 +640,7 @@
 
 .linkPopoverField > span {
   color: hsl(var(--muted-foreground));
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -653,7 +653,7 @@
   border-radius: 8px;
   background: hsl(var(--card));
   color: hsl(var(--foreground));
-  font-size: 0.875rem;
+  font-size: var(--type-meta);
   line-height: 1.25;
 }
 
@@ -688,7 +688,7 @@
   min-height: 2.25rem;
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
-  font-size: 0.8125rem;
+  font-size: var(--type-meta);
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
@@ -744,7 +744,7 @@
   border-radius: 8px;
   background: transparent;
   color: hsl(var(--foreground));
-  font-size: 0.875rem;
+  font-size: var(--type-meta);
   line-height: 1.25;
   white-space: nowrap;
   text-align: left;
@@ -803,7 +803,7 @@
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
-  font-size: 1rem;
+  font-size: var(--type-body);
   font-variant-numeric: tabular-nums;
   line-height: 1.85;
   text-align: right;
@@ -826,7 +826,7 @@
   border: 0;
   background: transparent;
   color: hsl(var(--foreground));
-  font-size: 1rem;
+  font-size: var(--type-body);
   line-height: 1.85;
   outline: none;
 }
@@ -870,7 +870,7 @@ textarea.bodySurface {
   border-radius: 12px;
   background: hsl(var(--card) / 0.82);
   color: hsl(var(--foreground));
-  font-size: 0.875rem;
+  font-size: var(--type-meta);
   font-weight: 500;
   pointer-events: none;
 }
@@ -889,7 +889,7 @@ textarea.bodySurface {
   --xy-editor-pre-color: hsl(var(--primary-foreground));
   --xy-editor-pre-padding: 0.85rem 1rem;
   --xy-editor-pre-radius: 10px;
-  --xy-editor-font-size: 1rem;
+  --xy-editor-font-size: var(--type-body);
   --xy-editor-hr-color: hsl(var(--border));
   --xy-editor-hr-height: 1px;
 
@@ -1019,7 +1019,7 @@ textarea.bodySurface {
 .settingsCard h2 {
   margin: 0 0 0.75rem;
   color: hsl(var(--foreground));
-  font-size: 0.8125rem;
+  font-size: var(--type-meta);
   font-weight: 600;
 }
 
@@ -1033,14 +1033,14 @@ textarea.bodySurface {
   gap: 0.35rem;
   margin: 0 0 0.5rem;
   color: hsl(var(--muted-foreground));
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
   font-weight: 500;
 }
 
 .settingsHint {
   margin: 0 0 0.625rem;
   color: hsl(var(--muted-foreground) / 0.8);
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
   line-height: 1.5;
 }
 
@@ -1056,7 +1056,7 @@ textarea.bodySurface {
   border-radius: 999px;
   background: hsl(var(--muted) / 0.5);
   color: hsl(var(--muted-foreground));
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
@@ -1100,7 +1100,7 @@ textarea.bodySurface {
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--accent) / 0.16);
   color: hsl(var(--foreground));
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   line-height: 1.5;
 }
 
@@ -1123,7 +1123,7 @@ textarea.bodySurface {
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.35);
   color: hsl(var(--muted-foreground));
-  font-size: 0.6875rem;
+  font-size: var(--type-caption);
   line-height: 1.5;
 }
 

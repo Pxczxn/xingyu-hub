@@ -280,7 +280,7 @@ export function MyEventsPage() {
                 {counts[entry.id] > 0 ? (
                   /* 11px, not 13: the label beside it is 14px, and a count one
                      pixel under its own label is not a count, it is a smudge. */
-                  <span className="ml-1 text-[11px]">{counts[entry.id]}</span>
+                  <span className="ml-1 text-caption">{counts[entry.id]}</span>
                 ) : null}
               </button>
             );
@@ -348,7 +348,7 @@ export function MyEventsPage() {
                     keeps 11px, the status words are prose and rose to
                     `text-meta` with the rest of the domain. */}
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-meta text-muted-foreground">
-                  <span className="rounded-chip border border-border px-1 text-[11px]">
+                  <span className="rounded-chip border border-border px-1 text-caption">
                     {SUBMISSION_OBJECT_LABELS[submission.objectType] ?? submission.objectType}
                   </span>
                   <span>{submissionStatusLabel(submission.status)}</span>
@@ -360,7 +360,7 @@ export function MyEventsPage() {
                 {event ? (
                   <p className="mt-1 flex items-center gap-1.5 text-meta text-muted-foreground">
                     {isEventEnded(event) === true ? (
-                      <span className="shrink-0 rounded-chip border border-border px-1 text-[11px]">
+                      <span className="shrink-0 rounded-chip border border-border px-1 text-caption">
                         已结束
                       </span>
                     ) : null}
@@ -411,7 +411,7 @@ function MyEventsRail({
           aria-labelledby="my-events-rail-overview"
           className="rounded-card border border-border/70 bg-card p-4"
         >
-          <h2 id="my-events-rail-overview" className="text-h3 text-primary">
+          <h2 id="my-events-rail-overview" className="text-h2 text-primary">
             投稿概览
           </h2>
           <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
@@ -445,7 +445,7 @@ function MyEventsRail({
         aria-labelledby="my-events-rail-recommend"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="my-events-rail-recommend" className="flex items-center gap-1.5 text-h3 text-primary">
+        <h2 id="my-events-rail-recommend" className="flex items-center gap-1.5 text-h2 text-primary">
           <Sparkles className="h-4 w-4" aria-hidden />
           推荐活动
         </h2>
@@ -491,7 +491,7 @@ function MyEventsRail({
         aria-labelledby="my-events-rail-note"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="my-events-rail-note" className="flex items-center gap-1.5 text-h3 text-primary">
+        <h2 id="my-events-rail-note" className="flex items-center gap-1.5 text-h2 text-primary">
           <Clock3 className="h-4 w-4" aria-hidden />
           说明
         </h2>

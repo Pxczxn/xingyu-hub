@@ -139,7 +139,7 @@ export function NewAppealPage() {
             </p>
 
             <div>
-              <label htmlFor="appeal-detail" className="text-body font-medium text-foreground">
+              <label htmlFor="appeal-detail" className="text-meta font-semibold text-foreground">
                 申诉说明
               </label>
               <textarea

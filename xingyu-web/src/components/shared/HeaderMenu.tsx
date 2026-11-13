@@ -18,7 +18,7 @@ function UnreadBadge({ count }: { count: number }) {
   return (
     <span
       aria-hidden
-      className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[11px] font-semibold leading-none text-accent-foreground ring-2 ring-card"
+      className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[length:var(--type-caption)] font-semibold leading-none text-accent-foreground ring-2 ring-card"
     >
       {count > 99 ? "99+" : count}
     </span>

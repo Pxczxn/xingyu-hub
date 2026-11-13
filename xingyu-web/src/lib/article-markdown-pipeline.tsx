@@ -1,6 +1,7 @@
 import type { Root as MdastRoot } from "mdast";
 import type { Root as HastRoot } from "hast";
 import type { Components } from "hast-util-to-jsx-runtime";
+import rehypeHighlight from "rehype-highlight";
 import rehypeReact from "rehype-react";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
@@ -60,6 +61,13 @@ const articleMarkdownProcessor = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkRehype, { allowDangerousHtml: false })
+  /*
+   * Fenced blocks are hast by this point. Highlight before heading ids and
+   * the React compiler. rehype-highlight 7 registers lowlight's common set
+   * and, for an unregistered name, records a message instead of throwing —
+   * there is no ignoreMissing option. `detect` covers fences with no language.
+   */
+  .use(rehypeHighlight, { detect: true })
   .use(rehypeArticleHeadingIds)
   .use(rehypeReact, {
     Fragment,

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { topicsApi } from "@/api/topics/topics.api";
 import type { TopicSummary } from "@/api/topics/topics.types";
-import { PageHero } from "@/components/shared/PageHero";
 import { PageSection } from "@/components/shared/PageSection";
 import { PageState } from "@/components/shared/PageState";
 import { ArchetypeFrame, BleedBand } from "@/components/layout";
@@ -13,6 +12,7 @@ import {
   TopicDiscoverySection,
 } from "@/features/topics/components/TopicDiscoverySection";
 import { TopicCard } from "@/features/topics/components/TopicCard";
+import { DiscoverFrame } from "@/features/discover/components/DiscoverFrame";
 import { SearchField } from "@/components/shared/SearchField";
 
 type FollowEntry = {
@@ -231,18 +231,11 @@ export function TopicsPage() {
    * Discover 带里是横幅（先给「这是哪儿」），带下是筛选列 + 单列可展开的阅读行。
    */
   return (
-    <ArchetypeFrame
-      skeleton="SK2"
-      header="banner"
-      density="loose"
-      headerSlot={
-        <PageHero
-          eyebrow="TOPICS"
-          title="话题广场"
-          description="从感兴趣的话题出发，找到正在发生的讨论，并持续关注它们。"
-        />
-      }
+    <DiscoverFrame
+      title="话题广场"
+      description="从感兴趣的话题出发，找到正在发生的讨论，并持续关注它们。"
     >
+    <ArchetypeFrame skeleton="SK2" header="shell" density="loose">
       {/*
        * 话题发现区（第二层）：热门话题 + 最近活跃，1:1 两列。
        * 搜索时整块让位，让过滤结果成为唯一焦点。
@@ -333,5 +326,6 @@ export function TopicsPage() {
         </>
       ) : null}
     </ArchetypeFrame>
+    </DiscoverFrame>
   );
 }

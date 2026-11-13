@@ -240,7 +240,7 @@ export function MessageBubble({
         pixel under this app's floor (`.eyebrow`); the 「撤回」 button rides the same
         size on purpose, because it belongs to the same footnote.
       */}
-      <span className="flex items-center gap-2 px-2 text-[11px] text-muted-foreground">
+      <span className="flex items-center gap-2 px-2 text-caption text-muted-foreground">
         {at ? <time>{at}</time> : null}
         {canRecall ? (
           <button

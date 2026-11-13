@@ -115,7 +115,7 @@ function WorkMetaRow({ work }: { work: SpaceWorkItem }) {
   if (!published && !likes && !bookmarks) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] leading-4 text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted-foreground">
       {published ? <span className="tabular-nums">{published}</span> : null}
       {likes ? <WorkMetric icon={Heart} value={likes} label="点赞" /> : null}
       {bookmarks ? <WorkMetric icon={Bookmark} value={bookmarks} label="收藏" /> : null}
@@ -151,7 +151,7 @@ export function ProfileWorks({
       data-testid="works-empty"
       aria-busy={pending || undefined}
       className={cn(
-        "rounded-card border border-border/70 bg-card p-4 text-meta text-muted-foreground",
+        "rounded-card border border-border/70 bg-card p-6 text-center text-meta text-muted-foreground",
         pendingClass,
       )}
     >

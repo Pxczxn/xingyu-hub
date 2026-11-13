@@ -188,7 +188,7 @@ export function DiscoverReadingPanel({ content }: DiscoverReadingPanelProps) {
                             key={chapter.articleId}
                             value={chapter.articleId}
                             title={chapter.title || `第 ${index + 1} 章`}
-                            className="discover-chapter-option relative flex cursor-pointer select-none items-start gap-1.5 rounded-md py-1.5 pl-2 pr-6 text-[13px] leading-5 outline-none"
+                            className="discover-chapter-option relative flex cursor-pointer select-none items-start gap-1.5 rounded-md py-1.5 pl-2 pr-6 text-meta !leading-5 outline-none"
                           >
                             <span className="block min-w-0 truncate">
                               {index + 1}. {chapter.title || `第 ${index + 1} 章`}

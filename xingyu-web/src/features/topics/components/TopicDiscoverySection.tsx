@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Zap } from "lucide-react";
 import type { TopicSummary } from "@/api/topics/topics.types";
-import { TopicVisual } from "@/components/visual/TopicVisual";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/cn";
 
@@ -100,12 +99,11 @@ function DiscoveryModule({
       */
       className="flex h-full min-w-0 flex-col rounded-xl border border-border/50 bg-card p-4"
     >
-      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 id={id} className="text-sm font-semibold text-primary">
+      <div className="mb-4">
+        <h2 id={id} className="text-h2 text-primary">
           {title}
         </h2>
-        {/* 排依据写出来，读者才知道顺序是什么意思；不写就成了「看起来像热度」的猜测。 */}
-        <p className="text-[11px] text-muted-foreground/80">{hint}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
       </div>
 
       <ul className="flex list-none flex-col p-0">
@@ -127,26 +125,22 @@ function DiscoveryModule({
               */}
               <Link
                 to={`/topics/${encodeURIComponent(topic.slug)}`}
-                className="group focus-ring -mx-2 flex min-h-11 min-w-0 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50"
+                className="group focus-ring -mx-2 flex min-h-11 min-w-0 items-center gap-4 rounded-lg px-2 py-3 transition-colors hover:bg-surface-sunken"
               >
                 {ranked ? (
                   <span
                     aria-hidden
-                    className={cn(
-                      "grid h-6 w-6 shrink-0 place-items-center rounded-md text-xs font-semibold tabular-nums",
-                      index < 3
-                        ? "bg-accent-soft text-accent-strong"
-                        : "bg-muted text-muted-foreground",
-                    )}
+                    className="w-8 shrink-0 text-[length:var(--type-h2)] font-bold tabular-nums text-muted-foreground/50"
                   >
                     {index + 1}
                   </span>
                 ) : (
-                  <TopicVisual
-                    name={topic.name}
-                    stableKey={topic.slug || topic.id}
-                    className="h-6 w-6 shrink-0 rounded-full"
-                  />
+                  <span
+                    aria-hidden
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10"
+                  >
+                    <Zap className="h-5 w-5 text-accent" />
+                  </span>
                 )}
 
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-primary transition-colors group-hover:text-accent-strong">
@@ -154,7 +148,7 @@ function DiscoveryModule({
                 </span>
 
                 {metaText ? (
-                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                  <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
                     {metaText}
                   </span>
                 ) : null}

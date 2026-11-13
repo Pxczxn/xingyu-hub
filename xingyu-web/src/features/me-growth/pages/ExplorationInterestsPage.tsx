@@ -391,7 +391,7 @@ function ExploreRail({
         aria-labelledby="explore-rail-selection"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="explore-rail-selection" className="text-h3 text-primary">
+        <h2 id="explore-rail-selection" className="text-h2 text-primary">
           你的选择
         </h2>
         <dl className="mt-3 flex flex-col gap-2">
@@ -414,7 +414,7 @@ function ExploreRail({
         aria-labelledby="explore-rail-scope"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="explore-rail-scope" className="text-h3 text-primary">
+        <h2 id="explore-rail-scope" className="text-h2 text-primary">
           可选范围
         </h2>
         <dl className="mt-3 flex flex-col gap-2">

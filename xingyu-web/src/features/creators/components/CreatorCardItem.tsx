@@ -37,7 +37,7 @@ export function CreatorCardItem({
         <div className="flex items-start gap-3">
           <span
             aria-hidden="true"
-            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent/20 to-accent/10 text-lg font-semibold text-accent-foreground ring-2 ring-accent/10"
+            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent/20 to-accent/10 text-[length:var(--type-h3)] font-semibold text-accent-foreground ring-2 ring-accent/10"
           >
             {avatar ? (
               <img src={avatar} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -46,7 +46,7 @@ export function CreatorCardItem({
             )}
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-bold text-primary">
+            <h2 className="truncate text-h2 text-primary">
               <Link
                 to={`/u/${encodeURIComponent(creator.username)}`}
                 className="transition-colors hover:text-accent-strong"

@@ -152,7 +152,7 @@ export function SeriesListPage() {
             >
               <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="min-w-0 break-words text-h3 text-primary">{item.title}</h2>
+                  <h2 className="min-w-0 break-words text-h2 text-primary">{item.title}</h2>
                   <SeriesStatusBadge status={item.status} />
                 </div>
                 {item.description ? (

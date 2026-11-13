@@ -164,7 +164,7 @@ export function ContentVisual({
       </span>
 
       {label ? (
-        <span className="absolute bottom-3 right-4 text-[11px] font-medium uppercase tracking-[0.14em] text-accent-strong/90">
+        <span className="absolute bottom-3 right-4 text-[length:var(--type-caption)] font-medium uppercase tracking-[0.14em] text-accent-strong/90">
           {label}
         </span>
       ) : null}

@@ -167,7 +167,7 @@ export function AnnouncementDetailPage() {
                 />
               </div>
             </div>
-            <h1 className="mt-3 text-[44px] font-bold leading-[1.15] tracking-tight text-primary">
+            <h1 className="mt-3 text-h1 text-primary">
               {item.title}
             </h1>
             <p className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted-foreground">

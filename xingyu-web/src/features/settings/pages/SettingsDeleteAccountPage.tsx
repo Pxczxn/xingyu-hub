@@ -141,7 +141,7 @@ export function SettingsDeleteAccountPage() {
           >
             <MinusCircle className="h-5 w-5" />
           </span>
-          <h2 className="mt-3 text-h3 text-primary">账号已停用</h2>
+          <h2 className="mt-3 text-h2 text-primary">账号已停用</h2>
           <p className="mx-auto mt-1.5 max-w-md text-meta leading-6 text-muted-foreground">
             你的账号已停用，将无法继续登录。当前版本没有提供自助恢复入口，如需重新启用请联系管理员。
           </p>

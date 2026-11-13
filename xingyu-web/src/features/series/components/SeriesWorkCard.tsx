@@ -39,7 +39,7 @@ export function SeriesWorkCard({
       <Link
         to={`/series/${encodeURIComponent(item.id)}`}
         data-testid="series-work-card"
-        className="group focus-ring flex h-full gap-4 rounded-xl border border-border/60 bg-card p-4 transition-[border-color,background-color] duration-200 hover:border-border hover:bg-muted/20 sm:gap-5 sm:p-5"
+        className="group focus-ring flex h-full gap-4 rounded-card border border-border/70 bg-card p-4 transition-[border-color,background-color] duration-200 hover:border-border hover:bg-muted/20 sm:gap-5 sm:p-6"
       >
         <SeriesCover
           stableKey={`${item.id}:${item.slug}`}
@@ -50,12 +50,12 @@ export function SeriesWorkCard({
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* The title is the one thing a reader scans for; everything else is support. */}
-          <h3 className="line-clamp-2 text-[17px] font-semibold leading-6 text-primary transition-colors group-hover:text-accent-strong">
+          <h3 className="line-clamp-2 text-h3 text-primary transition-colors group-hover:text-accent-strong">
             {item.title}
           </h3>
 
           {item.description ? (
-            <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-muted-foreground">
+            <p className="mt-1.5 line-clamp-2 text-meta leading-5 text-muted-foreground">
               {item.description}
             </p>
           ) : null}

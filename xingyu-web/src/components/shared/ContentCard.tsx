@@ -71,7 +71,7 @@ export function ContentCard({
   return (
     <Card
       className={cn(
-        "h-full transition-[border-color,box-shadow] hover:border-accent-line hover:shadow-sm",
+        "h-full transition-[border-color,box-shadow] duration-200 hover:border-accent-line hover:shadow-md",
         className,
       )}
     >
@@ -88,7 +88,7 @@ export function ContentCard({
 
         <div className="flex flex-1 flex-col gap-1.5">
           {typeLabel && !showFallbackVisual && !item.cover ? (
-            <span className="w-fit rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-medium leading-4 text-accent-strong">
+            <span className="w-fit rounded-md bg-accent-soft px-2 py-0.5 text-[length:var(--type-caption)] font-medium leading-4 text-accent-strong">
               {typeLabel}
             </span>
           ) : null}

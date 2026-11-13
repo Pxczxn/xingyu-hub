@@ -113,6 +113,13 @@ describe("UserMenu", () => {
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
+  it("links 星语指南 from the account menu", () => {
+    renderMenu();
+    fireEvent.click(trigger());
+
+    expect(screen.getByRole("link", { name: "星语指南" })).toHaveAttribute("href", "/guide");
+  });
+
   it("routes the governance entries to the real report and appeal pages", () => {
     renderMenu();
     fireEvent.click(trigger());

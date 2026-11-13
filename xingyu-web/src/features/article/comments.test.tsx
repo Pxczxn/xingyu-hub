@@ -134,8 +134,13 @@ describe("comments (authenticated)", () => {
     renderSection();
 
     expect(await screen.findByTestId("comment-list")).toBeInTheDocument();
-    expect(screen.getByText("很棒")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /评论/ }).className).toContain("section-heading");
+    expect(screen.getByText("很棒").className).toContain("text-card");
+    expect(screen.getByRole("textbox", { name: "评论内容" })).toHaveAttribute("rows", "4");
     expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute("href", "/u/alice");
+    const time = document.querySelector('time[datetime="2026-09-01T00:00:00Z"]');
+    expect(time).toHaveAttribute("title", "2026/09/01 08:00");
+    expect(time?.textContent).not.toContain(":");
   });
 
   it("shows an empty state", async () => {

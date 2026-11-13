@@ -43,6 +43,37 @@ const HERO_ART_MASK: CSSProperties = {
  * 宽度不足以让行星退到文字之后——实测 768px 下行星会压在标题上，把墨蓝标题
  * 拖成灰蓝。窄屏就是干净的奶油纸 + 文字，宽屏才出现画面。
  */
+/*
+ * 登录用户每天都会经过首页。完整报头（副文 + 星空）信息价值不高，所以只留一行
+ * 问候。访客仍走下面的完整报头：他们需要被介绍这个地方是什么。
+ *
+ * 账号契约只有 username（MeAccount），没有 displayName。缺用户名时只写「欢迎回来」，
+ * 不编一个称呼。
+ */
+export function SignedInGreeting({
+  name,
+  showAnnouncements,
+}: {
+  name?: string;
+  showAnnouncements?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-border/50 py-4">
+      <h1 id="home-nameplate" className="min-w-0 truncate text-h1 text-primary">
+        {name ? `欢迎回来，${name}` : "欢迎回来"}
+        <span aria-hidden className="ml-2 align-top text-[length:var(--type-h3)] text-accent">
+          ✦
+        </span>
+      </h1>
+      {showAnnouncements ? (
+        <Link to="/announcements" className="shrink-0 text-sm text-accent-strong hover:underline">
+          查看公告 ›
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 export function EnhancedHero({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <section
@@ -65,7 +96,7 @@ export function EnhancedHero({ isAuthenticated }: { isAuthenticated: boolean }) 
             className="font-display text-display-lg text-primary"
           >
             {isAuthenticated ? "欢迎回来" : "欢迎来到星语"}
-            <span aria-hidden className="ml-2 align-top text-lg text-accent">
+            <span aria-hidden className="ml-2 align-top text-[length:var(--type-h3)] text-accent">
               ✦
             </span>
           </h1>

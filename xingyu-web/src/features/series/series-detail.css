@@ -13,7 +13,7 @@
 
 /* The catalogue's own tints: the ordinal is a printed folio number, warmer and
    duller than any text colour the app uses elsewhere, and the resume marker is
-   the one gold that stays legible at 11px. Both are local because neither is
+   the one gold that stays legible at caption size. Both are local because neither is
    part of the shared scale. */
 .series-detail-page {
   --series-ordinal: 30 19% 52%;
@@ -37,7 +37,7 @@
   align-items: center;
   gap: 11px;
   margin-bottom: 34px;
-  font-size: 13px;
+  font-size: var(--type-meta);
 }
 
 /* ---------------------------------------------------------------- work head */
@@ -69,9 +69,10 @@
 }
 
 .series-detail-title {
-  font-size: clamp(30px, 3vw, 43px);
-  line-height: 1.28;
-  letter-spacing: -1.5px;
+  font-size: var(--type-h1);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   margin: 15px 0 13px;
 }
 
@@ -79,7 +80,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--type-meta);
 }
 
 /* The blurb is prose, so it is measured in characters rather than pixels: 35ch
@@ -87,7 +88,7 @@
 .series-detail-description {
   max-width: 35ch;
   margin: 24px 0 22px;
-  font-size: 15px;
+  font-size: var(--type-body);
   line-height: 1.9;
 }
 
@@ -100,7 +101,7 @@
 
 .series-detail-hint {
   margin-top: 15px;
-  font-size: 12px;
+  font-size: var(--type-caption);
   line-height: 1.65;
 }
 
@@ -210,14 +211,14 @@
   align-items: center;
   gap: 18px;
   min-height: 74px;
-  padding: 13px 20px;
+  padding: 16px 20px;
 }
 
 .series-detail-ordinal {
   flex: none;
   width: 31px;
   font-family: Georgia, Cambria, "Times New Roman", serif;
-  font-size: 19px;
+  font-size: var(--type-h3);
   font-variant-numeric: tabular-nums;
   color: hsl(var(--series-ordinal));
 }
@@ -225,7 +226,7 @@
 .series-detail-notice {
   display: block;
   margin-top: 3px;
-  font-size: 11px;
+  font-size: var(--type-caption);
   font-weight: 500;
 }
 
@@ -359,7 +360,7 @@
   }
 
   .series-detail-title {
-    font-size: 35px;
+    margin: 12px 0 10px;
   }
 
   .series-detail-panel {
@@ -430,13 +431,12 @@
   }
 
   .series-detail-title {
-    font-size: 27px;
     margin: 9px 0 8px;
   }
 
   .series-detail-description {
     margin: 14px 0;
-    font-size: 13px;
+    font-size: var(--type-meta);
     line-height: 1.6;
   }
 
@@ -472,6 +472,6 @@
 
   .series-detail-ordinal {
     width: 26px;
-    font-size: 17px;
+    font-size: var(--type-h3);
   }
 }

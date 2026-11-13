@@ -56,7 +56,7 @@ export function ChapterList({
               ) : null}
               <span
                 aria-hidden
-                className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground"
+                className="shrink-0 font-mono text-caption tabular-nums text-muted-foreground"
               >
                 {String(index + 1).padStart(2, "0")}
               </span>

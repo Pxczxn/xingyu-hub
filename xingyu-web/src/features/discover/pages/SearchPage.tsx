@@ -11,6 +11,8 @@ import { ContentCard } from "@/components/shared/ContentCard";
 import { PageMasthead } from "@/components/shared/PageMasthead";
 import { PageState } from "@/components/shared/PageState";
 import { ArchetypeFrame } from "@/components/layout";
+import { cn } from "@/lib/cn";
+import { underlineTabClassName, underlineTabListClassName } from "@/components/ui/underline-tabs";
 
 /*
  * Search (Phase 1A).
@@ -45,10 +47,10 @@ function UserSearchResult({ item }: { item: ContentSummary }) {
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <span className="mb-1 inline-block text-[11px] font-medium text-accent-strong">用户</span>
+          <span className="mb-1 inline-block text-caption text-accent-strong">用户</span>
           <Link
             to={`/u/${encodeURIComponent(username)}`}
-            className="focus-ring block truncate text-card font-semibold text-primary hover:text-accent-strong"
+            className="focus-ring block truncate text-h3 text-primary hover:text-accent-strong"
           >
             {item.title}
           </Link>
@@ -159,13 +161,8 @@ export function SearchPage() {
         <Button type="submit">搜索</Button>
       </form>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-meta text-muted-foreground">
-          {sort === "latest"
-            ? "可搜索文章、系列、动态与用户，结果按更新时间排列。"
-            : "可搜索文章、系列、动态与用户，结果按热门程度排列。"}
-        </p>
-        <div role="radiogroup" aria-label="排序" className="flex gap-1">
+      <div className="flex flex-col gap-3">
+        <div role="radiogroup" aria-label="排序" className={underlineTabListClassName}>
           {(
             [
               ["hot", "热门"],
@@ -178,16 +175,17 @@ export function SearchPage() {
               role="radio"
               aria-checked={sort === value}
               onClick={() => setSort(value)}
-              className={
-                sort === value
-                  ? "rounded-md bg-accent-soft px-2.5 py-1 text-sm font-semibold text-accent-strong focus-ring"
-                  : "rounded-md px-2.5 py-1 text-sm text-muted-foreground hover:bg-muted/50 focus-ring"
-              }
+              className={cn("focus-ring", underlineTabClassName(sort === value))}
             >
               {label}
             </button>
           ))}
         </div>
+        <p className="text-meta text-muted-foreground">
+          {sort === "latest"
+            ? "可搜索文章、系列、动态与用户，结果按更新时间排列。"
+            : "可搜索文章、系列、动态与用户，结果按热门程度排列。"}
+        </p>
       </div>
 
       {/* empty query */}
@@ -207,7 +205,7 @@ export function SearchPage() {
       {query && !loading && !error && searched && items.length === 0 ? (
         <div
           data-testid="search-no-results"
-          className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground"
+          className="rounded-card border border-border/70 bg-card p-6 text-center text-meta text-muted-foreground"
         >
           没有找到与「{query}」相关的内容
         </div>

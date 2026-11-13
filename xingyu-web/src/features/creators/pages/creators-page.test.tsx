@@ -99,6 +99,11 @@ describe("CreatorsPage — loading and failure", () => {
       }),
     );
     renderPage();
+    const heading = screen.getByRole("heading", { name: "探索创作者", level: 1 });
+    const nav = screen.getByRole("navigation", { name: "发现" });
+    expect(heading.closest(".max-w-\\[1200px\\]")).toContainElement(nav);
+    expect(nav.parentElement?.className).toContain("mt-8");
+    expect(nav.closest("[class*='grid-cols']")).toBeNull();
     expect(await screen.findByTestId("page-state-error")).toBeInTheDocument();
     expect(screen.queryByLabelText("创作者列表")).not.toBeInTheDocument();
   });

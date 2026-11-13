@@ -310,7 +310,7 @@ export function ArticleVersionsPage() {
               className="flex flex-col gap-4 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
             >
               <div className="flex flex-col gap-1">
-                <h2 id="version-detail-heading" className="text-h3 break-words text-primary">
+                <h2 id="version-detail-heading" className="text-h2 break-words text-primary">
                   {revisionTitle(selected)}
                 </h2>
                 <p className="text-meta text-muted-foreground">
@@ -323,7 +323,7 @@ export function ArticleVersionsPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <h3 className="text-meta font-medium text-foreground">该版本的摘要</h3>
+                <h3 className="text-h3 text-foreground">该版本的摘要</h3>
                 {selected.summary?.trim() ? (
                   <p className="whitespace-pre-wrap text-meta leading-6 text-muted-foreground">
                     {selected.summary}
@@ -349,7 +349,7 @@ export function ArticleVersionsPage() {
                       </Button>
                     </DialogTrigger>
                     <DialogContent role="alertdialog" className="max-w-sm rounded-xl bg-card">
-                      <DialogTitle className="text-base font-semibold text-primary">
+                      <DialogTitle className="text-primary">
                         确认恢复版本
                       </DialogTitle>
                       <DialogDescription className="text-sm leading-6 text-muted-foreground">

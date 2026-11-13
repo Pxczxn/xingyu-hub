@@ -99,7 +99,7 @@ export function GuideIndexPage() {
             className="card-lift focus-ring block rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
           >
             <p className="eyebrow">条款</p>
-            <h2 className="mt-2 break-words text-h3 text-primary">{rulesRow.entry.title}</h2>
+            <h2 className="mt-2 break-words text-h2 text-primary">{rulesRow.entry.title}</h2>
             <p className="mt-2 text-meta leading-6 text-muted-foreground">
               {rulesRow.entry.description}
             </p>
@@ -130,7 +130,7 @@ export function GuideIndexPage() {
                 to={entry.href}
                 className="card-lift focus-ring flex h-full w-full flex-col rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
               >
-                <h2 className="break-words text-h3 text-primary">{entry.title}</h2>
+                <h2 className="break-words text-h2 text-primary">{entry.title}</h2>
                 <p className="mt-2 text-body leading-6 text-muted-foreground">
                   {entry.description}
                 </p>

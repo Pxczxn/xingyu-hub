@@ -360,7 +360,7 @@ export function GalaxyShell({
                 </span>
               ) : null}
             </p>
-            <h1 className="mt-1.5 truncate text-[26px] font-semibold tracking-tight text-primary sm:text-3xl">
+            <h1 className="mt-1.5 truncate text-h1 text-primary">
               {galaxy.name}
             </h1>
             {/*

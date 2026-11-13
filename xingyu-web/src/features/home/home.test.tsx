@@ -276,8 +276,9 @@ describe("home (authenticated)", () => {
     await waitFor(() => expect(homeMocked.getMyHome).toHaveBeenCalled());
     expect(homeMocked.getGuestHome).not.toHaveBeenCalled();
     expect(await screen.findByText("为我推荐")).toBeInTheDocument();
-    // 继续阅读 shows as a compact strip for a signed-in session with rows.
-    expect(screen.getByRole("heading", { name: "继续阅读" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "继续阅读" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "关注" }));
+    expect(await screen.findByRole("heading", { name: "继续阅读" })).toBeInTheDocument();
     expect(screen.getByText("我的继续阅读")).toBeInTheDocument();
   });
 
@@ -300,6 +301,7 @@ describe("home (authenticated)", () => {
     });
 
     renderHome();
+    fireEvent.click(screen.getByRole("tab", { name: "关注" }));
 
     expect(await screen.findByText("上次阅读 · 第 3 章")).toBeInTheDocument();
     expect(screen.getByText("3/8")).toBeInTheDocument();
@@ -332,6 +334,7 @@ describe("home (authenticated)", () => {
     });
 
     renderHome();
+    fireEvent.click(screen.getByRole("tab", { name: "关注" }));
     expect(await screen.findByText("无章节的系列")).toBeInTheDocument();
 
     const strip = screen.getByRole("heading", { name: "继续阅读" }).closest("section")!;
@@ -822,8 +825,12 @@ describe("home masthead", () => {
     renderHome();
     await screen.findByText("为我推荐");
 
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("欢迎回来");
-    expect(screen.getByText("继续探索你的关注与创作。")).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveTextContent("欢迎回来");
+    expect(heading).toHaveTextContent("✦");
+    expect(heading.className).toContain("text-xl");
+    expect(heading.parentElement?.className).toContain("py-4");
+    expect(screen.queryByText("继续探索你的关注与创作。")).not.toBeInTheDocument();
   });
 });
 

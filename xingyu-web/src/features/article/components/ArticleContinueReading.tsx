@@ -160,7 +160,7 @@ export function ArticleContinueReading({ article }: { article: ArticleDetail }) 
           </p>
           <ul className="mt-2 list-none p-0">
             {series.prev ? (
-              <FeedRow meta={<span className="text-[11px] text-muted-foreground">上一章</span>}>
+              <FeedRow meta={<span className="text-caption text-muted-foreground">上一章</span>}>
                 <Link
                   to={`/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(series.prev.articleId)}`}
                   className="focus-ring line-clamp-2 rounded-sm text-sm font-medium text-foreground transition-colors hover:text-accent-strong"
@@ -170,7 +170,7 @@ export function ArticleContinueReading({ article }: { article: ArticleDetail }) 
               </FeedRow>
             ) : null}
             {series.next ? (
-              <FeedRow meta={<span className="text-[11px] text-muted-foreground">下一章</span>}>
+              <FeedRow meta={<span className="text-caption text-muted-foreground">下一章</span>}>
                 <Link
                   to={`/series/${encodeURIComponent(series.id)}/read?chapter=${encodeURIComponent(series.next.articleId)}`}
                   className="focus-ring line-clamp-2 rounded-sm text-sm font-medium text-foreground transition-colors hover:text-accent-strong"

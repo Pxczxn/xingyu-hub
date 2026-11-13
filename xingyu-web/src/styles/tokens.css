@@ -216,12 +216,12 @@
    *
    * The shell header is `sticky top-0`, so anything pinned to `top-0` lands on
    * top of it — the first toast covered 创作/登录/注册. The header height steps
-   * with the root font size: 61 / 64.8125 / 68.625px (token
-   * `--shell-header-height`). This offset is rem-based too (4.75rem), so it
-   * scales in step — clearance stays ≈15 / 15.9 / 16.9px.
+   * with the root font size: 64 / 68 / 72px (token `--shell-header-height`,
+   * 4rem). This offset is rem-based too (4.9375rem), so it scales in step —
+   * clearance stays ≈15 / 15.9 / 16.9px.
    * Both the token and the header are edited together.
    */
-  --toast-top-offset: 4.75rem;
+  --toast-top-offset: 4.9375rem;
 
   /*
    * Height of the shell header — and the header's ACTUAL box height: the shell
@@ -231,14 +231,14 @@
    *
    * The value is rem-based on purpose: the root font size steps 16 → 17 → 18px
    * at `min-width: 1440` / `1800` (`globals.css`), so the same token resolves to
-   * 61 / 64.8125 / 68.625px. The old desktop-guest-header figure is gone — the
-   * header no longer sizes itself from its controls.
+   * 64 / 68 / 72px. Phase 2.1 sets the 16px-root box to 64px (4rem). The header
+   * no longer sizes itself from its controls.
    *
    * Anchors that must start exactly below the header (reader toolbar/progress,
    * mobile drawer, editor toolbar) read this token instead of re-deriving the
    * offset. If the header's height changes, edit this token.
    */
-  --shell-header-height: 3.8125rem; /* 61px @16 root; 64.8125 @17; 68.625 @18 */
+  --shell-header-height: 4rem; /* 64px @16 root; 68 @17; 72 @18 */
 
   /*
    * Type scale. The old UI had a 24px h1 and an 18px section heading and an

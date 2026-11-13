@@ -71,8 +71,8 @@ export function GuideBody({
               key={block.id ?? `h-${index}`}
               id={block.id ?? undefined}
               className={cn(
-                "scroll-mt-24 font-semibold tracking-tight text-primary",
-                block.level >= 3 ? "text-base" : "text-lg",
+                "scroll-mt-24 text-primary",
+                block.level >= 3 ? "text-h3" : "text-h2",
               )}
             >
               {block.text}

@@ -293,7 +293,7 @@ export function EventDetailPage() {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <EventDateBlock startsAt={event.startsAt} size="large" muted={ended} />
             <div className="flex min-w-0 flex-col gap-1.5">
-              <span className="self-start rounded border border-accent-line/60 bg-accent-soft px-1.5 py-0.5 text-[11px] font-medium text-accent-strong">
+              <span className="self-start rounded border border-accent-line/60 bg-accent-soft px-1.5 py-0.5 text-[length:var(--type-caption)] font-medium text-accent-strong">
                 {ended ? "已结束" : event.submissionOpen ? "开放投稿" : "暂未开放投稿"}
               </span>
               <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-meta">
@@ -388,7 +388,7 @@ export function EventDetailPage() {
                       keeps 11px, the status and the time are prose and sit at
                       `text-meta` with the rest of the domain. */}
                   <span className="mt-0.5 flex flex-wrap items-center gap-2 text-meta text-muted-foreground">
-                    <span className="rounded border border-border px-1 text-[11px]">
+                    <span className="rounded border border-border px-1 text-caption">
                       {SUBMISSION_OBJECT_LABELS[submission.objectType] ?? submission.objectType}
                     </span>
                     <span>{submissionStatusLabel(submission.status)}</span>

@@ -177,7 +177,7 @@ export function CollaborationInvitePage() {
 
       <form onSubmit={(event) => void onSubmit(event)} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1 rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]">
-          <label htmlFor="collaboration-note" className="text-meta font-medium text-foreground">
+          <label htmlFor="collaboration-note" className="text-meta font-semibold text-foreground">
             邀请备注（可选）
           </label>
           <Input

@@ -9,12 +9,7 @@ import type { PublicSeriesDetail } from "@/api/series/series.types";
 import type { MomentView } from "@/api/moments/moments.types";
 import type { CommentItem } from "@/api/interactions/interactions.types";
 import type { ContentSummary } from "@/api/common.types";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DiscoverReadingPanel } from "./DiscoverReadingPanel";
 import { DiscoverMomentPanel } from "./DiscoverMomentPanel";
 import { Button } from "@/components/ui/button";
@@ -22,7 +17,7 @@ import { Loader2, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { contentHref } from "@/components/shared/ContentCard";
 import { buildLoginPath } from "@/features/auth/login-return-path";
-import { formatDateTime } from "@/lib/relative-time";
+import { formatDateTime, formatRelativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/cn";
 
 interface DiscoverReadingSheetProps {
@@ -134,14 +129,12 @@ export function DiscoverReadingSheet({ item, open, onOpenChange }: DiscoverReadi
           <div className="border-b bg-muted/30 px-6 py-5 md:px-8">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <h2 className="mb-2 text-xl font-bold leading-tight text-foreground md:text-2xl">
+                <h2 className="mb-2 text-h2 text-foreground">
                   {item.title}
                 </h2>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                   {item.authorName && (
-                    <span className="font-medium text-foreground/80">
-                      {item.authorName}
-                    </span>
+                    <span className="font-medium text-foreground/80">{item.authorName}</span>
                   )}
                   <span
                     className={cn(
@@ -151,7 +144,11 @@ export function DiscoverReadingSheet({ item, open, onOpenChange }: DiscoverReadi
                         : "bg-muted-foreground/10 text-muted-foreground",
                     )}
                   >
-                    {item.objectType === "SERIES" ? "系列" : item.objectType === "MOMENT" ? "动态" : "文章"}
+                    {item.objectType === "SERIES"
+                      ? "系列"
+                      : item.objectType === "MOMENT"
+                        ? "动态"
+                        : "文章"}
                   </span>
                   {item.updatedAt && (
                     <time className="text-xs" dateTime={item.updatedAt}>
@@ -204,7 +201,7 @@ export function DiscoverReadingSheet({ item, open, onOpenChange }: DiscoverReadi
                 {/* 评论区 */}
                 <div id={commentsSectionId} className="rounded-xl border bg-muted/20 p-6">
                   <div className="mb-5 flex items-center justify-between">
-                    <h4 className="flex items-center gap-2 text-lg font-semibold">
+                    <h4 className="flex items-center gap-2 text-[length:var(--type-h3)] font-semibold">
                       <MessageSquare className="h-5 w-5 text-accent-strong" aria-hidden />
                       {isAuthenticated ? `评论 ${comments.length}` : "评论预览"}
                     </h4>
@@ -221,9 +218,7 @@ export function DiscoverReadingSheet({ item, open, onOpenChange }: DiscoverReadi
                   {!isAuthenticated && isMomentType ? (
                     <div className="rounded-lg bg-background p-8 text-center shadow-sm">
                       <MessageSquare className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
-                      <p className="mb-4 text-sm text-muted-foreground">
-                        动态评论需要登录后查看
-                      </p>
+                      <p className="mb-4 text-sm text-muted-foreground">动态评论需要登录后查看</p>
                       <Link
                         to={buildLoginPath(window.location.pathname)}
                         className="inline-flex min-h-11 items-center rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
@@ -239,11 +234,7 @@ export function DiscoverReadingSheet({ item, open, onOpenChange }: DiscoverReadi
                   ) : commentsError ? (
                     <div className="rounded-lg bg-destructive/5 p-8 text-center">
                       <p className="mb-4 text-sm text-destructive">加载评论失败</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setRetryKey((k) => k + 1)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setRetryKey((k) => k + 1)}>
                         重试
                       </Button>
                     </div>
@@ -266,9 +257,13 @@ export function DiscoverReadingSheet({ item, open, onOpenChange }: DiscoverReadi
                             <span className="text-sm font-medium text-foreground">
                               {comment.authorUsername || "匿名用户"}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDateTime(comment.createdAt)}
-                            </span>
+                            <time
+                              dateTime={comment.createdAt}
+                              title={formatDateTime(comment.createdAt) ?? undefined}
+                              className="text-xs text-muted-foreground"
+                            >
+                              {formatRelativeTime(comment.createdAt) ?? comment.createdAt}
+                            </time>
                           </div>
                           <p className="pl-9 text-sm leading-relaxed text-foreground/90">
                             {comment.body}

@@ -190,7 +190,7 @@ export function MomentsPage() {
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
                 placeholder="分享此刻的想法…"
-                className="focus-ring min-h-20 w-full resize-y rounded-lg border border-input bg-card/70 px-3 py-2.5 text-card text-foreground transition-colors placeholder:text-muted-foreground/70 focus-visible:bg-card"
+                className="focus-ring min-h-20 w-full resize-y rounded-lg border border-input bg-card/70 p-3 text-card text-foreground transition-colors placeholder:text-muted-foreground/70 focus-visible:bg-card"
               />
             </label>
 
@@ -341,7 +341,7 @@ export function MomentsPage() {
         的规则，读完流之后再读到它是对的。
       */}
       <section aria-labelledby="moments-notes" className="border-t border-border/70 pt-5">
-        <h2 id="moments-notes" className="text-h3 font-semibold text-primary">
+        <h2 id="moments-notes" className="text-h2 text-primary">
           关于动态
         </h2>
         <p className="mt-2 text-meta leading-6 text-muted-foreground">

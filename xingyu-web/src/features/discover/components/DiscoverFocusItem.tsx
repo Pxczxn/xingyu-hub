@@ -91,8 +91,8 @@ export function DiscoverFocusItem({
           to={contentHref(item)}
           className={
             primary
-              ? "focus-ring line-clamp-2 text-[22px] font-semibold leading-tight tracking-tight text-primary hover:text-accent-strong"
-              : "focus-ring line-clamp-2 text-[15px] font-semibold leading-5 text-primary hover:text-accent-strong"
+              ? "focus-ring line-clamp-2 text-[length:var(--type-h2)] font-semibold leading-tight tracking-tight text-primary hover:text-accent-strong"
+              : "focus-ring line-clamp-2 text-[length:var(--type-h3)] font-semibold leading-5 text-primary hover:text-accent-strong"
           }
         >
           {item.title}
@@ -102,7 +102,7 @@ export function DiscoverFocusItem({
             className={
               primary
                 ? "mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground"
-                : "mt-1 line-clamp-2 text-[13px] leading-5 text-muted-foreground"
+                : "mt-1 line-clamp-2 text-meta !leading-5 text-muted-foreground"
             }
           >
             {item.summary}

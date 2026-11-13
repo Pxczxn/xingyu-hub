@@ -206,7 +206,7 @@ export function MyGroupsPage() {
       {/* 表单不属于页头：它出现时是页头之后的第一个区块，而不是标题的一部分。 */}
       {creating ? (
         <div className="rounded-card border border-border/70 bg-muted/40 p-[var(--density-card-pad)]">
-          <label htmlFor="new-group-title" className="text-meta font-medium text-foreground">
+          <label htmlFor="new-group-title" className="text-meta font-semibold text-foreground">
             群聊名称
           </label>
           <div className="mt-2 flex max-w-md gap-2">
@@ -339,7 +339,7 @@ function GroupsRail({ groups }: { groups: Conversation[] }) {
         aria-labelledby="groups-rail-overview"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="groups-rail-overview" className="text-h3 text-primary">
+        <h2 id="groups-rail-overview" className="text-h2 text-primary">
           群聊概览
         </h2>
         <dl className="mt-3 flex flex-col gap-2">
@@ -367,7 +367,7 @@ function GroupsRail({ groups }: { groups: Conversation[] }) {
           aria-labelledby="groups-rail-roles"
           className="rounded-card border border-border/70 bg-card p-4"
         >
-          <h2 id="groups-rail-roles" className="text-h3 text-primary">
+          <h2 id="groups-rail-roles" className="text-h2 text-primary">
             我的角色
           </h2>
           <ul className="mt-3 flex flex-col gap-2">

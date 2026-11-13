@@ -143,7 +143,7 @@ function PagerRow({
   return (
     <FeedRow
       meta={
-        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1 text-caption text-muted-foreground">
           {forward ? "下一篇" : "上一篇"}
           <Icon aria-hidden className="h-3.5 w-3.5" />
         </span>

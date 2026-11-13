@@ -51,7 +51,7 @@ export function ApiTokenSecretPanel({
       data-testid="api-token-secret-panel"
       className="rounded-lg border-2 border-accent bg-card p-4"
     >
-      <h3 id="api-token-secret-heading" className="text-sm font-semibold text-foreground">
+      <h3 id="api-token-secret-heading" className="text-h3 text-foreground">
         新 Token 已创建
       </h3>
 

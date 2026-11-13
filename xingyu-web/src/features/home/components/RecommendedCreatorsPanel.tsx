@@ -37,12 +37,12 @@ export function RecommendedCreatorsPanel({
   return (
     <section
       aria-labelledby="home-recommended-creators"
-      className="rounded-2xl border border-border/60 bg-card/60 p-4"
+      className="rounded-card border border-border/60 bg-card/60 p-4"
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <h2
           id="home-recommended-creators"
-          className="flex items-center gap-2 text-[13px] font-semibold text-foreground"
+          className="flex items-center gap-2 text-h2 text-primary"
         >
           <span className="grid h-6 w-6 place-items-center rounded-md bg-accent-soft text-accent-strong">
             <Users className="h-3.5 w-3.5" aria-hidden />
@@ -51,7 +51,7 @@ export function RecommendedCreatorsPanel({
         </h2>
         <Link
           to="/creators"
-          className="shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-accent-strong"
+          className="shrink-0 text-sm text-accent-strong hover:underline"
         >
           查看全部 →
         </Link>
@@ -76,12 +76,12 @@ export function RecommendedCreatorsPanel({
                     src={creator.avatar}
                     alt=""
                     loading="lazy"
-                    className="h-9 w-9 shrink-0 rounded-full object-cover"
+                    className="h-10 w-10 shrink-0 rounded-full object-cover"
                   />
                 ) : (
                   <span
                     aria-hidden
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-sunken text-xs font-semibold text-foreground-soft"
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface-sunken text-xs font-semibold text-foreground-soft"
                   >
                     {creator.displayName.slice(0, 1)}
                   </span>
@@ -99,7 +99,7 @@ export function RecommendedCreatorsPanel({
                       {creator.bio}
                     </p>
                   ) : null}
-                  <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <div className="mt-1 flex items-center gap-2 text-caption text-muted-foreground">
                     {typeof creator.followerCount === "number" ? (
                       <span>{creator.followerCount} 关注者</span>
                     ) : null}
@@ -114,7 +114,7 @@ export function RecommendedCreatorsPanel({
                     onClick={() => onToggleFollow(creator)}
                     disabled={pendingUsername === creator.username}
                     className={cn(
-                      "shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors disabled:opacity-50",
+                      "shrink-0 rounded-full px-3 py-1 text-[length:var(--type-caption)] font-medium transition-colors disabled:opacity-50",
                       creator.following
                         ? "border border-border text-muted-foreground hover:bg-surface-sunken"
                         : "bg-accent-soft text-accent-strong hover:bg-accent/20",

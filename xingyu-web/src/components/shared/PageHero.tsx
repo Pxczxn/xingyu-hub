@@ -120,14 +120,7 @@ export function PageHero({
       >
         <div className="min-w-0 max-w-2xl">
           {eyebrow ? <p className="eyebrow mb-2.5">{eyebrow}</p> : null}
-          <h1
-            className={cn(
-              "font-semibold tracking-tight text-primary",
-              compact ? "text-2xl" : "text-display",
-            )}
-          >
-            {title}
-          </h1>
+          <h1 className="text-h1 text-primary">{title}</h1>
           {description ? <p className="lede mt-2.5 max-w-xl sm:text-base">{description}</p> : null}
           {actions ? <div className="mt-5 flex flex-wrap items-center gap-3">{actions}</div> : null}
           {announcement ? <div className="mt-4 max-w-xl">{announcement}</div> : null}

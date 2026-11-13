@@ -6,6 +6,7 @@ import { useAuth } from "@/features/auth/auth.store";
 import { buildLoginPath } from "@/features/auth/login-return-path";
 import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { Button } from "@/components/ui/button";
+import { formatDateTime, formatRelativeTime } from "@/lib/relative-time";
 
 /*
  * Comments (Phase 1B).
@@ -23,6 +24,21 @@ import { Button } from "@/components/ui/button";
 
 /** Object types the backend's public preview accepts (SocialService.listCommentPreview). */
 const PREVIEW_OBJECT_TYPES = new Set(["ARTICLE", "SERIES"]);
+
+/* Shared by the guest preview and the signed-in thread so signing in does not
+   restyle the same comments. Title is the section step (18px); body is the
+   16px card/body step; meta is the 14px meta step. */
+const commentItemClass = "py-5 first:pt-0 last:pb-0";
+const commentMetaClass = "mb-2 flex items-center gap-2 text-meta text-muted-foreground";
+const commentBodyClass = "whitespace-pre-wrap text-card leading-relaxed text-foreground";
+
+function CommentTime({ value }: { value: string }) {
+  return (
+    <time dateTime={value} title={formatDateTime(value) ?? undefined} className="tabular-nums">
+      {formatRelativeTime(value) ?? value}
+    </time>
+  );
+}
 
 export function CommentSection({
   objectType = "ARTICLE",
@@ -107,7 +123,7 @@ export function CommentSection({
 
   return (
     <section aria-labelledby="comments-heading" className="section-gap">
-      <h2 id="comments-heading" className="text-base font-semibold text-primary">
+      <h2 id="comments-heading" className="section-heading">
         评论 {isAuthenticated && !loading ? `(${comments.length})` : ""}
       </h2>
 
@@ -121,8 +137,8 @@ export function CommentSection({
             */
             <ul data-testid="comment-preview" className="flex flex-col divide-y divide-border/60">
               {preview.map((comment) => (
-                <li key={comment.id} className="py-4 first:pt-0 last:pb-0">
-                  <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                <li key={comment.id} className={commentItemClass}>
+                  <div className={commentMetaClass}>
                     {comment.authorUsername ? (
                       <Link
                         to={`/u/${comment.authorUsername}`}
@@ -133,13 +149,9 @@ export function CommentSection({
                     ) : (
                       <span className="font-medium text-foreground">匿名</span>
                     )}
-                    <span className="tabular-nums">
-                      {new Date(comment.createdAt).toLocaleString("zh-CN")}
-                    </span>
+                    <CommentTime value={comment.createdAt} />
                   </div>
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-                    {comment.body}
-                  </p>
+                  <p className={commentBodyClass}>{comment.body}</p>
                 </li>
               ))}
             </ul>
@@ -168,8 +180,8 @@ export function CommentSection({
               onChange={(e) => setBody(e.target.value)}
               placeholder={`以 ${user?.username ?? "当前账号"} 的身份发表评论`}
               aria-label="评论内容"
-              rows={3}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              rows={4}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-card outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             {submitError ? (
               <p role="alert" className="text-sm text-destructive">
@@ -217,8 +229,8 @@ export function CommentSection({
             */
             <ul data-testid="comment-list" className="flex flex-col divide-y divide-border/60">
               {comments.map((comment) => (
-                <li key={comment.id} className="py-4 first:pt-0 last:pb-0">
-                  <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                <li key={comment.id} className={commentItemClass}>
+                  <div className={commentMetaClass}>
                     {comment.authorUsername ? (
                       <Link
                         to={`/u/${comment.authorUsername}`}
@@ -229,9 +241,7 @@ export function CommentSection({
                     ) : (
                       <span className="font-medium text-foreground">匿名</span>
                     )}
-                    <span className="tabular-nums">
-                      {new Date(comment.createdAt).toLocaleString("zh-CN")}
-                    </span>
+                    <CommentTime value={comment.createdAt} />
                     {/* Quiet, secondary entry — not a CTA. Hidden for the
                         comment's own author, who cannot report themselves. */}
                     <ReportLink
@@ -241,9 +251,7 @@ export function CommentSection({
                       className="ml-auto"
                     />
                   </div>
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-                    {comment.body}
-                  </p>
+                  <p className={commentBodyClass}>{comment.body}</p>
                 </li>
               ))}
             </ul>

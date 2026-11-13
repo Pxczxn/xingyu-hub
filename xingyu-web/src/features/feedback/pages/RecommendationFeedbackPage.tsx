@@ -191,7 +191,7 @@ export function RecommendationFeedbackPage() {
         aria-label="提交反馈"
         className="rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
       >
-        <label htmlFor="feedback-body" className="text-sm font-medium text-foreground">
+        <label htmlFor="feedback-body" className="text-meta font-semibold text-foreground">
           反馈内容
         </label>
         <textarea

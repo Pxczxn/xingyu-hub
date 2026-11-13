@@ -66,7 +66,7 @@ export function PendingAuditPage() {
             <Clock4 className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight text-primary">注册已提交</h1>
+            <h1 className="text-h1 text-primary">注册已提交</h1>
             {registered ? (
               <p className="mt-1.5 text-meta leading-6 text-muted-foreground">
                 我们已收到你的注册申请。

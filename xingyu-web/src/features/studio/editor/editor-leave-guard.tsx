@@ -77,7 +77,7 @@ export function EditorLeaveGuard({ when }: { when: boolean }) {
         }}
         onPointerDownOutside={(event) => event.preventDefault()}
       >
-        <DialogTitle className="text-base font-semibold text-primary">有未保存的修改</DialogTitle>
+        <DialogTitle className="text-primary">有未保存的修改</DialogTitle>
         <DialogDescription className="text-sm leading-6 text-muted-foreground">
           离开当前页面会丢失这些修改，确定要离开吗？
         </DialogDescription>

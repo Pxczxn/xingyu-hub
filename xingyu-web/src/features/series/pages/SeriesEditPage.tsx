@@ -411,7 +411,7 @@ export function SeriesEditPage() {
 
           {collaborationRole === "OWNER" ? (
             <fieldset className={cn(GROUP, "gap-2")}>
-              <legend className="text-meta font-medium text-foreground">状态</legend>
+              <legend className="text-meta font-semibold text-foreground">状态</legend>
               {(["ACTIVE", "ARCHIVED"] as const).map((value) => {
                 const active = value === "ACTIVE";
                 return (

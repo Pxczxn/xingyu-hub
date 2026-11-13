@@ -11,7 +11,7 @@ export function DiscoverContentGrid({
   return (
     <section aria-labelledby="discover-content">
       <div className="mb-3">
-        <h2 id="discover-content" className="text-lg font-semibold tracking-tight text-primary">
+        <h2 id="discover-content" className="text-h2 text-primary">
           {title}
         </h2>
       </div>

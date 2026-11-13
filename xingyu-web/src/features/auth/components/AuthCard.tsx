@@ -27,9 +27,9 @@ import { cn } from "@/lib/cn";
  * `AuthStatusPanel`；`ResetPasswordPage` 的 token 失效态同理。读者点一次提交，
  * 标题就长高 5px —— 这不是层级，是两套规格撞在一起。
  *
- * 现在取 `text-xl`，即认证域的 L1 档。不取 `text-2xl`：那是内容页的 L1，
- * 而认证页是 S8 窄栏（`max-w-md` = 448px），`AuthStatusPanel` 也已经论证过
- * 20px 是与 48px 字形共处之后的选择。
+ * 2026-11-12：认证域 h1 改走 `text-h1`（桌面 36px / <768 为 30px，字重 600），
+ * 与全站页面标题同一档。此前这里停在 `text-xl`（20px），是为了窄栏不压住表单；
+ * 标题本身很短，36px 不会把字段顶出首屏。
  *
  * 说明行同理：`CardDescription` 的 `text-sm` 是「卡片描述」的尺寸，而这里是
  * 整页的说明行，覆盖成 `text-meta leading-6`（与 `.lede` 一致）。
@@ -85,7 +85,7 @@ export function AuthCard({
   className?: string;
 }) {
   const heading = (
-    <h1 className="text-xl font-semibold tracking-tight text-primary">{title}</h1>
+    <h1 className="text-h1 text-primary">{title}</h1>
   );
   const lede = description ? (
     <p className="mt-1.5 text-meta leading-6 text-muted-foreground">{description}</p>

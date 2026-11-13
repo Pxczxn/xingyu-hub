@@ -29,7 +29,7 @@ export function NotFound() {
         <CardContent className="flex flex-col items-center gap-4 pt-8 pb-8 text-center">
           <IllustrationSlot id="notFound" fallback={<LostOrbit className="h-full w-full" />} />
           <div>
-            <h1 className="text-lg font-semibold tracking-tight text-primary">页面不存在</h1>
+            <h1 className="text-h1 text-primary">页面不存在</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               你访问的页面尚未迁移到 Web V2，或者地址有误。
             </p>

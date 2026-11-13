@@ -46,7 +46,7 @@ export function DiscoverFocusGrid({ items }: { items: ContentSummary[] }) {
       <section aria-labelledby="discover-content" className={tail.length > 0 ? "mb-5" : undefined}>
         <h2
           id="discover-content"
-          className="mb-3 text-lg font-semibold tracking-tight text-primary"
+          className="mb-3 text-h2 text-primary"
         >
           为你发现
         </h2>

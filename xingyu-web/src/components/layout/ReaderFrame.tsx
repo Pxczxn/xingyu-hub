@@ -526,7 +526,7 @@ export function ReaderSettingsButton({
         className="rounded-t-2xl p-0 pb-[env(safe-area-inset-bottom)]"
       >
         <SheetHeader className="border-b border-border/60 px-4 pb-3 pr-14 pt-4 text-left">
-          <SheetTitle className="text-base font-semibold text-primary">阅读设置</SheetTitle>
+          <SheetTitle className="text-primary">阅读设置</SheetTitle>
           <SheetDescription className="text-meta text-muted-foreground">
             字号与行距只影响本页正文，不会保存到账户。
           </SheetDescription>
@@ -590,7 +590,7 @@ export function ReaderSourceCard({
         {name}
       </span>
       {handle ? (
-        <span className="block truncate text-[13px] text-muted-foreground">@{handle}</span>
+        <span className="block truncate text-meta text-muted-foreground">@{handle}</span>
       ) : null}
     </span>
   );

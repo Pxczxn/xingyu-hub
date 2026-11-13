@@ -239,7 +239,7 @@ export function SubmissionDetailPage() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <h3 className="text-meta font-medium text-foreground">审核意见</h3>
+          <h3 className="text-h3 text-foreground">审核意见</h3>
           {feedback ? (
             <p className="whitespace-pre-wrap text-meta leading-6 text-muted-foreground">
               {feedback}
@@ -274,7 +274,7 @@ export function SubmissionDetailPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent role="alertdialog" className="max-w-sm rounded-xl bg-card">
-                <DialogTitle className="text-base font-semibold text-primary">
+                <DialogTitle className="text-primary">
                   确认撤回投稿
                 </DialogTitle>
                 <DialogDescription className="text-sm leading-6 text-muted-foreground">

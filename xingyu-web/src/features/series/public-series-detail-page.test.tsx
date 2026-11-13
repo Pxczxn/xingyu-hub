@@ -102,6 +102,8 @@ describe("PublicSeriesDetailPage", () => {
     expect(screen.getByText("系列简介")).toBeInTheDocument();
 
     const first = screen.getByRole("link", { name: "第一章" });
+    expect(first.querySelector("span.text-h3")).toHaveTextContent("第一章");
+    expect(screen.getByRole("link", { name: "开始阅读" }).className).toContain("h-10");
     const second = screen.getByRole("link", { name: "第二章" });
     expect(first).toHaveAttribute("href", "/series/ser-1/read?chapter=art-1");
     expect(second).toHaveAttribute("href", "/series/ser-1/read?chapter=art-2");

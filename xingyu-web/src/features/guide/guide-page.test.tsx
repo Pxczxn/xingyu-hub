@@ -164,9 +164,7 @@ describe("GuideDetailPage", () => {
     expect(screen.queryByRole("button", { name: "目录" })).not.toBeInTheDocument();
 
     const title = screen.getByRole("heading", { name: "快速上手" });
-    /* 有意改变：标题统一到内容阅读页的 44/700/1.15（原指南页是 28→36 的旧档）。 */
-    expect(title.className).toContain("text-[44px]");
-    expect(title.className).not.toContain("text-display");
+    expect(title.className).toContain("text-h1");
     expect(title.closest("article")?.className).toContain("max-w-[var(--reading-measure)]");
     expect(article?.closest("article")).toBe(title.closest("article"));
     expect(screen.getByRole("navigation", { name: "相邻指南" }).closest("article")).toBe(

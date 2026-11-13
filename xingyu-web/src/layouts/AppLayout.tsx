@@ -2,23 +2,12 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { PageState } from "@/components/shared/PageState";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/shared/UserMenu";
 import { PageErrorBoundary } from "@/components/shared/RouteErrorPage";
 import { NotificationToaster } from "@/features/notifications/toast/NotificationToaster";
 import { useNotificationToasts } from "@/features/notifications/toast/notification-toast.context";
-import {
-  BookOpen,
-  Compass,
-  Hash,
-  Home,
-  Map,
-  Menu,
-  MessageCircle,
-  Orbit,
-  PenLine,
-  Search,
-  X,
-} from "lucide-react";
+import { Compass, Home, Menu, Orbit, PenLine, Search, X } from "lucide-react";
 import { notificationsApi } from "@/api/notifications/notifications.api";
 import { usersApi } from "@/api/users/users.api";
 import type { ProfileDetail } from "@/api/users/users.types";
@@ -80,30 +69,39 @@ import { cn } from "@/lib/cn";
  */
 
 /*
- * Phase 2H: seven nav items, one more than the six MASTER.md lists.
- *
- * MASTER.md "Shell" specifies 首页 / 发现 / 话题 / 系列 / 星系 / 指南, but 动态
- * (/moments, shipped in Phase 2D) is a real, guest-readable feed — dropping it
- * from the nav would leave it with no entry point at all. Rather than choose,
- * both are shown: the design system's six plus 动态. MASTER.md carries a note
- * recording this deliberate deviation.
- *
- * Icons: 指南 uses Map (a book/compass metaphor would collide with 系列's
- * BookOpen and 发现's Compass); 星系 uses Orbit.
+ * 一级导航只有三条：首页 / 发现 / 星系。
+ * 话题、系列、创作者从发现页的分类进入，仍保留各自路由。
+ * 动态留在 /moments，指南在页脚和账户菜单。
+ * 「发现」高亮覆盖它统领的列表：/discover、/topics、/series、/creators。
  */
-const NAV_ITEMS = [
-  { label: "首页", to: "/", icon: Home },
-  { label: "探索", to: "/discover", icon: Compass },
-  { label: "话题", to: "/topics", icon: Hash },
-  { label: "系列", to: "/series", icon: BookOpen },
-  { label: "星系", to: "/galaxies", icon: Orbit },
-  { label: "动态", to: "/moments", icon: MessageCircle },
-  { label: "指南", to: "/guide", icon: Map },
+const NAV_ITEMS: {
+  label: string;
+  to: string;
+  icon: typeof Home;
+  active: (pathname: string) => boolean;
+}[] = [
+  { label: "首页", to: "/", icon: Home, active: (pathname) => pathname === "/" },
+  {
+    label: "发现",
+    to: "/discover",
+    icon: Compass,
+    active: (pathname) =>
+      pathname === "/discover" ||
+      pathname.startsWith("/discover/") ||
+      pathname === "/topics" ||
+      pathname.startsWith("/topics/") ||
+      pathname === "/series" ||
+      pathname.startsWith("/series/") ||
+      pathname === "/creators" ||
+      pathname.startsWith("/creators/"),
+  },
+  {
+    label: "星系",
+    to: "/galaxies",
+    icon: Orbit,
+    active: (pathname) => pathname === "/galaxies" || pathname.startsWith("/galaxies/"),
+  },
 ];
-
-function isActivePath(pathname: string, to: string): boolean {
-  return pathname === to || (to !== "/" && pathname.startsWith(`${to}/`));
-}
 
 /**
  * Global search. Submits through the router instead of the browser.
@@ -144,9 +142,9 @@ function SearchForm({
         name="q"
         placeholder="搜索文章、系列、动态、用户"
         aria-label="搜索"
-        style={{ width: 'clamp(200px, 30vw, 400px)' }}
         className={cn(
-          "h-9 rounded-lg border border-input/80 bg-surface-sunken/70 pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-accent-line focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring",
+          "w-full",
+          "h-10 rounded-lg border border-input/80 bg-surface-sunken/70 pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-accent-line focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring",
           inputClassName,
         )}
       />
@@ -362,14 +360,11 @@ export function AppLayout() {
        * `--shell-header-height`, not "whatever the tallest control happens to
        * be". Everything anchored to the token (ReadingToolbar, the series
        * sticky toolbar, the editor action row, CanvasFrame) assumes the header
-       * ends at exactly that offset. Measured, the authenticated header used to
-       * end 4.0–4.4px lower because the UserMenu trigger is 44px tall, so the
-       * /rules toolbar slid under it. A fixed box height plus a centred,
+       * ends at exactly that offset. A fixed box height plus a centred,
        * full-height row makes `header.bottom === token` true at every root
-       * step: 1910 → 68.63px, 1528 → 64.81px, 390 → 61px (guest and auth
-       * alike). Internal controls are all shorter than the box at every step
-       * (tallest: 44px UserMenu trigger, 49.5px at the 18px root), so nothing
-       * is clipped and the box does not grow.
+       * step: 1910 → 72px, 1528 → 68px, 390 → 64px (guest and auth alike).
+       * Internal controls stay shorter than the box (tallest: 44px menu
+       * trigger, 40px search and 创作), so nothing is clipped.
        */}
       {/*
        * Layer: the header keeps `z-header` (30) unconditionally. While the
@@ -379,103 +374,56 @@ export function AppLayout() {
        * the mobile sheet below.
        */}
       <header className="sticky top-0 z-header h-[var(--shell-header-height)] border-b border-border/70 bg-card/90 backdrop-blur-xl">
-        <div className="content-shell flex h-full items-center gap-2 py-0 md:gap-3">
-          {/* Brand. The gold dot is the only brand mark in the header — it gives
-              the wordmark something to sit against without adding a second logo. */}
+        <div className="content-shell flex h-full items-center gap-4">
           <Link
             to="/"
-            className="focus-ring flex shrink-0 items-center gap-1.5 rounded-md pr-1 text-[19px] font-bold tracking-tight text-primary"
+            className="focus-ring flex shrink-0 items-center gap-2 rounded-md text-[length:var(--type-h3)] font-bold tracking-tight text-primary"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+            <span className="grid h-6 w-6 place-items-center rounded-md bg-accent/15" aria-hidden>
+              <span className="h-2 w-2 rounded-full bg-accent" />
+            </span>
             星语
           </Link>
 
           {/*
-           * `lg`, not `md`. 2026-10-03.
-           *
-           * Logo + this seven-item nav + the action cluster need 813px. The switch
-           * used to happen at `md` (768px), so from 768 to 812 the desktop nav
-           * appeared while there was still no room for it and every page scrolled
-           * sideways — 45px at 768, which is exactly iPad portrait. 85 of the 91
-           * routes were affected.
-           *
-           * `lg` is not a guess: the header search box in this same file already
-           * switches at `lg:block`, so this is the breakpoint header content
-           * already uses. Between 768 and 1023 the hamburger + sheet take over,
-           * which is the same navigation a phone gets.
-           *
-           * 2026-10-13: the 813px above counts the nav ICONS (7 × 22px = 154px),
-           * which squeezed the search box to 73px at exactly 1024 — the placeholder
-           * truncated to a single character 「搜」. The icons are aria-hidden
-           * decoration, so below `xl` they drop out of the flex row entirely and
-           * their 154px goes to the search box (224px at 1024, 340px at 1152);
-           * from `xl` (1280) up they return — measured, nothing else moves.
+           * 桌面导航从 lg（1024px）展开。768–1023 保留标志、搜索框和汉堡菜单。
            */}
-          <nav aria-label="主导航" className="hidden items-center gap-0.5 lg:flex">
+          <nav aria-label="主导航" className="hidden items-center gap-1 lg:flex">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const active = isActivePath(location.pathname, item.to);
+              const active = item.active(location.pathname);
               return (
                 <Link
                   key={item.to}
                   to={item.to}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "focus-ring flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
-                    /*
-                     * 2026-11-10 (layout audit §3): active used to be the same
-                     * solid `#111827` pill as 创作 and 注册, so the header showed
-                     * three identical near-black pills at once and the current
-                     * page was not the unique one. The solid fill now belongs to
-                     * the primary CTAs only; the active tab is carried by weight
-                     * plus a 2px underline (inset shadow: no layout shift, so the
-                     * row height and the fixed header height stay untouched).
-                     */
+                    "focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                     active
-                      ? "font-semibold text-foreground shadow-[inset_0_-2px_0_0_hsl(var(--primary))] hover:bg-surface-sunken"
-                      : "text-muted-foreground hover:bg-surface-sunken hover:text-foreground",
+                      ? "bg-surface-sunken font-semibold text-foreground shadow-[inset_0_-2px_0_0_hsl(var(--primary))]"
+                      : "font-medium text-muted-foreground hover:bg-surface-sunken hover:text-foreground",
                   )}
                 >
-                  <Icon className="hidden h-4 w-4 xl:block" aria-hidden />
+                  <Icon className="hidden h-4 w-4 lg:block" aria-hidden />
                   {item.label}
                 </Link>
               );
             })}
           </nav>
 
-          {/*
-           * 2026-11-10 (layout audit §6): this box is only rendered where it can
-           * actually show its placeholder. Measured, the placeholder needs 232px
-           * at the 16px root (182px of text + 36px icon inset + 12px right pad +
-           * 2px border) and 246px at the 17px root; the authenticated row only
-           * had 123px at 1024 and 199px at 1280, so the text was cut to 「搜索」.
-           * 1440 is the first tier with room to spare (287px measured, 246px
-           * needed) — below it the icon-only entry beside it takes over instead
-           * of squeezing the nav. `min-w` states the 232px floor in rem so it
-           * still holds if the type scale steps again.
-           */}
-          <SearchForm className="mx-auto hidden min-w-[14.5rem] max-w-sm flex-1 min-[1440px]:block" />
+          {/* 搜索从 md（768px）起显示；更窄时放进汉堡菜单。 */}
+          <SearchForm className="mx-auto hidden min-w-0 w-[clamp(200px,30vw,400px)] max-w-[400px] flex-1 md:block" />
 
-          <div className="ml-auto flex items-center gap-1.5 md:gap-2">
-            {/* Icon-only search entry, 1024–1439 only (see the note on the form
-                above). Below `lg` the drawer carries the real search field. */}
-            <Link
-              to="/search"
-              aria-label="搜索"
-              className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-sunken hover:text-foreground max-lg:hidden min-[1440px]:hidden"
-            >
-              <Search className="h-[18px] w-[18px]" aria-hidden />
-            </Link>
-            <Link
-              to="/studio"
-              className="focus-ring hidden items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
-            >
-              <PenLine className="h-4 w-4" aria-hidden />
-              创作
-            </Link>
+          <div className="ml-auto flex items-center gap-3">
+            <Button variant="accent" className="hidden h-10 px-3 sm:inline-flex" asChild>
+              <Link to="/studio" aria-label="创作">
+                <PenLine className="h-4 w-4" aria-hidden />
+                <span>创作</span>
+              </Link>
+            </Button>
 
             {isAuthenticated ? (
-              <div className="flex items-center gap-0.5 md:gap-1">
+              <div className="flex items-center gap-3">
                 {/* Bell opens a 328px card. Icon only: a visible label would
                     change textContent, which the shell test pins as empty. */}
                 <NotificationBell unread={unread} />
@@ -535,7 +483,7 @@ export function AppLayout() {
                 <button
                   type="button"
                   aria-label={navOpen ? "关闭导航菜单" : "打开导航菜单"}
-                  className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-sunken lg:hidden"
+                  className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-sunken lg:hidden"
                 >
                   {navOpen ? (
                     <X className="h-5 w-5" aria-hidden />
@@ -573,101 +521,64 @@ export function AppLayout() {
                * lives one level deeper so it survives that rule; two X's in
                * the same corner would just stack.
                *
-               * Links come BEFORE the search field so the focus-on-open lands on
-               * the first navigation item instead of the input (no on-screen
-               * keyboard over the destinations the user just opened).
+               * Search sits above the destinations. Focus still lands on the first
+               * nav link, so opening the menu does not raise the on-screen keyboard.
                */}
               <SheetContent
                 ref={navContentRef}
                 side="top"
                 aria-describedby={undefined}
                 onOpenAutoFocus={(event) => {
-                  // First DESTINATION, not the close controls and not the search
-                  // input: an opened drawer is a navigation affordance first, and
-                  // focusing the input would pop the on-screen keyboard over the
-                  // links.
-                  const first = navContentRef.current?.querySelector<HTMLElement>(
-                    ".content-shell a[href]",
-                  );
+                  const first =
+                    navContentRef.current?.querySelector<HTMLElement>("nav a[href]");
                   if (!first) return;
                   event.preventDefault();
                   first.focus();
                 }}
                 className="top-[var(--shell-header-height)] z-drawer max-h-[calc(100dvh-var(--shell-header-height))] overflow-y-auto overscroll-contain border-b border-border/70 bg-card p-0 shadow-lg lg:hidden [&>button]:hidden"
               >
-                <SheetTitle className="sr-only">主导航</SheetTitle>
-                <div className="content-shell space-y-3 py-4">
-                  {/*
-                   * Explicit close control. The overlay is `z-drawer` (100), i.e.
-                   * it covers the `z-header` (30) hamburger, so the header can no
-                   * longer be the visible close affordance. The sheet's built-in
-                   * X is hidden by `[&>button]:hidden` (it targets direct
-                   * children); this button lives one level deeper, so the drawer
-                   * keeps exactly one X.
-                   */}
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      aria-label="关闭导航"
-                      onClick={() => setNavOpen(false)}
-                      className="focus-ring grid h-11 w-11 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-sunken hover:text-foreground"
-                    >
-                      <X className="h-5 w-5" aria-hidden />
-                    </button>
-                  </div>
-                  <nav aria-label="移动端导航" className="grid grid-cols-2 gap-1.5">
+                <SheetTitle className="sr-only">导航菜单</SheetTitle>
+                <div className="content-shell relative pb-6 pt-4">
+                  <button
+                    type="button"
+                    aria-label="关闭导航"
+                    onClick={() => setNavOpen(false)}
+                    className="focus-ring absolute right-0 top-4 grid h-11 w-11 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-sunken hover:text-foreground"
+                  >
+                    <X className="h-5 w-5" aria-hidden />
+                  </button>
+
+                  <nav aria-label="移动端导航" className="mt-12 space-y-2">
                     {NAV_ITEMS.map((item) => {
                       const Icon = item.icon;
-                      const active = isActivePath(location.pathname, item.to);
+                      const active = item.active(location.pathname);
                       return (
                         <Link
                           key={item.to}
                           to={item.to}
                           aria-current={active ? "page" : undefined}
-                          /*
-                           * Close on EVERY destination tap, including the
-                           * current page: relying on the pathname effect alone
-                           * meant tapping 「首页」 while already on `/` left the
-                           * sheet open (the pathname never changes, so the
-                           * effect never fires).
-                           */
                           onClick={() => setNavOpen(false)}
                           className={cn(
-                            "focus-ring flex h-11 items-center gap-2 rounded-lg px-3 text-sm transition-colors",
-                            // Mobile keeps the light selected fill: there is no
-                            // room for an underline under a 44px tap target.
+                            "focus-ring flex h-11 items-center gap-3 rounded-lg px-4 text-base transition-colors",
                             active
                               ? "bg-surface-sunken font-semibold text-foreground"
-                              : "bg-surface-sunken/60 text-foreground hover:bg-surface-sunken",
+                              : "font-medium text-muted-foreground hover:bg-surface-sunken hover:text-foreground",
                           )}
                         >
-                          <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                          <span className="truncate">{item.label}</span>
+                          <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                          <span>{item.label}</span>
                         </Link>
                       );
                     })}
                   </nav>
 
-                  <SearchForm onSubmitted={() => setNavOpen(false)} />
-
-                  <div className="flex items-center gap-2 pt-1">
-                    <Link
-                      to="/studio"
-                      onClick={() => setNavOpen(false)}
-                      className="focus-ring inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent text-sm font-medium text-accent-foreground"
-                    >
-                      <PenLine className="h-4 w-4" aria-hidden />
-                      创作
-                    </Link>
-                    {!isAuthenticated ? (
-                      <Link
-                        to={buildLoginPath(`${location.pathname}${location.search}`)}
-                        onClick={() => setNavOpen(false)}
-                        className="focus-ring inline-flex h-11 items-center justify-center rounded-lg border border-border px-4 text-sm text-foreground"
-                      >
-                        登录
+                  <div className="mt-6">
+                    <Button variant="accent" size="lg" className="w-full" asChild>
+                      <Link to="/studio" onClick={() => setNavOpen(false)}>
+                        <PenLine className="h-5 w-5" aria-hidden />
+                        创作
                       </Link>
-                    ) : null}
+                    </Button>
                   </div>
                 </div>
               </SheetContent>

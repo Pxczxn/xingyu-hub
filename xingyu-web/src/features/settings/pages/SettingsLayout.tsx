@@ -8,10 +8,9 @@ import { SettingsNav } from "@/features/settings/components/SettingsNav";
  * so each settings page only renders its own content. Auth is enforced by the
  * route (RequireAuth), not here.
  *
- * 2026-10-03 — the h1 was `text-xl` (20px) while each inner page's h2 is the
- * `title` step (18px). Two pixels is not a hierarchy: the area title and the
- * section title read as the same level. The h1 is now the `display`-adjacent
- * utility step (24px), which restores the L1 / L2 gap the pages need.
+ * 2026-11-12 — the h1 was `text-2xl` (24px), the same size as an h2, so the
+ * area title and the section title read as one level. It now uses `text-h1`
+ * (page title). The lede is body size (`text-base`), not the 14px `.lede`.
  *
  * The shell is intentionally SHARED across all nine settings pages: settings is
  * one area, and a reader moving between its pages should not have to re-locate
@@ -22,8 +21,10 @@ export function SettingsLayout() {
   return (
     <div className="section-gap">
       <header className="border-b border-border/70 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">设置</h1>
-        <p className="lede mt-2 max-w-2xl">管理你的资料、隐私与登录会话。</p>
+        <h1 className="text-h1 text-primary">设置</h1>
+        <p className="mt-2 max-w-2xl text-base leading-6 text-muted-foreground">
+          管理你的资料、隐私与登录会话。
+        </p>
       </header>
 
       <div className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)]">

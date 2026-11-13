@@ -20,7 +20,7 @@ import { cn } from "@/lib/cn";
  *
  *   <PageHero>   portal / plaza / reading pages. Larger title, description,
  *                optional artwork and call to action. It SELLS the page.
- *   <PageHeader> utility pages — settings, 个人中心, 创作台, forms. 24px title,
+ *   <PageHeader> utility pages — settings, 个人中心, 创作台, forms. `text-h2` title,
  *                one line of context, a hairline rule, optional actions. It
  *                LABELS the page and gets out of the way.
  *
@@ -60,10 +60,7 @@ export function PageHeader({
       <div className="min-w-0">
         {eyebrow ? <p className="eyebrow mb-2">{eyebrow}</p> : null}
         <h1
-          className={cn(
-            "font-semibold tracking-tight text-primary",
-            size === "large" ? "text-display" : "text-2xl",
-          )}
+          className={cn("text-primary", size === "large" ? "text-h1" : "text-h2")}
         >
           {title}
         </h1>

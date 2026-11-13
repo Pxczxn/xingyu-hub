@@ -406,7 +406,7 @@ export function RegisterPage() {
         aria-labelledby="register-benefits"
         className="rounded-card border border-border/70 bg-card px-6 py-5"
       >
-        <h2 id="register-benefits" className="text-card font-semibold text-primary">
+        <h2 id="register-benefits" className="text-h2 text-primary">
           加入星语后你可以
         </h2>
         <ul className="mt-4 grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-3">

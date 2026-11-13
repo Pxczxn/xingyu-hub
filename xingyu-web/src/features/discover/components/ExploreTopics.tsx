@@ -52,7 +52,7 @@ export function ExploreTopics({
      */
     return (
       <section aria-labelledby="discover-topics">
-        <h2 id="discover-topics" className="text-sm font-semibold text-primary">
+        <h2 id="discover-topics" className="text-h2 text-primary">
           探索话题
         </h2>
         <p className="mt-2 text-meta text-muted-foreground">探索方向暂时无法加载。</p>
@@ -67,7 +67,7 @@ export function ExploreTopics({
   return (
     <section aria-labelledby="discover-topics">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 id="discover-topics" className="text-sm font-semibold text-primary">
+        <h2 id="discover-topics" className="text-h2 text-primary">
           探索话题
         </h2>
         {nonEmpty.length > TOPIC_LIMIT ? (

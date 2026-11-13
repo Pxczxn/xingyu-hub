@@ -225,9 +225,9 @@ export function SettingsApiTokensPage() {
             </span>
             <div className="min-w-0 flex-1">
               <h3
-                id="settings-api-tokens-create-heading"
-                className="text-card font-semibold text-primary"
-              >
+              id="settings-api-tokens-create-heading"
+              className="text-h3 text-primary"
+            >
                 创建 Token
               </h3>
               <p className="mt-0.5 text-meta text-muted-foreground">
@@ -295,7 +295,7 @@ export function SettingsApiTokensPage() {
           <div className="mb-3 flex items-baseline gap-2.5">
             <h3
               id="settings-api-tokens-list-heading"
-              className="text-card font-semibold text-primary"
+              className="text-h3 text-primary"
             >
               已有 Token
             </h3>

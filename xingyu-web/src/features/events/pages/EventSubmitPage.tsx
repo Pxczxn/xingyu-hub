@@ -58,9 +58,9 @@ import { cn } from "@/lib/cn";
  *      than decoration.
  *
  *   2. CONTROLS KEEP THE CONTROL STEP. Batch 07 converged this domain's prose on
- *      `text-meta`, but a form label is not prose: `labelVariants` is
- *      `text-sm font-medium`, and CollaborationInvitePage — the other hand-written
- *      form in the app — sets its label at exactly that step in `text-foreground`.
+ *      `text-meta`, but a form label is not prose: `labelVariants` is the meta
+ *      size at weight 600, and CollaborationInvitePage sets its label at that
+ *      same step.
  *      This page had its label at 12px in `text-muted-foreground`, i.e. a name
  *      smaller and fainter than the control it names. The character counter follows
  *      the same file's `text-xs` rather than rising to `text-meta`: it is a live
@@ -331,13 +331,9 @@ export function EventSubmitPage() {
                 </p>
               ) : (
                 <div className="mt-3 flex flex-col gap-3">
-                  {/* The label names the control, so it takes the control step
-                      (`labelVariants`, and CollaborationInvitePage's own form):
-                      14px, medium, full-strength text. At 12px in
-                      `text-muted-foreground` it was quieter than the select it
-                      labels, which is backwards — the reader needs to know what
-                      they are choosing before they can care about the options. */}
-                  <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+                  {/* The label names the control, so it takes the meta step at
+                      weight 600, the same step as `labelVariants`. */}
+                  <label className="flex flex-col gap-1 text-meta font-semibold text-foreground">
                     选择已发布的作品
                     <select
                       aria-label="选择投稿内容"

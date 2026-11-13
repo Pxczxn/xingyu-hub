@@ -90,6 +90,11 @@ beforeEach(() => {
 describe("topics page", () => {
   it("renders the topic list", async () => {
     renderPage();
+    const heading = screen.getByRole("heading", { name: "话题广场", level: 1 });
+    expect(heading.closest("header")?.className).toContain("pb-6");
+    const nav = screen.getByRole("navigation", { name: "发现" });
+    expect(heading.closest(".max-w-\\[1200px\\]")).toContainElement(nav);
+    expect(nav.closest("[class*='grid-cols']")).toBeNull();
     const list = await screen.findByTestId("topic-list");
     expect(within(list).getByRole("link", { name: /AI/ })).toBeInTheDocument();
   });

@@ -49,7 +49,7 @@ export function ReaderSettings({
       )}
     >
       <div className={cn("flex items-center", stacked ? "justify-between gap-4" : "gap-1")}>
-        {stacked ? <span className="font-medium text-foreground">字号</span> : null}
+        {stacked ? <span className="font-semibold text-foreground">字号</span> : null}
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -83,7 +83,7 @@ export function ReaderSettings({
       {stacked ? null : <span aria-hidden className="h-4 w-px bg-border" />}
 
       <div className={cn("flex items-center", stacked ? "justify-between gap-4" : "gap-1")}>
-        {stacked ? <span className="font-medium text-foreground">阅读宽度</span> : null}
+        {stacked ? <span className="font-semibold text-foreground">阅读宽度</span> : null}
         <div role="group" aria-label="阅读宽度" className="flex items-center gap-1">
           {READER_LAYOUTS.map(({ key, label }) => (
             <button

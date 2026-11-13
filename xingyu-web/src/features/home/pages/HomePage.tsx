@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { homeApi } from "@/api/home/home.api";
 import type { GuestHomeView, MeHomeView } from "@/api/home/home.types";
 import { topicsApi } from "@/api/topics/topics.api";
@@ -26,7 +27,7 @@ import {
   ContinueReadingSkeleton,
 } from "@/features/home/components/HomeFeedSkeleton";
 import { EmptyFeedState } from "@/features/home/components/EmptyFeedState";
-import { EnhancedHero } from "@/features/home/components/EnhancedHero";
+import { EnhancedHero, SignedInGreeting } from "@/features/home/components/EnhancedHero";
 
 /*
  * Home — 社区入口与内容发现
@@ -88,7 +89,7 @@ function contentStatus<T>(section: Section<unknown>, items: T[] | undefined): Se
 }
 
 export function HomePage() {
-  const { status: authStatus, isAuthenticated } = useAuth();
+  const { status: authStatus, isAuthenticated, user } = useAuth();
   /*
    * Only `initializing` means "the stored token has not been resolved yet, so we
    * do not know which composition to ask for". `unauthenticated` and `error`
@@ -103,7 +104,19 @@ export function HomePage() {
   const [myHome, setMyHome] = useState<MeHomeView | null>(null);
   const [homeStatus, setHomeStatus] = useState<SectionStatus>("loading");
   const [homeFatal, setHomeFatal] = useState(false);
-  const [tab, setTab] = useState<HomeFeedTab>("recommend");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: HomeFeedTab = searchParams.get("tab") === "following" ? "following" : "recommend";
+  const setTab = (next: HomeFeedTab) => {
+    setSearchParams(
+      (previous) => {
+        const params = new URLSearchParams(previous);
+        if (next === "following") params.set("tab", "following");
+        else params.delete("tab");
+        return params;
+      },
+      { replace: true },
+    );
+  };
   /* Bumping the key replays the page's load effects — the retry mechanism for
      the error branch below. The effects keep their per-run `active` guards. */
   const [reloadKey, setReloadKey] = useState(0);
@@ -242,7 +255,13 @@ export function HomePage() {
       skeleton="SK6"
       header="line"
       density="compact"
-      headerSlot={<EnhancedHero isAuthenticated={isAuthenticated} />}
+      headerSlot={
+        isAuthenticated ? (
+          <SignedInGreeting name={user?.username} showAnnouncements={Boolean(notice)} />
+        ) : (
+          <EnhancedHero isAuthenticated={false} />
+        )
+      }
       rail={
         showSidebar ? (
           homeStatus === "loading" ? (
@@ -274,10 +293,10 @@ export function HomePage() {
       <div className="flex min-w-0 flex-col gap-5">
         <HomeFeedTabs value={tab} onChange={setTab} />
 
-        {/* 继续阅读 - 显示骨架屏或实际内容 */}
-        {homeStatus === "loading" && isAuthenticated ? (
+        {/* 继续阅读只属于「关注」。推荐流不夹这条进度。 */}
+        {tab === "following" && homeStatus === "loading" && isAuthenticated ? (
           <ContinueReadingSkeleton />
-        ) : continueReading && continueReading.length > 0 ? (
+        ) : tab === "following" && continueReading && continueReading.length > 0 ? (
           <ContinueReadingStrip items={continueReading} />
         ) : null}
 
@@ -309,7 +328,7 @@ export function HomePage() {
             // row is enough to separate it from the tabs, and each row's own
             // hover wash now spans the full column instead of being clipped by
             // `overflow-hidden`.
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 border-t border-border/70">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
               {/*
                * 第四刀：Feed 内容卡增强
                *
@@ -321,11 +340,11 @@ export function HomePage() {
                * - Feed 列表保持完整，包含第一条
                * - 这样测试不需要调整，用户体验也更好（Feed 可独立滚动）
                */}
-              <ul key={tab} className="flex flex-col">
+              <ul key={tab} className="flex flex-col gap-4">
                 {(feedItems ?? []).map((item, index) => (
                   <li
                     key={item.id}
-                    className={cn("animate-rise-in", index > 0 && "border-t border-border/50")}
+                    className="animate-rise-in"
                     style={{ animationDelay: staggerDelay(index) }}
                   >
                     <HomeFeedItem

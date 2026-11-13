@@ -101,28 +101,18 @@ export function PageMasthead({
           {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
           <h1
             className={cn(
-              "tracking-tight text-primary",
+              "text-h1 text-primary",
               /*
-               * The title step follows how much is above it rather than an auth
-               * flag: with an eyebrow the title is the page's display line, and
-               * without one (a returning reader) it IS the whole masthead, so it
-               * drops to the title step instead of shouting.
-               *
-               * WEIGHT (B v2 §1): a page title is 600. 700 is reserved for the
-               * hero step and for data metrics — at 36px on white, a 700 CJK
-               * title sets as a solid ink block, which is the defect batch A
-               * measured here. `font-bold` used to sit on this branch; it is now
-               * 600. The size (`text-display`) and the leading/tracking that come
-               * with it are untouched — this is a weight fix, not a re-step.
+               * 2026-11-12：有无 eyebrow 都走页面标题档 `text-h1`
+               * （桌面 36px / <768 为 30px，字重 600）。旧的无眉题分支是
+               * `text-title`（18px），和区块标题挤在同一档。
                */
-              eyebrow ? "mt-2.5 text-display font-semibold" : "text-title font-semibold",
+              eyebrow && "mt-2.5",
               /*
-               * `featured` is the one guest-facing masthead that does sell the
-               * page, so it keeps the hero weight — but 700, not 800: B v2 §1
-               * caps the display step at `fontWeight: 700` (an 800 title is not
-               * in the ladder at all).
+               * `featured` uses the display step (`text-display-lg`, 48px, weight 700).
+               * A later `md:text-6xl` (60px) sat above the type ladder.
                */
-              isFeatured && "text-5xl font-bold md:text-6xl",
+              isFeatured && "text-display-lg",
             )}
           >
             {title}

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useSearchParams } from "react-router-dom";
 import { AppRoutes } from "@/router/routes";
 import { AppProviders } from "@/app/providers/AppProviders";
@@ -159,9 +159,14 @@ describe("phase 2D moment routes", () => {
     expect(link).toHaveAttribute("href", "/login?returnTo=%2Fmoments");
   });
 
-  it("exposes 动态 in the app shell", async () => {
+  it("keeps /moments reachable outside the primary nav", async () => {
     renderAt("/moments");
     expect(await screen.findByRole("heading", { name: "动态" })).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "主导航" })).toHaveTextContent("动态");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/moments");
+    const nav = screen.getByRole("navigation", { name: "主导航" });
+    expect(nav).not.toHaveTextContent("动态");
+    expect(within(nav).getByRole("link", { name: "首页" })).toHaveAttribute("href", "/");
+    expect(within(nav).getByRole("link", { name: "发现" })).toHaveAttribute("href", "/discover");
+    expect(within(nav).getByRole("link", { name: "星系" })).toHaveAttribute("href", "/galaxies");
   });
 });

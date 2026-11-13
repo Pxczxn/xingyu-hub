@@ -73,6 +73,7 @@ describe("GalaxyListPage", () => {
     authState.isAuthenticated = true;
     mocked.listMine.mockResolvedValue([GALAXIES[1]]);
     renderList();
+    await userEvent.setup().click(await screen.findByRole("tab", { name: "我的星系" }));
 
     const section = (await screen.findByRole("heading", { name: "我的星系" })).closest("section");
     expect(section).not.toBeNull();
@@ -89,6 +90,7 @@ describe("GalaxyListPage", () => {
   it("uses a light inline state when my galaxies is empty", async () => {
     authState.isAuthenticated = true;
     renderList();
+    await userEvent.setup().click(await screen.findByRole("tab", { name: "我的星系" }));
 
     expect(await screen.findByText(/你还没有加入星系/)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "还没有加入任何星系" })).not.toBeInTheDocument();
@@ -99,9 +101,10 @@ describe("GalaxyListPage", () => {
     mocked.listMine.mockRejectedValue(new Error("mine unavailable"));
     renderList();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("暂时无法读取你加入的星系");
-    expect(screen.getByRole("heading", { name: "官方星系" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "官方星系" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "探索星系" })).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "我的星系" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("暂时无法读取你加入的星系");
   });
 
   it("separates official galaxies from explorable community galaxies", async () => {

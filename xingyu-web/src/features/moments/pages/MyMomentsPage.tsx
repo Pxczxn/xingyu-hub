@@ -320,7 +320,7 @@ export function MyMomentsPage() {
         aria-labelledby="moments-trail-heading"
         className="rounded-card border border-border/70 bg-card p-[var(--density-card-pad)]"
       >
-        <h2 id="moments-trail-heading" className="text-h3 text-primary">
+        <h2 id="moments-trail-heading" className="text-h2 text-primary">
           创作足迹
         </h2>
         <p className="mt-2 max-w-2xl text-meta leading-6 text-muted-foreground">

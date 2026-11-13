@@ -108,7 +108,7 @@ export function ConversationRow({
               {label}
             </span>
             {isGroup ? (
-              <span className="shrink-0 rounded border border-border px-1 text-[11px] text-muted-foreground">
+              <span className="shrink-0 rounded border border-border px-1 text-caption text-muted-foreground">
                 群聊
               </span>
             ) : null}
@@ -125,7 +125,7 @@ export function ConversationRow({
             </span>
             {unread > 0 ? (
               <span
-                className="shrink-0 rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-4 text-accent-foreground"
+                className="shrink-0 rounded-full bg-accent px-1.5 text-[length:var(--type-caption)] font-semibold leading-4 text-accent-foreground"
                 aria-label={`${unread} 条未读`}
               >
                 {unread > 99 ? "99+" : unread}

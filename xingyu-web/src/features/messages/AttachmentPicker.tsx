@@ -158,7 +158,7 @@ export function AttachmentPicker({
         but must not push the composer row taller. 11px is this app's floor.
       */}
       {localError ? (
-        <p role="alert" className="max-w-40 text-[11px] text-destructive">
+        <p role="alert" className="max-w-40 text-caption text-destructive">
           {localError}
         </p>
       ) : null}

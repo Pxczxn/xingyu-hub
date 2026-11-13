@@ -618,7 +618,7 @@ export function ConversationThreadPage({
           {isGroup ? (
             // 2026-10-13 (batch 07c): 10px -> 11px, matching the 「群聊」 pill on the
             // mailbox row. The same label in two places must not be two sizes.
-            <span className="rounded border border-border px-1 text-[11px] text-muted-foreground">
+            <span className="rounded border border-border px-1 text-caption text-muted-foreground">
               群聊
             </span>
           ) : null}
@@ -628,11 +628,11 @@ export function ConversationThreadPage({
             silently degraded into "refresh to see it".
           */}
           {connection === "reconnecting" ? (
-            <span className="text-[11px] text-muted-foreground" role="status">
+            <span className="text-caption text-muted-foreground" role="status">
               连接中断，正在重连…
             </span>
           ) : backfill === "behind" ? (
-            <span className="text-[11px] text-muted-foreground" role="status">
+            <span className="text-caption text-muted-foreground" role="status">
               有消息没能补齐，正在重试…
             </span>
           ) : null}

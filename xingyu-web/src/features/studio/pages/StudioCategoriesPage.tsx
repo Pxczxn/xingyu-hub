@@ -436,7 +436,7 @@ export function StudioCategoriesPage() {
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                       <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <h2 className="text-h3 break-words text-primary">{category.name}</h2>
+                        <h2 className="text-h2 break-words text-primary">{category.name}</h2>
                         <span className="text-caption text-muted-foreground">
                           别名 {category.slug}
                         </span>
@@ -513,7 +513,7 @@ export function StudioCategoriesPage() {
                             </Button>
                           </DialogTrigger>
                           <DialogContent role="alertdialog" className="max-w-sm rounded-xl bg-card">
-                            <DialogTitle className="text-base font-semibold text-primary">
+                            <DialogTitle className="text-primary">
                               删除分类？
                             </DialogTitle>
                             <DialogDescription className="text-sm leading-6 text-muted-foreground">

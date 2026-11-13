@@ -1,3 +1,6 @@
+/* Code token colors. The well itself is restated on `.article-body pre` so the
+   theme's white background does not replace the sunken surface. */
+@import "highlight.js/styles/github.css";
 @import "./tokens.css";
 
 @tailwind base;
@@ -389,16 +392,18 @@
    * brand gold measures 2.01:1 on cream and is unreadable at this size.
    */
   .eyebrow {
-    @apply flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-accent-strong;
+    /* 旧值: text-[11px]。11px 不在字号阶上，眉题走 meta（14px）。 */
+    @apply flex items-center gap-2 text-meta font-semibold uppercase tracking-[0.2em] text-accent-strong;
   }
   .eyebrow::before {
     content: "";
     @apply h-3 w-0.5 shrink-0 rounded-full bg-accent;
   }
 
-  /* Section heading — one step below the page title, one above a card title. */
+  /* Section heading — h2 step, one below the page title, one above a card title. */
   .section-heading {
-    @apply text-title font-semibold text-primary;
+    /* 旧值: text-title（--type-h3 / 18px）。现走 text-h2（桌面 24px，<768 为 22px）。 */
+    @apply text-h2 text-primary;
   }
 
   /*
@@ -565,7 +570,7 @@
    * other inbound in-page link — a shared deep link, a footnote backref — gets
    * the same compensation for free.
    *
-   * `--shell-header-height` (61px) + 1rem of air ≈ 77px, and it follows the
+   * `--shell-header-height` (64px) + 1rem of air ≈ 80px, and it follows the
    * token if the header ever changes height. It is scoped to the rendered body
    * so it cannot affect `<h2>` used as a section title elsewhere in the app.
    */
@@ -643,14 +648,32 @@
     padding: 1rem 1.25rem;
     border-radius: 0 0.5rem 0.5rem 0;
   }
+  /*
+   * Quote: 3px ink bar, a wash lighter than the code well, and padding so the
+   * bar is not stuck to the glyphs. Size stays with the body; only the chrome
+   * is added here. The guide reader's own quote rule above is more specific
+   * and is left alone.
+   */
   .article-body blockquote {
-    @apply border-l-2 border-accent-line pl-4 text-muted-foreground;
+    @apply my-6 border-l-[3px] border-accent bg-muted/30 px-4 py-3 text-muted-foreground;
+  }
+  .article-body blockquote > * + * {
+    @apply mt-2;
   }
   .article-body code {
     @apply rounded bg-surface-sunken px-1.5 py-0.5 font-mono text-[0.8667em];
   }
+  /* Inline code is a highlight; fenced code stays the body colour. */
+  .article-body :not(pre) > code {
+    @apply text-accent-strong;
+  }
   .article-body pre {
-    @apply overflow-x-auto rounded-lg border border-border/70 bg-surface-sunken p-4;
+    @apply my-6 overflow-x-auto rounded-lg border border-border/70 p-4;
+    /*
+     * github.css sets `.hljs { background: #fff }` outside any layer, which
+     * beats a layered utility. `--surface-sunken` is #F7F7F8.
+     */
+    background-color: hsl(var(--surface-sunken)) !important;
   }
   /*
    * Code keeps a tighter rhythm than prose at every size. This used to be
@@ -663,12 +686,32 @@
   }
   .article-body pre code {
     @apply bg-transparent p-0 text-[0.8667em];
+    /* `pre code.hljs` is unlayered and would add the theme's 1em padding. */
+    background-color: transparent !important;
+    padding: 0 !important;
   }
   .article-body a {
     @apply text-accent-strong underline underline-offset-2;
   }
   .article-body img {
-    @apply rounded-lg border border-border/70;
+    @apply my-6 mx-auto block h-auto max-w-full rounded-lg border border-border/50;
+  }
+  /* The zoom control is the click target; the image keeps its own chrome. */
+  .article-body .article-image-zoom {
+    @apply my-6 block w-full cursor-zoom-in border-0 bg-transparent p-0 text-left;
+  }
+  .article-body .article-image-zoom img,
+  .article-body .article-image-zoom [role="img"] {
+    @apply my-0;
+  }
+  .article-body figure {
+    @apply my-6;
+  }
+  .article-body figure > img {
+    @apply my-0;
+  }
+  .article-body figcaption {
+    @apply mt-2 text-center text-meta leading-5 text-muted-foreground;
   }
   .article-body hr {
     @apply border-border/70;

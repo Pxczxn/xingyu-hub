@@ -63,7 +63,7 @@ export function HomeSidebar({
      */
     <div 
       className={cn(
-        "flex flex-col gap-4",
+        "flex flex-col gap-6",
         // Sticky 定位，始终停留在视口内
         "lg:sticky lg:top-[calc(var(--shell-header-height)+1rem)]",
         // 最大高度 = 视口高度 - Header - 上下边距

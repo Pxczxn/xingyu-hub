@@ -73,6 +73,11 @@ describe("PublicSeriesListPage — states", () => {
     mocked.searchPublic.mockReturnValue(new Promise(() => {}));
     renderList();
     expect(screen.getByTestId("page-state-loading")).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: "系列广场", level: 1 });
+    expect(heading.closest("header")?.className).toContain("pt-8");
+    const nav = screen.getByRole("navigation", { name: "发现" });
+    expect(heading.closest(".max-w-\\[1200px\\]")).toContainElement(nav);
+    expect(nav.closest("[class*='grid-cols']")).toBeNull();
   });
 
   it("shows the empty state when there are no public series", async () => {

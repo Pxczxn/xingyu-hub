@@ -44,12 +44,12 @@ export function TrendingTopicsPanel({
   return (
     <section
       aria-labelledby="home-trending-topics"
-      className="rounded-2xl border border-border/60 bg-card/60 p-4"
+      className="rounded-card border border-border/60 bg-card/60 p-4"
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <h2
           id="home-trending-topics"
-          className="flex items-center gap-2 text-[13px] font-semibold text-foreground"
+          className="flex items-center gap-2 text-h2 text-primary"
         >
           <span className="grid h-6 w-6 place-items-center rounded-md bg-accent-soft text-accent-strong">
             <Hash className="h-3.5 w-3.5" aria-hidden />
@@ -58,7 +58,7 @@ export function TrendingTopicsPanel({
         </h2>
         <Link
           to="/topics"
-          className="shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-accent-strong"
+          className="shrink-0 text-sm text-accent-strong hover:underline"
         >
           查看全部 →
         </Link>
@@ -81,10 +81,10 @@ export function TrendingTopicsPanel({
                 >
                   {index + 1}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-foreground">
+                <span className="min-w-0 flex-1 truncate text-meta font-medium text-foreground">
                   {topic.name}
                 </span>
-                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
                   {formatCompact(topic.contentCount ?? 0)} 篇
                 </span>
               </Link>

@@ -335,7 +335,7 @@ export function PublicSeriesDetailPage() {
                 </h2>
                 <Link
                   to={`/u/${encodeURIComponent(series.author.username)}`}
-                  className="focus-ring shrink-0 rounded-sm text-[12px] text-accent-strong hover:underline"
+                  className="focus-ring shrink-0 rounded-sm text-caption text-accent-strong hover:underline"
                 >
                   创作者主页 ↗
                 </Link>
@@ -351,14 +351,14 @@ export function PublicSeriesDetailPage() {
                 ) : (
                   <span
                     aria-hidden
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-card bg-primary text-[21px] font-bold text-primary-foreground ring-1 ring-border"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-card bg-primary text-[length:var(--type-h2)] font-bold leading-none text-primary-foreground ring-1 ring-border"
                   >
                     {authorInitial}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-primary">{authorName}</div>
-                  <p className="mt-1 text-[12px] leading-6 text-muted-foreground">
+                  <p className="mt-1 text-caption !leading-6 text-muted-foreground">
                     当前系列创作者 · 更多分享与个人介绍
                   </p>
                 </div>
@@ -366,7 +366,7 @@ export function PublicSeriesDetailPage() {
 
               <div aria-live="polite">
                 {discover.kind === "loading" ? (
-                  <p className="mt-4 text-[12px] text-muted-foreground">正在读取其他系列…</p>
+                  <p className="mt-4 text-caption text-muted-foreground">正在读取其他系列…</p>
                 ) : discover.kind === "failed" ? (
                   <EmptyPanel
                     icon={<AlertCircle className="h-[18px] w-[18px]" />}
@@ -406,13 +406,13 @@ export function PublicSeriesDetailPage() {
                     series list and splits it by author, so there is no relevance
                     ranking behind the door and the copy must not imply one.
                   */}
-                  <p className="mt-1 text-[12px] leading-6 text-muted-foreground">
+                  <p className="mt-1 text-caption !leading-6 text-muted-foreground">
                     发现更多值得阅读的系列。
                   </p>
                 </div>
                 <Link
                   to="/series"
-                  className="focus-ring mt-0.5 shrink-0 rounded-sm text-[12px] text-accent-strong hover:underline"
+                  className="focus-ring mt-0.5 shrink-0 rounded-sm text-caption text-accent-strong hover:underline"
                 >
                   全部系列 ↗
                 </Link>
@@ -420,7 +420,7 @@ export function PublicSeriesDetailPage() {
 
               <div aria-live="polite">
                 {discover.kind === "loading" ? (
-                  <p className="mt-4 text-[12px] text-muted-foreground">正在读取公开系列…</p>
+                  <p className="mt-4 text-caption text-muted-foreground">正在读取公开系列…</p>
                 ) : discover.kind === "failed" ? (
                   <EmptyPanel
                     icon={<AlertCircle className="h-[18px] w-[18px]" />}
@@ -470,7 +470,7 @@ export function PublicSeriesDetailPage() {
             <div className="series-detail-intro">
               <p className="eyebrow">星语系列 · SERIES</p>
 
-              <h1 className="series-detail-title font-display font-extrabold text-primary">
+              <h1 className="series-detail-title font-display text-primary">
                 {series.title}
               </h1>
 
@@ -496,7 +496,7 @@ export function PublicSeriesDetailPage() {
 
               <div className="series-detail-actions">
                 {chapters.length > 0 ? (
-                  <Button asChild className="h-[42px] px-[17px] text-sm">
+                  <Button asChild className="h-10">
                     <Link to={readHref}>
                       {resumeArticleId ? "继续阅读" : "开始阅读"}
                       <ArrowRight aria-hidden className="h-4 w-4" />
@@ -508,7 +508,7 @@ export function PublicSeriesDetailPage() {
                     two buttons, so it takes the second button's shape rather
                     than shrinking to a text link next to the primary. */}
                 {!isAuthenticated ? (
-                  <Button asChild variant="outline" className="h-[42px] px-[17px] text-sm">
+                  <Button asChild variant="outline" className="h-10">
                     <Link to={`/login?returnTo=${encodeURIComponent(`/series/${series.id}`)}`}>
                       登录后订阅
                     </Link>
@@ -517,7 +517,7 @@ export function PublicSeriesDetailPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-[42px] px-[17px] text-sm"
+                    className="h-10"
                     disabled={subscribePending}
                     aria-pressed={subscribed}
                     onClick={() => void onToggleSubscribe()}
@@ -576,14 +576,14 @@ export function PublicSeriesDetailPage() {
             <div className="series-detail-chapters-head">
               <h2
                 id="series-chapters-heading"
-                className="text-[21px] font-bold tracking-[-0.5px] text-primary"
+                className="text-h2 text-primary"
               >
                 章节目录
-                <span className="ml-2 text-[12px] font-normal tabular-nums text-muted-foreground/80">
+                <span className="ml-2 text-caption font-normal tabular-nums text-muted-foreground/80">
                   {String(chapters.length).padStart(2, "0")} 章
                 </span>
               </h2>
-              <p className="hidden text-[12px] text-muted-foreground/80 sm:block">
+              <p className="hidden text-caption text-muted-foreground/80 sm:block">
                 按作者编排顺序阅读
               </p>
             </div>
@@ -617,7 +617,7 @@ export function PublicSeriesDetailPage() {
                           {String(index + 1).padStart(2, "0")}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[15px] font-semibold leading-[1.6] text-foreground">
+                          <span className="block text-h3 text-foreground">
                             {chapter.title?.trim() || `第 ${chapter.position} 章`}
                           </span>
                           {isResume ? (
@@ -638,7 +638,7 @@ export function PublicSeriesDetailPage() {
             )}
 
             {chapters.length > 0 ? (
-              <p className="mt-3 text-[12px] text-muted-foreground/80">
+              <p className="mt-3 text-caption text-muted-foreground/80">
                 点击章节后，将在系列阅读器中打开对应内容。
               </p>
             ) : null}
@@ -669,12 +669,12 @@ function WorkRow({ item, subtitle }: { item: PublicSeriesSummary; subtitle: stri
         className="w-[41px]"
       />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-bold text-primary transition-colors group-hover:text-accent-strong">
+        <span className="block truncate text-meta font-bold text-primary transition-colors group-hover:text-accent-strong">
           {item.title}
         </span>
-        <span className="mt-1 block truncate text-[11px] text-muted-foreground">{subtitle}</span>
+        <span className="mt-1 block truncate text-caption text-muted-foreground">{subtitle}</span>
       </span>
-      <span aria-hidden className="shrink-0 pl-1 text-[23px] text-muted-foreground/60">
+      <span aria-hidden className="shrink-0 pl-1 text-[length:var(--type-h2)] leading-none text-muted-foreground/60">
         ›
       </span>
     </Link>
@@ -707,15 +707,15 @@ function EmptyPanel({
       <span aria-hidden className="series-detail-blank-icon">
         {icon}
       </span>
-      <strong className="block text-[13px] font-semibold text-primary">{title}</strong>
-      <p className="mx-auto mt-[7px] max-w-[25ch] text-[12px] leading-7 text-muted-foreground">
+      <strong className="block text-meta font-semibold text-primary">{title}</strong>
+      <p className="mx-auto mt-[7px] max-w-[25ch] text-caption !leading-7 text-muted-foreground">
         {description}
       </p>
       {onRetry ? (
         <button
           type="button"
           onClick={onRetry}
-          className="focus-ring mt-2.5 rounded-lg border border-accent-line bg-card px-3.5 py-2 text-[12px] text-accent-strong transition-colors hover:border-accent/60"
+          className="focus-ring mt-2.5 rounded-lg border border-accent-line bg-card px-3.5 py-2 text-caption text-accent-strong transition-colors hover:border-accent/60"
         >
           重试加载
         </button>

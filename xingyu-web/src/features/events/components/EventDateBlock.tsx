@@ -62,19 +62,16 @@ export function EventDateBlock({
       )}
     >
       {/*
-        The compact month and weekday labels take the 11px micro step rather than
-        `text-meta`. That is a measurement, not a preference: at `text-meta`
-        (13px, line-height 1.5) the three stacked lines total 69px, while the
-        title-plus-two-line-excerpt column sitting beside the block is 63px — the
-        block would overhang its own card. At 11px it lands on 63px exactly. The
-        step is already part of the system either way: `.eyebrow` and every pill in
-        the app are 11px.
+        The compact month label uses the caption token (12px) with its own
+        weight. `text-caption` also sets weight 400, which would wipe
+        `font-medium`, so the size is taken from `--type-caption` alone.
+        `text-meta` makes this three-line stack taller than the card beside it.
       */}
       <span
         className={cn(
           "font-medium",
           muted ? "text-muted-foreground" : "text-accent-strong",
-          large ? "text-meta" : "text-[11px]",
+          large ? "text-meta" : "text-[length:var(--type-caption)]",
         )}
       >
         {parts ? parts.month : "待定"}
@@ -90,13 +87,13 @@ export function EventDateBlock({
            * exactly one size with no tracking and no leading, so it is written as
            * exactly that.
            */
-          large ? "text-[30px]" : "text-lg",
+          large ? "text-[30px]" : "text-[length:var(--type-h3)]",
         )}
       >
         {parts ? parts.day : "—"}
       </span>
       {parts ? (
-        <span className={cn("text-muted-foreground", large ? "text-meta" : "text-[11px]")}>
+        <span className={cn("text-muted-foreground", large ? "text-meta" : "text-caption")}>
           {parts.weekday}
         </span>
       ) : null}

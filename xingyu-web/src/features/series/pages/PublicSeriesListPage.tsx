@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { ArchetypeFrame } from "@/components/layout";
-import { PageHero } from "@/components/shared/PageHero";
 import { PageSection } from "@/components/shared/PageSection";
 import { SearchField } from "@/components/shared/SearchField";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import { DiscoverFrame } from "@/features/discover/components/DiscoverFrame";
 import { SeriesWorkCard } from "../components/SeriesWorkCard";
 import { useSeriesFeed } from "../useSeriesFeed";
 
@@ -71,19 +71,8 @@ export function PublicSeriesListPage() {
    *   （那是 R=出），也不做侧轨（那是 R=错）。
    */
   return (
-    <ArchetypeFrame
-      skeleton="SK2"
-      header="banner"
-      density="loose"
-      headerSlot={
-        <PageHero
-          eyebrow="SERIES"
-          title="系列广场"
-          description="沿着一条主题线索，完整读完一个系列。"
-          className="motif-orbit"
-        />
-      }
-    >
+    <DiscoverFrame title="系列广场" description="沿着一条主题线索，完整读完一个系列。">
+    <ArchetypeFrame skeleton="SK2" header="shell" density="loose">
       {catalogEmpty ? (
         <PageState
           kind="empty"
@@ -175,5 +164,6 @@ export function PublicSeriesListPage() {
         </PageSection>
       )}
     </ArchetypeFrame>
+    </DiscoverFrame>
   );
 }

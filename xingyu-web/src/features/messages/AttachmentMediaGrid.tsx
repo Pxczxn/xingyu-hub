@@ -55,10 +55,10 @@ export function AttachmentMediaGrid({
               narrow starts wrapping filenames that get truncated anyway — the worst of
               both. 10px was a pixel under this app's floor.
             */}
-            <span className="truncate px-1 text-[11px] text-muted-foreground">
+            <span className="truncate px-1 text-caption text-muted-foreground">
               {message.attachmentName ?? "图片"}
             </span>
-            {at ? <time className="px-1 text-[11px] text-muted-foreground">{at}</time> : null}
+            {at ? <time className="px-1 text-caption text-muted-foreground">{at}</time> : null}
           </li>
         );
       })}

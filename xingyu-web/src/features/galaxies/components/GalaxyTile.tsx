@@ -67,12 +67,12 @@ export function GalaxyTile({
     <Link
       to={`/galaxies/${encodeURIComponent(galaxy.slug)}`}
       className={cn(
-        "group card-lift focus-ring flex h-full rounded-xl border",
+        "group card-lift focus-ring relative flex h-full overflow-hidden rounded-card border",
         featured
           ? "flex-col gap-4 p-4 hover:border-accent-line sm:flex-row sm:items-start sm:gap-5 sm:p-5"
           : "items-start gap-3.5 p-4 hover:border-accent-line sm:gap-4",
         variant === "mine" && "border-accent-line/60 bg-accent-soft/50 hover:bg-accent-soft",
-        variant === "official" && "border-border/70 bg-card",
+        variant === "official" && "border-accent bg-card shadow-sm",
         variant === "community" && "border-border/60 bg-card/70 hover:bg-card",
       )}
     >
@@ -88,13 +88,13 @@ export function GalaxyTile({
           <span
             className={cn(
               "truncate font-semibold text-primary transition-colors group-hover:text-accent-strong",
-              featured ? "text-[17px]" : "text-card",
+              featured ? "text-h3" : "text-card",
             )}
           >
             {galaxy.name}
           </span>
           {galaxy.official ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-accent-line/60 bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent-strong">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[length:var(--type-caption)] font-medium text-accent-foreground">
               <BadgeCheck className="h-3 w-3" aria-hidden />
               官方
             </span>

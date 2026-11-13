@@ -242,7 +242,7 @@ export function GrowthPage() {
       {/* ---- 徽章 ---- */}
       <section aria-label="徽章" className="min-w-0">
         <div className="flex items-baseline justify-between gap-4 border-b border-border/70 pb-2">
-          <h2 className="flex items-center gap-2 text-h3 text-primary">
+          <h2 className="flex items-center gap-2 text-h2 text-primary">
             <Award className="h-4 w-4 text-muted-foreground" aria-hidden />
             徽章
           </h2>
@@ -283,7 +283,7 @@ export function GrowthPage() {
 
       {/* ---- 最近阅读（D=表：标题 / 类型 / 时间 三列对齐） ---- */}
       <section aria-label="最近阅读" className="min-w-0">
-        <h2 className="flex items-center gap-2 border-b border-border/70 pb-2 text-h3 text-primary">
+        <h2 className="flex items-center gap-2 border-b border-border/70 pb-2 text-h2 text-primary">
           <BookOpen className="h-4 w-4 text-muted-foreground" aria-hidden />
           最近阅读
         </h2>
@@ -326,7 +326,7 @@ export function GrowthPage() {
 
       {/* ---- 最近评论 ---- */}
       <section aria-label="最近评论" className="min-w-0">
-        <h2 className="flex items-center gap-2 border-b border-border/70 pb-2 text-h3 text-primary">
+        <h2 className="flex items-center gap-2 border-b border-border/70 pb-2 text-h2 text-primary">
           <MessageSquare className="h-4 w-4 text-muted-foreground" aria-hidden />
           最近评论
         </h2>
@@ -422,7 +422,7 @@ function GrowthRail({
         aria-labelledby="growth-rail-overview"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="growth-rail-overview" className="text-h3 text-primary">
+        <h2 id="growth-rail-overview" className="text-h2 text-primary">
           成长概览
         </h2>
         <dl className="mt-3 flex flex-col gap-2">
@@ -462,7 +462,7 @@ function GrowthRail({
           aria-labelledby="growth-rail-badges"
           className="rounded-card border border-border/70 bg-card p-4"
         >
-          <h2 id="growth-rail-badges" className="text-h3 text-primary">
+          <h2 id="growth-rail-badges" className="text-h2 text-primary">
             已点亮徽章
           </h2>
           <ul className="mt-3 flex flex-wrap gap-2">

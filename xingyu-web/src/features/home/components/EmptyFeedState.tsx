@@ -72,17 +72,17 @@ export function EmptyFeedState({ variant, className }: EmptyFeedStateProps) {
       role="status"
       aria-live="polite"
       className={cn(
-        "flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-card px-6 py-16 text-center shadow-sm",
+        "flex flex-col items-center justify-center rounded-card border border-border/80 bg-card px-6 py-16 text-center shadow-sm",
         className,
       )}
     >
       {/* 图标装饰 */}
-      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent-soft">
-        <Icon className="h-10 w-10 text-accent-strong" aria-hidden />
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-sunken">
+        <Icon className="h-8 w-8 text-muted-foreground" aria-hidden />
       </div>
 
       {/* 标题 */}
-      <h3 className="mb-2 text-lg font-semibold text-foreground">{content.title}</h3>
+      <h3 className="mb-2 text-h3 text-foreground">{content.title}</h3>
 
       {/* 描述 */}
       <p className="mb-6 max-w-md text-sm leading-relaxed text-muted-foreground">

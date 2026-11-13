@@ -73,7 +73,7 @@ export function TopicCard({
         `group` moves down to the visual's own row, so the `TopicVisual` warm-up
         still fires on the one thing that IS a target — the name.
       */}
-      <article className="flex h-full flex-col rounded-xl border border-border/50 bg-card p-4 transition-colors duration-200 hover:border-border hover:bg-muted/20">
+      <article className="flex h-full flex-col rounded-card border border-border/50 bg-card p-4 shadow-sm transition-[box-shadow,border-color,background-color] duration-200 hover:border-border hover:bg-muted/20 hover:shadow-md">
         <div className="group flex items-start gap-3">
           <TopicVisual name={topic.name} stableKey={topic.slug || topic.id} />
           <div className="min-w-0 flex-1">

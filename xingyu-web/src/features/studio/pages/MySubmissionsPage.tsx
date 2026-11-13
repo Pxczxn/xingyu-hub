@@ -128,7 +128,7 @@ export function MySubmissionsPage() {
                 className="flex flex-col gap-2 py-[var(--density-list-gap)] sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-x-6"
               >
                 <div className="flex min-w-0 flex-col gap-1">
-                  <h2 className="text-h3 break-words text-primary">
+                  <h2 className="text-h2 break-words text-primary">
                     <Link
                       to={`/studio/submissions/${encodeURIComponent(item.id)}`}
                       className="focus-ring rounded-sm hover:text-accent-strong"

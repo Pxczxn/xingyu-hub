@@ -26,7 +26,7 @@ export function ProfileSeries({
     return (
       <p
         data-testid="profile-series-empty"
-        className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
+        className="rounded-card border border-border/70 bg-card p-6 text-center text-meta text-muted-foreground"
       >
         还没有公开系列。
       </p>

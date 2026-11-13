@@ -240,10 +240,7 @@ export function UserMenu({
                 <DropdownMenuSubTrigger className="rounded-md px-2 py-2 focus:bg-surface-sunken focus:text-foreground">
                   <span className="font-medium">{group.heading}</span>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent 
-                  className="w-48"
-                  sideOffset={8}
-                >
+                <DropdownMenuSubContent className="w-48" sideOffset={8}>
                   {group.items.map((item) => (
                     <DropdownMenuItem
                       key={`${item.label}-${item.to}`}
@@ -264,6 +261,15 @@ export function UserMenu({
 
         <DropdownMenuSeparator className="my-0 shrink-0 bg-border" />
         <div className="shrink-0 px-2 py-1.5">
+          <DropdownMenuItem
+            asChild
+            role="link"
+            className="rounded-md px-2 py-1.5 focus:bg-surface-sunken focus:text-foreground"
+          >
+            <Link to="/guide" onClick={() => setOpen(false)}>
+              星语指南
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem
             asChild
             role="link"

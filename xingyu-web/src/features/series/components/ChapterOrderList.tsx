@@ -172,7 +172,7 @@ function SortableChapterRow({
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           <ArticleStateBadge state={state} />
           {state.hint ? (
-            <span className="text-[11px] leading-4 text-muted-foreground">{state.hint}</span>
+            <span className="text-caption !leading-4 text-muted-foreground">{state.hint}</span>
           ) : null}
         </div>
       </div>

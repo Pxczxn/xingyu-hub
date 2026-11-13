@@ -212,7 +212,7 @@ export function CollectionManagePage() {
         onSubmit={(event) => void onSave(event)}
         className="space-y-3 rounded-card border border-border/70 bg-card p-4"
       >
-        <label className="block text-meta font-medium">
+        <label className="block text-meta font-semibold">
           名称
           <input
             value={title}
@@ -229,7 +229,7 @@ export function CollectionManagePage() {
           </p>
         ) : null}
         <fieldset>
-          <legend className="text-meta font-medium">可见范围</legend>
+          <legend className="text-meta font-semibold">可见范围</legend>
           <div className="mt-2 space-y-2">
             {COLLECTION_VISIBILITIES.map((value) => (
               <label key={value} className="flex items-center gap-2 text-meta">
@@ -298,7 +298,7 @@ export function CollectionManagePage() {
             <Button variant="destructive">删除收藏夹</Button>
           </DialogTrigger>
           <DialogContent role="alertdialog" className="max-w-sm rounded-xl bg-card">
-            <DialogTitle className="text-base font-semibold text-primary">删除收藏夹？</DialogTitle>
+            <DialogTitle className="text-primary">删除收藏夹？</DialogTitle>
             <DialogDescription className="text-sm leading-6 text-muted-foreground">
               确定删除这个收藏夹吗？此操作无法撤销。
             </DialogDescription>
@@ -343,7 +343,7 @@ function ManageRail({
         aria-labelledby="collection-rail-overview"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="collection-rail-overview" className="text-h3 text-primary">
+        <h2 id="collection-rail-overview" className="text-h2 text-primary">
           收藏夹概览
         </h2>
         <dl className="mt-3 flex flex-col gap-2">
@@ -366,7 +366,7 @@ function ManageRail({
         aria-labelledby="collection-rail-types"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="collection-rail-types" className="text-h3 text-primary">
+        <h2 id="collection-rail-types" className="text-h2 text-primary">
           类型分布
         </h2>
         <p className="mt-2 text-meta text-foreground-soft">

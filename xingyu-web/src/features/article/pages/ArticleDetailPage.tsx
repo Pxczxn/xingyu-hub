@@ -247,7 +247,7 @@ export function ArticleDetailPage() {
                     <li key={slug}>
                       <Link
                         to={`/topics/${slug}`}
-                        className="focus-ring inline-block rounded-full border border-border/70 px-2.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-accent-line hover:text-accent-strong"
+                        className="focus-ring inline-block rounded-full border border-border/70 px-2.5 py-0.5 text-caption text-muted-foreground transition-colors hover:border-accent-line hover:text-accent-strong"
                       >
                         #{slug}
                       </Link>
@@ -291,11 +291,11 @@ export function ArticleDetailPage() {
                 className="min-[1024px]:hidden"
               />
             </div>
-            <h1 className="mt-3 text-[44px] font-bold leading-[1.15] tracking-tight text-primary">
+            <h1 className="mt-3 text-h1 text-primary">
               {article.title}
             </h1>
             {article.summary ? (
-              <p className="mt-5 text-[18px] leading-[1.7] text-foreground-soft">
+              <p className="mt-5 text-base leading-[1.7] text-muted-foreground">
                 {article.summary}
               </p>
             ) : null}

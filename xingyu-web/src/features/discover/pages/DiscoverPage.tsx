@@ -8,8 +8,7 @@ import type { ContentSummary } from "@/api/common.types";
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { topicsApi } from "@/api/topics/topics.api";
 import { PageState } from "@/components/shared/PageState";
-import { PageHero } from "@/components/shared/PageHero";
-import { ArchetypeFrame, BleedBand } from "@/components/layout";
+import { DiscoverFrame } from "@/features/discover/components/DiscoverFrame";
 import { DiscoverSidebar } from "@/features/discover/components/DiscoverSidebar";
 import { DiscoverListItem } from "@/features/discover/components/DiscoverListItem";
 import { DiscoverReadingSheet } from "@/features/discover/components/DiscoverReadingSheet";
@@ -17,6 +16,27 @@ import { cn } from "@/lib/cn";
 import "../discover.css";
 
 const itemKey = (item: ContentSummary) => `${item.objectType ?? ""}:${item.id}`;
+
+function DiscoverFeedSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="page-state-loading"
+      className="flex flex-col gap-4"
+    >
+      <span className="sr-only">正在加载…</span>
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="animate-pulse border-b border-slate-100 py-8 last:border-0">
+          <div className="mb-2 h-5 w-2/3 rounded bg-gray-100" />
+          <div className="mb-1 h-4 w-full rounded bg-gray-100" />
+          <div className="h-4 w-5/6 rounded bg-gray-100" />
+          <div className="mt-3 h-3 w-40 rounded bg-gray-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function DiscoverPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,8 +53,7 @@ export function DiscoverPage() {
   const topicOverridesType = Boolean(topic) && (parsedType === "MOMENT" || parsedType === "SERIES");
   const type: DiscoverInput["type"] = topicOverridesType ? undefined : parsedType;
   const rawSort = searchParams.get("sort");
-  const sort: DiscoverSort =
-    rawSort === "featured" || rawSort === "interest" ? rawSort : "latest";
+  const sort: DiscoverSort = rawSort === "featured" || rawSort === "interest" ? rawSort : "latest";
   const discoverInput = useCallback(
     (cursor?: string): DiscoverInput => {
       const input: DiscoverInput = { limit: 20 };
@@ -176,7 +195,10 @@ export function DiscoverPage() {
       })
       .catch((err: unknown) => {
         if (!active || version !== requestVersion.current) return;
-        if (err instanceof ApiError && (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")) {
+        if (
+          err instanceof ApiError &&
+          (err.problem.status === 401 || err.problem.code === "AUTH_REQUIRED")
+        ) {
           setNeedsLogin(true);
         } else {
           setError(true);
@@ -191,59 +213,33 @@ export function DiscoverPage() {
 
   const isFiltered = Boolean(topic || type || sort !== "latest");
 
-  /*
-   * SK2 画廊 · H 幅 / D 松 / R 出（A §3 的 Discover 行）。
-   *
-   *   skeleton="SK2"    → 画廊原型：无卡面的发现带 + 等权文本行，页面不再手写
-   *                       `text-[2.05rem]` 这类标题，也没有 `mt-7` 手写间距。
-   *   header="banner"   → H=幅：有面横幅 `PageHero`（卡片面 + eyebrow + 说明）。
-   *   density="loose"   → D=松：首屏 ≤3 块、区块间距 40px。
-   *   R=出             → 首屏就是一条整幅出血带：`BleedBand` 用与 shell 内边距
-   *                       等量的负 margin 把底色推到内容列外缘，横幅坐在带里；
-   *                       出血带全页只出现这一次，其后的筛选列与列表都回到内容列。
-   *
-   * 与同为 SK2·幅/松/出的 TopicsPage 的区别（两页四元组相同，必须靠构图区分）：
-   *   本页的出血带里是**横幅**（标题 + 说明，orbit 母题，sunken 面）；带下面是
-   *   「左侧筛选列 + 单列阅读行」，行可以就地点开读正文。
-   *   Topics 的出血带里是**话题目录**（热门/最近活跃两份带真实计数的名单，mesh
-   *   母题，card 面）；带下面是三列等权卡格。一个先给「你是谁」，一个先给「从哪
-   *   开始」。
-   *
-   * 筛选列仍是 `DiscoverSidebar`（`features/discover/components`，不在本批写作用域）：
-   * 它的 244px 固定宽与 `.discover-layout` 的断点列定义是一体的，所以两栏关系保留，
-   * 页面只换了报头与区块节奏。
-   */
   return (
-    <ArchetypeFrame
-      skeleton="SK2"
-      header="banner"
-      density="loose"
-      headerSlot={
-        <BleedBand tone="sunken" motif="orbit" contentClassName="px-4 py-9 md:px-6 md:py-11">
-          <PageHero
-            eyebrow="DISCOVER · 阅读发现"
-            title="探索"
-            description="从感兴趣的话题，找到下一篇想读的内容。"
+    <DiscoverFrame title="发现" description="顺着话题，把下一篇想读完的文章找出来。">
+        <div className="discover-layout grid grid-cols-1 gap-8 md:grid-cols-12">
+          <DiscoverSidebar
+            className="md:col-span-3"
+            activeTopic={topic}
+            onTopicChange={(value) => changeFilter("topic", value)}
+            sort={sort}
+            onSortChange={changeSort}
+            contentType={type ?? "ALL"}
+            onContentTypeChange={(value) => changeFilter("type", value === "ALL" ? "" : value)}
+            topics={topics}
+            topicsError={topicsError}
           />
-        </BleedBand>
-      }
-    >
-      <div className="discover-layout grid gap-6">
-        <DiscoverSidebar
-          activeTopic={topic}
-          onTopicChange={(value) => changeFilter("topic", value)}
-          sort={sort}
-          onSortChange={changeSort}
-          contentType={type ?? "ALL"}
-          onContentTypeChange={(value) => changeFilter("type", value === "ALL" ? "" : value)}
-          topics={topics}
-          topicsError={topicsError}
-        />
-        <div className="min-w-0" aria-label="探索内容" aria-busy={loading || loadingMore}>
-          {loading && <PageState kind="loading" />}
+          <div
+            className="min-w-0 md:col-span-9"
+            aria-label="发现内容"
+            aria-busy={loading || loadingMore}
+          >
+          {loading && <DiscoverFeedSkeleton />}
           {!loading && needsLogin && (
             <div className="section-gap-tight">
-              <PageState kind="empty" title="登录后查看兴趣相关" description="按你选择的探索方向筛选公开文章。" />
+              <PageState
+                kind="empty"
+                title="登录后查看兴趣相关"
+                description="按你选择的探索方向筛选公开文章。"
+              />
               <div className="text-center">
                 <Link to="/login" className={cn(buttonVariants({ variant: "accent" }))}>
                   去登录
@@ -285,30 +281,22 @@ export function DiscoverPage() {
             </div>
           )}
           {!loading && !error && items.length > 0 && (
-            <div>
-              <div className="border-b border-border/70 pb-3">
-                <h2 className="text-h3 text-primary">发现内容</h2>
-              </div>
-              <ul className="xl:grid xl:grid-cols-2 xl:gap-x-6">
-                {items.map((item) => {
-                  const key = itemKey(item);
-                  return (
-                    <li
-                      key={key}
-                      className="border-b border-border/50 last:border-b-0"
-                    >
-                      <DiscoverListItem
-                        item={item}
-                        onToggleExpand={() => {
-                          setSelectedItem(item);
-                          setSheetOpen(true);
-                        }}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+            <ul className="flex flex-col">
+              {items.map((item) => {
+                const key = itemKey(item);
+                return (
+                  <li key={key} className="border-b border-slate-100 last:border-0">
+                    <DiscoverListItem
+                      item={item}
+                      onToggleExpand={() => {
+                        setSelectedItem(item);
+                        setSheetOpen(true);
+                      }}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
           )}
           {!loading && !error && loadMoreError && (
             <p role="alert" className="pt-2 text-right text-meta text-danger">
@@ -327,10 +315,9 @@ export function DiscoverPage() {
               </Button>
             </div>
           )}
+          </div>
         </div>
-      </div>
 
-      {/* Reading Sheet */}
       <DiscoverReadingSheet
         item={selectedItem}
         open={sheetOpen}
@@ -339,6 +326,6 @@ export function DiscoverPage() {
           if (!open) setSelectedItem(null);
         }}
       />
-    </ArchetypeFrame>
+    </DiscoverFrame>
   );
 }

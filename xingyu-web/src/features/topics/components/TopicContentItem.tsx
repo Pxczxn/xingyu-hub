@@ -56,7 +56,7 @@ export function TopicContentItem({
             {item.avatar ? (
               <img src={item.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
             ) : item.authorName ? (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[11px]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-caption">
                 {authorInitial}
               </span>
             ) : null}
@@ -68,7 +68,7 @@ export function TopicContentItem({
         ) : null}
         <Link
           to={contentHref(item)}
-          className={`focus-ring block text-lg font-semibold leading-7 text-primary hover:text-accent-strong ${
+          className={`focus-ring block text-[length:var(--type-h3)] font-semibold leading-7 text-primary hover:text-accent-strong ${
             hasMeta ? "mt-2" : ""
           }`}
         >

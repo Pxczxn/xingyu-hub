@@ -69,10 +69,10 @@ function HomeFeedVisual({ item, href }: { item: ContentSummary; href: string }) 
       to={href}
       tabIndex={-1}
       aria-hidden
-      className="hidden shrink-0 overflow-hidden rounded-control sm:block"
+      className="hidden shrink-0 overflow-hidden rounded-lg sm:block"
     >
-      <div className="h-[104px] w-[168px] overflow-hidden rounded-control transition-transform duration-300 group-hover:scale-[1.02]">
-        <ContentCoverImage src={item.cover} alt="" className="h-[104px] w-[168px] object-cover" />
+      <div className="h-24 w-32 overflow-hidden rounded-lg transition-transform duration-300 group-hover:scale-[1.02]">
+        <ContentCoverImage src={item.cover} alt="" className="h-24 w-32 object-cover" />
       </div>
     </Link>
   );
@@ -304,35 +304,59 @@ export function HomeFeedItem({
   return (
     <article
       className={cn(
-        "group relative",
+        "group relative rounded-card border border-border/70 bg-card p-5 transition-shadow hover:shadow-md",
         /*
-         * D=紧（A §3 的 Home 行）：行式条目，行为由发丝线分隔，条目自己没有卡面。
-         * 行内上下 padding 收到 16px（`py-4`）、左右 8px，让首屏能放下更多行 ——
-         * 与同为 SK6 的 TopicDetail 相比，这一页的密度靠「行更矮、元信息在行底」
-         * 表达，而不是靠缩字体。
+         * 无封面必须是单列。有封面才声明第二列，否则 Grid 会为不存在的缩略图
+         * 留出一条 0 宽隐式列。封面列只在 sm 以上出现，和缩略图的显示断点一致。
          */
-        "grid items-start gap-y-2 px-2 py-4",
-        /*
-         * 只有真封面在场时才分两栏。
-         *
-         * 无封面还保留第二列，`gap-x-6` 会在右侧白白吃掉 24px —— 文字区被压窄，
-         * 却看不到任何东西占着它。所以没有封面时直接单列：标题与摘要吃满整行，
-         * 视觉上也不会留下「这行少了一张图」的空位。
-         */
-        item.cover ? "grid-cols-[minmax(0,1fr)_auto] gap-x-6" : "grid-cols-1",
-        "transition-colors duration-200 ease-out",
-        "hover:bg-muted/40",
+        item.cover
+          ? "sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-x-4"
+          : "grid grid-cols-1",
       )}
     >
-      <div className="col-start-1 row-start-1 min-w-0">
+      {hasHeader ? (
+        <header className={cn("mb-3 flex items-center gap-3", item.cover && "sm:col-span-2")}>
+          {item.avatar ? (
+            <img
+              data-testid="feed-avatar"
+              src={item.avatar}
+              alt=""
+              loading="lazy"
+              className="h-10 w-10 rounded-full object-cover"
+            />
+          ) : author ? (
+            <span
+              data-testid="feed-avatar"
+              aria-hidden
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-sm font-medium text-muted-foreground"
+            >
+              {author.slice(0, 1)}
+            </span>
+          ) : null}
+          <div data-testid="feed-byline" className="flex min-w-0 items-center gap-2 text-sm">
+            {byline.map((node, index) => (
+              <Fragment key={index}>
+                {index > 0 ? (
+                  <span aria-hidden className="shrink-0 text-muted-foreground/50">
+                    ·
+                  </span>
+                ) : null}
+                {node}
+              </Fragment>
+            ))}
+          </div>
+        </header>
+      ) : null}
+
+      <div className="min-w-0">
         <Link
           to={href}
-          className="focus-ring mb-1.5 block line-clamp-2 text-h3 text-primary transition-colors hover:text-accent-strong"
+          className="focus-ring mb-2 block line-clamp-2 text-[length:var(--type-h3)] font-semibold leading-tight text-primary transition-colors group-hover:text-accent"
         >
           {item.title}
         </Link>
         {item.summary ? (
-          <p className="mb-2 line-clamp-2 max-w-[62ch] text-meta leading-6 text-foreground-soft">
+          <p className="mb-3 line-clamp-2 text-sm leading-6 text-muted-foreground">
             {item.summary}
           </p>
         ) : null}
@@ -377,67 +401,15 @@ export function HomeFeedItem({
        * 变成「830.5px 0px」）—— 宽 0，不影响读数，但它让容器的列定义和实际内容
        * 长期对不上，后面谁再往这格里加东西就会凭空多出半栏。null 时整块不渲染。
        */}
-      {item.cover ? (
-        <div className="col-start-2 row-span-2">
-          <HomeFeedVisual item={item} href={href} />
-        </div>
-      ) : null}
+      {item.cover ? <HomeFeedVisual item={item} href={href} /> : null}
 
-      {/*
-       * 元信息条。
-       *
-       * 作者、类型与互动数必须在同一条线上连续读完——它们回答的是同一个问题
-       * 「这条是谁写的、好不好」；把它们拆到右侧竖栏会让视线在行内来回跳跃，
-       * 也让无封面行空出半行。所以这里只有一条横向元信息，窄屏自动换行。
-       */}
-      <div className="col-start-1 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-        {hasHeader ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {/*
-             * Avatar — DISCOVERY ONLY.
-             *
-             * A discovery feed scans by CONTENT; a subscription feed scans by WHO
-             * published. That is a product-semantics split, so the switch is the
-             * variant rather than the payload: there is deliberately no "show it
-             * only when a real avatar exists" branch, because that would start rows
-             * at different x-positions and hand users with pictures a heavier row.
-             */}
-            {item.avatar ? (
-              <img
-                data-testid="feed-avatar"
-                src={item.avatar}
-                alt=""
-                loading="lazy"
-                className="h-7 w-7 rounded-full object-cover"
-              />
-            ) : author ? (
-              <span
-                data-testid="feed-avatar"
-                aria-hidden
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium text-muted-foreground"
-              >
-                {author.slice(0, 1)}
-              </span>
-            ) : null}
-
-            {/* Separator generated from presence — never a hardcoded 「·」 between slots. */}
-            <div data-testid="feed-byline" className="flex min-w-0 items-center gap-2">
-              {byline.map((node, index) => (
-                <Fragment key={index}>
-                  {index > 0 ? (
-                    <span aria-hidden className="shrink-0 text-muted-foreground/50">
-                      ·
-                    </span>
-                  ) : null}
-                  {node}
-                </Fragment>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {hasLikes || hasComments || canBookmark ? (
-          <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
+      {hasLikes || hasComments || canBookmark ? (
+        <footer
+          className={cn(
+            "mt-3 flex flex-wrap items-center gap-4 border-t border-border/60 pt-3 text-sm text-muted-foreground",
+            item.cover && "sm:col-span-2",
+          )}
+        >
             {canLike ? (
               <button
                 type="button"
@@ -501,18 +473,18 @@ export function HomeFeedItem({
                 onClick={() => void toggleBookmark()}
                 disabled={bookmarkPending}
                 aria-pressed={bookmarked === true}
+                aria-label={bookmarked ? "已收藏" : "收藏"}
                 className={cn(
                   "inline-flex items-center gap-1.5 transition-colors disabled:opacity-50",
                   bookmarked ? "text-accent-strong" : "hover:text-foreground",
                 )}
               >
                 <Bookmark className={cn("h-4 w-4", bookmarked && "fill-current")} aria-hidden />
-                <span className="text-xs">{bookmarked ? "已收藏" : "收藏"}</span>
+                <span className="sr-only">{bookmarked ? "已收藏" : "收藏"}</span>
               </button>
             ) : null}
-          </div>
-        ) : null}
-      </div>
+        </footer>
+      ) : null}
     </article>
   );
 }

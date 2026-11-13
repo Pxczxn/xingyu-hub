@@ -3,10 +3,10 @@ import { topicsApi } from "@/api/topics/topics.api";
 import type { TopicSummary } from "@/api/topics/topics.types";
 import { usersApi } from "@/api/users/users.api";
 import { ArchetypeFrame } from "@/components/layout";
-import { PageHero } from "@/components/shared/PageHero";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DiscoverFrame } from "@/features/discover/components/DiscoverFrame";
 import { CreatorCardItem } from "../components/CreatorCardItem";
 import {
   CREATOR_CARD_LIMIT,
@@ -157,18 +157,11 @@ export function CreatorsPage() {
    *                      派生不出数字就留空，不硬编占位数据。
    */
   return (
+    <DiscoverFrame title="探索创作者" description="从社区专题中探索持续创作的人。">
     <ArchetypeFrame
       skeleton="SK2"
-      header="banner"
+      header="shell"
       density="loose"
-      headerSlot={
-        <PageHero
-          eyebrow="CREATORS"
-          title="探索创作者"
-          description="从社区专题中探索持续创作的人。"
-          className="motif-orbit"
-        />
-      }
       rail={
         !loading && !failed && hasAnyTopic ? (
           <CreatorsRail
@@ -287,6 +280,7 @@ export function CreatorsPage() {
         </>
       ) : null}
     </ArchetypeFrame>
+    </DiscoverFrame>
   );
 }
 
@@ -324,12 +318,11 @@ function CreatorsRail({
         aria-labelledby="creators-rail-scope"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="creators-rail-scope" className="text-h3 text-primary">
+        <h2 id="creators-rail-scope" className="text-h2 text-primary">
           收录范围
         </h2>
         <p data-testid="creators-scope-note" className="mt-3 text-meta text-muted-foreground">
-          本页收录来自 {topics.length} 个专题的作者；筛选与搜索仅作用于已收录的作者，
-          不是全站搜索。
+          本页收录来自 {topics.length} 个专题的作者；筛选与搜索仅作用于已收录的作者， 不是全站搜索。
         </p>
       </section>
 
@@ -337,7 +330,7 @@ function CreatorsRail({
         aria-labelledby="creators-rail-filter"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="creators-rail-filter" className="text-h3 text-primary">
+        <h2 id="creators-rail-filter" className="text-h2 text-primary">
           当前筛选
         </h2>
         <dl className="mt-3 flex flex-col gap-2">
@@ -371,7 +364,7 @@ function CreatorsRail({
           aria-labelledby="creators-rail-topics"
           className="rounded-card border border-border/70 bg-card p-4"
         >
-          <h2 id="creators-rail-topics" className="text-h3 text-primary">
+          <h2 id="creators-rail-topics" className="text-h2 text-primary">
             各专题收录
           </h2>
           <ul className="mt-3 flex flex-col gap-2">

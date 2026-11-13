@@ -38,7 +38,7 @@ export function ProfileMoments({
     return (
       <p
         data-testid="profile-moments-empty"
-        className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
+        className="rounded-card border border-border/70 bg-card p-6 text-center text-meta text-muted-foreground"
       >
         还没有公开动态。
       </p>
@@ -56,7 +56,7 @@ export function ProfileMoments({
           >
             <Link
               to={`/moments/${moment.id}`}
-              className="focus-ring block overflow-hidden rounded-xl border border-border/70 bg-card px-4 py-3.5 transition-colors hover:bg-surface-sunken/30"
+              className="focus-ring block overflow-hidden rounded-card border border-border/70 bg-card p-4 transition-colors hover:bg-surface-sunken/30 sm:p-6"
             >
               <span className="mb-2 flex flex-wrap items-center gap-x-2 text-meta text-muted-foreground">
                 <time
@@ -74,7 +74,7 @@ export function ProfileMoments({
               >
                 {moment.body}
               </p>
-              <span className="mt-3 flex flex-wrap items-center gap-4 border-t border-border/60 pt-2 text-[13px] text-muted-foreground">
+              <span className="mt-3 flex flex-wrap items-center gap-4 border-t border-border/60 pt-2 text-meta text-muted-foreground">
                 <span
                   className="inline-flex items-center gap-1.5"
                   aria-label={`${moment.likeCount ?? 0} 次点赞`}

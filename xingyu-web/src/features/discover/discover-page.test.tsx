@@ -85,9 +85,25 @@ describe("discover page", () => {
     renderPage();
 
     expect(await screen.findByText("真实发现内容")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /真实发现内容/ }).querySelector("img")).toBeNull();
     expect(discover).toHaveBeenCalledWith({ limit: 20 });
     expect(topics).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("heading", { name: "探索", level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "发现", level: 1 })).toBeInTheDocument();
+    const sections = screen.getByRole("navigation", { name: "发现" });
+    expect(within(sections).getByRole("link", { name: "推荐" })).toHaveAttribute(
+      "href",
+      "/discover",
+    );
+    expect(within(sections).getByRole("link", { name: "文章" })).toHaveAttribute(
+      "href",
+      "/discover?type=ARTICLE",
+    );
+    expect(within(sections).getByRole("link", { name: "系列" })).toHaveAttribute("href", "/series");
+    expect(within(sections).getByRole("link", { name: "话题" })).toHaveAttribute("href", "/topics");
+    expect(within(sections).getByRole("link", { name: "创作者" })).toHaveAttribute(
+      "href",
+      "/creators",
+    );
   });
 
   it("renders every real topic as a filter button, including one with no content", async () => {
@@ -223,5 +239,71 @@ describe("discover page", () => {
     await waitFor(() => expect(getMoment).toHaveBeenCalledWith("m1"));
     expect(getComments).toHaveBeenCalledWith("MOMENT", "m1");
     expect(getArticle).not.toHaveBeenCalled();
+  });
+
+  it("lays the page out as a borderless reading list", async () => {
+    discover.mockResolvedValue(
+      feed(
+        article("c1", "版式文章", {
+          summary: "一行摘要",
+          authorName: "林深",
+          cover: "/cover.jpg",
+          likeCount: 3,
+        }),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "发现", level: 1 })).toBeInTheDocument();
+    expect(screen.getByText("顺着话题，把下一篇想读完的文章找出来。")).toBeInTheDocument();
+    const page = document.querySelector(".bg-white");
+    expect(page?.className).toContain("bg-white");
+    expect(page?.className).toContain("max-w-[1200px]");
+    expect(page?.className).toContain("text-slate-900");
+    const nav = screen.getByRole("navigation", { name: "发现" });
+    expect(nav.parentElement?.className).toContain("mt-8");
+    expect(nav.closest("[class*='grid-cols']")).toBeNull();
+    const layout = document.querySelector(".discover-layout");
+    expect(layout?.contains(nav)).toBe(false);
+    expect(nav.compareDocumentPosition(layout!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const heading = screen.getByRole("heading", { name: "发现", level: 1 });
+    expect(heading.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(layout?.className).toContain("md:grid-cols-12");
+    expect(layout?.className).toContain("gap-8");
+    expect(layout?.querySelector("aside")?.className).toContain("md:col-span-3");
+    expect(document.querySelector("[aria-label='发现内容']")?.className).toContain("md:col-span-9");
+    const hero = document.querySelector("header");
+    expect(hero?.className).toContain("pt-8");
+    expect(hero?.className).toContain("pb-6");
+    expect(hero?.className).not.toContain("from-sky");
+    expect(hero?.className).not.toContain("border-b");
+    expect(heading.className).toContain("text-3xl");
+    expect(heading.className).toContain("font-bold");
+
+    const selectedTab = screen.getByRole("link", { name: "推荐" });
+    expect(selectedTab.className).toContain("bg-blue-50");
+    expect(selectedTab.className).toContain("text-blue-600");
+    expect(selectedTab.className).not.toContain("border-b-2");
+    expect(screen.getByRole("link", { name: "文章" }).className).not.toContain("bg-blue-50");
+
+    const sidebar = screen.getByRole("complementary", { name: "探索筛选" });
+    expect(sidebar.className).toContain("overflow-visible");
+    expect(sidebar.className).not.toContain("overflow-y-auto");
+    expect(screen.getByRole("textbox", { name: "搜索话题" }).className).toContain("bg-slate-100");
+    expect(screen.getByRole("textbox", { name: "搜索话题" }).className).toContain("rounded-lg");
+    expect(screen.getByRole("button", { name: "全部话题" }).className).toContain("text-blue-600");
+
+    const row = screen.getByRole("button", { name: /版式文章/ });
+    expect(row.className).toContain("hover:bg-slate-50");
+    expect(row.className).toContain("cursor-pointer");
+    expect(row.className).not.toContain("border");
+    const cover = row.querySelector("img");
+    expect(cover?.className).toContain("w-[180px]");
+    expect(cover?.className).toContain("h-[120px]");
+    expect(cover?.className).toContain("rounded-lg");
+    expect(cover?.className).toContain("object-cover");
+    expect(screen.queryByRole("link", { name: /阅读全文/ })).not.toBeInTheDocument();
+    expect(within(row).getByText("3 赞")).toBeInTheDocument();
   });
 });

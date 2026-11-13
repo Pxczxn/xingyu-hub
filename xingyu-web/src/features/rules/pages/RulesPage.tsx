@@ -183,7 +183,7 @@ function RulesReading({ page }: { page: GuidePage }) {
                   className="min-[1024px]:hidden"
                 />
               </div>
-              <h1 className="mt-3 text-[44px] font-bold leading-[1.15] tracking-tight text-primary">
+              <h1 className="mt-3 text-h1 text-primary">
                 {page.title}
               </h1>
               <p className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted-foreground">

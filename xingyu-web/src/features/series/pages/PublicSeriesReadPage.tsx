@@ -540,7 +540,7 @@ export function PublicSeriesReadPage() {
                 }}
               >
                 <SheetHeader className="border-b border-border/60 px-4 pb-3 pr-14 pt-4 text-left">
-                  <SheetTitle className="truncate text-base font-semibold text-primary">
+                  <SheetTitle className="truncate text-primary">
                     {series.title}
                   </SheetTitle>
                   <SheetDescription className="text-meta tabular-nums text-muted-foreground">
@@ -583,7 +583,7 @@ export function PublicSeriesReadPage() {
                 }}
               >
                 <SheetHeader className="border-b border-border/60 px-4 pb-3 pr-14 pt-4 text-left">
-                  <SheetTitle className="text-base font-semibold text-primary">
+                  <SheetTitle className="text-primary">
                     阅读设置
                   </SheetTitle>
                   <SheetDescription className="text-meta text-muted-foreground">
@@ -610,7 +610,7 @@ export function PublicSeriesReadPage() {
             <div className="flex items-start justify-between gap-4">
               <p className="eyebrow">{`第 ${current.position} 章`}</p>
             </div>
-            <h1 className="mt-3 text-[44px] font-bold leading-[1.15] tracking-tight text-primary">
+            <h1 className="mt-3 text-h1 text-primary">
               {/* Prefer the loaded chapter title; fall back to the series
                   contract's title (the API may omit it) or the position. */}
               {visibleArticle?.title
@@ -622,7 +622,7 @@ export function PublicSeriesReadPage() {
             {/* The lede is the standard 18px sub-head; it does not follow the
                 reader's font-size control, same as the article page. */}
             {visibleArticle?.summary ? (
-              <p className="mt-5 text-[18px] leading-[1.7] text-foreground-soft">
+              <p className="mt-5 text-[length:var(--type-h3)] !leading-[1.7] text-foreground-soft">
                 {visibleArticle.summary}
               </p>
             ) : null}

@@ -220,7 +220,7 @@ export function AvatarEditor({
   return (
     <section aria-labelledby="settings-avatar-heading" className="flex flex-col gap-3">
       <div>
-        <h2 id="settings-avatar-heading" className="text-base font-semibold text-primary">
+        <h2 id="settings-avatar-heading" className="text-h2 text-primary">
           头像
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -239,7 +239,7 @@ export function AvatarEditor({
         ) : (
           <span
             data-testid="avatar-fallback"
-            className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-muted text-2xl font-medium text-muted-foreground"
+            className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-muted text-[length:var(--type-h2)] font-medium text-muted-foreground"
           >
             {initial}
           </span>

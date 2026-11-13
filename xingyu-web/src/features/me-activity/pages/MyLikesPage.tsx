@@ -235,7 +235,7 @@ function LikesRail({ likes }: { likes: MyLikeView[] }) {
         aria-labelledby="likes-rail-overview"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="likes-rail-overview" className="text-h3 text-primary">
+        <h2 id="likes-rail-overview" className="text-h2 text-primary">
           点赞概览
         </h2>
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
@@ -256,7 +256,7 @@ function LikesRail({ likes }: { likes: MyLikeView[] }) {
         aria-labelledby="likes-rail-latest"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="likes-rail-latest" className="text-h3 text-primary">
+        <h2 id="likes-rail-latest" className="text-h2 text-primary">
           最近点赞
         </h2>
         <ul className="mt-3 flex flex-col gap-3">

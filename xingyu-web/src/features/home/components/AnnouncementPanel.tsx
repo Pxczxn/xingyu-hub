@@ -33,7 +33,7 @@ export function AnnouncementPanel({
       className="rounded-xl border border-border/70 bg-card/95 p-4 shadow-none"
     >
       <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h2 id="home-announcements" className="text-sm font-semibold text-primary">
+        <h2 id="home-announcements" className="text-h2 text-primary">
           星语公告
         </h2>
         <Link to="/announcements" className="shrink-0 text-xs text-accent-strong hover:underline">

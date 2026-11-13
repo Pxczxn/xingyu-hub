@@ -31,7 +31,7 @@ import { buildLoginPath } from "@/features/auth/login-return-path";
  *
  * 现在对齐这套语言：
  *  - 去掉 `border`/`bg-card`/`rounded-xl`，只留底部 `border-b border-border/60` 收口；
- *  - 名字改用 `font-display` 衬线，字号走 `--text-display` 档 —— 和「欢迎来到星语」
+ *  - 名字改用 `font-display` 衬线，字号走 `text-h1`（与 `--text-display` 同为页面标题档）—— 和「欢迎来到星语」
  *    「探索」「后端工程入门」同一个标题家族；
  *  - 头像从灰底灰字改成淡金渐变 + 淡金描边环（与 CreatorCardItem 的圆形头像同款），
  *    它是身份锚点，不该是一块中性灰；
@@ -142,7 +142,7 @@ export function ProfileHeader({
         ) : (
           <span
             aria-hidden
-            className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent/20 to-accent/10 text-2xl font-semibold text-accent-foreground ring-2 ring-accent/10 sm:h-24 sm:w-24 sm:text-3xl"
+            className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent/20 to-accent/10 text-[length:var(--type-h2)] font-semibold text-accent-foreground ring-2 ring-accent/10 sm:h-24 sm:w-24 sm:text-3xl"
           >
             {name.slice(0, 1)}
           </span>
@@ -153,7 +153,7 @@ export function ProfileHeader({
               而不是锚在整列文字的右边缘 —— 见文件头「批次 10」的实测数据。 */}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-6">
             <div className="min-w-0">
-              <h1 className="font-display text-[1.75rem] font-extrabold leading-[1.2] tracking-[-0.03em] text-primary sm:text-[2.05rem]">
+              <h1 className="font-display text-h1 text-primary">
                 {name}
               </h1>
               <p className="mt-1 text-meta text-muted-foreground">@{profile.username}</p>

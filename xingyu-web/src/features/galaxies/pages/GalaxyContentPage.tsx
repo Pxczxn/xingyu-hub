@@ -318,7 +318,7 @@ function GalaxyContributionSection({ slug }: { slug: string }) {
       <div className="space-y-3">
         {composerOpen ? (
           <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-            <label className="block text-sm font-medium" htmlFor="galaxy-contribute-article">
+            <label className="block text-meta font-semibold" htmlFor="galaxy-contribute-article">
               选择作品
             </label>
             {articles === null ? (
@@ -343,7 +343,7 @@ function GalaxyContributionSection({ slug }: { slug: string }) {
               </select>
             )}
 
-            <label className="block text-sm font-medium" htmlFor="galaxy-contribute-note">
+            <label className="block text-meta font-semibold" htmlFor="galaxy-contribute-note">
               推荐语（可选）
             </label>
             <Textarea
@@ -389,7 +389,7 @@ function GalaxyContributionSection({ slug }: { slug: string }) {
 
         {submissions.length > 0 ? (
           <div>
-            <h3 className="text-sm font-medium">我的推荐</h3>
+            <h3 className="text-h3 text-foreground">我的推荐</h3>
             <ul className="mt-2 divide-y divide-border rounded-lg border border-border bg-card">
               {submissions.map((item) => (
                 <li key={item.id} className="flex flex-wrap items-center gap-2 px-4 py-3">

@@ -308,7 +308,7 @@ export function MomentDetailPage() {
                   </Button>
                 </DialogTrigger>
                 <DialogContent role="alertdialog" className="max-w-sm rounded-xl bg-card">
-                  <DialogTitle className="text-base font-semibold text-primary">
+                  <DialogTitle className="text-primary">
                     删除动态？
                   </DialogTitle>
                   <DialogDescription className="text-sm leading-6 text-muted-foreground">
@@ -340,7 +340,7 @@ export function MomentDetailPage() {
           onSubmit={(event) => void onSave(event)}
           className="space-y-3 rounded-lg border border-border bg-card p-4"
         >
-          <label className="block text-sm font-medium">
+          <label className="block text-meta font-semibold">
             动态正文
             <textarea
               name="body"
@@ -394,7 +394,7 @@ function MomentDetailRail({ moment }: { moment: MomentView }) {
   return (
     <div className="flex flex-col gap-4">
       <section aria-labelledby="moment-rail-about" className="rounded-card border border-border/70 bg-card p-4">
-        <h2 id="moment-rail-about" className="text-h3 font-semibold text-primary">
+        <h2 id="moment-rail-about" className="text-h2 text-primary">
           关于这条动态
         </h2>
         <dl className="mt-3 flex flex-col gap-3">
@@ -425,7 +425,7 @@ function MomentDetailRail({ moment }: { moment: MomentView }) {
       </section>
 
       <section aria-labelledby="moment-rail-rules" className="rounded-card border border-border/70 bg-card p-4">
-        <h2 id="moment-rail-rules" className="text-h3 font-semibold text-primary">
+        <h2 id="moment-rail-rules" className="text-h2 text-primary">
           动态规则
         </h2>
         <p className="mt-2 text-meta leading-6 text-muted-foreground">

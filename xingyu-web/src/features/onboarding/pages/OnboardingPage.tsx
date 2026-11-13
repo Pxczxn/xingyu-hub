@@ -216,7 +216,7 @@ export function OnboardingPage() {
   if (state.completed) {
     return (
       <section className="mx-auto max-w-lg space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">入门引导已完成</h1>
+        <h1 className="text-h1 text-primary">入门引导已完成</h1>
         <p className="lede">你已经记录过兴趣并完成入门。</p>
         <Button onClick={() => navigate(exitPath, { replace: true })}>继续</Button>
       </section>
@@ -228,7 +228,7 @@ export function OnboardingPage() {
   if (!knownStep) {
     return (
       <section className="mx-auto max-w-lg space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">入门状态异常</h1>
+        <h1 className="text-h1 text-primary">入门状态异常</h1>
         <p className="lede">当前步骤无法识别。请重新读取入门状态，不会猜测或写回未知步骤。</p>
         <Button type="button" onClick={() => load()}>
           重新读取

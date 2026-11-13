@@ -126,7 +126,7 @@ export function ProfileBlockControl({
           data-testid="profile-block-confirm"
           className="max-w-sm rounded-xl bg-card"
         >
-          <DialogTitle className="text-base font-semibold text-primary">
+          <DialogTitle className="text-primary">
             确认屏蔽此用户？
           </DialogTitle>
           <DialogDescription className="text-sm leading-6 text-muted-foreground">

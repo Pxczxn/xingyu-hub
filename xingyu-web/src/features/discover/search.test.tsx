@@ -60,7 +60,10 @@ describe("search page", () => {
       expect(mocked.search).toHaveBeenCalledWith(expect.objectContaining({ q: "spring" }));
     });
     expect(await screen.findByText("Spring 实战笔记")).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "热门" })).toHaveAttribute("aria-checked", "true");
+    const hot = screen.getByRole("radio", { name: "热门" });
+    expect(hot).toHaveAttribute("aria-checked", "true");
+    expect(hot.className).toContain("border-b-2");
+    expect(hot.className).toContain("border-primary");
     expect(mocked.search).toHaveBeenCalledWith(expect.objectContaining({ sort: "hot" }));
   });
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Network, Search, UserPlus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { galaxiesApi } from "@/api/galaxies/galaxies.api";
 import type { GalaxySummary } from "@/api/galaxies/galaxies.types";
 import { ArchetypeFrame, BleedBand } from "@/components/layout";
@@ -12,6 +12,7 @@ import { GalaxyVisual } from "@/components/visual/GalaxyVisual";
 import { useAuth } from "@/features/auth/auth.store";
 import { cn } from "@/lib/cn";
 import { staggerDelay } from "@/lib/stagger";
+import { GalaxyTabs, type GalaxyTab } from "../components/GalaxyTabs";
 import { GalaxyTile } from "../components/GalaxyTile";
 
 type PublicLoadState = "loading" | "error" | "ready";
@@ -131,6 +132,19 @@ function MineStrip({ items }: { items: GalaxySummary[] }) {
  */
 export function GalaxyListPage() {
   const { isAuthenticated } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: GalaxyTab = searchParams.get("tab") === "mine" ? "mine" : "explore";
+  const selectTab = (next: GalaxyTab) => {
+    setSearchParams(
+      (previous) => {
+        const params = new URLSearchParams(previous);
+        if (next === "mine") params.set("tab", "mine");
+        else params.delete("tab");
+        return params;
+      },
+      { replace: true },
+    );
+  };
   const [publicState, setPublicState] = useState<PublicLoadState>("loading");
   const [items, setItems] = useState<GalaxySummary[]>([]);
   const [mineState, setMineState] = useState<MineLoadState>({ kind: "idle" });
@@ -234,7 +248,7 @@ export function GalaxyListPage() {
           <PageHero
             eyebrow="GALAXIES"
             title="星系"
-            description="围绕共同兴趣聚合内容与成员，找到属于你的社区空间。"
+            description="找到长期关注同一方向的人。"
             illustration={
               <GalaxyVisual
                 stableKey="galaxy-plaza-masthead"
@@ -246,7 +260,6 @@ export function GalaxyListPage() {
         </BleedBand>
       }
     >
-
       {/* P1 搜索：全页过滤器，作用于下面每一个列表。 */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <label className="relative block w-full min-w-0 sm:max-w-md">
@@ -270,6 +283,8 @@ export function GalaxyListPage() {
           </p>
         ) : null}
       </div>
+
+      <GalaxyTabs value={tab} onChange={selectTab} />
 
       {searching ? (
         <PageSection
@@ -302,21 +317,18 @@ export function GalaxyListPage() {
             </p>
           )}
         </PageSection>
-      ) : (
-        <>
-          {isAuthenticated ? (
+      ) : tab === "mine" ? (
+        <div id="galaxy-tabpanel-mine" role="tabpanel" aria-labelledby="galaxy-tab-mine">
+          {!isAuthenticated ? (
+            <p role="status" className="py-6 text-meta text-muted-foreground">
+              登录后查看你加入的星系。
+            </p>
+          ) : (
             <PageSection
               id="my-galaxies"
               title="我的星系"
               count={mineState.kind === "ready" ? mineState.items.length : undefined}
               action={
-                /*
-                 * Shown whenever there is anything joined — not only when the
-                 * strip is truncated. `/me/galaxies` is the full page for this
-                 * set (identity, join state, exploration), and it is the only
-                 * route to it from here; gating it on `> MINE_PREVIEW_LIMIT`
-                 * would strand a user with four galaxies with no way to reach it.
-                 */
                 mineState.kind === "ready" && mineState.items.length > 0 ? (
                   <Link
                     to="/me/galaxies"
@@ -346,8 +358,10 @@ export function GalaxyListPage() {
                 <MineStrip items={minePreview} />
               ) : null}
             </PageSection>
-          ) : null}
-
+          )}
+        </div>
+      ) : (
+        <div id="galaxy-tabpanel-explore" role="tabpanel" aria-labelledby="galaxy-tab-explore">
           {items.length === 0 ? (
             <p
               role="status"
@@ -387,7 +401,7 @@ export function GalaxyListPage() {
           */}
           <section aria-labelledby="about-galaxies" className="border-t border-border/70 pt-6">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-              <h2 id="about-galaxies" className="text-card font-semibold text-primary">
+              <h2 id="about-galaxies" className="text-h2 text-primary">
                 如何开始？
               </h2>
               <ol className="flex list-none flex-wrap items-center gap-x-2 gap-y-1.5 p-0 text-meta text-muted-foreground">
@@ -410,7 +424,7 @@ export function GalaxyListPage() {
               话题连接讨论方向，星系连接长期参与其中的人与内容。
             </p>
           </section>
-        </>
+        </div>
       )}
     </ArchetypeFrame>
   );

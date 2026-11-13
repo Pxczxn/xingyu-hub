@@ -67,7 +67,7 @@ export function EditorSubmitConfirm({
         }}
         onPointerDownOutside={(event) => event.preventDefault()}
       >
-        <DialogTitle className="text-base font-semibold text-primary">确认提交审核？</DialogTitle>
+        <DialogTitle className="text-primary">确认提交审核？</DialogTitle>
         <DialogDescription className="text-sm leading-6 text-muted-foreground">
           提交后文章进入审核流程，审核期间不可再编辑。
         </DialogDescription>

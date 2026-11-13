@@ -269,7 +269,7 @@ export function NewReportPage() {
       <form onSubmit={submit} className="rounded-card border border-border/70 bg-card p-5">
         <div className="flex flex-col gap-4">
           <div>
-            <label htmlFor="report-reason" className="text-body font-medium text-foreground">
+            <label htmlFor="report-reason" className="text-meta font-semibold text-foreground">
               举报原因
             </label>
             <select
@@ -287,7 +287,7 @@ export function NewReportPage() {
           </div>
 
           <div>
-            <label htmlFor="report-detail" className="text-body font-medium text-foreground">
+            <label htmlFor="report-detail" className="text-meta font-semibold text-foreground">
               补充说明（可选）
             </label>
             <textarea

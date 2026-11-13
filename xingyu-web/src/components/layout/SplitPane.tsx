@@ -68,7 +68,7 @@ export function SplitPane({
   return (
     <div
       className={cn(
-        // 12rem = shell header (61px) + page padding + one breathing row, the
+        // 12rem = shell header (64px) + page padding + one breathing row, the
         // same offset the mailbox measured its panes against.
         "lg:grid lg:gap-6 lg:h-[calc(100vh-12rem)] lg:grid-rows-[minmax(0,1fr)]",
         LIST_COLUMNS[listWidth],

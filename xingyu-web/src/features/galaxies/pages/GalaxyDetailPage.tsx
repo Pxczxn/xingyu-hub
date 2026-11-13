@@ -269,7 +269,7 @@ function GalaxyMembersPanel({
       className="rounded-card border border-border/70 bg-card p-4"
     >
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 id="galaxy-members" className="text-h3 font-semibold text-primary">
+        <h2 id="galaxy-members" className="text-h2 font-semibold text-primary">
           星系成员
         </h2>
         <SectionLink to={`/galaxies/${encodeURIComponent(slug)}/members`}>全部成员</SectionLink>

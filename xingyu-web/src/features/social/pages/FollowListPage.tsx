@@ -278,7 +278,7 @@ function FollowingRail({ users }: { users: FollowUser[] }) {
         aria-labelledby="following-rail-overview"
         className="rounded-card border border-border/70 bg-card p-4"
       >
-        <h2 id="following-rail-overview" className="text-h3 text-primary">
+        <h2 id="following-rail-overview" className="text-h2 text-primary">
           关注概览
         </h2>
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
@@ -300,7 +300,7 @@ function FollowingRail({ users }: { users: FollowUser[] }) {
           aria-labelledby="following-rail-latest"
           className="rounded-card border border-border/70 bg-card p-4"
         >
-          <h2 id="following-rail-latest" className="text-h3 text-primary">
+          <h2 id="following-rail-latest" className="text-h2 text-primary">
             最近关注
           </h2>
           <ul className="mt-3 flex flex-col gap-3">
