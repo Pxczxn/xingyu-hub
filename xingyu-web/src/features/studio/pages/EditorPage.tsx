@@ -2,7 +2,7 @@ import styles from "@/features/studio/editor/editor-workspace.module.css";
 import { cn } from "@/lib/cn";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Eye, Loader2, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CanvasFrame } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
@@ -124,6 +124,13 @@ export function EditorPage() {
    * it carries nothing about the document, so it is not part of the draft.
    */
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const inspectorToggleRef = useRef<HTMLButtonElement>(null);
+  const inspectorCloseRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!inspectorOpen) return;
+    inspectorCloseRef.current?.focus({ preventScroll: true });
+  }, [inspectorOpen]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [activeOutline, setActiveOutline] = useState(0);
   /** Editorial status; the draft DTO does not expose it (see articlesApi.getMyArticleStatus). */
@@ -673,6 +680,7 @@ export function EditorPage() {
           toolbarLabel="编辑器工具"
           inspectorLabel="大纲与设置"
           inspectorOpen={inspectorOpen}
+          overlayInspector
           toolbar={
             <>
               <Link
@@ -704,8 +712,9 @@ export function EditorPage() {
                   the backend has no creator-facing publish endpoint. This button
                   toggles a track, it does not publish anything. */}
               <button
+                ref={inspectorToggleRef}
                 type="button"
-                className={cn(styles.railButton, "focus-ring", "lg:hidden")}
+                className={cn(styles.railButton, styles.inspectorToggle, "focus-ring")}
                 aria-expanded={inspectorOpen}
                 aria-label={inspectorOpen ? "收起检视栏" : "展开检视栏"}
                 title={inspectorOpen ? "收起检视栏" : "展开检视栏"}
@@ -717,6 +726,21 @@ export function EditorPage() {
           }
           inspector={
             <>
+              <div className={styles.inspectorCloseBar}>
+                <p className={styles.inspectorCloseTitle}>大纲与设置</p>
+                <button
+                  ref={inspectorCloseRef}
+                  type="button"
+                  className={cn(styles.railButton, "focus-ring")}
+                  aria-label="收起检视栏"
+                  onClick={() => {
+                    setInspectorOpen(false);
+                    inspectorToggleRef.current?.focus({ preventScroll: true });
+                  }}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
               <ArticleEditorOutline
                 items={outline}
                 activeIndex={activeOutline}

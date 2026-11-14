@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, Route, RouterProvider, Routes, useLocation } from "react-router-dom";
 import { EditorPage } from "./pages/EditorPage";
+import styles from "./editor/editor-workspace.module.css";
 import { articlesApi } from "@/api/articles/articles.api";
 import { topicsApi } from "@/api/topics/topics.api";
 import { filesApi } from "@/api/files/files.api";
@@ -1317,6 +1318,34 @@ describe("published state awareness (Phase 1.6)", () => {
     );
     expect(publishedBanner(container)).toBeNull();
     expect(bodyTextarea(container)).not.toHaveAttribute("readonly");
+  });
+});
+
+describe("inspector overlay", () => {
+  it("opens the inspector over the canvas and closes it without moving the document scroll", async () => {
+    const { container } = await renderLoaded();
+    const track = container.querySelector('[aria-label="编辑器工具"]')!
+      .nextElementSibling as HTMLElement;
+    track.scrollTop = 240;
+    document.documentElement.scrollTop = 480;
+
+    const inspector = screen.getByRole("complementary", { name: "大纲与设置" });
+    expect(inspector.className.split(" ")).toContain("hidden");
+
+    const toggle = screen.getByRole("button", { name: "展开检视栏" });
+    expect(toggle).toHaveClass(styles.inspectorToggle);
+    fireEvent.click(toggle);
+
+    expect(inspector.className).toContain("max-lg:fixed");
+    expect(inspector.className.split(" ")).not.toContain("hidden");
+    expect(track.scrollTop).toBe(240);
+    expect(document.documentElement.scrollTop).toBe(480);
+
+    fireEvent.click(within(inspector).getByRole("button", { name: "收起检视栏" }));
+
+    expect(inspector.className.split(" ")).toContain("hidden");
+    expect(track.scrollTop).toBe(240);
+    expect(document.documentElement.scrollTop).toBe(480);
   });
 });
 

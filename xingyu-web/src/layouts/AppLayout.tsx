@@ -529,8 +529,7 @@ export function AppLayout() {
                 side="top"
                 aria-describedby={undefined}
                 onOpenAutoFocus={(event) => {
-                  const first =
-                    navContentRef.current?.querySelector<HTMLElement>("nav a[href]");
+                  const first = navContentRef.current?.querySelector<HTMLElement>("nav a[href]");
                   if (!first) return;
                   event.preventDefault();
                   first.focus();
@@ -626,47 +625,58 @@ export function AppLayout() {
         </PageErrorBoundary>
       </main>
 
-      <footer className="border-t border-border/70">
-        <div className="content-shell flex flex-wrap items-center gap-x-4 gap-y-2 py-5 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5 font-medium text-foreground-soft">
-            <span className="h-1 w-1 rounded-full bg-accent" aria-hidden />
-            星语
-          </span>
-          <nav aria-label="站点信息" className="flex flex-wrap gap-x-4 gap-y-1.5">
-            <Link to="/announcements" className="transition-colors hover:text-accent-strong">
-              公告
-            </Link>
-            {/* Phase 2I-4: the events square is public and guest-readable, so its
+      {/*
+       * The editor is the one route whose page already claims the viewport under
+       * the header (`min-height: calc(100dvh - var(--shell-header-height))` in
+       * editor-workspace.module.css). The header above is in normal flow, so a
+       * footer after it makes the document `100dvh + footer` and the page itself
+       * scrolls. That scroll slides the tool rail and the in-canvas format bar
+       * under the sticky header while the tracks are already scrolling on their
+       * own. Community routes keep this footer; the editor route simply has none.
+       */}
+      {isEditorRoute ? null : (
+        <footer className="border-t border-border/70">
+          <div className="content-shell flex flex-wrap items-center gap-x-4 gap-y-2 py-5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5 font-medium text-foreground-soft">
+              <span className="h-1 w-1 rounded-full bg-accent" aria-hidden />
+              星语
+            </span>
+            <nav aria-label="站点信息" className="flex flex-wrap gap-x-4 gap-y-1.5">
+              <Link to="/announcements" className="transition-colors hover:text-accent-strong">
+                公告
+              </Link>
+              {/* Phase 2I-4: the events square is public and guest-readable, so its
                 entry point belongs in the footer rather than the seven-item main
                 nav (which MASTER.md fixes and 2H already stretched to include
                 动态). Without this, /events would have no entry point at all. */}
-            <Link to="/events" className="transition-colors hover:text-accent-strong">
-              社区活动
-            </Link>
-            {/* Phase 2K-1: /creators is guest-readable too (every underlying call
+              <Link to="/events" className="transition-colors hover:text-accent-strong">
+                社区活动
+              </Link>
+              {/* Phase 2K-1: /creators is guest-readable too (every underlying call
                 is public), so it shares the footer slot with /events rather than
                 taking a main-nav item. */}
-            <Link to="/creators" className="transition-colors hover:text-accent-strong">
-              探索创作者
-            </Link>
-            <Link to="/guide" className="transition-colors hover:text-accent-strong">
-              指南
-            </Link>
-            <Link to="/rules" className="transition-colors hover:text-accent-strong">
-              社区规则
-            </Link>
-            {/* Phase 3F: 推荐反馈. Like the other contact-the-team surfaces it
+              <Link to="/creators" className="transition-colors hover:text-accent-strong">
+                探索创作者
+              </Link>
+              <Link to="/guide" className="transition-colors hover:text-accent-strong">
+                指南
+              </Link>
+              <Link to="/rules" className="transition-colors hover:text-accent-strong">
+                社区规则
+              </Link>
+              {/* Phase 3F: 推荐反馈. Like the other contact-the-team surfaces it
                 lives in the footer, not the main nav — it is an occasional
                 action, and the route is behind RequireAuth anyway. */}
-            <Link
-              to="/feedback/recommendations"
-              className="transition-colors hover:text-accent-strong"
-            >
-              推荐反馈
-            </Link>
-          </nav>
-        </div>
-      </footer>
+              <Link
+                to="/feedback/recommendations"
+                className="transition-colors hover:text-accent-strong"
+              >
+                推荐反馈
+              </Link>
+            </nav>
+          </div>
+        </footer>
+      )}
 
       {/* The floating notification stack. Fixed-position, so DOM order does not
           affect where it renders — it sits last so the live region is the final

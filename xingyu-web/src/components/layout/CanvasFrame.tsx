@@ -39,6 +39,13 @@ export type CanvasFrameProps = {
   inspectorLabel?: string;
   /** Below `lg`, whether the inspector is expanded. The page owns this state. */
   inspectorOpen?: boolean;
+  /**
+   * Below `lg`, pin the inspector over the canvas instead of laying it out
+   * after the document. Desktop `lg` keeps the 320px column either way.
+   * The top edge uses `--shell-header-height` plus `--xy-editor-toolbar-h`
+   * (0px when the page does not set one), so it sits under the action row.
+   */
+  overlayInspector?: boolean;
   className?: string;
 };
 
@@ -49,6 +56,7 @@ export function CanvasFrame({
   toolbarLabel = "编辑工具",
   inspectorLabel = "检视",
   inspectorOpen = false,
+  overlayInspector = false,
   className,
 }: CanvasFrameProps) {
   const inspectorHeadingId = useId();
@@ -70,19 +78,33 @@ export function CanvasFrame({
         {toolbar}
       </div>
 
-      <div
-        className="focus-ring min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto"
-        tabIndex={0}
-      >
+      <div className="focus-ring min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto" tabIndex={0}>
         {children}
       </div>
 
+      {/*
+       * Below `lg`, `overlayInspector` takes this track out of the document.
+       * A long canvas used to push the settings past the fold; pinning them
+       * here shows the panel in the current viewport and scrolls inside it.
+       * `ui/sheet` is not used: it is `z-drawer` over the whole viewport, so it
+       * would cover the shell header and the editor action row, and it locks
+       * body scroll. The `lg:` grid column above is unchanged.
+       */}
       <aside
         aria-labelledby={inspectorHeadingId}
         tabIndex={0}
         className={cn(
-          "focus-ring min-w-0 border-t border-border/70 bg-card lg:h-full lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-t-0",
+          /*
+           * `contain: paint` keeps a tall outline from extending the document
+           * scroll height. The track is already `overflow-y: auto` and 780px
+           * tall, but at 1440 its border box ended at the viewport while
+           * documentElement.scrollHeight stayed 1587 until paint containment.
+           */
+          "focus-ring min-w-0 border-t border-border/70 bg-card lg:static lg:h-full lg:min-h-0 lg:overflow-y-auto lg:[contain:paint] lg:border-l lg:border-t-0 lg:shadow-none",
           inspectorOpen ? "block" : "hidden lg:block",
+          inspectorOpen &&
+            overlayInspector &&
+            "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-[calc(var(--shell-header-height)+var(--xy-editor-toolbar-h,0px))] max-lg:z-rail max-lg:overflow-y-auto max-lg:overscroll-y-contain max-lg:[contain:paint] max-lg:shadow-floating",
         )}
       >
         <h2 id={inspectorHeadingId} className="sr-only">

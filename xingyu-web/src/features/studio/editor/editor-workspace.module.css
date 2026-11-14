@@ -65,8 +65,15 @@
   top: var(--shell-header-height);
   z-index: var(--z-rail);
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 0.75rem;
+  /*
+   * Explicit min-height replaces the flex item's content-sized automatic
+   * minimum, so a wrapped control cannot stretch this row and the page.
+   * Overflow stays visible; nothing is clipped to hide a layout miss.
+   */
+  min-height: var(--xy-editor-toolbar-h);
   height: var(--xy-editor-toolbar-h);
   padding: 0 0.875rem;
   border-bottom: 1px solid hsl(var(--border));
@@ -165,8 +172,9 @@
  * fixed height is what turns the three tracks into their own scroll containers.
  *
  * Below `lg` there is no fixed height on purpose: the page keeps scrolling like
- * any document, the inspector moves under the canvas, and the action row stays
- * sticky at the header's height.
+ * any document and the action row stays sticky at the header's height. The
+ * inspector does not follow the document — CanvasFrame pins it over the canvas
+ * when the editor asks for `overlayInspector`.
  */
 @media (min-width: 1024px) {
   .workspace {
@@ -1129,10 +1137,44 @@ textarea.bodySurface {
 
 /*
  * SK8 below `lg` (1024px): the tracks stop being a grid (CanvasFrame's `lg:`
- * classes are inert), the inspector collapses behind the tool track's toggle and
- * the action row keeps only the actions — the title is typed into the canvas's
- * own 标题 field there.
+ * classes are inert). The inspector opens as an overlay from the tool track,
+ * and the action row keeps only the actions — the title is typed into the
+ * canvas's own 标题 field there.
  */
+.inspectorCloseBar {
+  position: sticky;
+  top: 0;
+  /* Stacks only above the inspector's own content, under the shell header. */
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+}
+
+.inspectorCloseTitle {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: var(--type-meta);
+  font-weight: 600;
+}
+
+/*
+ * `.railButton` sets `display: inline-flex` and this module loads after Tailwind,
+ * so a `lg:hidden` utility on the same node never wins. These two controls are
+ * the narrow-screen inspector entry and its close bar; the desktop column is
+ * always open, and neither control belongs in it.
+ */
+@media (min-width: 1024px) {
+  .inspectorToggle,
+  .inspectorCloseBar {
+    display: none;
+  }
+}
+
 @media (max-width: 1023px) {
   .toolbarTitle {
     display: none;
