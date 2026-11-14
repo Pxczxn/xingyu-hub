@@ -361,6 +361,18 @@ describe("ContentListPage — trash tab", () => {
     expect(await screen.findByText("回收站是空的")).toBeInTheDocument();
   });
 
+  it("keeps a readable minimum width on the title column", async () => {
+    mocked.listMine.mockResolvedValue([article({ title: "Phase 3 样式完整测试", status: "PUBLISHED" })]);
+    renderPage();
+    const title = await screen.findByRole("columnheader", { name: "标题" });
+    expect(title).toHaveClass("min-w-48");
+    const cell = screen.getByRole("link", { name: "Phase 3 样式完整测试" }).closest("td");
+    expect(cell).toHaveClass("min-w-48");
+    expect(screen.getByRole("columnheader", { name: "状态" })).toHaveClass("whitespace-nowrap");
+    expect(screen.getByRole("columnheader", { name: "更新时间" })).toHaveClass("whitespace-nowrap");
+    expect(screen.getByRole("columnheader", { name: "操作" })).toHaveClass("whitespace-nowrap");
+  });
+
   it("surfaces a trash load failure with a reload control", async () => {
     mocked.listTrash.mockRejectedValue(new Error("boom"));
     renderPage("/studio/content?tab=trash");

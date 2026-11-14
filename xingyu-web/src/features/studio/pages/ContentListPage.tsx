@@ -324,7 +324,13 @@ export function ContentListPage() {
         >
           <thead>
             <tr>
-              <th scope="col">标题</th>
+              {/* 12rem: nowrap columns measured 418px; this title's ink is 145px
+                  plus 24px cell padding. 192px keeps that line intact and stays
+                  under the 223px the title already has at 768, so wider
+                  viewports do not gain a scrollbar. */}
+              <th scope="col" className="min-w-48">
+                标题
+              </th>
               <th scope="col" className="w-[1%] whitespace-nowrap">
                 状态
               </th>
@@ -339,7 +345,7 @@ export function ContentListPage() {
           <tbody data-testid="content-rows">
             {visible.map((article) => (
               <tr key={article.id} className="hover:bg-surface-sunken/60">
-                <td>
+                <td className="min-w-48">
                   <Link
                     to={`/studio/content/${encodeURIComponent(article.id)}`}
                     className="focus-ring rounded-sm text-meta font-medium text-foreground hover:text-accent-strong"
