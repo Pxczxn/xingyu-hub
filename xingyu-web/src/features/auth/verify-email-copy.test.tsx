@@ -208,6 +208,17 @@ describe("VerifyEmailPage email-change confirmation", () => {
  * 实测 access log：10:22:46 一条 200 + 一条 400，DB 邮箱已改、会话已撤，UI 却报失败并
  * 诱导用户「重新发送」。修复：同一 token 的多遍 effect 共享同一个在途请求（单飞）。
  */
+describe("VerifyEmailPage single column", () => {
+  it("keeps the actions under the status panel, not in an lg two-column grid", () => {
+    const { container } = renderAt("?email=alice%40example.com");
+    const heading = screen.getByRole("heading", { name: "验证你的邮箱" });
+    const actions = screen.getByRole("complementary", { name: "接下来的操作" });
+
+    expect(container.querySelector('[class*="grid-cols"]')).toBeNull();
+    expect(heading.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe("VerifyEmailPage StrictMode double-mount guard", () => {
   it("fires exactly ONE verify request and keeps the success despite StrictMode", async () => {
     mocked.verifyEmail

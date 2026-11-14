@@ -143,33 +143,29 @@ export function VerifyEmailPage() {
   const failed = status === "error";
 
   /*
-    SK5 · 幅 / 松 / 错（2026-11-10 批次 C）
-    -------------------------------------
-    幅：四种状态都用 `AuthStatusPanel variant="banner"` —— 结论落在一块带
-        `motif-orbit` 母题的面（B §6 M1）上，而不是四张互不相同的白卡。
-    松：`density="loose"`，块之间 40px（B §2 宽松档）。
-    错：`lg` 起「结论 | 13rem 操作栏」两列 —— 主列 + 侧轨，打破单一竖列。
-        侧轨放的是**本页已有的动作**（重发 / 返回登录 / 去登录），不是复述结论：
-        正文里的邮箱地址、邮件状态在测试与读屏里都必须只出现一次，把结论再抄一遍
-        侧轨会让 `getByText(email)` 命中两个节点（实测踩中过）。
-        面板里的 h1 仍是页面唯一的 h1；侧轨里没有任何 heading。
+    SK5 · 幅 / 松 / 齐
+    -----------------
+    幅：各状态都用 `AuthStatusPanel variant="banner"`。
+    松：`density="loose"`，块之间 40px。
+    齐：操作区跟在状态面板下面。本页活在 `AuthLayout` 的 `max-w-md`（约 448px）
+        里，从 `lg` 再切「结论 | 13rem」会把标题压到约 158px，「验证未完成」的
+        「成」会单独成行。操作仍是重发 / 返回登录，不把结论再抄一遍。
+        面板里的 h1 仍是页面唯一的 h1；操作区里没有任何 heading。
   */
   const withShell = (panel: ReactNode, actions?: ReactNode) => (
     <ArchetypeFrame skeleton="SK5" header="shell" density="loose">
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-start lg:gap-8">
-        {panel}
-        {actions ? (
-          <aside
-            aria-label="接下来的操作"
-            className="flex flex-col gap-3 rounded-card border border-border/70 bg-card px-4 py-4"
-          >
-            <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
-              接下来的操作
-            </p>
-            {actions}
-          </aside>
-        ) : null}
-      </div>
+      {panel}
+      {actions ? (
+        <aside
+          aria-label="接下来的操作"
+          className="flex flex-col gap-3 rounded-card border border-border/70 bg-card px-4 py-4"
+        >
+          <p className="text-caption uppercase tracking-[0.12em] text-muted-foreground">
+            接下来的操作
+          </p>
+          {actions}
+        </aside>
+      ) : null}
     </ArchetypeFrame>
   );
 
