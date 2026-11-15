@@ -5,6 +5,8 @@
 #   1. 目标库固定为 xingyu_hub_test，任何其它 TEST_DB_NAME 都拒绝；
 #   2. 必须先提供 TEST_DB_ADMIN_PASSWORD，仓库不内置任何可用密码；
 #   3. 逐个应用 sql/V*.sql，任何失败都不写 schema_migration 台账，并以非零退出。
+#   4. TEST_REDIS_DB 必须显式设置为 9–15。先确认 Redis 客户端、连接和 key 数量，
+#      清理成功后才重建 MySQL。找不到客户端、连接失败或清理失败都立即退出。
 #
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File sql/rebuild-test-db.ps1
@@ -86,10 +88,54 @@ Write-Host " 迁移目录        : $(Join-Path $root 'sql')"
 Write-Host " mysql 客户端    : ${mysql}"
 Write-Host "=============================================================="
 
+if ([string]::IsNullOrWhiteSpace($env:TEST_REDIS_DB)) {
+    Fail "拒绝执行：必须显式设置 TEST_REDIS_DB（只允许 9-15，不再默认 7）。未执行任何 SQL 或 Redis 清理。"
+}
+if ($env:TEST_REDIS_DB -notmatch '^[0-9]+$') {
+    Fail "拒绝执行：TEST_REDIS_DB 格式错误，必须是整数。未执行任何 SQL 或 Redis 清理。"
+}
+$redisDb = [int]$env:TEST_REDIS_DB
+if ($redisDb -lt 9 -or $redisDb -gt 15) {
+    Fail "拒绝执行：TEST_REDIS_DB=$redisDb 不在测试专用范围 9-15。未执行任何 SQL 或 Redis 清理。"
+}
+if (-not [string]::IsNullOrWhiteSpace($env:TEST_REDIS_CLI)) {
+    if (-not (Test-Path -LiteralPath $env:TEST_REDIS_CLI)) {
+        Fail "拒绝执行：TEST_REDIS_CLI 指向的 redis-cli 不存在。未执行任何 SQL 或 Redis 清理。"
+    }
+    $redisCli = (Resolve-Path -LiteralPath $env:TEST_REDIS_CLI).Path
+} else {
+    $redisCommand = Get-Command redis-cli.exe -ErrorAction SilentlyContinue
+    if (-not $redisCommand) {
+        Fail "拒绝执行：PATH 中找不到 redis-cli.exe，也未设置 TEST_REDIS_CLI。未执行任何 SQL 或 Redis 清理。"
+    }
+    $redisCli = $redisCommand.Source
+}
+$ping = (& $redisCli PING 2>&1 | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $ping -ne 'PONG') {
+    Fail "拒绝执行：Redis 连接失败。未执行任何 SQL 或 Redis 清理。"
+}
+$beforeText = (& $redisCli -n $redisDb DBSIZE 2>&1 | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $beforeText -notmatch '^[0-9]+$') {
+    Fail "拒绝执行：无法确认 Redis DB $redisDb 的 key 数量。未执行任何 SQL 或 Redis 清理。"
+}
+Write-Host " Redis 目标库     : DB $redisDb（已确认属于测试专用范围 9-15）"
+Write-Host " 清理前 key 数量 : $beforeText"
+
 & $mysql @conn -e 'SELECT 1;' 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    Fail "拒绝执行：管理员账号无法连接 ${dbHost}:${dbPort}，未执行任何 SQL。"
+    Fail "拒绝执行：管理员账号无法连接 ${dbHost}:${dbPort}，未执行任何 SQL 或 Redis 清理。"
 }
+
+Write-Host "==> 清理 Redis DB $redisDb"
+$flush = (& $redisCli -n $redisDb FLUSHDB 2>&1 | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $flush -ne 'OK') {
+    Fail "失败：Redis DB $redisDb 清理失败，已停止，未重建 MySQL。"
+}
+$afterText = (& $redisCli -n $redisDb DBSIZE 2>&1 | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $afterText -ne '0') {
+    Fail "失败：Redis DB $redisDb 清理后未能确认 key 数量为 0（实际 '$afterText'）。已停止，未重建 MySQL。"
+}
+Write-Host "==> Redis DB $redisDb 清理成功，当前 key 数量: 0"
 
 Write-Host "==> DROP/CREATE ${dbName}"
 & $mysql @conn -e "DROP DATABASE IF EXISTS ``$dbName``; CREATE DATABASE ``$dbName`` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;" 2>$null
@@ -157,17 +203,6 @@ $ledger = & $mysql @conn -N -B --execute="SELECT COUNT(*), MIN(version), MAX(ver
 $tableCount = & $mysql @conn -N -B --execute="SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='$dbName';" 2>$null
 if (-not $ledger -or [int](($ledger -split "`t")[0]) -lt $ok.Count) {
     Fail "失败：台账行数校验不通过（期望 >= $($ok.Count)，实际 $ledger）。"
-}
-
-$redisDb = if ($env:TEST_REDIS_DB) { $env:TEST_REDIS_DB } else { '7' }
-$redis = Get-Command redis-cli.exe -ErrorAction SilentlyContinue
-if ($redis) {
-    & $redis.Source -n $redisDb FLUSHDB | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "警告：Redis db${redisDb} 清空失败，不阻断重建。" -ForegroundColor Yellow
-    }
-} else {
-    Write-Host '==> 跳过 Redis 清理（未找到 redis-cli）'
 }
 
 Write-Host "==> 台账：$ledger"

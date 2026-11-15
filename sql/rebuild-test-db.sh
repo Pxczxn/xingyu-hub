@@ -8,6 +8,8 @@
 # 破坏性操作硬保护（均为 fail-fast，且都发生在任何 SQL 之前）：
 #   1. TEST_DB_NAME 必须严格等于 xingyu_hub_test；
 #   2. 管理员密码必须由环境变量 TEST_DB_ADMIN_PASSWORD 提供 —— 仓库不提交任何默认密码。
+#   3. TEST_REDIS_DB 必须显式设置为 9–15。先确认 redis-cli、连接和 key 数量，
+#      清理成功后才 DROP/CREATE MySQL。客户端缺失、连接失败或清理失败都立即退出。
 #
 # 凭据约定：
 #   - 重建（DROP/CREATE/灌迁移）需要库级管理权限 → TEST_DB_ADMIN_USER + TEST_DB_ADMIN_PASSWORD（必填）
@@ -35,6 +37,28 @@ ERR_LOG="$(mktemp)"
 trap 'rm -f "$ERR_LOG"' EXIT
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# 与 PowerShell 版一致：凭据文件只填补尚未设置的变量，不覆盖调用者的环境。
+ENV_FILE="$ROOT_DIR/scripts/local-test-db.env"
+if [[ -f "$ENV_FILE" ]]; then
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
+    key="${BASH_REMATCH[2]}"
+    value="${BASH_REMATCH[3]}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    value="${value#\'}"
+    value="${value%\'}"
+    value="${value#\"}"
+    value="${value%\"}"
+    # ${!key+x} is x when the name is set, including an empty value.
+    # Do not use -z on the value: an explicit empty string must stay empty.
+    if [[ -z "${!key+x}" ]]; then
+      printf -v "$key" '%s' "$value"
+      export "$key"
+    fi
+  done < "$ENV_FILE"
+fi
 
 # ============================================================================
 # 固定目标 & 破坏性操作硬保护（必须在任何 SQL 之前完成）
@@ -101,12 +125,62 @@ echo " 测试连接账号    : ${TEST_DB_USERNAME}"
 echo " 迁移来源        : ${ROOT_DIR}/sql/V*.sql"
 echo "=============================================================="
 
-# 连通性预检：凭据错误要在 DROP 之前暴露，绝不先删库再失败
-if ! "${MYSQL[@]}" -e "SELECT 1;" >/dev/null 2>"$ERR_LOG"; then
-  echo "❌ 拒绝执行：管理员账号无法连接 ${DB_HOST}:${DB_PORT}（未执行任何 SQL）。" >&2
+if [[ -z "${TEST_REDIS_DB:-}" ]]; then
+  echo "❌ 拒绝执行：必须显式设置 TEST_REDIS_DB（只允许 9-15，不再默认 7）。未执行任何 SQL 或 Redis 清理。" >&2
+  exit 1
+fi
+if [[ ! "$TEST_REDIS_DB" =~ ^[0-9]+$ ]]; then
+  echo "❌ 拒绝执行：TEST_REDIS_DB 格式错误，必须是整数。未执行任何 SQL 或 Redis 清理。" >&2
+  exit 1
+fi
+if (( TEST_REDIS_DB < 9 || TEST_REDIS_DB > 15 )); then
+  echo "❌ 拒绝执行：TEST_REDIS_DB=${TEST_REDIS_DB} 不在测试专用范围 9-15。未执行任何 SQL 或 Redis 清理。" >&2
+  exit 1
+fi
+if [[ -n "${TEST_REDIS_CLI:-}" ]]; then
+  if [[ ! -x "$TEST_REDIS_CLI" && ! -f "$TEST_REDIS_CLI" ]]; then
+    echo "❌ 拒绝执行：TEST_REDIS_CLI 指向的 redis-cli 不存在。未执行任何 SQL 或 Redis 清理。" >&2
+    exit 1
+  fi
+  REDIS_CLI="$TEST_REDIS_CLI"
+elif command -v redis-cli >/dev/null 2>&1; then
+  REDIS_CLI="$(command -v redis-cli)"
+else
+  echo "❌ 拒绝执行：找不到 redis-cli。请设置 TEST_REDIS_CLI，或将 redis-cli 加入 PATH。未执行任何 SQL 或 Redis 清理。" >&2
+  exit 1
+fi
+if ! ping_reply="$("$REDIS_CLI" PING 2>"$ERR_LOG")" || [[ "$ping_reply" != "PONG" ]]; then
+  echo "❌ 拒绝执行：Redis 连接失败。未执行任何 SQL 或 Redis 清理。" >&2
   sed 's/^/   /' "$ERR_LOG" >&2
   exit 1
 fi
+if ! before_keys="$("$REDIS_CLI" -n "$TEST_REDIS_DB" DBSIZE 2>"$ERR_LOG")" || [[ ! "$before_keys" =~ ^[0-9]+$ ]]; then
+  echo "❌ 拒绝执行：无法确认 Redis DB ${TEST_REDIS_DB} 的 key 数量。未执行任何 SQL 或 Redis 清理。" >&2
+  sed 's/^/   /' "$ERR_LOG" >&2
+  exit 1
+fi
+echo " Redis 目标库     : DB ${TEST_REDIS_DB}（已确认属于测试专用范围 9-15）"
+echo " 清理前 key 数量 : ${before_keys}"
+
+# 连通性预检：凭据错误要在 DROP 和 FLUSHDB 之前暴露。
+if ! "${MYSQL[@]}" -e "SELECT 1;" >/dev/null 2>"$ERR_LOG"; then
+  echo "❌ 拒绝执行：管理员账号无法连接 ${DB_HOST}:${DB_PORT}（未执行任何 SQL 或 Redis 清理）。" >&2
+  sed 's/^/   /' "$ERR_LOG" >&2
+  exit 1
+fi
+
+echo "==> 清理 Redis DB ${TEST_REDIS_DB}"
+if ! flush_reply="$("$REDIS_CLI" -n "$TEST_REDIS_DB" FLUSHDB 2>"$ERR_LOG")" || [[ "$flush_reply" != "OK" ]]; then
+  echo "❌ 失败：Redis DB ${TEST_REDIS_DB} 清理失败，已停止，未重建 MySQL。" >&2
+  sed 's/^/   /' "$ERR_LOG" >&2
+  exit 1
+fi
+if ! after_keys="$("$REDIS_CLI" -n "$TEST_REDIS_DB" DBSIZE 2>"$ERR_LOG")" || [[ "$after_keys" != "0" ]]; then
+  echo "❌ 失败：Redis DB ${TEST_REDIS_DB} 清理后未能确认 key 数量为 0。已停止，未重建 MySQL。" >&2
+  sed 's/^/   /' "$ERR_LOG" >&2
+  exit 1
+fi
+echo "==> Redis DB ${TEST_REDIS_DB} 清理成功，当前 key 数量: 0"
 
 echo "==> DROP/CREATE ${TEST_DB_NAME}"
 # 关键命令：必须显式检查返回值，失败即终止（不能依赖 set -e）
@@ -195,15 +269,6 @@ if (( ${#inserts[@]} > 0 )); then
   fi
   echo "==> 已写入 schema_migration 台账 ${#inserts[@]} 条（仅成功版本）"
   echo "==> 台账行数校验通过：${ledger_rows} 行"
-fi
-
-# 测试库对应的 Redis 逻辑库（application-test.yml 用 database: 7）清空，保证缓存/session 不跨次残留
-REDIS_DB="${TEST_REDIS_DB:-7}"
-if command -v redis-cli >/dev/null 2>&1; then
-  echo "==> 清空测试用 Redis 逻辑库 db${REDIS_DB}"
-  redis-cli -n "$REDIS_DB" FLUSHDB >/dev/null || echo "   (警告：Redis db${REDIS_DB} 清空失败，不阻断)"
-else
-  echo "==> 跳过 Redis 清理（未找到 redis-cli）"
 fi
 
 echo "✅ 完成。测试连接：jdbc:mysql://${DB_HOST}:${DB_PORT}/${TEST_DB_NAME}（用户 ${TEST_DB_USERNAME}，密码由 TEST_DB_PASSWORD 提供）"
