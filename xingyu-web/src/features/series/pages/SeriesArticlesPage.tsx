@@ -30,6 +30,19 @@ import {
   type ChapterEntry,
 } from "../series-order";
 
+function useNarrowArrangement() {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(max-width: 1023px)");
+    const apply = () => setNarrow(query.matches);
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, []);
+  return narrow;
+}
+
 type LoadState = "loading" | "error" | "notfound" | "ready";
 type SaveState = "idle" | "saving" | "saved" | "error" | "conflict";
 type ConflictReloadState = "idle" | "confirm" | "loading";
@@ -79,6 +92,7 @@ export function SeriesArticlesPage() {
     null,
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+  const narrow = useNarrowArrangement();
   /* Bumping the key replays the load effect — the retry mechanism. */
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -383,13 +397,15 @@ export function SeriesArticlesPage() {
         density="dense"
         railLabel="添加文章"
         rail={
-          <ArticlePickerPanel
-            articles={articles}
-            selectedIds={selectedIds}
-            open={pickerOpen}
-            onAdd={addArticle}
-            onClose={() => setPickerOpen(false)}
-          />
+          narrow ? null : (
+            <ArticlePickerPanel
+              articles={articles}
+              selectedIds={selectedIds}
+              open={pickerOpen}
+              onAdd={addArticle}
+              onClose={() => setPickerOpen(false)}
+            />
+          )
         }
       >
         {/* B 类壳：恰好 1 个 h1，视觉隐藏；首块仍是内容。系列名是 h2。 */}
@@ -476,6 +492,16 @@ export function SeriesArticlesPage() {
               {pickerOpen ? "收起选文" : "添加文章"}
             </Button>
           </div>
+
+          {narrow ? (
+            <ArticlePickerPanel
+              articles={articles}
+              selectedIds={selectedIds}
+              open={pickerOpen}
+              onAdd={addArticle}
+              onClose={() => setPickerOpen(false)}
+            />
+          ) : null}
 
           {lastRemoved ? (
             <div
