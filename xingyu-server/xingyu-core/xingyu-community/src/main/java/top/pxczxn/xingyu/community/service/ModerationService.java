@@ -824,10 +824,11 @@ public class ModerationService {
         }
         ModerationCase moderationCase = caseMapper.findByReportId(reportId);
         if (moderationCase != null && OPEN_CASE_STATUSES.contains(moderationCase.getStatus())) {
+            // 原样交给 decideCase：UPHELD 认定，DISMISSED / NO_VIOLATION / REJECTED 驳回，
+            // 其余值由 isUpholdDecision 拒绝。不能把未识别的值默认成 UPHELD。
             String decision = body.get("decision");
-            String mapped = "REJECTED".equalsIgnoreCase(decision) ? "DISMISSED" : "UPHELD";
             decideCase(moderationCase.getId(), decidedBy, Map.of(
-                    "decision", mapped,
+                    "decision", decision == null ? "" : decision,
                     "comment", body.getOrDefault("comment", "")));
             return reportMapper.selectById(reportId);
         }
