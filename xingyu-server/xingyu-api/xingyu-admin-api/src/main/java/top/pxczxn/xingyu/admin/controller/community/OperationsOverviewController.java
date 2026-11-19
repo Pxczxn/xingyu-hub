@@ -7,13 +7,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import top.pxczxn.xingyu.common.result.Result;
-import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.CommunityEvent;
 import top.pxczxn.xingyu.community.entity.ModerationCase;
+import top.pxczxn.xingyu.community.entity.Report;
 import top.pxczxn.xingyu.community.entity.ReviewSubmission;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityEventMapper;
 import top.pxczxn.xingyu.community.mapper.ModerationCaseMapper;
+import top.pxczxn.xingyu.community.mapper.ReportMapper;
 import top.pxczxn.xingyu.community.mapper.ReviewSubmissionMapper;
 
 /**
@@ -28,6 +29,7 @@ public class OperationsOverviewController {
 
     private final ReviewSubmissionMapper reviewSubmissionMapper;
     private final ModerationCaseMapper moderationCaseMapper;
+    private final ReportMapper reportMapper;
     private final ArticleMapper articleMapper;
     private final CommunityEventMapper communityEventMapper;
 
@@ -40,14 +42,15 @@ public class OperationsOverviewController {
         overview.setOpenCaseCount(moderationCaseMapper.selectCount(
                 new LambdaQueryWrapper<ModerationCase>()
                         .eq(ModerationCase::getStatus, "OPEN")));
-        overview.setPublishedArticleCount(articleMapper.selectCount(
-                new LambdaQueryWrapper<Article>()
-                        .eq(Article::getStatus, "PUBLISHED")));
+        overview.setPublishedArticleCount(articleMapper.countAnonymousReadable());
         overview.setActiveEventCount(communityEventMapper.selectCount(
                 new LambdaQueryWrapper<CommunityEvent>()
                         .eq(CommunityEvent::getStatus, "ACTIVE")));
-        overview.setOpenReportCount(overview.getOpenCaseCount());
-        overview.setActiveContentCount(overview.getPublishedArticleCount());
+        overview.setOpenReportCount(reportMapper.selectCount(
+                new LambdaQueryWrapper<Report>()
+                        .in(Report::getStatus, "SUBMITTED", "TRIAGED")));
+        // 产品没有「活跃内容」的统一定义。不能把文章数、或文章+动态+系列，填进这个字段。
+        overview.setActiveContentCount(null);
         return Result.ok(overview);
     }
 
@@ -57,7 +60,9 @@ public class OperationsOverviewController {
         private Long openCaseCount;
         private Long publishedArticleCount;
         private Long activeEventCount;
+        /** 未结举报：SUBMITTED 与 TRIAGED。不是未结案件数。 */
         private Long openReportCount;
+        /** 没有统一定义，固定为 null。总览卡片不读这个字段。 */
         private Long activeContentCount;
         private java.util.List<Object> recentItems = java.util.List.of();
     }

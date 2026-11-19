@@ -87,6 +87,25 @@ public interface ArticleMapper extends BaseMapper<Article> {
     List<String> listIndexableIds();
 
     /**
+     * 匿名调用公开详情时能读到的文章数。
+     *
+     * <p>与 {@code ArticleAccessService.findReadable(id, null)} 同一组条件：生命周期为
+     * ACTIVE（空值按 ACTIVE）、治理状态不是 HIDDEN、发布指针和正式版本都在，可见性是
+     * PUBLIC 或 UNLISTED。不看编辑状态 {@code article.status}。PRIVATE 对匿名读者不可读。
+     * 搜索索引更严：它还排除 FROZEN 和 UNLISTED，那是发现口径，不是详情可读口径。</p>
+     */
+    @Select("""
+            SELECT COUNT(*) FROM article a
+            INNER JOIN published_revision pr ON pr.article_id = a.id
+            INNER JOIN formal_revision fr ON fr.id = pr.formal_revision_id
+            WHERE (a.lifecycle_status IS NULL OR a.lifecycle_status = ''
+                   OR UPPER(TRIM(a.lifecycle_status)) = 'ACTIVE')
+              AND UPPER(TRIM(COALESCE(a.moderation_status, 'NORMAL'))) <> 'HIDDEN'
+              AND fr.visibility IN ('PUBLIC', 'UNLISTED')
+            """)
+    long countAnonymousReadable();
+
+    /**
      * Public article count for a profile, keyed on the presence of a published revision
      * rather than on {@code article.status}: submitting a new revision flips the article to
      * IN_REVIEW while the published one stays readable, so a status-based count would drop a
