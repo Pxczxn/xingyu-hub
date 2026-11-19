@@ -29,7 +29,7 @@ class SeriesChapterInsertBatchTest {
     private final ArticleMapper articles = mock(ArticleMapper.class);
     private final CommunityEventSupport events = mock(CommunityEventSupport.class);
     private final SeriesService service = new SeriesService(
-            null, series, null, chapters, articles, null, null, events, null, null);
+            null, series, null, chapters, articles, null, null, events, null, null, null);
 
     @Test
     void replacingChaptersInsertsTheNewOrderOnce() {

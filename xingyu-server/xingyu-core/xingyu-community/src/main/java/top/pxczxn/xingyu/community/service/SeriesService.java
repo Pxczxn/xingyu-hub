@@ -1,5 +1,6 @@
 package top.pxczxn.xingyu.community.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
@@ -66,6 +67,7 @@ public class SeriesService {
     private final CommunityEventSupport eventSupport;
     private final WorkingDraftMapper workingDraftMapper;
     private final CollaborationMemberMapper collaborationMemberMapper;
+    private final SearchIndexService searchIndexService;
 
     public List<SeriesSummaryView> listForOwner(CommunityUser user) {
         List<Series> accessible = listAccessible(user);
@@ -325,6 +327,51 @@ public class SeriesService {
         Series fresh = seriesMapper.selectById(seriesId);
         publishSeriesChanged(fresh);
         return toView(fresh, chapterMapper.listBySeriesId(seriesId), collaborationRole(user, fresh));
+    }
+
+    /**
+     * Admin archive / restore.
+     *
+     * <p>The write lists only status, timestamp and lock version. Loading the row and calling
+     * {@code updateById} would put the title and description from that read back over a commit
+     * the author made after the read. {@code FOR UPDATE} is the first statement so this
+     * transaction waits for that author commit, then changes status against the locked row.
+     *
+     * <p>A repeat that finds the status already set does not bump {@code lock_version} and does
+     * not publish another {@code SeriesChanged}. It still refreshes the search row, so a second
+     * click can repair an index left behind by an older write. Refresh joins this transaction;
+     * its exception rolls the status, version and event back with the index write.
+     *
+     * @return {@code false} when no series has this id
+     */
+    @Transactional
+    public boolean applyOperationalStatus(String seriesId, String status) {
+        List<Series> locked = seriesMapper.selectList(new LambdaQueryWrapper<Series>()
+                .eq(Series::getId, seriesId)
+                .last("FOR UPDATE"));
+        if (locked.isEmpty()) {
+            return false;
+        }
+        Series series = locked.get(0);
+        if (!status.equals(series.getStatus())) {
+            Instant now = Instant.now();
+            long current = series.getLockVersion() == null ? 0L : series.getLockVersion();
+            int updated = seriesMapper.update(null, new UpdateWrapper<Series>()
+                    .eq("id", seriesId)
+                    .eq("lock_version", current)
+                    .set("status", status)
+                    .set("updated_at", now)
+                    .set("lock_version", current + 1));
+            if (updated == 0) {
+                throw new ContractException(ErrorCode.CONFLICT, "系列已被他人更新");
+            }
+            series.setStatus(status);
+            series.setUpdatedAt(now);
+            series.setLockVersion(current + 1);
+            publishSeriesChanged(series);
+        }
+        searchIndexService.refresh(SearchIndexService.SERIES, seriesId);
+        return true;
     }
 
     /**

@@ -31,7 +31,7 @@ class SeriesChapterTitleBatchTest {
     private final SearchDocumentMapper documents = mock(SearchDocumentMapper.class);
     private final WorkingDraftMapper drafts = mock(WorkingDraftMapper.class);
     private final SeriesService service = new SeriesService(
-            null, series, null, chapters, null, profiles, documents, null, drafts, null);
+            null, series, null, chapters, null, profiles, documents, null, drafts, null, null);
 
     @Test
     void ownerViewPrefersIndexTitleAndFallsBackToOneDraftQuery() {

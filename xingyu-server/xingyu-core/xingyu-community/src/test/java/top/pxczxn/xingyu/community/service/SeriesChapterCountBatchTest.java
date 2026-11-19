@@ -27,7 +27,7 @@ class SeriesChapterCountBatchTest {
     private final CommunityProfileMapper profiles = mock(CommunityProfileMapper.class);
     private final CollaborationMemberMapper members = mock(CollaborationMemberMapper.class);
     private final SeriesService service = new SeriesService(
-            null, series, null, chapters, null, profiles, null, null, null, members);
+            null, series, null, chapters, null, profiles, null, null, null, members, null);
 
     @Test
     void ownerAndPublicListsCountChaptersOnce() {
