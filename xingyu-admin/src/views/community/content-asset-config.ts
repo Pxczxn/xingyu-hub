@@ -37,7 +37,7 @@ export const contentAssetConfigs: Record<ContentAssetType, ContentAssetScreenCon
     description: '管理公开文章的展示资格、精选引用与受控状态；待审核内容请走「内容审核」流程。',
     searchPlaceholder: '搜索文章标题',
     emptyDescription: '暂无符合条件的文章',
-    hint: '处于「审核中」的文章请在「内容审核」中处理；本页仅用于运营查看与状态跟踪。',
+    hint: '审核中只表示新修订正在审核。已有正式发布版本时，旧版本仍可能对匿名读者公开。文章的发布、隐藏和回收不在本页操作。',
     reviewLink: '/community/review',
     primaryLabelKey: 'title',
     statusOptions: [
@@ -57,7 +57,12 @@ export const contentAssetConfigs: Record<ContentAssetType, ContentAssetScreenCon
       { label: AUTHOR_COLUMN_TITLE, key: 'authorLabel' },
       { label: '摘要', key: 'summary' },
       { label: '正文', key: 'body' },
-      { label: '状态', key: 'status' },
+      { label: '编辑状态', key: 'status' },
+      { label: '生命周期', key: 'lifecycleStatus' },
+      { label: '治理状态', key: 'moderationStatus' },
+      { label: '可见性', key: 'visibility' },
+      { label: '发布版本', key: 'hasPublishedRevision' },
+      { label: '匿名详情', key: 'anonymousReadable' },
       { label: '更新时间', key: 'updatedAt' }
     ]
   },
@@ -159,3 +164,22 @@ export function formatAssetStatus(config: ContentAssetScreenConfig, status?: str
 export function findStatusAction(config: ContentAssetScreenConfig, status?: string) {
   return config.statusActions.find((action) => action.from === status)
 }
+
+export function articleLifecycleLabel(status: unknown): string {
+  if (status === 'ACTIVE') return '正常'
+  if (status === 'TRASHED') return '已回收'
+  return '未知'
+}
+
+export function articleModerationLabel(status: unknown): string {
+  if (status === 'NORMAL') return '正常'
+  if (status === 'HIDDEN') return '治理隐藏'
+  if (status === 'FROZEN') return '冻结'
+  return '未知'
+}
+
+export {
+  articleAnonymousLabel,
+  articlePublicationLabel,
+  articleVisibilityLabel
+} from './content-asset-article-read-model.mjs'

@@ -80,6 +80,11 @@ import { formatAuthorLabel, AUTHOR_COLUMN_TITLE } from '@/utils/community-displa
 import { renderDateTime, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
 import { cellText, colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
 import {
+  articleAnonymousLabel,
+  articleLifecycleLabel,
+  articleModerationLabel,
+  articlePublicationLabel,
+  articleVisibilityLabel,
   findStatusAction,
   formatAssetStatus,
   getContentAssetConfig,
@@ -118,6 +123,16 @@ const detailFields = computed(() => {
       let value = '-'
       if (field.key === 'status') {
         value = formatAssetStatus(config.value, row.status).label
+      } else if (field.key === 'lifecycleStatus') {
+        value = articleLifecycleLabel(row.lifecycleStatus)
+      } else if (field.key === 'moderationStatus') {
+        value = articleModerationLabel(row.moderationStatus)
+      } else if (field.key === 'visibility') {
+        value = articleVisibilityLabel(row.hasPublishedRevision, row.visibility)
+      } else if (field.key === 'hasPublishedRevision') {
+        value = articlePublicationLabel(row.hasPublishedRevision)
+      } else if (field.key === 'anonymousReadable') {
+        value = articleAnonymousLabel(row.anonymousReadable)
       } else if (field.key === 'authorLabel') {
         value = formatAuthorLabel(row.authorDisplayName, row.authorUsername, row.authorLabel || row.authorName)
       } else {
@@ -201,11 +216,49 @@ const columns = computed<DataTableColumns<ContentAsset>>(() => {
 
   base.push(
     {
-      title: '状态',
+      title: props.assetType === 'ARTICLE' ? '编辑状态' : '状态',
       key: 'status',
       ...colLayout('status'),
       render: (row) => renderStatusTag(row.status, screen.statusMeta)
-    },
+    }
+  )
+
+  if (props.assetType === 'ARTICLE') {
+    base.push(
+      {
+        title: '生命周期',
+        key: 'lifecycleStatus',
+        ...colLayout('status', { width: 96, minWidth: 88 }),
+        render: (row) => articleLifecycleLabel(row.lifecycleStatus)
+      },
+      {
+        title: '治理',
+        key: 'moderationStatus',
+        ...colLayout('status', { width: 108, minWidth: 96 }),
+        render: (row) => articleModerationLabel(row.moderationStatus)
+      },
+      {
+        title: '可见性',
+        key: 'visibility',
+        ...colLayout('summary', { width: 168, minWidth: 140 }),
+        render: (row) => articleVisibilityLabel(row.hasPublishedRevision, row.visibility)
+      },
+      {
+        title: '发布版本',
+        key: 'hasPublishedRevision',
+        ...colLayout('summary', { width: 148, minWidth: 132 }),
+        render: (row) => articlePublicationLabel(row.hasPublishedRevision)
+      },
+      {
+        title: '匿名详情',
+        key: 'anonymousReadable',
+        ...colLayout('status', { width: 108, minWidth: 96 }),
+        render: (row) => articleAnonymousLabel(row.anonymousReadable)
+      }
+    )
+  }
+
+  base.push(
     {
       title: '更新时间',
       key: 'updatedAt',
@@ -215,7 +268,7 @@ const columns = computed<DataTableColumns<ContentAsset>>(() => {
     {
       title: '操作',
       key: 'actions',
-      ...colLayout('action2'),
+      ...actionColumnLayout(),
       render: (row) => {
         const action = findStatusAction(screen, row.status)
         return renderTableActionCell([
@@ -242,6 +295,14 @@ const columns = computed<DataTableColumns<ContentAsset>>(() => {
 })
 
 const tableScroll = computed(() => tableScrollFromColumns(columns.value))
+
+function actionColumnLayout() {
+  const layout = { ...colLayout('action2') }
+  if (props.assetType === 'ARTICLE') {
+    delete layout.fixed
+  }
+  return layout
+}
 
 function onStatusChange() {
   page.value = 1

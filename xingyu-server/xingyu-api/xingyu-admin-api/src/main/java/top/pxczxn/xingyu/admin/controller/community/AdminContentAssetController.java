@@ -10,14 +10,21 @@ import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.entity.Series;
 import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.Moment;
+import top.pxczxn.xingyu.community.entity.FormalRevision;
+import top.pxczxn.xingyu.community.entity.PublishedRevision;
 import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityUserMapper;
+import top.pxczxn.xingyu.community.mapper.FormalRevisionMapper;
+import top.pxczxn.xingyu.community.mapper.PublishedRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
 import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.MomentRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesChapterMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
+import top.pxczxn.xingyu.community.service.ArticleAccessService;
+import top.pxczxn.xingyu.community.service.MomentService;
+import top.pxczxn.xingyu.community.service.SeriesService;
 
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -33,10 +40,15 @@ public class AdminContentAssetController {
     private final SeriesChapterMapper seriesChapterMapper;
     private final ArticleMapper articleMapper;
     private final WorkingDraftMapper workingDraftMapper;
+    private final PublishedRevisionMapper publishedRevisionMapper;
+    private final FormalRevisionMapper formalRevisionMapper;
+    private final ArticleAccessService articleAccessService;
     private final MomentMapper momentMapper;
     private final MomentRevisionMapper momentRevisionMapper;
     private final CommunityProfileMapper profileMapper;
     private final CommunityUserMapper userMapper;
+    private final MomentService momentService;
+    private final SeriesService seriesService;
 
     @GetMapping
     public Result<Map<String, Object>> list(@RequestParam String type,
@@ -53,8 +65,7 @@ public class AdminContentAssetController {
                     .filter(v -> matchesKeyword(keyword, v.get("title"), v.get("summary")))
                     .toList();
         } else if ("ARTICLE".equalsIgnoreCase(type)) {
-            var query = new LambdaQueryWrapper<Article>()
-                    .eq(Article::getLifecycleStatus, ArticleStateSupport.LIFECYCLE_ACTIVE);
+            var query = new LambdaQueryWrapper<Article>();
             if (status != null && !status.isBlank()) {
                 query.eq(Article::getStatus, status.trim().toUpperCase(Locale.ROOT));
             }
@@ -92,17 +103,13 @@ public class AdminContentAssetController {
         String type = String.valueOf(body.getOrDefault("type", ""));
         String status = String.valueOf(body.getOrDefault("status", "")).toUpperCase(Locale.ROOT);
         if ("SERIES".equalsIgnoreCase(type) && ("ACTIVE".equals(status) || "ARCHIVED".equals(status))) {
-            Series series = seriesMapper.selectById(id);
-            if (series == null) return Result.fail("内容不存在");
-            series.setStatus(status); seriesMapper.updateById(series);
-        } else if ("ARTICLE".equalsIgnoreCase(type) && ("DRAFT".equals(status) || "IN_REVIEW".equals(status) || "PUBLISHED".equals(status))) {
-            Article article = articleMapper.selectById(id);
-            if (article == null) return Result.fail("内容不存在");
-            article.setStatus(status); articleMapper.updateById(article);
+            if (!seriesService.applyOperationalStatus(id, status)) {
+                return Result.fail("内容不存在");
+            }
         } else if ("MOMENT".equalsIgnoreCase(type) && ("PUBLISHED".equals(status) || "TRASHED".equals(status))) {
-            Moment moment = momentMapper.selectById(id);
-            if (moment == null) return Result.fail("内容不存在");
-            moment.setStatus(status); momentMapper.updateById(moment);
+            if (!momentService.applyOperationalStatus(id, status)) {
+                return Result.fail("内容不存在");
+            }
         } else {
             return Result.fail(422, "内容类型或状态无效");
         }
@@ -140,6 +147,14 @@ public class AdminContentAssetController {
         Map<String, Object> value = asset(article.getId(), "ARTICLE", title, article.getStatus(), article.getUpdatedAt());
         value.put("lifecycleStatus", ArticleStateSupport.normalizeLifecycle(article.getLifecycleStatus()));
         value.put("moderationStatus", ArticleStateSupport.normalizeModeration(article.getModerationStatus()));
+        PublishedRevision published = publishedRevisionMapper.findByArticleId(article.getId());
+        FormalRevision formal = published == null || published.getFormalRevisionId() == null
+                ? null
+                : formalRevisionMapper.selectById(published.getFormalRevisionId());
+        boolean hasPublishedRevision = formal != null;
+        value.put("hasPublishedRevision", hasPublishedRevision);
+        value.put("visibility", hasPublishedRevision ? formal.getVisibility() : null);
+        value.put("anonymousReadable", anonymousReadable(article.getId(), hasPublishedRevision));
         if (draft != null) {
             value.put("summary", draft.getSummary());
             value.put("body", draft.getBody());
@@ -147,6 +162,20 @@ public class AdminContentAssetController {
         }
         applyAuthor(value, article.getOwnerId());
         return value;
+    }
+
+    /**
+     * 与匿名 {@code ArticleAccessService.findReadable} 相同。无法识别的可见性不算公开。
+     */
+    private boolean anonymousReadable(String articleId, boolean hasPublishedRevision) {
+        if (!hasPublishedRevision) {
+            return false;
+        }
+        try {
+            return articleAccessService.isReadable(articleId, null);
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 
     private Map<String, Object> buildMomentAsset(Moment moment) {

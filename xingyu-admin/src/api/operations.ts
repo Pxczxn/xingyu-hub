@@ -16,6 +16,11 @@ export interface ContentAsset {
   slug?: string
   chapterCount?: number
   status?: string
+  lifecycleStatus?: string
+  moderationStatus?: string
+  visibility?: string | null
+  hasPublishedRevision?: boolean
+  anonymousReadable?: boolean
   authorId?: string
   authorDisplayName?: string
   authorUsername?: string
