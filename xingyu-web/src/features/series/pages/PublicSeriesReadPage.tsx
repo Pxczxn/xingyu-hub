@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { ApiError } from "@/api/client";
@@ -38,6 +38,7 @@ import {
   type ReaderPreferences,
 } from "../reader-preferences";
 import { useSeriesProgressWriter } from "../useSeriesProgressWriter";
+import "../series-read-measure.css";
 
 type LoadState =
   | { kind: "loading" }
@@ -71,9 +72,10 @@ const BODY_TYPOGRAPHY = cn(
   "[&_.article-body]:leading-[1.9]",
   "[&_.article-body_p]:leading-[1.9]",
   "[&_.article-body>*+*]:mt-[1.15em]",
-  "[&_.article-body_h2]:mt-12",
+  "[&_.article-body_h2]:[margin-top:max(3rem,calc(var(--reading-body-size)*2.667))]",
   "[&_.article-body_h2]:mb-4",
   "[&_.article-body_h2]:text-[1.5556em]",
+  "[&_.article-body_h3]:text-[1.2em]",
   "[&_.article-body_blockquote]:border-l-[3px]",
   "[&_.article-body_ol]:gap-2",
   "[&_.article-body_ul]:gap-2",
@@ -363,6 +365,7 @@ export function PublicSeriesReadPage() {
   const visibleArticle = article && current && article.id === current.articleId ? article : null;
   const prepared = visibleArticle ? prepareArticleBodyForRead(visibleArticle.body) : null;
   const measure = READER_LAYOUTS.find(({ key }) => key === layout)?.measure ?? "68ch";
+  const measureCh = Number.parseInt(measure, 10);
   /* Real numbers from the rendered chapter body — no API field is invented. */
   const stats = readerDocumentStats(prepared?.markdown ?? visibleArticle?.body ?? "");
   const chapterCount = chapters.length;
@@ -381,8 +384,9 @@ export function PublicSeriesReadPage() {
    *   正文   与文章页同一份排版覆盖（段距 1.15em、h2 28/600、3px 引用竖线、
    *          真 `<ol>/<ul>`）；字号/阅读宽度沿用 series 的持久化偏好（`reader-preferences`），
    *          所以 `reader-column` 仍带内联 fontSize/maxWidth。
-   *   移动端 <1024  吸顶一行：返回系列 · 章节位置 · 目录 / 设置（两个 Sheet 的入口）；
-   *          ≥1440 目录与设置都在右栏；1024–1439 与其它内容阅读页一样是单列无轨。
+   *   <1440  吸顶一行：返回系列 · 章节位置 · 目录 / 设置（两个 Sheet 的入口）。
+   *          1024–1439 仍是单列无轨，目录只能走这条吸顶入口。
+   *          ≥1440 右栏出现，吸顶条隐藏，目录与设置都在右栏。
    *
    * 行为未变：api、三态、深链 `?chapter=`、切章滚动、上一/下一章、进度上报、
    * `ui/sheet` 的焦点/滚动锁/关闭归位全部原样保留。
@@ -400,8 +404,22 @@ export function PublicSeriesReadPage() {
   }
 
   return (
-    <div>
+    /*
+     * Below 768 the shell's px-4 sits outside this already padded paper.
+     * Widening the scope, not the paper, lets the viewport clamp use that
+     * padding. The ch measure still sizes the paper when it fits.
+     */
+    <div
+      className="series-read-scope max-md:-mx-4 max-md:w-[calc(100%+2rem)]"
+      style={
+        {
+          "--series-font": `${fontSize}px`,
+          "--series-ch": String(measureCh),
+        } as CSSProperties
+      }
+    >
       <ReaderFrame
+        className="series-read-frame"
         asideLeftLabel="关于这份内容"
         asideLeft={
           <ReaderSourceCard
@@ -493,11 +511,11 @@ export function PublicSeriesReadPage() {
         }
       >
         {/*
-          <1024：吸顶的章节位置条，同时是两个 Sheet（目录 / 设置）的唯一入口。
-          这两行里的 `reader-position-mobile` 与上面右栏的 `reader-position` 是同一
-          事实的两种落位（移动端没有右栏）。
+          <1440：吸顶的章节位置条，同时是两个 Sheet（目录 / 设置）的入口。
+          右栏要到 1440 才出现，所以这条不能在 lg（1024）就藏掉。
+          `reader-position-mobile` 与上面右栏的 `reader-position` 是同一事实的两种落位。
         */}
-        <div className="sticky top-[var(--shell-header-height)] z-rail -mx-4 mb-2 flex items-center justify-between gap-2 border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur md:-mx-6 md:px-6 lg:hidden">
+        <div className="sticky top-[calc(var(--shell-header-height)+0.125rem)] z-rail -mx-4 mb-2 flex items-center justify-between gap-2 border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur md:-mx-6 md:px-6 min-[1440px]:hidden">
           <Link
             to={`/series/${encodeURIComponent(series.id)}`}
             className="focus-ring inline-flex h-11 shrink-0 items-center gap-1 rounded-md px-1 text-meta text-muted-foreground transition-colors hover:text-accent-strong"
@@ -605,12 +623,20 @@ export function PublicSeriesReadPage() {
           </div>
         </div>
 
-        <div className="rounded-card border border-border bg-card p-6 min-[1024px]:px-14 min-[1024px]:py-12">
+        <div className="rounded-card border border-border bg-card px-3 py-6 md:p-6 min-[1024px]:px-14 min-[1024px]:py-12">
           <header>
             <div className="flex items-start justify-between gap-4">
               <p className="eyebrow">{`第 ${current.position} 章`}</p>
             </div>
-            <h1 className="mt-3 text-h1 text-primary">
+            {/* At 18px the addition is 0, so the page title stays on --type-h1.
+                Above that it grows 2px per 1px of reading size, which keeps the
+                desktop 36:28 title-to-H2 ratio (48px title at a 24px body). */}
+            <h1
+              className="mt-3 text-h1 text-primary"
+              style={{
+                fontSize: `max(var(--type-h1), calc(var(--type-h1) + (${fontSize} - 18) * 2px))`,
+              }}
+            >
               {/* Prefer the loaded chapter title; fall back to the series
                   contract's title (the API may omit it) or the position. */}
               {visibleArticle?.title
@@ -675,7 +701,13 @@ export function PublicSeriesReadPage() {
           <div
             data-testid="reader-column"
             className={cn("reader-column mx-auto mt-12", BODY_TYPOGRAPHY)}
-            style={{ fontSize, maxWidth: measure }}
+            style={
+              {
+                fontSize,
+                maxWidth: measure,
+                "--reading-body-size": `${fontSize}px`,
+              } as CSSProperties
+            }
           >
             {articleState === "loading" ? (
               <PageState kind="loading" />

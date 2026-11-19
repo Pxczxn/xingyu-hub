@@ -164,7 +164,16 @@ describe("AnnouncementDetailPage", () => {
     mocked.getById.mockResolvedValue(ITEM);
     renderDetail("ann-1");
     expect(screen.getByTestId("page-state-loading")).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "维护通知" })).toBeInTheDocument();
+    const title = await screen.findByRole("heading", { name: "维护通知" });
+    expect(title).toBeInTheDocument();
+    const paper = title.closest(".rounded-card")?.className ?? "";
+    expect(paper).toContain("px-3");
+    expect(paper).toContain("max-md:-mx-4");
+    expect(paper).toContain("py-6");
+    expect(paper).toContain("md:p-6");
+    expect(paper).toContain("min-[1024px]:px-14");
+    expect(paper).toContain("min-[1024px]:py-12");
+    expect(paper).not.toMatch(/(^|\s)p-6(\s|$)/);
     expect(screen.getByRole("link", { name: "返回公告列表" })).toHaveAttribute(
       "href",
       "/announcements",
@@ -185,5 +194,23 @@ describe("AnnouncementDetailPage", () => {
       expect(screen.getByTestId("page-state-error")).toBeInTheDocument();
     });
     expect(screen.queryByText("公告不存在或未发布")).not.toBeInTheDocument();
+  });
+
+  it("splits blank lines into paragraphs and leaves markup as text", async () => {
+    mocked.getById.mockResolvedValue({
+      ...ITEM,
+      body: "第一段\n第二行\n\n  带空格  \n\n\n\n<script>alert(1)</script>",
+    });
+    const { container } = renderDetail("ann-1");
+    await screen.findByRole("heading", { name: "维护通知" });
+
+    const paragraphs = container.querySelectorAll(".rounded-card p.whitespace-pre-wrap");
+    expect(Array.from(paragraphs, (node) => node.textContent)).toEqual([
+      "第一段\n第二行",
+      "  带空格  ",
+      "<script>alert(1)</script>",
+    ]);
+    expect(paragraphs[1]?.className).toContain("[&+&]:mt-[1.15em]");
+    expect(container.querySelector("script")).toBeNull();
   });
 });

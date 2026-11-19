@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ArticleOutline } from "@/features/article/components/ArticleOutline";
 import type { ArticleOutlineItem } from "@/lib/article-markdown";
@@ -95,6 +95,18 @@ describe("article outline", () => {
     expect(hrefs).toEqual(["#article-h-0", "#article-h-1", "#article-h-2"]);
   });
 
+  it("can hide the rail eyebrow and notify the host on a jump", async () => {
+    const user = userEvent.setup();
+    const onItemSelect = vi.fn();
+    render(
+      <ArticleOutline items={items(2)} rail hideEyebrow onItemSelect={onItemSelect} />,
+    );
+
+    expect(within(screen.getByRole("navigation", { name: "文章目录" })).queryByText("目录")).toBeNull();
+    await user.click(screen.getByRole("link", { name: "第 1 节" }));
+    expect(onItemSelect).toHaveBeenCalledWith("article-h-0");
+  });
+
   it("indents nested levels and keeps level 2 flush", () => {
     render(<ArticleOutline items={items(3)} />);
 
@@ -103,5 +115,162 @@ describe("article outline", () => {
     );
     expect(entries[0].style.paddingLeft).toBe("0px");
     expect(entries[1].style.paddingLeft).toBe("12px");
+  });
+});
+
+const tracked = [
+  { id: "h2-a", text: "阅读布局", level: 2 as const },
+  { id: "h3-a", text: "标题层级", level: 3 as const },
+  { id: "h2-b", text: "滚动目录", level: 2 as const },
+];
+
+function renderTracked(label = "文章目录") {
+  return render(
+    <div>
+      {tracked.map((item) => (
+        <h2 key={item.id} id={item.id}>
+          {item.text}
+        </h2>
+      ))}
+      <ArticleOutline items={tracked} label={label} rail />
+    </div>,
+  );
+}
+
+let documentTops: Record<string, number> = {};
+
+function placeHeadings(tops: Record<string, number>) {
+  documentTops = tops;
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const top = documentTops[this.id];
+    const y = top == null ? 0 : top - window.scrollY;
+    return {
+      top: y,
+      bottom: y + (top == null ? 0 : 24),
+      left: 0,
+      right: top == null ? 0 : 200,
+      width: top == null ? 0 : 200,
+      height: top == null ? 0 : 24,
+      x: 0,
+      y,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect;
+  });
+}
+
+function setScroll(scrollY: number, scrollHeight = 3200, viewportHeight = 900) {
+  Object.defineProperty(window, "scrollY", { configurable: true, value: scrollY });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: viewportHeight });
+  Object.defineProperty(document.documentElement, "scrollHeight", {
+    configurable: true,
+    value: scrollHeight,
+  });
+  act(() => {
+    window.dispatchEvent(new Event("scroll"));
+  });
+}
+
+function currentLink(label: string) {
+  return within(screen.getByRole("navigation", { name: label }))
+    .getAllByRole("link")
+    .find((link) => link.getAttribute("aria-current") === "location");
+}
+
+describe("article outline current heading", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    documentTops = {};
+  });
+
+  it("leaves every item unselected before the first heading", () => {
+    renderTracked();
+    placeHeadings({ "h2-a": 400, "h3-a": 900, "h2-b": 1500 });
+    setScroll(0);
+
+    expect(currentLink("文章目录")).toBeUndefined();
+  });
+
+  it("marks the H2, then the H3 under it, then the next H2", () => {
+    renderTracked();
+    placeHeadings({ "h2-a": 400, "h3-a": 900, "h2-b": 1500 });
+
+    setScroll(400);
+    expect(currentLink("文章目录")).toHaveTextContent("阅读布局");
+
+    setScroll(900);
+    expect(currentLink("文章目录")).toHaveTextContent("标题层级");
+
+    setScroll(1500);
+    expect(currentLink("文章目录")).toHaveTextContent("滚动目录");
+  });
+
+  it("marks the clicked heading immediately", async () => {
+    const user = userEvent.setup();
+    renderTracked();
+    placeHeadings({ "h2-a": 400, "h3-a": 900, "h2-b": 1500 });
+    setScroll(0);
+
+    await user.click(screen.getByRole("link", { name: "标题层级" }));
+
+    expect(currentLink("文章目录")).toHaveTextContent("标题层级");
+    expect(screen.getByRole("link", { name: "阅读布局" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("follows the page again after a click once the reader scrolls away", async () => {
+    const user = userEvent.setup();
+    renderTracked();
+    placeHeadings({ "h2-a": 400, "h3-a": 900, "h2-b": 1500 });
+    setScroll(0);
+    await user.click(screen.getByRole("link", { name: "滚动目录" }));
+    expect(currentLink("文章目录")).toHaveTextContent("滚动目录");
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+      });
+    });
+
+    setScroll(400);
+    expect(currentLink("文章目录")).toHaveTextContent("阅读布局");
+  });
+
+  it("keeps a clicked heading when the page cannot scroll it up to the reading line", async () => {
+    const user = userEvent.setup();
+    renderTracked();
+    placeHeadings({ "h2-a": 400, "h3-a": 900, "h2-b": 1500 });
+    setScroll(0, 900, 900);
+    await user.click(screen.getByRole("link", { name: "标题层级" }));
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+
+    expect(currentLink("文章目录")).toHaveTextContent("标题层级");
+  });
+
+  it("marks the last heading at the end of the page", () => {
+    renderTracked();
+    placeHeadings({ "h2-a": 400, "h3-a": 900, "h2-b": 1500 });
+    setScroll(2300);
+
+    expect(currentLink("文章目录")).toHaveTextContent("滚动目录");
+  });
+
+  it("uses the same current heading for the guide and rules labels", () => {
+    const { unmount } = renderTracked("指南目录");
+    placeHeadings({ "h2-a": 400, "h3-a": 900, "h2-b": 1500 });
+    setScroll(900);
+    expect(currentLink("指南目录")).toHaveTextContent("标题层级");
+    const guideIndent = screen.getByRole("link", { name: "标题层级" }).parentElement;
+    expect(guideIndent?.style.paddingLeft).toBe("12px");
+    unmount();
+
+    renderTracked("规则目录");
+    placeHeadings({ "h2-a": 400, "h3-a": 900, "h2-b": 1500 });
+    setScroll(900);
+    expect(currentLink("规则目录")).toHaveTextContent("标题层级");
+    expect(screen.getByRole("link", { name: "阅读布局" })).not.toHaveAttribute("aria-current");
   });
 });

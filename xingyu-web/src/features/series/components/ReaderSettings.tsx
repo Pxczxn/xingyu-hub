@@ -36,8 +36,8 @@ export function ReaderSettings({
     stacked ? "h-11 w-11 text-base" : "h-7 px-2",
   );
   const widthButton = cn(
-    "focus-ring rounded border transition-colors",
-    stacked ? "px-3 py-3" : "px-2 py-0.5",
+    "focus-ring inline-flex w-full items-center justify-center whitespace-nowrap rounded border text-center transition-colors",
+    stacked ? "h-12 px-3" : "h-7 px-2",
     "hover:bg-muted/50 hover:text-foreground",
   );
 
@@ -82,9 +82,16 @@ export function ReaderSettings({
 
       {stacked ? null : <span aria-hidden className="h-4 w-px bg-border" />}
 
-      <div className={cn("flex items-center", stacked ? "justify-between gap-4" : "gap-1")}>
+      <div className={cn(stacked ? "flex flex-col gap-2" : "flex items-center gap-1")}>
         {stacked ? <span className="font-semibold text-foreground">阅读宽度</span> : null}
-        <div role="group" aria-label="阅读宽度" className="flex items-center gap-1">
+        <div
+          role="group"
+          aria-label="阅读宽度"
+          className={cn(
+            "grid grid-cols-3 items-stretch gap-1",
+            stacked ? "w-full" : "shrink-0",
+          )}
+        >
           {READER_LAYOUTS.map(({ key, label }) => (
             <button
               key={key}

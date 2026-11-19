@@ -30,6 +30,7 @@ export {
   READER_DEFAULT_LINE_HEIGHT,
   READER_FONT_SIZES,
   READER_LINE_HEIGHT_STEPS,
+  ReaderCompactToolCluster,
   ReaderDocInfo,
   ReaderFrame,
   ReaderProgress,

@@ -137,9 +137,17 @@ describe("PublicSeriesReadPage", () => {
     mockedArticles.getArticle.mockResolvedValue(article("art-1", "第一章 标题"));
     renderReader();
 
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "第一章 标题" }),
-    ).toBeInTheDocument();
+    const title = await screen.findByRole("heading", { level: 1, name: "第一章 标题" });
+    expect(title).toBeInTheDocument();
+    const paper = title.closest(".rounded-card")?.className ?? "";
+    expect(paper).toContain("px-3");
+    expect(paper).not.toContain("max-md:-mx-4");
+    expect(title.closest(".series-read-scope")?.className ?? "").toContain("max-md:-mx-4");
+    expect(paper).toContain("py-6");
+    expect(paper).toContain("md:p-6");
+    expect(paper).toContain("min-[1024px]:px-14");
+    expect(paper).toContain("min-[1024px]:py-12");
+    expect(paper).not.toMatch(/(^|\s)p-6(\s|$)/);
     expect(screen.getByTestId("reader-position")).toHaveTextContent("第 1 / 2 章");
     expect(mockedArticles.getArticle).toHaveBeenCalledWith("art-1");
     // The reader deliberately carries no interaction controls, so it owes the
@@ -694,14 +702,27 @@ describe("PublicSeriesReadPage", () => {
     const bar = screen.getByTestId("reader-position-mobile").parentElement;
     if (!bar) throw new Error("mobile reading toolbar not found");
     expect(bar).toHaveClass("sticky");
-    expect(bar.className).toContain("top-[var(--shell-header-height)]");
-    expect(bar).toHaveClass("lg:hidden");
+    expect(bar.className).toContain("top-[calc(var(--shell-header-height)+0.125rem)]");
+    // The catalogue sheet lives on this bar. Hide it only when the right rail
+    // actually appears (1440). `lg:hidden` removed the only catalogue between
+    // 1024 and 1439. jsdom does not evaluate the media query.
+    expect(bar.className).toContain("min-[1440px]:hidden");
+    expect(bar).not.toHaveClass("lg:hidden");
+    expect(bar.querySelector("button")).toHaveTextContent("目录");
 
-    // The desktop toolbar is a separate row, not a second copy of the mobile bar.
+    const rightRail = document.querySelector('[data-reader-track="right"]');
+    expect(rightRail).not.toBeNull();
+    expect(rightRail).toHaveClass("hidden");
+    expect(rightRail?.className).toContain("min-[1440px]:block");
+    expect(rightRail).not.toHaveClass("lg:block");
+
+    // The desktop catalogue stays inside that rail. Its own lg:flex does not
+    // show it while the rail is display:none.
     const desktop = screen.getByTestId("reader-position").parentElement?.parentElement;
     if (!desktop) throw new Error("desktop reading toolbar not found");
     expect(desktop).toHaveClass("hidden");
     expect(desktop).toHaveClass("lg:flex");
+    expect(rightRail?.contains(desktop)).toBe(true);
   });
 
   it("clamps the font size at 15px and 24px", async () => {
@@ -717,7 +738,13 @@ describe("PublicSeriesReadPage", () => {
 
     const plus = screen.getByRole("button", { name: "增大字号" });
     for (let index = 0; index < 9; index++) await userEvent.click(plus);
-    expect(screen.getByTestId("reader-column")).toHaveStyle({ fontSize: "24px" });
+    expect(screen.getByTestId("reader-column")).toHaveStyle({
+      fontSize: "24px",
+      "--reading-body-size": "24px",
+    });
+    expect(screen.getByRole("heading", { level: 1 })).toHaveStyle({
+      fontSize: "max(var(--type-h1), calc(var(--type-h1) + (24 - 18) * 2px))",
+    });
     expect(plus).toBeDisabled();
   });
 
@@ -812,6 +839,9 @@ describe("PublicSeriesReadPage", () => {
     // so moving the size to a child would silently stop the measure tracking.
     expect(column).toHaveStyle({ fontSize: "18px", maxWidth: "68ch" });
     expect(column.querySelector(".article-body")).not.toBeNull();
+    const scope = column.closest(".series-read-scope");
+    expect(scope).toHaveStyle({ "--series-font": "18px", "--series-ch": "68" });
+    expect(scope?.querySelector(".series-read-frame")).not.toBeNull();
   });
 
   it("moves the font size and the measure from the reader controls", async () => {
@@ -833,8 +863,13 @@ describe("PublicSeriesReadPage", () => {
     // a 1200px shell leaves a 920px article column.
     await userEvent.click(screen.getByRole("button", { name: "窄" }));
     expect(column).toHaveStyle({ maxWidth: "58ch" });
+    expect(column.closest(".series-read-scope")).toHaveStyle({ "--series-ch": "58" });
     await userEvent.click(screen.getByRole("button", { name: "宽" }));
     expect(column).toHaveStyle({ maxWidth: "80ch" });
+    expect(column.closest(".series-read-scope")).toHaveStyle({
+      "--series-font": "18px",
+      "--series-ch": "80",
+    });
   });
 
   it("marks the current chapter by state, leaving its accessible name alone", async () => {

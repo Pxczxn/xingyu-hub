@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { articlesApi } from "@/api/articles/articles.api";
 import { ApiError } from "@/api/client";
@@ -101,6 +101,14 @@ describe("article detail", () => {
 
     const title = await screen.findByRole("heading", { name: "真实文章标题" });
     expect(title.className).toContain("text-h1");
+    const paper = title.closest(".rounded-card")?.className ?? "";
+    expect(paper).toContain("px-3");
+    expect(paper).toContain("max-md:-mx-4");
+    expect(paper).toContain("py-6");
+    expect(paper).toContain("md:p-6");
+    expect(paper).toContain("min-[1024px]:px-14");
+    expect(paper).toContain("min-[1024px]:py-12");
+    expect(paper).not.toMatch(/(^|\s)p-6(\s|$)/);
     expect(screen.getByText("摘要").className).toContain("text-base");
     expect(screen.getByRole("link", { name: /pxczxn/ })).toHaveAttribute("href", "/u/pxczxn");
   });
@@ -127,6 +135,9 @@ describe("article detail", () => {
     expect(css).toContain("mx-auto block h-auto max-w-full rounded-lg border border-border/50");
     expect(css).toContain(".article-body figcaption");
     expect(css).toContain("text-center text-meta leading-5 text-muted-foreground");
+    const paragraphRule = css.match(/\.article-body p \{([^}]+)\}/)?.[1] ?? "";
+    expect(paragraphRule).toMatch(/line-height:\s*inherit/);
+    expect(paragraphRule).not.toMatch(/leading-\[1\.85\]/);
   });
 
   it("does not render an empty series context", async () => {
@@ -238,6 +249,29 @@ describe("article detail", () => {
     expect(screen.getByText(/本文共 2 段/)).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "阅读进度" })).toBeInTheDocument();
     expect(container.querySelectorAll("[data-reader-track]")).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: "目录" })).not.toBeInTheDocument();
+  });
+
+  it("exposes a compact table-of-contents entry that opens the same outline", async () => {
+    mocked.getArticle.mockResolvedValue(ARTICLE);
+    renderAt("a1");
+
+    await screen.findByRole("heading", { name: "真实文章标题" });
+
+    const triggers = screen.getAllByRole("button", { name: "目录" });
+    expect(triggers).toHaveLength(2);
+    expect(triggers[0]?.closest(".article-body")).toBeNull();
+
+    fireEvent.click(triggers[0]!);
+    const dialog = await screen.findByRole("dialog", { name: "目录" });
+    expect(within(dialog).getByRole("link", { name: "二级标题" })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^#/),
+    );
+    expect(dialog.querySelector(".article-body")).toBeNull();
+
+    const rail = document.querySelector('[data-reader-track="right"] nav[aria-label="文章目录"]');
+    expect(rail).not.toBeNull();
   });
 
   it("applies the reading tools to the real body", async () => {
@@ -250,8 +284,18 @@ describe("article detail", () => {
     fireEvent.click(screen.getByRole("button", { name: "宽" }));
 
     const column = container.querySelector(".article-body")?.parentElement as HTMLElement | null;
+    expect(column?.className).toContain("[&_.article-body_h2]:text-[1.5556em]");
+    expect(column?.className).toContain("[&_.article-body_h3]:text-[1.2em]");
+    expect(column?.className).toContain(
+      "margin-top:max(3rem,calc(var(--reading-body-size)*2.667))",
+    );
+    expect(screen.getByRole("heading", { level: 1 }).style.fontSize).toBe("");
     expect(column?.style.getPropertyValue("--reading-body-size")).toBe("20px");
     expect(column?.style.getPropertyValue("--reader-line-height")).toBe("2");
+
+    fireEvent.click(screen.getByRole("button", { name: "标准" }));
+    expect(column?.style.getPropertyValue("--reader-line-height")).toBe("1.9");
+    expect(column?.style.getPropertyValue("--reading-body-size")).toBe("20px");
   });
 
   it("keeps the shared body size off the outline and the tail", async () => {

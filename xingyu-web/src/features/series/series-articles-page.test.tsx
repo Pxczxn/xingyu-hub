@@ -464,3 +464,65 @@ describe("SeriesArticlesPage", () => {
     expect(screen.queryByRole("button", { name: "添加：我自己的稿" })).not.toBeInTheDocument();
   });
 });
+
+describe("SeriesArticlesPage xl breakpoint", () => {
+  const listeners = new Set<() => void>();
+  let width = 1024;
+
+  function matchesWide(query: string) {
+    const min = /min-width:\s*(\d+)px/.exec(query);
+    return min ? width >= Number(min[1]) : false;
+  }
+
+  beforeEach(() => {
+    width = 1024;
+    listeners.clear();
+    vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
+      get matches() {
+        return matchesWide(query);
+      },
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: (_type: string, listener: EventListener) => {
+        listeners.add(listener as () => void);
+      },
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
+  });
+
+  afterEach(() => {
+    vi.mocked(window.matchMedia).mockRestore();
+  });
+
+  function rail() {
+    return document.querySelector('[class*="280px"]');
+  }
+
+  function pickerIsInline() {
+    const section = document.querySelector('section[aria-labelledby="series-chapters-heading"]');
+    return Boolean(section?.contains(screen.getByTestId("article-picker")));
+  }
+
+  it("keeps the picker in the main column at 1024 and 1279", async () => {
+    await loadPage();
+    expect(rail()).toBeNull();
+    expect(pickerIsInline()).toBe(true);
+
+    width = 1279;
+    act(() => {
+      listeners.forEach((listener) => listener());
+    });
+    expect(rail()).toBeNull();
+    expect(pickerIsInline()).toBe(true);
+  });
+
+  it("moves the picker into the 280px rail at 1280", async () => {
+    width = 1280;
+    await loadPage();
+    expect(rail()).not.toBeNull();
+    expect(pickerIsInline()).toBe(false);
+  });
+});

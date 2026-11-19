@@ -554,7 +554,7 @@
     @apply mt-10 text-[1.3333em] leading-[1.35] font-semibold tracking-tight text-primary;
   }
   .article-body h3 {
-    @apply mt-8 text-[1.0667em] leading-[1.4] font-semibold tracking-tight text-primary;
+    @apply mt-8 text-[1.2em] leading-[1.4] font-semibold tracking-tight text-primary;
   }
   .article-body h4 {
     @apply mt-6 text-[1em] leading-[1.45] font-semibold text-primary;
@@ -585,8 +585,15 @@
   .article-body h4 + * {
     @apply mt-3;
   }
+  /*
+   * Paragraphs inherit the reading container's line-height. Pinning 1.85 here
+   * used to beat ReaderTools (guide/rules inline `lineHeight`, article
+   * `--reader-line-height`): the control moved the wrapper while computed
+   * paragraph leading stayed 1.85. Default rhythm is still 1.85 via
+   * `.article-body` above; headings keep their own ratios.
+   */
   .article-body p {
-    @apply leading-[1.85];
+    line-height: inherit;
   }
   .article-body ul,
   .article-body ol {
@@ -618,6 +625,12 @@
   .guide-reader.article-body {
     font-size: 17px; /* 1.0625rem at the 16px root */
     line-height: 1.8;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .guide-reader.article-body pre {
+    max-width: 100%;
+    overflow-x: auto;
   }
   .guide-reader.article-body > * + * {
     margin-top: 0;
@@ -641,18 +654,11 @@
   .guide-reader.article-body li + li {
     margin-top: 0.8em;
   }
-  .guide-reader.article-body blockquote {
-    border-left-width: 4px;
-    border-color: hsl(var(--accent));
-    background: hsl(var(--accent) / 0.08);
-    padding: 1rem 1.25rem;
-    border-radius: 0 0.5rem 0.5rem 0;
-  }
   /*
    * Quote: 3px ink bar, a wash lighter than the code well, and padding so the
    * bar is not stuck to the glyphs. Size stays with the body; only the chrome
-   * is added here. The guide reader's own quote rule above is more specific
-   * and is left alone.
+   * is added here. Guide quotes use this same rule (the old 4px guide-only
+   * chrome was removed so both readers share one quote language).
    */
   .article-body blockquote {
     @apply my-6 border-l-[3px] border-accent bg-muted/30 px-4 py-3 text-muted-foreground;
@@ -669,6 +675,7 @@
   }
   .article-body pre {
     @apply my-6 overflow-x-auto rounded-lg border border-border/70 p-4;
+    max-width: 100%;
     /*
      * github.css sets `.hljs { background: #fff }` outside any layer, which
      * beats a layered utility. `--surface-sunken` is #F7F7F8.
@@ -689,6 +696,28 @@
     /* `pre code.hljs` is unlayered and would add the theme's 1em padding. */
     background-color: transparent !important;
     padding: 0 !important;
+    /* Unlayered `pre code.hljs { overflow-x: auto }` would scroll the code, not the pre. */
+    overflow: visible !important;
+    width: max-content;
+    max-width: none;
+    white-space: pre;
+  }
+  /* 手机上原生滚动条贴在 code 内侧时不明显，改由 pre 承担滚动后，用细滚动条提示右侧还有内容。 */
+  @media (max-width: 767px) {
+    .article-body pre {
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--foreground) / 0.28) transparent;
+    }
+    .article-body pre::-webkit-scrollbar {
+      height: 4px;
+    }
+    .article-body pre::-webkit-scrollbar-thumb {
+      background-color: hsl(var(--foreground) / 0.28);
+      border-radius: 999px;
+    }
+    .article-body pre::-webkit-scrollbar-track {
+      background-color: transparent;
+    }
   }
   .article-body a {
     @apply text-accent-strong underline underline-offset-2;

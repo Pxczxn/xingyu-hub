@@ -18,6 +18,7 @@ import {
 } from "@/components/layout";
 import { PageState } from "@/components/shared/PageState";
 import { Button } from "@/components/ui/button";
+import { announcementParagraphs } from "../announcement-paragraphs";
 
 type LoadState =
   | { kind: "loading" }
@@ -101,7 +102,7 @@ export function AnnouncementDetailPage() {
    *   左栏  「关于这份内容」：来源（星语官方）、发布日期、字数 / 段落。
    *   右栏  块序固定：工具（A−/A+ + 行距，真实生效）→ 本文信息（公告没有
    *         h2/h3，所以是「共 N 段 · 约 M 字」）→ 进度。
-   *   纸面  正文列包 `rounded-card border bg-card`，内边距 48×56（<1024 收 24）。
+   *   纸面  正文列包 `rounded-card border bg-card`：<768 水平 12px、垂直 24px；768–1023 仍为 24px；≥1024 仍为水平 3.5rem、垂直 3rem。
    *   标题  eyebrow → h1 44/700/1.15 → meta（来源 · 日期 · 字数）→ 1px 发丝线
    *         → 48px → 正文。公告没有封面数据，所以没有头图。
    *   移动端 左右栏折叠成 meta 行 + 右上角 44×44 工具按钮 + 底部 Sheet。
@@ -151,7 +152,7 @@ export function AnnouncementDetailPage() {
           </div>
         }
       >
-        <div className="rounded-card border border-border bg-card p-6 min-[1024px]:px-14 min-[1024px]:py-12">
+        <div className="rounded-card border border-border bg-card px-3 py-6 max-md:-mx-4 md:p-6 min-[1024px]:px-14 min-[1024px]:py-12">
           <header>
             <div className="flex items-start justify-between gap-4">
               <p className="eyebrow">站务公告</p>
@@ -188,14 +189,21 @@ export function AnnouncementDetailPage() {
           </header>
 
           {/*
-            公告正文是纯文本（后端存的是纯文本，HTML 不解析），所以保留
-            `whitespace-pre-wrap`。字号/行距由本地阅读设置控制，默认 18px / 1.9。
+            公告正文是纯文本，不解析 HTML。连续空行收成一段，段距与文章
+            `1.15em` 相同；段内的单换行和空格仍由 `whitespace-pre-wrap` 保留。
+            字号/行距由本地阅读设置控制，默认 18px / 1.9。
           */}
           <div
-            className="mt-12 max-w-[var(--reading-measure)] whitespace-pre-wrap text-foreground"
+            className="mt-12 max-w-[var(--reading-measure)] text-foreground"
             style={{ fontSize, lineHeight }}
           >
-            {item.body || "该公告暂未提供正文。"}
+            {!item.body
+              ? "该公告暂未提供正文。"
+              : announcementParagraphs(item.body).map((paragraph, index) => (
+                  <p key={index} className="whitespace-pre-wrap [&+&]:mt-[1.15em]">
+                    {paragraph}
+                  </p>
+                ))}
           </div>
         </div>
       </ReaderFrame>

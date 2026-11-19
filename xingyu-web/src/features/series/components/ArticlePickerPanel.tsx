@@ -51,7 +51,7 @@ export function ArticlePickerPanel({
       aria-labelledby="series-picker-heading"
       data-testid="article-picker"
       className={cn(
-        "order-1 flex-col gap-3 rounded-xl border border-border/70 bg-card p-3 sm:p-4 lg:order-2 lg:sticky lg:top-24 lg:flex",
+        "order-1 flex-col gap-3 rounded-xl border border-border/70 bg-card p-3 sm:p-4 lg:order-2 lg:flex xl:sticky xl:top-24",
         open ? "flex" : "hidden lg:flex",
       )}
     >

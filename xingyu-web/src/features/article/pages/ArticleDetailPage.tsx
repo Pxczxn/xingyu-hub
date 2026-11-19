@@ -7,6 +7,7 @@ import { ApiError } from "@/api/client";
 import { ArticleContinueReading } from "@/features/article/components/ArticleContinueReading";
 import { ArticleInteractions } from "@/features/article/components/ArticleInteractions";
 import { ArticleOutline } from "@/features/article/components/ArticleOutline";
+import { ReaderOutlineButton } from "@/features/article/components/ReaderOutlineButton";
 import { CommentSection } from "@/features/article/components/CommentSection";
 import { ReportLink } from "@/features/moderation/components/ReportLink";
 import { ArticleMarkdownBody, extractArticleOutline } from "@/lib/article-markdown";
@@ -17,6 +18,7 @@ import {
   READER_DEFAULT_LINE_HEIGHT,
   READER_FONT_SIZES,
   READER_LINE_HEIGHT_STEPS,
+  ReaderCompactToolCluster,
   ReaderDocInfo,
   ReaderFrame,
   ReaderProgress,
@@ -72,10 +74,12 @@ const BODY_TYPOGRAPHY = cn(
   "[&_.article-body_p]:leading-[var(--reader-line-height)]",
   /* Paragraph rhythm: 1.15em (~20px at the 18px body), per the user correction. */
   "[&_.article-body>*+*]:mt-[1.15em]",
-  /* h2: 28px at the default 18px body (1.5556em keeps it proportional), 上 48 下 16. */
-  "[&_.article-body_h2]:mt-12",
+  /* h2: 28px at 18px (1.5556em). Top gap stays 3rem at the default size and
+     grows with the reading size (2.667×, 48px at 18px) once that is larger. */
+  "[&_.article-body_h2]:[margin-top:max(3rem,calc(var(--reading-body-size)*2.667))]",
   "[&_.article-body_h2]:mb-4",
   "[&_.article-body_h2]:text-[1.5556em]",
+  "[&_.article-body_h3]:text-[1.2em]",
   "[&_.article-body_blockquote]:border-l-[3px]",
   /* Lists: 8px between items, 1.5em indent. */
   "[&_.article-body_ol]:gap-2",
@@ -174,9 +178,7 @@ export function ArticleDetailPage() {
    *   骨架    `ReaderFrame` 三轨：`[元信息 | 正文 | 工具/目录/进度]`。1910 下
    *           正文列仍是 596.1–1313.9，page margin 235（≤240）；两侧 297 栏 +
    *           64 栏距吃掉原本的空白。1024–1439 与 <1024 左右栏不渲染。
-   *   纸面    正文列包一层 `rounded-card border bg-card`，内边距 48×56
-   *           （<1024 收到 24）—— 白底白卡靠 1px 边 + 留白区分，这是「不再
-   *           裸浮」的直接原因。
+   *   纸面    正文列包一层 `rounded-card border bg-card`：<768 水平 12px、垂直 24px；768–1023 仍为 24px；≥1024 仍为水平 3.5rem、垂直 3rem。白底白卡靠 1px 边区分。
    *   左栏    作者卡（avatar 40 / 名 / @handle）、发布日期、收录于、标签 chips；
    *           全部来自本页已有字段，没有系列/标签就整块不渲染。
    *   右栏    块序固定 工具 → 目录/本文信息 → 进度：
@@ -278,18 +280,19 @@ export function ArticleDetailPage() {
           </div>
         }
       >
-        <div className="rounded-card border border-border bg-card p-6 min-[1024px]:px-14 min-[1024px]:py-12">
+        <div className="rounded-card border border-border bg-card px-3 py-6 max-md:-mx-4 md:p-6 min-[1024px]:px-14 min-[1024px]:py-12">
           <header>
             <div className="flex items-start justify-between gap-4">
               <p className="eyebrow">文章</p>
-              {/* <1024：44×44 阅读设置按钮在标题区右上角。 */}
-              <ReaderSettingsButton
-                fontSize={fontSize}
-                onFontSize={setFontSize}
-                lineHeight={lineHeight}
-                onLineHeight={setLineHeight}
-                className="min-[1024px]:hidden"
-              />
+              <ReaderCompactToolCluster placement="header">
+                <ReaderOutlineButton items={outline} />
+                <ReaderSettingsButton
+                  fontSize={fontSize}
+                  onFontSize={setFontSize}
+                  lineHeight={lineHeight}
+                  onLineHeight={setLineHeight}
+                />
+              </ReaderCompactToolCluster>
             </div>
             <h1 className="mt-3 text-h1 text-primary">
               {article.title}
@@ -370,19 +373,19 @@ export function ArticleDetailPage() {
       </ReaderFrame>
 
       {/*
-        1024–1439: the frame renders no rails in this band, so the same trigger
-        is pinned to the reading column's top-right corner: `383` = 717.785/2
-        (half the measure) + 24 (the design's binding distance), pure CSS — the
-        component never measures the DOM (C-reader §4).
+        1024–1439: the frame renders no rails in this band, so the same
+        tools are pinned to the reading column's top-right corner: `383` =
+        717.785/2 (half the measure) + 24 (the design's binding distance).
       */}
-      <div className="fixed left-[calc(50%+383px)] top-[calc(var(--shell-header-height)+16px)] z-rail hidden min-[1024px]:grid min-[1440px]:hidden">
+      <ReaderCompactToolCluster placement="column">
+        <ReaderOutlineButton items={outline} />
         <ReaderSettingsButton
           fontSize={fontSize}
           onFontSize={setFontSize}
           lineHeight={lineHeight}
           onLineHeight={setLineHeight}
         />
-      </div>
+      </ReaderCompactToolCluster>
     </article>
   );
 }

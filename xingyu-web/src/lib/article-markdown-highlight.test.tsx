@@ -18,8 +18,9 @@ function greet(name) {
 describe("article markdown code highlight", () => {
   it("colors keywords, strings and comments inside a fenced block", () => {
     const { container } = render(<ArticleMarkdownBody body={JAVASCRIPT_FENCE} />);
-    const code = container.querySelector("pre code");
+    const code = container.querySelector("pre > code.hljs");
 
+    expect(code).toBe(container.querySelector("pre > code"));
     expect(code).toHaveClass("hljs");
     expect(code?.querySelector(".hljs-keyword")?.textContent).toBe("function");
     expect(code?.querySelector(".hljs-string")?.textContent).toContain("Hello");
@@ -51,5 +52,17 @@ plain
     expect(css).toContain("background-color: hsl(var(--surface-sunken)) !important");
     expect(css).toContain("background-color: transparent !important");
     expect(css).toContain("padding: 0 !important");
+    expect(css).toContain("overflow: visible !important");
+    expect(css).toContain("width: max-content");
+    expect(css).toContain("max-width: none");
+    expect(css).toContain("white-space: pre");
+    expect(css).toContain("max-width: 100%");
+    expect(css).toContain("@media (max-width: 767px)");
+    expect(css).toContain("scrollbar-width: thin");
+    expect(css).toContain("scrollbar-color: hsl(var(--foreground) / 0.28) transparent");
+    expect(css).toContain(".article-body pre::-webkit-scrollbar");
+    expect(css).toContain("height: 4px");
+    expect(css).toContain("background-color: hsl(var(--foreground) / 0.28)");
+    expect(css).toContain("border-radius: 999px");
   });
 });

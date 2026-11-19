@@ -144,7 +144,7 @@ function SortableChapterRow({
       style={style}
       data-chapter-id={chapter.articleId}
       className={cn(
-        "grid grid-cols-[auto_auto_minmax(0,1fr)] items-start gap-x-2 gap-y-2 rounded-lg border border-border/70 bg-card p-2.5 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto] sm:p-3",
+        "grid grid-cols-[auto_auto_minmax(9rem,1fr)] items-start gap-x-2 gap-y-2 rounded-lg border border-border/70 bg-card p-2.5 sm:grid-cols-[auto_auto_minmax(9rem,1fr)_auto] sm:p-3",
         isDragging &&
           "relative z-10 border-accent-line opacity-90 shadow-lg ring-2 ring-accent-line",
       )}

@@ -34,11 +34,20 @@ function useNarrowArrangement() {
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
-    const query = window.matchMedia("(max-width: 1023px)");
-    const apply = () => setNarrow(query.matches);
+    // Studio nav becomes a 200px column at lg (1024px). The picker rail is
+    // another 280px, which leaves the chapter title track about 36px wide.
+    // Keep the picker in the main column until xl (1280px), where the row
+    // measured 562px and the title track stayed readable.
+    //
+    // Ask for the wide side (`min-width: 1280px`, the same query Tailwind `xl`
+    // uses) and invert it. `max-width: 1279px` misses a fractional CSS viewport:
+    // Chromium reported innerWidth 1279 while the media width was about 1279.22,
+    // so the 280px rail appeared one pixel early.
+    const wide = window.matchMedia("(min-width: 1280px)");
+    const apply = () => setNarrow(!wide.matches);
     apply();
-    query.addEventListener("change", apply);
-    return () => query.removeEventListener("change", apply);
+    wide.addEventListener("change", apply);
+    return () => wide.removeEventListener("change", apply);
   }, []);
   return narrow;
 }
@@ -53,8 +62,8 @@ type ConflictReloadState = "idle" | "confirm" | "loading";
  * 骨架迁移（批次 D）：SK3 控制台 · H 壳 / D 表 / R 错
  * --------------------------------------------------
  *   SK3  `ArchetypeFrame skeleton="SK3"` + `rail` ⇒ `[minmax(0,1fr) 280px]`：
- *        主列放章节编排、右轨放选文面板（`ArticlePickerPanel` 本来就是为「桌面粘在
- *        右栏」写的）。这就是 R=错：主列 + 侧轨。
+ *        只在 ≥1280px 把选文面板放进右轨。1024px 时左侧创作导航已经占 200px，
+ *        再加 280px 右轨会把章节标题列压到约 36px，所以这一档改为主列上下排列。
  *   H=壳：`WorkbenchShell` 无 heading，页内必须恰好 1 个 `h1`；首块是量化带与
  *        编排工具行、视觉没有标题位 → `sr-only`。系列名是 `h2`，不是第二个 h1
  *        （一个路由只有一个 h1）。

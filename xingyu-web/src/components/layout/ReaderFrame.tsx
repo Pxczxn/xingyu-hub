@@ -343,6 +343,12 @@ export type ReaderToolsProps = {
   lineHeightSteps?: readonly ReaderLineHeightStep[];
   onLineHeight?: (lineHeight: number) => void;
   size?: "default" | "touch";
+  /**
+   * `spread` keeps the label and controls at opposite ends. That fits the
+   * 200px right rail. `grouped` keeps each label next to its own controls,
+   * for the wide bottom sheet where spread leaves a long empty gap.
+   */
+  arrangement?: "spread" | "grouped";
   className?: string;
 };
 
@@ -354,6 +360,7 @@ export function ReaderTools({
   lineHeightSteps,
   onLineHeight,
   size = "default",
+  arrangement = "spread",
   className,
 }: ReaderToolsProps) {
   const button = cn(READER_TOOL_BUTTON, size === "touch" ? "h-11 w-11" : "h-9 w-9");
@@ -362,11 +369,19 @@ export function ReaderTools({
     size === "touch" ? "h-11 px-3 text-sm" : "h-9 px-2.5 text-meta",
     "hover:bg-muted/50",
   );
+  const row = cn(
+    "flex items-center gap-3",
+    arrangement === "spread" && "justify-between",
+  );
+  const label = cn(
+    "text-meta text-muted-foreground",
+    arrangement === "grouped" && "w-10 shrink-0",
+  );
 
   return (
     <div role="group" aria-label="阅读工具" className={cn("flex flex-col gap-3", className)}>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-meta text-muted-foreground">字号</span>
+      <div className={row}>
+        <span className={label}>字号</span>
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -401,8 +416,8 @@ export function ReaderTools({
       </div>
 
       {lineHeight !== undefined && lineHeightSteps && onLineHeight ? (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-meta text-muted-foreground">行距</span>
+        <div className={row}>
+          <span className={label}>行距</span>
           <div role="group" aria-label="行距" className="flex items-center gap-1">
             {lineHeightSteps.map((step) => (
               <button
@@ -488,6 +503,29 @@ export function ReaderDocInfo({ body, className }: { body: string; className?: s
  * The sheet reuses `ReaderTools` (`size="touch"`), so the ladder, the bounds
  * and the accessible names exist once for the whole product.
  */
+/**
+ * Shared <1440 reading-tool cluster: header (<1024) and column-pinned
+ * (1024–1439). Keeps the 44×44 settings / outline triggers in one flex group
+ * so adding the outline button does not reflow the title row or the 383px
+ * column pin.
+ */
+export function ReaderCompactToolCluster({
+  children,
+  placement,
+}: {
+  children: ReactNode;
+  placement: "header" | "column";
+}) {
+  if (placement === "header") {
+    return <div className="flex shrink-0 items-center gap-2 min-[1024px]:hidden">{children}</div>;
+  }
+  return (
+    <div className="fixed left-[calc(50%+383px)] top-[calc(var(--shell-header-height)+16px)] z-rail hidden min-[1024px]:flex min-[1440px]:hidden flex-col gap-2">
+      {children}
+    </div>
+  );
+}
+
 export function ReaderSettingsButton({
   fontSize,
   onFontSize,
@@ -525,22 +563,25 @@ export function ReaderSettingsButton({
         side="bottom"
         className="rounded-t-2xl p-0 pb-[env(safe-area-inset-bottom)]"
       >
-        <SheetHeader className="border-b border-border/60 px-4 pb-3 pr-14 pt-4 text-left">
-          <SheetTitle className="text-primary">阅读设置</SheetTitle>
-          <SheetDescription className="text-meta text-muted-foreground">
-            字号与行距只影响本页正文，不会保存到账户。
-          </SheetDescription>
-        </SheetHeader>
-        <div className="px-4 py-5">
-          <ReaderTools
-            size="touch"
-            fontSize={fontSize}
-            fontSizeSteps={READER_FONT_SIZES}
-            onFontSize={onFontSize}
-            lineHeight={lineHeight}
-            lineHeightSteps={READER_LINE_HEIGHT_STEPS}
-            onLineHeight={onLineHeight}
-          />
+        <div className={COLUMN_CLASS}>
+          <SheetHeader className="border-b border-border/60 px-4 pb-3 pr-14 pt-4 text-left">
+            <SheetTitle className="text-primary">阅读设置</SheetTitle>
+            <SheetDescription className="text-meta text-muted-foreground">
+              字号与行距只影响本页正文，不会保存到账户。
+            </SheetDescription>
+          </SheetHeader>
+          <div className="px-4 py-5">
+            <ReaderTools
+              arrangement="grouped"
+              size="touch"
+              fontSize={fontSize}
+              fontSizeSteps={READER_FONT_SIZES}
+              onFontSize={onFontSize}
+              lineHeight={lineHeight}
+              lineHeightSteps={READER_LINE_HEIGHT_STEPS}
+              onLineHeight={onLineHeight}
+            />
+          </div>
         </div>
       </SheetContent>
     </Sheet>

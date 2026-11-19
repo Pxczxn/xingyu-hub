@@ -1,0 +1,50 @@
+/*
+ * Series page only. ReaderFrame still reads --reading-measure and
+ * --reading-frame; this file changes those variables for `.series-read-frame`
+ * and leaves every other reading page on the shared 717.785px measure.
+ *
+ * The paper's border box is the body measure plus the card's horizontal
+ * padding and its 1px border on each side. Below 1440 the column is the only
+ * track, so it may use the whole parent. At 1440 and above the shared grid
+ * keeps two 200px rails and two 64px gutters, and the paper shrinks to what
+ * remains instead of overflowing.
+ */
+@property --series-paper {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+.series-read-frame {
+  --series-pad: 1.5rem; /* px-3, both sides */
+  --reading-frame: 100%;
+  container-type: inline-size;
+  font-size: var(--series-font);
+  --series-paper: calc(var(--series-ch) * 1ch + var(--series-pad) + 2px);
+  --reading-measure: min(var(--series-paper), 100%);
+}
+
+@media (min-width: 768px) {
+  .series-read-frame {
+    --series-pad: 3rem; /* p-6, both sides */
+  }
+}
+
+@media (min-width: 1024px) {
+  .series-read-frame {
+    --series-pad: 7rem; /* px-14, both sides */
+  }
+}
+
+@media (min-width: 1440px) {
+  .series-read-frame {
+    /* 100cqi is this frame, not the grid track, so the percentage is not circular. */
+    --reading-measure: min(var(--series-paper), calc(100cqi - 528px));
+  }
+}
+
+/* The frame's font-size exists so `ch` matches the reading size. The UI
+   inside keeps the root size; the reading column sets its own inline size. */
+.series-read-frame > * {
+  font-size: 1rem;
+}
