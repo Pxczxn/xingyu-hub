@@ -26,6 +26,10 @@ public interface EventSubmissionMapper extends BaseMapper<EventSubmission> {
             """)
     EventSubmission findByEventAndObject(String eventId, String authorId, String objectType, String objectId);
 
+    /** 审核前锁定投稿行，避免两笔审核同时读到 SUBMITTED。 */
+    @Select("SELECT * FROM event_submission WHERE id = #{id} FOR UPDATE")
+    EventSubmission findByIdForUpdate(String id);
+
     @Select("""
             SELECT * FROM event_submission
             WHERE event_id = #{eventId}

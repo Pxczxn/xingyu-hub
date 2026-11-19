@@ -1,5 +1,6 @@
 package top.pxczxn.xingyu.community.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import top.pxczxn.xingyu.common.contract.ContractException;
 import top.pxczxn.xingyu.common.contract.ErrorCode;
 import top.pxczxn.xingyu.common.contract.FieldContractException;
@@ -172,13 +173,25 @@ public class CommunityEventService {
 
     @Transactional
     public EventSubmissionAdminView reviewSubmissionForAdmin(String submissionId, Map<String, String> body) {
-        EventSubmission submission = submissionMapper.selectById(submissionId);
+        EventSubmission submission = submissionMapper.findByIdForUpdate(submissionId);
         if (submission == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        if (!"SUBMITTED".equals(submission.getStatus())) {
+            if ("ACCEPTED".equals(submission.getStatus()) || "REJECTED".equals(submission.getStatus())) {
+                throw new ContractException(ErrorCode.CONFLICT, "投稿已审核，不能再次改判");
+            }
+            throw new ContractException(ErrorCode.CONFLICT, "当前状态不能审核");
+        }
         String status = normalizeReviewStatus(body.get("status"));
+        int updated = submissionMapper.update(null, new LambdaUpdateWrapper<EventSubmission>()
+                .eq(EventSubmission::getId, submission.getId())
+                .eq(EventSubmission::getStatus, "SUBMITTED")
+                .set(EventSubmission::getStatus, status));
+        if (updated != 1) {
+            throw new ContractException(ErrorCode.CONFLICT, "投稿已审核，不能再次改判");
+        }
         submission.setStatus(status);
-        submissionMapper.updateById(submission);
         return toAdminSubmissionView(submission);
     }
 
@@ -219,38 +232,67 @@ public class CommunityEventService {
         if (event == null) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        LambdaUpdateWrapper<CommunityEvent> update = new LambdaUpdateWrapper<CommunityEvent>()
+                .eq(CommunityEvent::getId, eventId);
+        boolean hasColumn = false;
+        Instant startsAt = event.getStartsAt();
+        Instant endsAt = event.getEndsAt();
+        boolean clearEndsAt = false;
         if (body.containsKey("title")) {
-            event.setTitle(trimRequired(String.valueOf(body.get("title")), "title"));
+            Object rawTitle = body.get("title");
+            String title = trimRequired(rawTitle == null ? null : String.valueOf(rawTitle), "title");
+            update.set(CommunityEvent::getTitle, title);
+            event.setTitle(title);
+            hasColumn = true;
         }
         if (body.containsKey("body")) {
-            event.setBody(String.valueOf(body.get("body")).trim());
+            Object rawBody = body.get("body");
+            String text = rawBody == null ? "" : String.valueOf(rawBody).trim();
+            update.set(CommunityEvent::getBody, text);
+            event.setBody(text);
+            hasColumn = true;
         }
-        if (body.containsKey("status")) {
-            event.setStatus(normalizeEventStatus(body.get("status"), event.getStatus()));
+        if (body.containsKey("status") && body.get("status") != null && !String.valueOf(body.get("status")).isBlank()) {
+            String status = normalizeEventStatus(body.get("status"), event.getStatus());
+            update.set(CommunityEvent::getStatus, status);
+            event.setStatus(status);
+            hasColumn = true;
         }
-        if (body.containsKey("submissionOpen")) {
-            event.setSubmissionOpen(parseBoolean(body.get("submissionOpen"), event.getSubmissionOpen()));
+        if (body.containsKey("submissionOpen") && body.get("submissionOpen") != null) {
+            boolean open = parseBoolean(body.get("submissionOpen"), Boolean.TRUE.equals(event.getSubmissionOpen()));
+            update.set(CommunityEvent::getSubmissionOpen, open);
+            event.setSubmissionOpen(open);
+            hasColumn = true;
         }
         if (body.containsKey("startsAt")) {
-            event.setStartsAt(parseInstant(body.get("startsAt"), "startsAt"));
+            startsAt = parseInstant(body.get("startsAt"), "startsAt");
+            update.set(CommunityEvent::getStartsAt, startsAt);
+            event.setStartsAt(startsAt);
+            hasColumn = true;
         }
-        // endsAt 可为 null：显式传入 null 表示"取消自动结束时间"。
-        // updateById 会跳过 null 字段，所以清空必须走定点 UPDATE。
-        boolean clearEndsAt = false;
         if (body.containsKey("endsAt")) {
-            Instant endsAt = parseNullableInstant(body.get("endsAt"), "endsAt");
-            if (endsAt == null) {
+            Instant parsed = parseNullableInstant(body.get("endsAt"), "endsAt");
+            if (parsed == null) {
                 clearEndsAt = true;
+                endsAt = null;
             } else {
-                event.setEndsAt(endsAt);
+                endsAt = parsed;
+                update.set(CommunityEvent::getEndsAt, parsed);
+                event.setEndsAt(parsed);
+                hasColumn = true;
             }
         }
-        validateTimeRange(event.getStartsAt(), clearEndsAt ? null : event.getEndsAt());
-        event.setUpdatedAt(Instant.now());
-        eventMapper.updateById(event);
+        validateTimeRange(startsAt, endsAt);
+        Instant now = Instant.now();
+        if (hasColumn) {
+            update.set(CommunityEvent::getUpdatedAt, now);
+            event.setUpdatedAt(now);
+            eventMapper.update(null, update);
+        }
         if (clearEndsAt) {
-            eventMapper.updateEndsAt(event.getId(), null, event.getUpdatedAt());
+            eventMapper.updateEndsAt(event.getId(), null, now);
             event.setEndsAt(null);
+            event.setUpdatedAt(now);
         }
         return event;
     }
