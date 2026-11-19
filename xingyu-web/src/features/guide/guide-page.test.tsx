@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -114,7 +116,16 @@ describe("GuideDetailPage", () => {
   it("renders the body as plain text and links back to the catalog", async () => {
     mocked.getBySlug.mockResolvedValue(PAGE);
     renderDetail("getting-started");
-    expect(await screen.findByRole("heading", { name: "快速上手" })).toBeInTheDocument();
+    const title = await screen.findByRole("heading", { name: "快速上手" });
+    expect(title).toBeInTheDocument();
+    const paper = title.closest(".rounded-card")?.className ?? "";
+    expect(paper).toContain("px-3");
+    expect(paper).toContain("max-md:-mx-4");
+    expect(paper).toContain("py-6");
+    expect(paper).toContain("md:p-6");
+    expect(paper).toContain("min-[1024px]:px-14");
+    expect(paper).toContain("min-[1024px]:py-12");
+    expect(paper).not.toMatch(/(^|\s)p-6(\s|$)/);
     expect(screen.getByText(PAGE.body)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "指南" })).toHaveAttribute("href", "/guide");
     expect(screen.getByRole("link", { name: /下一篇/ })).toHaveAttribute("href", "/rules");
@@ -188,12 +199,15 @@ describe("GuideDetailPage", () => {
       "id",
       "guide-heading-0",
     );
-    /*
-     * 有意改变（C-reader §2 + 用户 2026-11-10）：目录不再是「点目录按钮弹出的
-     * 浮层」，而是右栏常驻块（工具 → 目录 → 进度），所以不再有开启动作。
-     */
+    /* 1440 以上仍是右栏目录；窄屏入口是标题行上的按钮，不进正文。 */
     const outline = await screen.findByRole("navigation", { name: "指南目录" });
-    expect(screen.queryByRole("button", { name: "目录" })).not.toBeInTheDocument();
+    const compactTriggers = screen.getAllByRole("button", { name: "目录" });
+    expect(compactTriggers.length).toBeGreaterThan(0);
+    /* 窄屏入口和阅读设置同一组，放在标题行里，不进正文。 */
+    expect(compactTriggers[0]?.closest(".article-body")).toBeNull();
+    expect(compactTriggers[0]?.parentElement).toBe(
+      screen.getAllByRole("button", { name: "阅读设置" })[0]?.parentElement,
+    );
     expect(within(outline).getByRole("link", { name: "从这里开始" })).toHaveAttribute(
       "href",
       "#guide-heading-0",
@@ -229,5 +243,110 @@ describe("GuideDetailPage", () => {
 
     expect(() => renderDetail("%E0%A4%A")).not.toThrow();
     expect(await screen.findByText("指南不存在或未发布")).toBeInTheDocument();
+  });
+
+  it("applies standard and wide line-height to body paragraphs and restores default", async () => {
+    mocked.getBySlug.mockResolvedValue(PAGE);
+    renderDetail("getting-started");
+
+    const paragraph = await screen.findByText(PAGE.body);
+    const body = paragraph.closest(".article-body");
+    expect(body).toBeInstanceOf(HTMLElement);
+    const articleBody = body as HTMLElement;
+
+    const css = readFileSync(resolve("src/styles/globals.css"), "utf8");
+    const paragraphRule = css.match(/\.article-body p \{([^}]+)\}/)?.[1] ?? "";
+    expect(paragraphRule).toMatch(/line-height:\s*inherit/);
+    expect(paragraphRule).not.toMatch(/leading-\[1\.85\]/);
+    expect(css).toMatch(/\.article-body \{[\s\S]*?leading-\[1\.85\]/);
+    expect(css).toContain(".article-body h2 {");
+    expect(css).toContain("leading-[1.35]");
+    expect(css).toContain(".article-body > * + * {");
+    expect(css).toContain("@apply mt-4");
+
+    const applied = document.createElement("style");
+    applied.textContent = ".article-body p { line-height: inherit; }";
+    document.head.appendChild(applied);
+
+    expect(articleBody).toHaveStyle({ fontSize: "18px", lineHeight: "1.9" });
+    expect(getComputedStyle(paragraph).lineHeight).toBe(getComputedStyle(articleBody).lineHeight);
+
+    fireEvent.click(screen.getByRole("button", { name: "宽" }));
+    expect(articleBody).toHaveStyle({ lineHeight: "2" });
+    expect(getComputedStyle(paragraph).lineHeight).toBe(getComputedStyle(articleBody).lineHeight);
+    expect(getComputedStyle(paragraph).lineHeight).not.toBe("1.9");
+
+    fireEvent.click(screen.getByRole("button", { name: "标准" }));
+    expect(articleBody).toHaveStyle({ fontSize: "18px", lineHeight: "1.9" });
+    expect(getComputedStyle(paragraph).lineHeight).toBe(getComputedStyle(articleBody).lineHeight);
+
+    applied.remove();
+  });
+
+  it("renders fenced code, blockquotes and nested lists as real DOM", async () => {
+    mocked.getBySlug.mockResolvedValue({
+      ...PAGE,
+      blocks: [
+        { type: "paragraph", text: "导语。", level: 0 },
+        { type: "code", text: "line one\n  indented\n<>\"&", lang: "text", level: 0 },
+        { type: "quote", text: "引用正文", level: 0 },
+        { type: "paragraph", text: "- 父项\n  - 子项\n- 同级", level: 0 },
+      ],
+    });
+    renderDetail("getting-started");
+
+    const body = await screen.findByText("导语。");
+    const article = body.closest(".article-body");
+    expect(article).not.toBeNull();
+    const code = article?.querySelector("pre > code");
+    expect(code?.textContent).toBe("line one\n  indented\n<>\"&");
+    expect(code).toHaveClass("language-text");
+    const css = readFileSync(resolve("src/styles/globals.css"), "utf8");
+    const articlePre = css.match(/(?:^|\n)[ \t]*\.article-body pre \{([\s\S]*?)\n[ \t]*\}/);
+    expect(articlePre?.[1]).toContain("overflow-x-auto");
+    expect(articlePre?.[1]).toContain("max-width: 100%");
+    expect(css).not.toMatch(/\.guide-reader[^{]*pre code[^{]*\{[^}]*overflow-x\s*:\s*auto/);
+    const quote = article?.querySelector("blockquote");
+    expect(quote?.textContent).toBe("引用正文");
+    expect(quote?.textContent).not.toContain(">");
+    const parent = screen.getByText("父项").closest("li");
+    expect(parent?.querySelector("ul")).not.toBeNull();
+    expect(parent?.querySelector("li")?.textContent).toBe("子项");
+    expect(screen.getByText("同级").closest("ul")).toBe(screen.getByText("父项").closest("ul"));
+  });
+
+  it("scales H2/H3 with the reading font size and restores the default", async () => {
+    mocked.getBySlug.mockResolvedValue({
+      ...PAGE,
+      blocks: [
+        { type: "heading", text: "从这里开始", id: "guide-heading-0", level: 2 },
+        { type: "paragraph", text: "先完善资料。", level: 0 },
+        { type: "heading", text: "接着创作", id: "guide-heading-1", level: 3 },
+        { type: "paragraph", text: "打开创作工作台。", level: 0 },
+      ],
+    });
+    renderDetail("getting-started");
+
+    const h2 = await screen.findByRole("heading", { level: 2, name: "从这里开始" });
+    const h3 = screen.getByRole("heading", { level: 3, name: "接着创作" });
+    const body = h2.closest(".article-body") as HTMLElement;
+    expect(body).not.toBeNull();
+    expect(h2.style.fontSize).toBe("1.5556em");
+    expect(h2.style.marginTop).toBe("calc(18px * 2.667)");
+    expect(h3.style.fontSize).toBe("1.2em");
+    expect(h3.style.marginTop).toBe("1.15em");
+    expect(body.style.fontSize).toBe("18px");
+
+    fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    expect(body.style.fontSize).toBe("20px");
+    expect(h2.style.fontSize).toBe("1.5556em");
+    expect(h2.style.marginTop).toBe("calc(20px * 2.667)");
+    expect(h3.style.fontSize).toBe("1.2em");
+
+    fireEvent.click(screen.getByRole("button", { name: "减小字号" }));
+    expect(body.style.fontSize).toBe("18px");
+    expect(h2.style.fontSize).toBe("1.5556em");
+    expect(h2.style.marginTop).toBe("calc(18px * 2.667)");
+    expect(h3.style.fontSize).toBe("1.2em");
   });
 });

@@ -72,9 +72,67 @@ describe("segmentGuideDocument", () => {
     expect(segments).toEqual([
       {
         kind: "bullets",
-        items: [{ text: "先注册" }, { text: "再浏览" }, { text: "最后创作" }],
+        items: [
+          { text: "先注册", children: [] },
+          { text: "再浏览", children: [] },
+          { text: "最后创作", children: [] },
+        ],
       },
     ]);
     expect(steps).toEqual([]);
+  });
+
+  it("nests indented list lines under their parent item", () => {
+    const { segments } = segmentGuideDocument({
+      blocks: [{ type: "paragraph", text: "- 父项\n  - 子项\n- 同级", level: 0 }],
+      body: "",
+    });
+    expect(segments).toEqual([
+      {
+        kind: "bullets",
+        items: [
+          { text: "父项", children: [{ ordered: false, marker: "-", text: "子项", children: [] }] },
+          { text: "同级", children: [] },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps consecutive sibling list paragraphs as one list", () => {
+    const { segments } = segmentGuideDocument({
+      blocks: [
+        { type: "paragraph", text: "- 甲", level: 0 },
+        { type: "paragraph", text: "- 乙", level: 0 },
+      ],
+      body: "",
+    });
+    expect(segments).toHaveLength(1);
+    expect(segments[0]).toMatchObject({
+      kind: "bullets",
+      items: [
+        { text: "甲", children: [] },
+        { text: "乙", children: [] },
+      ],
+    });
+  });
+
+  it("passes code and quote blocks through without flattening", () => {
+    const { segments } = segmentGuideDocument({
+      blocks: [
+        { type: "heading", text: "标题", id: "guide-heading-0", level: 2 },
+        { type: "code", text: "  indented\nnext", lang: "text", level: 0 },
+        { type: "quote", text: "引用一行", level: 0 },
+        { type: "paragraph", text: "正文。", level: 0 },
+      ],
+      body: "",
+    });
+    expect(segments.map((segment) => segment.kind)).toEqual([
+      "heading",
+      "code",
+      "quote",
+      "prose",
+    ]);
+    expect(segments[1]).toEqual({ kind: "code", text: "  indented\nnext", lang: "text" });
+    expect(segments[2]).toEqual({ kind: "quote", text: "引用一行" });
   });
 });

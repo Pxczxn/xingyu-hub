@@ -5,11 +5,13 @@ import { guideApi } from "@/api/guide/guide.api";
 import type { GuidePage } from "@/api/guide/guide.types";
 import { ApiError } from "@/api/client";
 import { ArticleOutline } from "@/features/article/components/ArticleOutline";
+import { ReaderOutlineButton } from "@/features/article/components/ReaderOutlineButton";
 import {
   READER_DEFAULT_FONT_SIZE,
   READER_DEFAULT_LINE_HEIGHT,
   READER_FONT_SIZES,
   READER_LINE_HEIGHT_STEPS,
+  ReaderCompactToolCluster,
   ReaderDocInfo,
   ReaderFrame,
   ReaderProgress,
@@ -125,7 +127,7 @@ function GuideReading({ page }: { page: GuidePage }) {
    *         字数 / 段落 / 步骤数 —— 全部由本页已有字段派生。
    *   右栏  块序固定：工具（A−/A+ + 行距 3 档，真实生效）→ 本文信息
    *         （有 h2/h3 时是目录，否则「共 N 段 · 约 M 字」）→ 进度。
-   *   纸面  正文列包 `rounded-card border bg-card`，内边距 48×56（<1024 收 24）。
+   *   纸面  正文列包 `rounded-card border bg-card`：<768 水平 12px、垂直 24px；768–1023 仍为 24px；≥1024 仍为水平 3.5rem、垂直 3rem。
    *   标题  breadcrumb → eyebrow → h1 44/700/1.15 → meta（来源 · 日期 · 字数）
    *         → 1px 发丝线 → 48px → 正文；只有封面数据存在时才多一条头图，
    *         本页没有该数据，所以没有。
@@ -181,7 +183,7 @@ function GuideReading({ page }: { page: GuidePage }) {
           </div>
         }
       >
-        <div className="rounded-card border border-border bg-card p-6 min-[1024px]:px-14 min-[1024px]:py-12">
+        <div className="rounded-card border border-border bg-card px-3 py-6 max-md:-mx-4 md:p-6 min-[1024px]:px-14 min-[1024px]:py-12">
           <article className="w-full max-w-[var(--reading-measure)]">
             <nav
               aria-label="指南路径"
@@ -200,14 +202,15 @@ function GuideReading({ page }: { page: GuidePage }) {
             <header>
               <div className="flex items-start justify-between gap-4">
                 <p className="eyebrow">指南</p>
-                {/* <1024：44×44 阅读设置按钮在标题区右上角。 */}
-                <ReaderSettingsButton
-                  fontSize={fontSize}
-                  onFontSize={setFontSize}
-                  lineHeight={lineHeight}
-                  onLineHeight={setLineHeight}
-                  className="min-[1024px]:hidden"
-                />
+                <ReaderCompactToolCluster placement="header">
+                  <ReaderOutlineButton items={outline} label="指南目录" />
+                  <ReaderSettingsButton
+                    fontSize={fontSize}
+                    onFontSize={setFontSize}
+                    lineHeight={lineHeight}
+                    onLineHeight={setLineHeight}
+                  />
+                </ReaderCompactToolCluster>
               </div>
               <h1 className="mt-3 text-h1 text-primary">
                 {page.title}
@@ -246,19 +249,15 @@ function GuideReading({ page }: { page: GuidePage }) {
         </div>
       </ReaderFrame>
 
-      {/*
-        1024–1439: the frame renders no rails in this band, so the trigger is
-        pinned to the reading column's top-right corner (383 = half the measure
-        + 24) — same rule as every other content-reading page.
-      */}
-      <div className="fixed left-[calc(50%+383px)] top-[calc(var(--shell-header-height)+16px)] z-rail hidden min-[1024px]:grid min-[1440px]:hidden">
+      <ReaderCompactToolCluster placement="column">
+        <ReaderOutlineButton items={outline} label="指南目录" />
         <ReaderSettingsButton
           fontSize={fontSize}
           onFontSize={setFontSize}
           lineHeight={lineHeight}
           onLineHeight={setLineHeight}
         />
-      </div>
+      </ReaderCompactToolCluster>
     </>
   );
 }

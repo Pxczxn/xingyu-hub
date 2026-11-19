@@ -60,6 +60,7 @@ import { useRoute } from 'vue-router'
 import { useMessage, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { AddOutline } from '@vicons/ionicons5'
 import { guidePageApi, type GuidePage } from '@/api/guide-pages'
+import { guideUpdatePatch } from './guide-edit-patch.logic.mjs'
 import RecordDetailDrawer from '@/components/community/RecordDetailDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useContentDetailDrawer } from '@/composables/useCommunityDrawers'
@@ -77,7 +78,8 @@ const pages = ref<GuidePage[]>([])
 const keyword = ref('')
 const showModal = ref(false)
 const editing = ref<GuidePage | null>(null)
-const form = ref({ title: '', slug: '', body: '', sortOrder: 0, status: 'PUBLISHED' })
+const editBaseline = ref<{ title: string; body: string; status: string; sortOrder: number | null } | null>(null)
+const form = ref({ title: '', slug: '', body: '', sortOrder: 0 as number | null, status: 'PUBLISHED' })
 const rules: FormRules = {
   title: [{ required: true, message: '请输入标题', trigger: ['input', 'blur'] }],
   slug: [{ required: true, message: '请输入别名', trigger: ['input', 'blur'] }],
@@ -144,6 +146,7 @@ async function load() {
 
 function openCreate() {
   editing.value = null
+  editBaseline.value = null
   form.value = { title: '', slug: '', body: '', sortOrder: 0, status: 'PUBLISHED' }
   showModal.value = true
 }
@@ -151,6 +154,7 @@ function openCreate() {
 function openEdit(row: GuidePage) {
   editing.value = row
   form.value = { title: row.title, slug: row.slug, body: row.body, sortOrder: row.sortOrder, status: row.status }
+  editBaseline.value = { title: row.title, body: row.body, status: row.status, sortOrder: row.sortOrder }
   showModal.value = true
 }
 
@@ -158,11 +162,16 @@ async function save() {
   try { await formRef.value?.validate() } catch { return }
   saving.value = true
   try {
-    const payload = { ...form.value, sortOrder: String(form.value.sortOrder) }
-    if (editing.value) {
-      await guidePageApi.update(editing.value.id, payload as any)
+    if (editing.value && editBaseline.value) {
+      const patch = guideUpdatePatch(editBaseline.value, form.value)
+      if (Object.keys(patch).length === 0) {
+        message.success('保存成功')
+        showModal.value = false
+        return
+      }
+      await guidePageApi.update(editing.value.id, patch as never)
     } else {
-      await guidePageApi.create(payload as any)
+      await guidePageApi.create({ ...form.value, sortOrder: String(form.value.sortOrder ?? 0) } as never)
     }
     message.success('保存成功')
     showModal.value = false

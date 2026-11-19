@@ -16,13 +16,15 @@
  * is a convention, not a heuristic — see GuideService.extractBlocks.
  */
 export type GuideBlock = {
-  type: "heading" | "paragraph";
-  /** Marker already stripped by the server; render verbatim. */
+  type: "heading" | "paragraph" | "code" | "quote";
+  /** Marker already stripped by the server; fence contents are verbatim. */
   text: string;
   /** Anchor id, headings only. */
   id?: string | null;
-  /** 2 or 3 for headings, 0 for paragraphs. */
+  /** 2 or 3 for headings, 0 for paragraphs, code, and quotes. */
   level: number;
+  /** Fence info string, code blocks only. */
+  lang?: string | null;
 };
 
 export type GuidePage = {

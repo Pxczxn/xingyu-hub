@@ -80,6 +80,22 @@ export function GuideBody({
           );
         }
 
+        if (block.type === "code") {
+          return (
+            <pre key={`code-${index}`}>
+              <code>{block.text}</code>
+            </pre>
+          );
+        }
+
+        if (block.type === "quote") {
+          return (
+            <blockquote key={`quote-${index}`} className={cn("whitespace-pre-wrap", prose)}>
+              {block.text}
+            </blockquote>
+          );
+        }
+
         return (
           <p
             key={`p-${index}`}

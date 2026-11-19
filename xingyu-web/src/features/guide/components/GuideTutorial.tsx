@@ -2,22 +2,24 @@ import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { GuideCatalogEntry } from "@/features/guide/guide-catalog";
-import type { GuideSegment, GuideStep } from "@/features/guide/guide-steps";
+import type { GuideListItem, GuideSegment, GuideStep } from "@/features/guide/guide-steps";
 import { FeedRow, READER_DEFAULT_FONT_SIZE, READER_DEFAULT_LINE_HEIGHT } from "@/components/layout";
 
 /*
  * Guide prose — rendered inside the shared 内容阅读页 column.
  *
  * The locals below are the content typography the 2026-11-10 user correction
- * specified: 1.15em between paragraphs, 1.9 leading, h2 28/600 (48 above, 16
- * below), real `<ol>`/`<ul>` for consecutive numbered/bulleted lines with 8px
- * between items and a 1.5em indent.
+ * specified: 1.15em between paragraphs, 1.9 leading, h2 28/600 at the 18px
+ * body (48 above, 16 below), real `<ol>`/`<ul>` for consecutive numbered/bulleted
+ * lines with 8px between items and a 1.5em indent.
  *
- * They are inline styles, not globals: `globals.css` is outside this batch's
- * scope and its `.guide-reader.article-body` rules (17px / 1.8, 1.5em gaps,
- * 4px blue quote) are exactly the values the correction replaces. Inline wins
- * on every one of them without a specificity fight, and the values stay next
- * to the markup they describe.
+ * Heading sizes stay em ratios (`1.5556em` / `1.2em`) so A−/A+ scales H2/H3.
+ * H2's top margin is 2.667× the reading size (48px at 18px) instead of a 48px
+ * pin, so the chapter break keeps its proportion when the size changes. H3
+ * stays at `1.15em`, tighter than that chapter break.
+ *
+ * They are inline styles, not globals: `globals.css` `.guide-reader.article-body`
+ * still pins 24/20px on headings, and inline wins without a specificity fight.
  */
 const paragraphStyle: CSSProperties = { marginTop: 0, marginBottom: "1.15em" };
 const listStyle: CSSProperties = {
@@ -29,20 +31,24 @@ const listStyle: CSSProperties = {
   gap: "8px",
 };
 const listItemStyle: CSSProperties = { marginTop: 0 };
-const h2Style: CSSProperties = {
-  marginTop: "48px",
-  marginBottom: "16px",
-  fontSize: "28px",
-  lineHeight: 1.35,
-  fontWeight: 600,
-};
-const h3Style: CSSProperties = {
-  marginTop: "32px",
-  marginBottom: "12px",
-  fontSize: "20px",
-  lineHeight: 1.4,
-  fontWeight: 600,
-};
+function headingStyle(fontSize: number, level: number): CSSProperties {
+  if (level >= 3) {
+    return {
+      marginTop: "1.15em",
+      marginBottom: "12px",
+      fontSize: "1.2em",
+      lineHeight: 1.4,
+      fontWeight: 600,
+    };
+  }
+  return {
+    marginTop: `calc(${fontSize}px * 2.667)`,
+    marginBottom: "16px",
+    fontSize: "1.5556em",
+    lineHeight: 1.35,
+    fontWeight: 600,
+  };
+}
 
 export function GuideTutorialBody({
   segments,
@@ -62,10 +68,30 @@ export function GuideTutorialBody({
             <Heading
               key={segment.id ?? `h-${index}`}
               id={segment.id ?? undefined}
-              style={segment.level >= 3 ? h3Style : h2Style}
+              style={headingStyle(fontSize, segment.level)}
             >
               {segment.text}
             </Heading>
+          );
+        }
+
+        if (segment.kind === "code") {
+          return (
+            <pre key={`code-${index}`}>
+              <code className={segment.lang ? `language-${segment.lang}` : undefined}>
+                {segment.text}
+              </code>
+            </pre>
+          );
+        }
+
+        if (segment.kind === "quote") {
+          return (
+            <blockquote key={`quote-${index}`}>
+              <p className="whitespace-pre-wrap" style={paragraphStyle}>
+                {segment.text}
+              </p>
+            </blockquote>
           );
         }
 
@@ -75,13 +101,16 @@ export function GuideTutorialBody({
 
         if (segment.kind === "bullets") {
           return (
-            <ul key={`bullets-${index}`} style={listStyle}>
-              {segment.items.map((item, itemIndex) => (
-                <li key={`bullet-${itemIndex}`} style={listItemStyle}>
-                  {item.text}
-                </li>
-              ))}
-            </ul>
+            <GuideList
+              key={`bullets-${index}`}
+              ordered={false}
+              items={segment.items.map((item) => ({
+                ordered: false,
+                marker: "-",
+                text: item.text,
+                children: item.children,
+              }))}
+            />
           );
         }
 
@@ -101,9 +130,52 @@ function GuideStepList({ steps }: { steps: GuideStep[] }) {
       {steps.map((step) => (
         <li key={step.id} id={step.id} value={Number(step.marker)} style={listItemStyle}>
           {step.text}
+          <NestedLists items={step.children} />
         </li>
       ))}
     </ol>
+  );
+}
+
+function GuideList({ ordered, items }: { ordered: boolean; items: GuideListItem[] }) {
+  const Tag = ordered ? "ol" : "ul";
+  return (
+    <Tag style={listStyle}>
+      {items.map((item, index) => (
+        <li
+          key={`${item.marker}-${item.text}-${index}`}
+          value={ordered ? Number(item.marker) : undefined}
+          style={listItemStyle}
+        >
+          {item.text}
+          <NestedLists items={item.children} />
+        </li>
+      ))}
+    </Tag>
+  );
+}
+
+function NestedLists({ items }: { items: GuideListItem[] }) {
+  if (items.length === 0) return null;
+  const groups: { ordered: boolean; items: GuideListItem[] }[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.ordered === item.ordered) {
+      last.items.push(item);
+    } else {
+      groups.push({ ordered: item.ordered, items: [item] });
+    }
+  }
+  return (
+    <>
+      {groups.map((group, index) => (
+        <GuideList
+          key={`${group.ordered ? "ol" : "ul"}-${index}`}
+          ordered={group.ordered}
+          items={group.items}
+        />
+      ))}
+    </>
   );
 }
 

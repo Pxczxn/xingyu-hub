@@ -21,14 +21,22 @@ import lombok.Value;
  * does not gets an ordinary paragraph. Content without markers produces a single
  * paragraph block per blank-line-separated group and no outline, which is exactly
  * how the page behaved before this existed.
+ *
+ * Additive types {@code "code"} and {@code "quote"} carry fenced code and
+ * Markdown blockquotes. Older clients that only switch on heading/paragraph
+ * still receive headings and paragraphs for legacy bodies; unknown types can
+ * be ignored without breaking the outline.
  */
 @Value
 @Builder
 public class GuideBlockView {
-    /** {@code "heading"} or {@code "paragraph"}. */
+    /** {@code "heading"}, {@code "paragraph"}, {@code "code"}, or {@code "quote"}. */
     String type;
 
-    /** The text with any marker removed — ready to render, never raw. */
+    /**
+     * Ready-to-render text: heading/quote markers stripped, fence contents
+     * verbatim (including indent and blank lines).
+     */
     String text;
 
     /**
@@ -41,6 +49,9 @@ public class GuideBlockView {
      */
     String id;
 
-    /** 2 or 3 for headings; 0 for paragraphs. */
+    /** 2 or 3 for headings; 0 for paragraphs, code, and quotes. */
     int level;
+
+    /** Fence info string (language), code blocks only. */
+    String lang;
 }

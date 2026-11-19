@@ -144,4 +144,90 @@ class GuideServiceBlocksTest {
         assertThat(result.get(0).getType()).isEqualTo("paragraph");
         assertThat(result.get(0).getText()).isEqualTo("#123 是一个 issue 编号");
     }
+
+    @Test
+    @DisplayName("a fenced code block with a language keeps indent, blanks and special characters")
+    void fencedCodeBlockPreservesSource() {
+        String body = """
+                前言。
+
+                ```text
+                line one
+                  indented
+                <>"&
+
+                after blank
+                ```
+
+                后记。
+                """;
+        List<GuideBlockView> result = blocks(body);
+
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0).getType()).isEqualTo("paragraph");
+        assertThat(result.get(0).getText()).isEqualTo("前言。");
+        assertThat(result.get(1).getType()).isEqualTo("code");
+        assertThat(result.get(1).getLang()).isEqualTo("text");
+        assertThat(result.get(1).getText()).isEqualTo("line one\n  indented\n<>\"&\n\nafter blank");
+        assertThat(result.get(2).getText()).isEqualTo("后记。");
+    }
+
+    @Test
+    @DisplayName("a `>` quote becomes a quote block without the marker")
+    void quoteBlockStripsMarker() {
+        List<GuideBlockView> result = blocks("> 第一行引用\n> 第二行引用\n\n正文。");
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getType()).isEqualTo("quote");
+        assertThat(result.get(0).getText()).isEqualTo("第一行引用\n第二行引用");
+        assertThat(result.get(0).getText()).doesNotContain(">");
+        assertThat(result.get(1).getType()).isEqualTo("paragraph");
+    }
+
+    @Test
+    @DisplayName("unordered and ordered list lines keep indent so nested lists survive")
+    void listIndentIsPreserved() {
+        List<GuideBlockView> nested = blocks("- 父项\n  - 子项\n- 同级");
+        assertThat(nested).hasSize(1);
+        assertThat(nested.get(0).getType()).isEqualTo("paragraph");
+        assertThat(nested.get(0).getText()).isEqualTo("- 父项\n  - 子项\n- 同级");
+
+        List<GuideBlockView> ordered = blocks("1. 第一步\n2. 第二步");
+        assertThat(ordered.get(0).getText()).isEqualTo("1. 第一步\n2. 第二步");
+    }
+
+    @Test
+    @DisplayName("consecutive sibling list paragraphs are still separate blocks; indent is not stripped")
+    void consecutiveListParagraphsKeepMarkers() {
+        List<GuideBlockView> result = blocks("- 甲\n\n- 乙");
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getText()).isEqualTo("- 甲");
+        assertThat(result.get(1).getText()).isEqualTo("- 乙");
+    }
+
+    @Test
+    @DisplayName("headings, fences, quotes and lists keep author order")
+    void mixedDocumentOrder() {
+        String body = """
+                ## 标题
+
+                段落。
+
+                ```js
+                const a = 1;
+                ```
+
+                > 引用
+
+                1. 一
+                2. 二
+                """;
+        List<GuideBlockView> result = blocks(body);
+        assertThat(result).extracting(GuideBlockView::getType)
+                .containsExactly("heading", "paragraph", "code", "quote", "paragraph");
+        assertThat(result.get(2).getLang()).isEqualTo("js");
+        assertThat(result.get(2).getText()).isEqualTo("const a = 1;");
+        assertThat(result.get(3).getText()).isEqualTo("引用");
+        assertThat(result.get(4).getText()).isEqualTo("1. 一\n2. 二");
+    }
 }
