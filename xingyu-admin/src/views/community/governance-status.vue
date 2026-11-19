@@ -49,7 +49,7 @@ import { useAuthorDetailDrawer, useContentDetailDrawer } from '@/composables/use
 import { buildDetailFields, formatAuthorLabel, formatObjectType, resolveStatusLabel } from '@/utils/community-display'
 import { renderDateTime, renderStatusTag, renderTableActionButton, renderTableActionCell, renderTableLink } from '@/utils/table-cells'
 import { colLayout, tableListProps, tableScrollFromColumns } from '@/utils/table-layout'
-import { canDecide, decideEndpoint, queueEndpoint } from './governance-status.logic.mjs'
+import { canActOnAppeal, canDecide, decideEndpoint, queueEndpoint } from './governance-status.logic.mjs'
 
 interface QueueItem {
   id: string
@@ -80,7 +80,11 @@ const selected = ref<QueueItem | null>(null)
 const decision = ref('')
 const comment = ref('')
 const saving = ref(false)
-const pendingCount = computed(() => items.value.filter((row) => !['DECIDED', 'CLOSED', 'DISMISSED', 'REJECTED'].includes(row.status || '')).length)
+const pendingCount = computed(() => items.value.filter((row) =>
+  isAppeal.value
+    ? canActOnAppeal(row.status)
+    : !['DECIDED', 'CLOSED', 'DISMISSED', 'REJECTED'].includes(row.status || '')
+).length)
 
 const isAppeal = computed(() => route.path.endsWith('/appeals'))
 
@@ -187,13 +191,16 @@ const columns = computed<DataTableColumns<QueueItem>>(() => {
       ...colLayout('action2'),
       render: (row) => {
         if (isAppeal.value) {
+          if (!canActOnAppeal(row.status)) {
+            return renderTableActionCell([])
+          }
           return renderTableActionCell([
             renderTableActionButton('批准', () => openDecision(row, 'APPROVED'), {
               type: 'primary',
-              disabled: saving.value || row.status === 'DECIDED'
+              disabled: saving.value
             }),
             renderTableActionButton('驳回', () => openDecision(row, 'REJECTED'), {
-              disabled: saving.value || row.status === 'DECIDED'
+              disabled: saving.value
             })
           ])
         }
@@ -235,6 +242,7 @@ async function load() {
 }
 
 function openDecision(row: QueueItem, next: string) {
+  if (isAppeal.value && !canActOnAppeal(row.status)) return
   selected.value = row
   decision.value = next
   comment.value = ''
@@ -246,6 +254,7 @@ async function submit() {
   saving.value = true
   try {
     if (!canDecide(route.path)) return
+    if (isAppeal.value && !canActOnAppeal(selected.value.status)) return
     await request({
       url: decideEndpoint(route.path, selected.value.id),
       method: 'post',

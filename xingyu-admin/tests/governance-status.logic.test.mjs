@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { canDecide, decideEndpoint, queueEndpoint, queueKind } from '../src/views/community/governance-status.logic.mjs'
+import { canActOnAppeal, canDecide, decideEndpoint, queueEndpoint, queueKind } from '../src/views/community/governance-status.logic.mjs'
 
 test('queueKind maps the three queue routes', () => {
   assert.equal(queueKind('/community/moderation/reports'), 'reports')
@@ -23,6 +23,16 @@ test('appeals keeps its original endpoints (no regression)', () => {
   assert.equal(canDecide('/community/moderation/appeals'), true)
   assert.equal(queueEndpoint('/community/moderation/appeals'), '/moderation/appeals')
   assert.equal(decideEndpoint('/community/moderation/appeals', 'a1'), '/moderation/appeals/a1/decide')
+})
+
+test('appeal actions exist only while the appeal is pending', () => {
+  assert.equal(canActOnAppeal('PENDING'), true)
+  assert.equal(canActOnAppeal('APPROVED'), false)
+  assert.equal(canActOnAppeal('REJECTED'), false)
+  assert.equal(canActOnAppeal('DECIDED'), false)
+  assert.equal(canActOnAppeal(''), false)
+  assert.equal(canActOnAppeal(undefined), false)
+  assert.equal(canActOnAppeal(null), false)
 })
 
 test('groups can never reach a decide call: guard is canDecide, not URL shape', () => {

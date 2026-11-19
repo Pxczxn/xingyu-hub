@@ -6,3 +6,4 @@ export declare function queueKind(path: string): 'appeals' | 'groups' | 'reports
 export declare function canDecide(path: string): boolean
 export declare function queueEndpoint(path: string): string
 export declare function decideEndpoint(path: string, id: string): string
+export declare function canActOnAppeal(status: string | null | undefined): boolean

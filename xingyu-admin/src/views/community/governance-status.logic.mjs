@@ -39,3 +39,8 @@ export function decideEndpoint(path, id) {
     ? `/moderation/appeals/${id}/decide`
     : `/moderation/reports/${id}/decide`
 }
+
+/** 申诉只有 PENDING 可以批准或驳回。终态和未知状态都不给操作入口。 */
+export function canActOnAppeal(status) {
+  return status === 'PENDING'
+}
