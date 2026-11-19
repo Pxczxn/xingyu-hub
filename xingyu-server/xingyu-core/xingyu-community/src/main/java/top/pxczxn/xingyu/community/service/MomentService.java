@@ -13,6 +13,8 @@ import top.pxczxn.xingyu.community.entity.MomentRevision;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.MomentRevisionMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import top.pxczxn.xingyu.community.config.CommunityProperties;
 import top.pxczxn.xingyu.community.support.CommunityEventSupport;
 import top.pxczxn.xingyu.community.support.CursorCodec;
@@ -44,6 +46,7 @@ public class MomentService {
     private final CommunityProperties communityProperties;
     private final CommunityEventSupport eventSupport;
     private final EngagementMetricsService engagementMetrics;
+    private final SearchIndexService searchIndexService;
 
     /**
      * The public feed, with engagement counters attached.
@@ -230,17 +233,73 @@ public class MomentService {
         return toView(moment);
     }
 
+    /**
+     * 作者回收。状态、Outbox 和索引刷新在同一事务里。
+     * {@code moment.status} 只有一列，不能同时记下回收和治理隐藏，所以隐藏中的动态拒绝改写。
+     */
     @Transactional
     public MomentView trash(CommunityUser user, String momentId) {
-        Moment moment = momentMapper.selectById(momentId);
-        if (moment == null || !user.getId().equals(moment.getAuthorId())) {
+        List<Moment> locked = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
+                .eq(Moment::getId, momentId)
+                .last("FOR UPDATE"));
+        if (locked.isEmpty() || !user.getId().equals(locked.get(0).getAuthorId())) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
-        moment.setStatus("TRASHED");
-        moment.setUpdatedAt(Instant.now());
-        momentMapper.updateById(moment);
-        publishMomentChanged(moment);
+        Moment moment = locked.get(0);
+        if ("HIDDEN".equals(moment.getStatus())) {
+            throw new ContractException(ErrorCode.CONFLICT, "治理隐藏中的动态不能改成回收");
+        }
+        if ("PUBLISHED".equals(moment.getStatus())) {
+            Instant now = Instant.now();
+            momentMapper.update(null, new LambdaUpdateWrapper<Moment>()
+                    .eq(Moment::getId, momentId)
+                    .eq(Moment::getStatus, "PUBLISHED")
+                    .set(Moment::getStatus, "TRASHED")
+                    .set(Moment::getUpdatedAt, now));
+            moment.setStatus("TRASHED");
+            moment.setUpdatedAt(now);
+            publishMomentChanged(moment);
+        } else if (!"TRASHED".equals(moment.getStatus())) {
+            throw new ContractException(ErrorCode.CONFLICT, "当前状态不能回收");
+        }
+        searchIndexService.refresh(SearchIndexService.MOMENT, momentId);
         return toView(moment);
+    }
+
+    /**
+     * Admin recycle / restore.
+     *
+     * <p>The moment row is locked before the status is read. Two overlapping calls otherwise
+     * keep their own repeatable-read snapshots: a repeat that does not update the row can
+     * refresh the search document from the status it saw at the start, and put a trashed
+     * moment back into search after the other transaction has committed. {@code FOR UPDATE}
+     * makes the later call wait, then read the committed row.
+     *
+     * <p>The status write, the {@code MomentChanged} outbox insert, and
+     * {@link SearchIndexService#refresh} run in this transaction. Refresh is invoked even
+     * when the status is already the requested one, so a repeated click repairs a stale
+     * index row. An exception from refresh is not caught: it rolls the status and the
+     * event back with the index write.
+     *
+     * @return {@code false} when no moment has this id
+     */
+    @Transactional
+    public boolean applyOperationalStatus(String momentId, String status) {
+        List<Moment> locked = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
+                .eq(Moment::getId, momentId)
+                .last("FOR UPDATE"));
+        if (locked.isEmpty()) {
+            return false;
+        }
+        Moment moment = locked.get(0);
+        if (!status.equals(moment.getStatus())) {
+            moment.setStatus(status);
+            moment.setUpdatedAt(Instant.now());
+            momentMapper.updateById(moment);
+            publishMomentChanged(moment);
+        }
+        searchIndexService.refresh(SearchIndexService.MOMENT, momentId);
+        return true;
     }
 
     /**

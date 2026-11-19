@@ -28,7 +28,7 @@ class MomentListBatchTest {
     private final MomentRevisionMapper revisions = mock(MomentRevisionMapper.class);
     private final EngagementMetricsService metrics = mock(EngagementMetricsService.class);
     private final MomentService service = new MomentService(
-            moments, profiles, revisions, null, null, metrics);
+            moments, profiles, revisions, null, null, metrics, mock(SearchIndexService.class));
 
     @Test
     void publishedAndMineLoadBodiesAndAuthorsOnce() {

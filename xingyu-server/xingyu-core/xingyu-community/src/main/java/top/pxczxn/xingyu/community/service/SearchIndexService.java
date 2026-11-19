@@ -1,5 +1,6 @@
 package top.pxczxn.xingyu.community.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import top.pxczxn.xingyu.community.dto.SearchIndexEntry;
 import top.pxczxn.xingyu.community.entity.Article;
 import top.pxczxn.xingyu.community.entity.FormalRevision;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -127,9 +129,17 @@ public class SearchIndexService {
      * Moments carry no title, so the index title is derived from the body's first line. That
      * is a projection choice rather than a stored fact: the feed renders a moment by its
      * body, and `search_document.title` is NOT NULL.
+     *
+     * <p>The status read is a locking read. {@code refresh} joins the caller's transaction, and
+     * under REPEATABLE READ a plain {@code selectById} keeps the snapshot taken by the first
+     * ordinary SELECT in that transaction. A consumer that already read something, then waits
+     * while an admin commit trashes or restores the moment, would otherwise replay the old
+     * status and overwrite {@code search_document}. {@code FOR UPDATE} waits for that commit
+     * and reads the latest committed row. The moment row is locked before the index write,
+     * the same order {@code MomentService.applyOperationalStatus} uses.
      */
     private void refreshMoment(String momentId) {
-        Moment moment = momentMapper.selectById(momentId);
+        Moment moment = lockMoment(momentId);
         if (moment == null || !"PUBLISHED".equals(moment.getStatus())) {
             indexProvider.remove(MOMENT, momentId);
             return;
@@ -145,6 +155,16 @@ public class SearchIndexService {
                 .title(momentTitle(revision.getBody()))
                 .summary(revision.getBody())
                 .build());
+    }
+
+    /**
+     * Current read of one moment. An ordinary select would return the transaction snapshot.
+     */
+    private Moment lockMoment(String momentId) {
+        List<Moment> locked = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
+                .eq(Moment::getId, momentId)
+                .last("FOR UPDATE"));
+        return locked.isEmpty() ? null : locked.get(0);
     }
 
     /**

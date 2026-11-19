@@ -48,7 +48,8 @@ class MomentServiceLimitTest {
             mock(MomentRevisionMapper.class),
             mock(CommunityProperties.class),
             mock(CommunityEventSupport.class),
-            engagementMetrics);
+            engagementMetrics,
+            mock(SearchIndexService.class));
 
     @Test
     @DisplayName("公开主页动态把超大的 limit 收紧到 50")
