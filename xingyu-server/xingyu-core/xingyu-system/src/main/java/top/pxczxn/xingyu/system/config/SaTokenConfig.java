@@ -4,6 +4,8 @@ import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.strategy.SaStrategy;
+import top.pxczxn.xingyu.common.exception.BusinessException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -13,7 +15,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * Sa-Token配置
  */
 @Configuration
+@RequiredArgsConstructor
 public class SaTokenConfig implements WebMvcConfigurer {
+
+    private final AdminAccountStatusGate adminAccountStatusGate;
 
     /*
      * 注解读取修复（Admin Permission Annotation Enforcement Recovery，2026-10-10）。
@@ -58,7 +63,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
                             "/api/v1/admin/file/**",
                             "/api/v1/admin/files/**"
                     )
-                    .check(r -> StpUtil.checkLogin());
+                    .check(r -> {
+                        StpUtil.checkLogin();
+                        requireActiveAdminAccount();
+                    });
             // 社区治理域必须持有 admin 角色（Admin Security Gate Recovery，2026-10-10）。
             //
             // 背景：controller 被 AOP（@Log/@RepeatSubmit 切面）CGLIB 代理后，代理类方法
@@ -101,6 +109,19 @@ public class SaTokenConfig implements WebMvcConfigurer {
                     )
                     .check(r -> StpUtil.checkLogin());
         })).addPathPatterns("/api/v1/admin/**", "/api/v1/app/**", "/api/v1/auth/**");
+    }
+
+    /**
+     * 角色缓存不能代表账号仍然启用。查询失败时拒绝，避免数据库异常被当成放行。
+     */
+    private void requireActiveAdminAccount() {
+        try {
+            adminAccountStatusGate.requireActive(StpUtil.getLoginIdAsLong());
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            throw new BusinessException(403, "账号状态无法确认");
+        }
     }
 
     /**
