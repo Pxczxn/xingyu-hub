@@ -34,8 +34,16 @@ DB_PASSWORD="${DB_PASSWORD:-}"
 
 fail() { echo "❌ 拒绝执行：$*" >&2; echo "   未执行任何 migration SQL。" >&2; exit 1; }
 
+mysql_defaults=""
+cleanup_mysql_defaults() {
+  if [ -n "${mysql_defaults}" ] && [ -f "${mysql_defaults}" ]; then
+    rm -f -- "${mysql_defaults}"
+  fi
+}
+trap cleanup_mysql_defaults EXIT
+
 # ---------------------------------------------------------------------------
-# 1. 连接前校验：全部发生在建立任何连接之前
+# 1. 连接前校验：全部发生在建立任何连接之前，也发生在写入临时口令文件之前
 # ---------------------------------------------------------------------------
 [ -n "$DB_NAME" ] \
   || fail "必须显式提供 DB_NAME（本脚本不再默认 xingyu_hub）"
@@ -45,8 +53,27 @@ printf '%s' "$DB_NAME" | grep -Eq '^[A-Za-z0-9_]{1,64}$' \
   || fail "DB_NAME 只允许字母/数字/下划线且长度 1-64，收到 '$DB_NAME'"
 [ "$DB_NAME" != "xingyu_hub" ] \
   || fail "本脚本是 fresh-only，禁止操作开发库 xingyu_hub（重建 dev 请用 sql/rebuild.ps1）"
+case "$DB_PASSWORD" in
+  *$'\n'*|*$'\r'*) fail "DB_PASSWORD 不能包含换行" ;;
+esac
 
-MYSQL=(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASSWORD" --default-character-set=utf8mb4)
+# 密码只进入权限 600 的临时 defaults 文件。mysql 参数不再使用 -p。
+umask 077
+mysql_defaults="$(mktemp "${TMPDIR:-/tmp}/xingyu-mysql.XXXXXX")"
+chmod 600 "${mysql_defaults}" || fail "无法收紧临时 MySQL 配置文件权限"
+escaped_password="${DB_PASSWORD//\\/\\\\}"
+escaped_password="${escaped_password//\"/\\\"}"
+{
+  printf '%s\n' '[client]'
+  printf 'host=%s\n' "$DB_HOST"
+  printf 'port=%s\n' "$DB_PORT"
+  printf 'user=%s\n' "$DB_USER"
+  printf 'password="%s"\n' "$escaped_password"
+} > "${mysql_defaults}"
+unset escaped_password
+chmod 600 "${mysql_defaults}" || fail "无法收紧临时 MySQL 配置文件权限"
+
+MYSQL=(mysql --defaults-extra-file="${mysql_defaults}" --default-character-set=utf8mb4)
 
 if ! "${MYSQL[@]}" -N -B -e "SELECT 1;" >/dev/null 2>&1; then
   fail "无法连接 MySQL ${DB_HOST}:${DB_PORT}（用户 ${DB_USER}）"

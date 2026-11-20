@@ -35,12 +35,27 @@
 | `V055` | PRIVATE 资料语义收紧：历史默认 PRIVATE（`lock_version=0`）迁移为 PUBLIC；新注册仍默认 PRIVATE |
 | `V056` | 创作协作成员（`collaboration_member`：接受邀请写入 EDITOR 关系，可复用邀请链接） |
 | `V057` | 私钥仍为 `__REDACTED__` 时关闭登录 RSA 加密，避免密文当密码校验 |
-| `rebuild.ps1` | 一键删库重建（开发环境） |
+| `V058` | 治理措施记录隐藏前的内容状态（`moderation_measure.prior_status`） |
+| `V059` | 建立管理端 `customer` 表，并补上 `sys_file_config` 的 `idx_sys_file_config_master` |
+| `rebuild.ps1` | 一键删库重建（开发环境，会删除目标库） |
 
 > 备注：部分迁移（如 `V029`、`V030`、`V031`、`V037`、`V040`、`V052`、`V053`、`V054`）头部标注为「可重复执行」——列/索引/表已存在时会自动跳过，可安全重跑。
-> 当前最新迁移为 **`V057__disable_encrypt_when_rsa_private_redacted.sql`**，新增迁移请从 `V058__*.sql` 起。
+> 当前迁移为 **V000–V059，共 60 个文件**。最新文件是 **`V059__customer_and_file_config_master_index.sql`**。新增迁移请从 `V060__*.sql` 起。
 
-## 一键重建（推荐）
+## 空库执行
+
+对一个全新空库按序应用全部迁移，使用 `scripts/ci-apply-migrations.sh`。它拒绝库名 `xingyu_hub`，也拒绝任何已经有表的库。需要 MySQL 8。密码只写入权限为 600 的临时客户端配置，进程退出时删除，不会放进 `mysql -p`。正式迁移请显式传入 `DB_NAME=xingyu_prod` 和 `DB_USER=xingyu_migrator`，不要使用 `xingyu_app`，也不要指向 `xingyu_hub_test` 或 `xingyu_schema_audit`。
+
+```bash
+DB_HOST=127.0.0.1 DB_PORT=3306 DB_USER=xingyu_migrator DB_PASSWORD=... DB_NAME=xingyu_prod \
+  bash scripts/ci-apply-migrations.sh
+```
+
+生产库不要用 `sql/rebuild.ps1` 或 `sql/rebuild-test-db.*`。`application-prod.yml` 里 `xingyu.schema.migration.enabled` 是 `false`，生产进程启动时不会自动跑这些脚本。
+
+迁移完成后，`sys_file_config` 中 id 为 1 的记录仍是 V001 写入的 `D:/uploads` 和 `http://localhost:8080`。V032 的 `INSERT IGNORE` 不会覆盖它。上线前要把 `base_path` 改成服务器上的绝对上传目录。
+
+## 一键重建（仅开发库）
 
 ```powershell
 cd sql
