@@ -10,7 +10,7 @@ export interface SysNotice {
   noticeType: number
   channels?: string[]
   targetType?: number
-  targetIds?: number[]
+  targetIds?: string[]
   status: number
   createBy?: number
   createName?: string
@@ -35,8 +35,8 @@ export const noticeApi = {
   },
   
   // 获取详情（含 channels、targetIds 数组）
-  detail(id: number): Promise<SysNotice & { channels?: string[]; targetIds?: number[] }> {
-    return apiRecord<SysNotice & { channels?: string[]; targetIds?: number[] }>({ url: `/sys/notice/${id}`, method: 'get' })
+  detail(id: number): Promise<SysNotice & { channels?: string[]; targetIds?: string[] }> {
+    return apiRecord<SysNotice & { channels?: string[]; targetIds?: string[] }>({ url: `/sys/notice/${id}`, method: 'get' })
   },
   
   // 创建
@@ -55,8 +55,12 @@ export const noticeApi = {
   },
   
   // 发布
-  publish(id: number): Promise<void> {
-    return request({ url: `/sys/notice/${id}/publish`, method: 'post' })
+  listConsoleRecipients(): Promise<NoticeConsoleRecipient[]> {
+    return apiList<NoticeConsoleRecipient>({ url: '/sys/notice/console-recipients', method: 'get' })
+  },
+
+  publish(id: number): Promise<NoticePublishResult> {
+    return apiRecord<NoticePublishResult>({ url: `/sys/notice/${id}/publish`, method: 'post' })
   },
   
   // 标记已读
@@ -87,6 +91,16 @@ export const noticeApi = {
   retry(id: number, channel: string): Promise<void> {
     return request({ url: `/sys/notice/${id}/retry`, method: 'post', params: { channel } })
   }
+}
+
+export interface NoticeConsoleRecipient {
+  id: string
+  label: string
+}
+
+export interface NoticePublishResult {
+  stationDelivered: number
+  archiveUserTargets: number
 }
 
 export interface NoticeSendLog {

@@ -1,7 +1,7 @@
 <template>
   <div class="system-workspace page-container">
     <header class="admin-page-heading">
-      <div><p class="admin-page-heading__kicker">MESSAGE DELIVERY</p><h1>系统通知</h1><span class="admin-page-heading__description">创建并跟踪站内、邮件、短信和 Webhook 通知。</span></div>
+      <div><p class="admin-page-heading__kicker">MESSAGE DELIVERY</p><h1>系统通知</h1><span class="admin-page-heading__description">管理端收件箱只投递给有后台资格的社区账号。邮件和 Webhook 仍按历史 sys_user 档案解析，人群不必相同。</span></div>
     </header>
     <n-card :bordered="false" class="page-layout page-list-card">
       <div class="page-list-body">
@@ -147,21 +147,27 @@
             </n-space>
           </div>
         </n-form-item>
+        <n-alert type="info" :bordered="false" style="margin-bottom: 12px">
+          站内信进入管理端收件箱，只发给当前有后台资格的社区账号。
+          全员站内信 = 全部 admin 社区账号；指定用户 = 下列后台账号。
+          邮件 / Webhook 仍按历史 sys_user 档案（含按部门）解析，与站内信人群不同。
+          按部门不能用于站内信。
+        </n-alert>
         <n-form-item label="推送对象" path="targetType">
           <n-radio-group v-model:value="formData.targetType">
             <n-space>
-              <n-radio :value="1">指定用户</n-radio>
-              <n-radio :value="2">按部门</n-radio>
-              <n-radio :value="3">全部推送</n-radio>
+              <n-radio :value="1">指定后台账号</n-radio>
+              <n-radio :value="2" :disabled="stationSelected">按部门（仅邮件/Webhook）</n-radio>
+              <n-radio :value="3">全部后台账号</n-radio>
             </n-space>
           </n-radio-group>
         </n-form-item>
-        <n-form-item v-if="formData.targetType === 1" label="选择用户">
+        <n-form-item v-if="formData.targetType === 1" label="选择账号">
           <n-select
             v-model:value="formData.targetIds"
             multiple
             filterable
-            placeholder="请选择用户"
+            placeholder="请选择有后台资格的社区账号"
             :options="userOptions"
             :loading="usersLoading"
             style="width: 100%"
@@ -172,7 +178,7 @@
             v-model:value="formData.targetIds"
             multiple
             filterable
-            placeholder="请选择部门"
+            placeholder="仅用于邮件/Webhook 的档案部门"
             :options="deptOptions"
             style="width: 100%"
           />
@@ -233,12 +239,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, h, onMounted, computed } from 'vue'
+import { ref, reactive, h, onMounted, computed, watch } from 'vue'
 import { NButton, NTag, NSpace, NPagination, NCheckboxGroup, NCheckbox, NRadioGroup, NRadio, useMessage, useDialog, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { noticeApi, type SysNotice, type NoticeChannelOption, type NoticeSendLog } from '@/api/message'
 import { deptApi } from '@/api/org'
-import { userApi } from '@/api/system'
 import { useUserStore } from '@/stores/user'
 import EmptyState from '@/components/EmptyState.vue'
 import { renderDateTime, renderTableLink } from '@/utils/table-cells'
@@ -286,8 +291,8 @@ function onWebhookToggle(checked: boolean) {
     )
   }
 }
-const userOptions = ref<{ label: string; value: number }[]>([])
-const deptOptions = ref<{ label: string; value: number }[]>([])
+const userOptions = ref<{ label: string; value: string }[]>([])
+const deptOptions = ref<{ label: string; value: string }[]>([])
 const usersLoading = ref(false)
 
 // 表格数据
@@ -363,7 +368,7 @@ const modalTitle = ref('新增通知')
 const formRef = ref<FormInst | null>(null)
 const submitLoading = ref(false)
 
-const formData = reactive<SysNotice & { channels?: string[]; targetIds?: number[] }>({
+const formData = reactive<SysNotice & { channels?: string[]; targetIds?: string[] }>({
   id: undefined,
   title: '',
   content: '',
@@ -372,6 +377,15 @@ const formData = reactive<SysNotice & { channels?: string[]; targetIds?: number[
   targetType: 3,
   targetIds: [],
   status: 0
+})
+
+const stationSelected = computed(() => (formData.channels || []).includes('station'))
+
+watch(stationSelected, (selected) => {
+  if (selected && formData.targetType === 2) {
+    formData.targetType = 3
+    formData.targetIds = []
+  }
 })
 
 const rules: FormRules = {
@@ -498,19 +512,19 @@ async function loadChannels() {
 async function loadUsers() {
   usersLoading.value = true
   try {
-    const res = await userApi.page({ page: 1, pageSize: 500 })
-    userOptions.value = (res.list || []).map((u: any) => ({ label: `${u.nickname || u.username} (${u.username})`, value: u.id }))
+    const list = await noticeApi.listConsoleRecipients()
+    userOptions.value = (list || []).map((u) => ({ label: u.label, value: u.id }))
   } finally { usersLoading.value = false }
 }
 
 async function loadDepts() {
   try {
     const list = await deptApi.tree()
-    const flatten = (_nodes: any[]): { label: string; value: number }[] => {
-      const result: { label: string; value: number }[] = []
+    const flatten = (_nodes: any[]): { label: string; value: string }[] => {
+      const result: { label: string; value: string }[] = []
       const walk = (items: any[], prefix = '') => {
         for (const n of items || []) {
-          result.push({ label: prefix + (n.deptName || ''), value: n.id })
+          result.push({ label: prefix + (n.deptName || ''), value: String(n.id) })
           if (n.children?.length) walk(n.children, prefix + '　')
         }
       }
@@ -620,8 +634,8 @@ function handlePublish(row: SysNotice) {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await noticeApi.publish(row.id!)
-        message.success('发布成功')
+        const published = await noticeApi.publish(row.id!)
+        message.success(`发布成功：站内信 ${published.stationDelivered} 人，档案渠道目标 ${published.archiveUserTargets} 人`)
         loadData()
       } catch (error) {
         // 错误已在拦截器处理
@@ -634,6 +648,15 @@ function handlePublish(row: SysNotice) {
 async function handleSubmit() {
   try {
     await formRef.value?.validate()
+    const channels = formData.channels?.length ? formData.channels : ['station']
+    if (channels.includes('station') && formData.targetType === 2) {
+      message.error('按部门站内信暂不支持，请改用指定后台账号或全部推送')
+      return
+    }
+    if (channels.includes('station') && formData.targetType === 1 && !(formData.targetIds || []).length) {
+      message.error('请选择至少一个有后台资格的社区账号')
+      return
+    }
     submitLoading.value = true
     const payload = {
       ...formData,

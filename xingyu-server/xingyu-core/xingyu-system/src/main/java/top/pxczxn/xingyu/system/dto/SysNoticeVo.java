@@ -13,7 +13,7 @@ public class SysNoticeVo {
     private Integer noticeType;
     private List<String> channels;
     private Integer targetType;
-    private List<Long> targetIds;
+    private List<String> targetIds;
     private Integer status;
     private Long createBy;
     private String createName;

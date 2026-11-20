@@ -5,10 +5,15 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.mail.EmailService;
+import top.pxczxn.xingyu.system.dto.SysNoticePublishResult;
 import top.pxczxn.xingyu.system.entity.SysNotice;
+import top.pxczxn.xingyu.system.entity.SysUser;
 import top.pxczxn.xingyu.system.entity.SysUserNotice;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
+import top.pxczxn.xingyu.system.identity.AdminConsoleIdentityPort;
+import top.pxczxn.xingyu.system.identity.AdminConsolePrincipal;
 import top.pxczxn.xingyu.system.mapper.SysNoticeMapper;
 import top.pxczxn.xingyu.system.mapper.SysNoticeSendLogMapper;
 import top.pxczxn.xingyu.system.mapper.SysUserMapper;
@@ -16,54 +21,169 @@ import top.pxczxn.xingyu.system.mapper.SysUserNoticeMapper;
 import top.pxczxn.xingyu.system.service.CommunityRbacService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SysNoticeCommunityInboxTest {
 
+    private static final String ADMIN_A = "11111111-1111-1111-1111-111111111111";
+    private static final String ADMIN_B = "22222222-2222-2222-2222-222222222222";
+    private static final String MEMBER = "33333333-3333-3333-3333-333333333333";
+    private static final String MISSING = "44444444-4444-4444-4444-444444444444";
+
     private SysNoticeMapper noticeMapper;
     private SysUserNoticeMapper userNoticeMapper;
+    private SysUserMapper userMapper;
+    private EmailService emailService;
     private CommunityRbacService rbacService;
+    private AdminConsoleIdentityPort identityPort;
     private SysNoticeServiceImpl service;
 
     @BeforeEach
     void setUp() {
         noticeMapper = mock(SysNoticeMapper.class);
         userNoticeMapper = mock(SysUserNoticeMapper.class);
+        userMapper = mock(SysUserMapper.class);
+        emailService = mock(EmailService.class);
         rbacService = mock(CommunityRbacService.class);
+        identityPort = mock(AdminConsoleIdentityPort.class);
         service = new SysNoticeServiceImpl(
                 noticeMapper,
                 mock(SysNoticeSendLogMapper.class),
                 userNoticeMapper,
-                mock(SysUserMapper.class),
-                mock(EmailService.class),
+                userMapper,
+                emailService,
                 mock(SystemConfigHelper.class),
-                rbacService);
+                rbacService,
+                identityPort);
+        when(userNoticeMapper.selectOne(any())).thenReturn(null);
     }
 
     @Test
     void publishDeliversStationByCommunityUuidNotLongUserId() {
-        SysNotice notice = new SysNotice();
-        notice.setId(9L);
-        notice.setStatus(0);
-        notice.setChannels("[\"station\"]");
-        notice.setTargetType(3);
-        when(noticeMapper.selectById(9L)).thenReturn(notice);
+        stubNotice(9L, "[\"station\"]", 3, null);
         when(rbacService.listCommunityUserIdsByRoleCode("admin")).thenReturn(List.of("uuid-admin"));
-        when(userNoticeMapper.selectOne(any())).thenReturn(null);
 
-        service.publish(9L);
+        SysNoticePublishResult result = service.publish(9L);
 
         ArgumentCaptor<SysUserNotice> captor = ArgumentCaptor.forClass(SysUserNotice.class);
         verify(userNoticeMapper).insert(captor.capture());
         assertEquals("uuid-admin", captor.getValue().getCommunityUserId());
         assertNull(captor.getValue().getUserId());
         assertEquals(9L, captor.getValue().getNoticeId());
+        assertEquals(1, result.stationDelivered());
+    }
+
+    @Test
+    void specifiedAdminUuidCreatesInboxRow() {
+        stubNotice(1L, "[\"station\"]", 1, "[\"" + ADMIN_A + "\"]");
+        stubConsoleUser(ADMIN_A, true);
+
+        SysNoticePublishResult result = service.publish(1L);
+
+        ArgumentCaptor<SysUserNotice> captor = ArgumentCaptor.forClass(SysUserNotice.class);
+        verify(userNoticeMapper).insert(captor.capture());
+        assertEquals(ADMIN_A, captor.getValue().getCommunityUserId());
+        assertNull(captor.getValue().getUserId());
+        assertEquals(1, result.stationDelivered());
+    }
+
+    @Test
+    void specifiedMultipleAdminUuidsCreateInboxRows() {
+        stubNotice(1L, "[\"station\"]", 1, "[\"" + ADMIN_A + "\",\"" + ADMIN_B + "\"]");
+        stubConsoleUser(ADMIN_A, true);
+        stubConsoleUser(ADMIN_B, true);
+
+        SysNoticePublishResult result = service.publish(1L);
+
+        verify(userNoticeMapper, times(2)).insert(any());
+        assertEquals(2, result.stationDelivered());
+    }
+
+    @Test
+    void ordinaryCommunityUuidIsRejected() {
+        stubNotice(1L, "[\"station\"]", 1, "[\"" + MEMBER + "\"]");
+        stubConsoleUser(MEMBER, false);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.publish(1L));
+        assertTrue(ex.getMessage().contains("后台资格"));
+        verify(userNoticeMapper, never()).insert(any());
+    }
+
+    @Test
+    void missingUuidIsRejected() {
+        stubNotice(1L, "[\"station\"]", 1, "[\"" + MISSING + "\"]");
+        when(identityPort.lookupById(MISSING)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.publish(1L));
+        assertTrue(ex.getMessage().contains("不存在"));
+        verify(userNoticeMapper, never()).insert(any());
+    }
+
+    @Test
+    void numericArchiveIdIsNotTreatedAsCommunityUuid() {
+        stubNotice(1L, "[\"station\"]", 1, "[1,2]");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.publish(1L));
+        assertTrue(ex.getMessage().contains("社区 UUID"));
+        verify(userNoticeMapper, never()).insert(any());
+        verify(identityPort, never()).lookupById(any());
+    }
+
+    @Test
+    void emptySpecifiedTargetsAreRejected() {
+        stubNotice(1L, "[\"station\"]", 1, "[]");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.publish(1L));
+        assertTrue(ex.getMessage().contains("不能为空"));
+        verify(userNoticeMapper, never()).insert(any());
+    }
+
+    @Test
+    void duplicateSpecifiedTargetsAreRejected() {
+        stubNotice(1L, "[\"station\"]", 1, "[\"" + ADMIN_A + "\",\"" + ADMIN_A + "\"]");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.publish(1L));
+        assertTrue(ex.getMessage().contains("重复"));
+        verify(userNoticeMapper, never()).insert(any());
+        verify(identityPort, never()).canAccessAdminConsole(any());
+    }
+
+    @Test
+    void departmentStationChannelIsRejected() {
+        stubNotice(1L, "[\"station\"]", 2, "[3]");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.publish(1L));
+        assertTrue(ex.getMessage().contains("按部门"));
+        verify(userNoticeMapper, never()).insert(any());
+    }
+
+    @Test
+    void departmentEmailStillResolvesSysUserArchive() {
+        stubNotice(1L, "[\"email\"]", 2, "[5]");
+        SysUser archive = new SysUser();
+        archive.setId(8L);
+        archive.setEmail("ops@example.com");
+        when(userMapper.selectList(any())).thenReturn(List.of(archive));
+        when(userMapper.selectById(8L)).thenReturn(archive);
+
+        SysNoticePublishResult result = service.publish(1L);
+
+        verify(emailService).sendSimpleMail(eq("ops@example.com"), any(), any());
+        verify(userNoticeMapper, never()).insert(any());
+        assertEquals(0, result.stationDelivered());
+        assertEquals(1, result.archiveUserTargets());
     }
 
     @Test
@@ -80,5 +200,22 @@ class SysNoticeCommunityInboxTest {
         ArgumentCaptor<LambdaQueryWrapper<SysUserNotice>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(userNoticeMapper).selectPage(any(Page.class), captor.capture());
         assertEquals("uuid-a", captor.getValue().getEntity() == null ? "uuid-a" : "uuid-a");
+    }
+
+    private void stubNotice(long id, String channels, int targetType, String targetIds) {
+        SysNotice notice = new SysNotice();
+        notice.setId(id);
+        notice.setStatus(0);
+        notice.setTitle("t");
+        notice.setContent("c");
+        notice.setChannels(channels);
+        notice.setTargetType(targetType);
+        notice.setTargetIds(targetIds);
+        when(noticeMapper.selectById(id)).thenReturn(notice);
+    }
+
+    private void stubConsoleUser(String id, boolean eligible) {
+        when(identityPort.lookupById(id)).thenReturn(Optional.of(new AdminConsolePrincipal(id, "login", "name", null)));
+        when(identityPort.canAccessAdminConsole(id)).thenReturn(eligible);
     }
 }

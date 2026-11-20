@@ -4,6 +4,8 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.stp.StpUtil;
 import top.pxczxn.xingyu.common.result.PageResult;
 import top.pxczxn.xingyu.common.result.Result;
+import top.pxczxn.xingyu.system.dto.SysNoticeConsoleRecipient;
+import top.pxczxn.xingyu.system.dto.SysNoticePublishResult;
 import top.pxczxn.xingyu.system.dto.SysNoticeVo;
 import top.pxczxn.xingyu.system.entity.SysNoticeSendLog;
 import top.pxczxn.xingyu.community.identity.CommunityIdentityService;
@@ -70,11 +72,16 @@ public class SysNoticeController {
         return Result.ok();
     }
 
+    @GetMapping("/console-recipients")
+    @SaCheckPermission("sys:notice:list")
+    public Result<List<SysNoticeConsoleRecipient>> consoleRecipients() {
+        return Result.ok(noticeService.listConsoleRecipients());
+    }
+
     @PostMapping("/{id}/publish")
     @SaCheckPermission("sys:notice:edit")
-    public Result<Void> publish(@PathVariable Long id) {
-        noticeService.publish(id);
-        return Result.ok();
+    public Result<SysNoticePublishResult> publish(@PathVariable Long id) {
+        return Result.ok(noticeService.publish(id));
     }
 
     @PostMapping("/{id}/read")

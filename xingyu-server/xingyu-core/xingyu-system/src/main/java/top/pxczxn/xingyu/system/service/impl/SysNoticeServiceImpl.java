@@ -8,12 +8,16 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.common.result.PageResult;
 import top.pxczxn.xingyu.mail.EmailService;
+import top.pxczxn.xingyu.system.dto.SysNoticeConsoleRecipient;
+import top.pxczxn.xingyu.system.dto.SysNoticePublishResult;
 import top.pxczxn.xingyu.system.dto.SysNoticeVo;
 import top.pxczxn.xingyu.system.entity.SysNotice;
 import top.pxczxn.xingyu.system.entity.SysNoticeSendLog;
 import top.pxczxn.xingyu.system.entity.SysUser;
 import top.pxczxn.xingyu.system.entity.SysUserNotice;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
+import top.pxczxn.xingyu.system.identity.AdminConsoleIdentityPort;
+import top.pxczxn.xingyu.system.identity.AdminConsolePrincipal;
 import top.pxczxn.xingyu.system.mapper.SysNoticeMapper;
 import top.pxczxn.xingyu.system.mapper.SysNoticeSendLogMapper;
 import top.pxczxn.xingyu.system.mapper.SysUserMapper;
@@ -29,9 +33,12 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -45,6 +52,7 @@ public class SysNoticeServiceImpl implements SysNoticeService {
     private final EmailService emailService;
     private final SystemConfigHelper configHelper;
     private final CommunityRbacService communityRbacService;
+    private final AdminConsoleIdentityPort adminConsoleIdentityPort;
 
     @Override
     public PageResult<SysNoticeVo> page(Integer page, Integer pageSize, String title, Integer noticeType, Integer status) {
@@ -96,6 +104,7 @@ public class SysNoticeServiceImpl implements SysNoticeService {
         entity.setCreateTime(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
         entity.setDeleted(0);
+        rejectUnsupportedStationDept(entity);
         noticeMapper.insert(entity);
     }
 
@@ -109,6 +118,7 @@ public class SysNoticeServiceImpl implements SysNoticeService {
         SysNotice entity = fromVo(notice);
         entity.setId(existing.getId());
         entity.setUpdateTime(LocalDateTime.now());
+        rejectUnsupportedStationDept(entity);
         noticeMapper.updateById(entity);
     }
 
@@ -121,17 +131,22 @@ public class SysNoticeServiceImpl implements SysNoticeService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void publish(Long id) {
+    public SysNoticePublishResult publish(Long id) {
         SysNotice notice = requireNotice(id);
+        List<String> channels = parseChannels(notice.getChannels());
+        rejectUnsupportedStationDept(notice, channels);
+        List<String> communityUserIds = channels.contains("station")
+                ? resolveTargetCommunityUserIds(notice)
+                : List.of();
+        List<Long> targetUserIds = resolveTargetUserIds(notice);
+
         notice.setStatus(1);
         notice.setUpdateTime(LocalDateTime.now());
         noticeMapper.updateById(notice);
 
-        List<String> channels = parseChannels(notice.getChannels());
-        List<Long> targetUserIds = resolveTargetUserIds(notice);
-        List<String> communityUserIds = resolveTargetCommunityUserIds(notice);
         if (channels.contains("station")) {
             deliverStation(notice.getId(), communityUserIds);
+            recordSendLog(notice.getId(), "station", 1, communityUserIds.size(), communityUserIds.size(), null);
         }
         for (String channel : channels) {
             if ("station".equals(channel)) {
@@ -139,6 +154,20 @@ public class SysNoticeServiceImpl implements SysNoticeService {
             }
             dispatchChannel(notice, channel, targetUserIds);
         }
+        return new SysNoticePublishResult(communityUserIds.size(), targetUserIds.size());
+    }
+
+    @Override
+    public List<SysNoticeConsoleRecipient> listConsoleRecipients() {
+        return communityRbacService.listCommunityUserIdsByRoleCode("admin").stream()
+                .filter(adminConsoleIdentityPort::canAccessAdminConsole)
+                .map(id -> {
+                    String label = adminConsoleIdentityPort.lookupById(id)
+                            .map(this::formatRecipientLabel)
+                            .orElse(id);
+                    return new SysNoticeConsoleRecipient(id, label);
+                })
+                .toList();
     }
 
     @Override
@@ -208,6 +237,8 @@ public class SysNoticeServiceImpl implements SysNoticeService {
         if (notice.getStatus() == null || notice.getStatus() != 1) {
             throw new BusinessException("仅已发布的通知可重试推送");
         }
+        List<String> channels = List.of(channel);
+        rejectUnsupportedStationDept(notice, channels);
         List<Long> targetUserIds = resolveTargetUserIds(notice);
         if ("station".equals(channel)) {
             List<String> communityUserIds = resolveTargetCommunityUserIds(notice);
@@ -240,32 +271,70 @@ public class SysNoticeServiceImpl implements SysNoticeService {
     private List<String> resolveTargetCommunityUserIds(SysNotice notice) {
         Integer targetType = notice.getTargetType() == null ? 3 : notice.getTargetType();
         if (targetType == 1) {
-            return parseCommunityTargetIds(notice.getTargetIds());
+            return requireEligibleConsoleRecipients(notice.getTargetIds());
         }
         if (targetType == 2) {
-            return List.of();
+            throw new BusinessException("按部门站内信暂不支持。请改用指定后台账号或全部推送，部门目标仅可用于邮件/Webhook");
         }
         return communityRbacService.listCommunityUserIdsByRoleCode("admin");
     }
 
-    private List<String> parseCommunityTargetIds(String raw) {
-        if (!StringUtils.hasText(raw)) {
-            return List.of();
+    private List<String> requireEligibleConsoleRecipients(String raw) {
+        List<String> values = parseStoredTargetIds(raw);
+        if (values.isEmpty()) {
+            throw new BusinessException("指定用户不能为空");
         }
-        List<String> values;
-        if (raw.trim().startsWith("[")) {
-            values = JSONUtil.parseArray(raw).toList(String.class);
-        } else {
-            values = List.of(raw.split(","));
+        Set<String> unique = new HashSet<>();
+        for (String value : values) {
+            if (!unique.add(value)) {
+                throw new BusinessException("收件人重复: " + value);
+            }
         }
-        return values.stream()
-                .map(String::trim)
-                .filter(this::looksLikeUuid)
-                .toList();
+        List<String> eligible = new ArrayList<>();
+        for (String value : values) {
+            if (!isCommunityUuid(value)) {
+                throw new BusinessException("收件人必须是社区 UUID，不能使用历史数字 ID: " + value);
+            }
+            if (adminConsoleIdentityPort.lookupById(value).isEmpty()) {
+                throw new BusinessException("收件人不存在: " + value);
+            }
+            if (!adminConsoleIdentityPort.canAccessAdminConsole(value)) {
+                throw new BusinessException("收件人无后台资格: " + value);
+            }
+            eligible.add(value);
+        }
+        return eligible;
     }
 
-    private boolean looksLikeUuid(String value) {
-        return value != null && value.length() == 36 && value.charAt(8) == '-';
+    private boolean isCommunityUuid(String value) {
+        if (value == null || value.length() != 36) {
+            return false;
+        }
+        try {
+            UUID.fromString(value);
+            return true;
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    private void rejectUnsupportedStationDept(SysNotice notice) {
+        rejectUnsupportedStationDept(notice, parseChannels(notice.getChannels()));
+    }
+
+    private void rejectUnsupportedStationDept(SysNotice notice, List<String> channels) {
+        Integer targetType = notice.getTargetType() == null ? 3 : notice.getTargetType();
+        if (targetType == 2 && channels.contains("station")) {
+            throw new BusinessException("按部门站内信暂不支持。请改用指定后台账号或全部推送，部门目标仅可用于邮件/Webhook");
+        }
+    }
+
+    private String formatRecipientLabel(AdminConsolePrincipal principal) {
+        String display = StringUtils.hasText(principal.displayName()) ? principal.displayName() : principal.loginName();
+        if (StringUtils.hasText(principal.loginName()) && !principal.loginName().equals(display)) {
+            return display + " (" + principal.loginName() + ")";
+        }
+        return display == null ? principal.id() : display;
     }
 
     private void dispatchChannel(SysNotice notice, String channel, List<Long> targetUserIds) {
@@ -369,7 +438,7 @@ public class SysNoticeServiceImpl implements SysNoticeService {
         vo.setNoticeType(notice.getNoticeType());
         vo.setChannels(parseChannels(notice.getChannels()));
         vo.setTargetType(notice.getTargetType());
-        vo.setTargetIds(parseTargetIds(notice.getTargetIds()));
+        vo.setTargetIds(parseStoredTargetIds(notice.getTargetIds()));
         vo.setStatus(notice.getStatus());
         vo.setCreateBy(notice.getCreateBy());
         vo.setCreateName(notice.getCreateName());
@@ -402,20 +471,37 @@ public class SysNoticeServiceImpl implements SysNoticeService {
         return List.of(raw.split(","));
     }
 
-    private List<Long> parseTargetIds(String raw) {
+    private List<String> parseStoredTargetIds(String raw) {
         if (!StringUtils.hasText(raw)) {
             return List.of();
         }
+        List<String> values;
         if (raw.trim().startsWith("[")) {
-            return JSONUtil.parseArray(raw).stream()
-                    .map(item -> Long.valueOf(String.valueOf(item)))
+            values = JSONUtil.parseArray(raw).stream()
+                    .map(item -> String.valueOf(item).trim())
                     .toList();
+        } else {
+            values = List.of(raw.split(","));
         }
-        return List.of(raw.split(",")).stream()
+        return values.stream()
                 .map(String::trim)
                 .filter(StringUtils::hasText)
-                .map(Long::valueOf)
                 .toList();
+    }
+
+    private List<Long> parseTargetIds(String raw) {
+        List<Long> ids = new ArrayList<>();
+        for (String value : parseStoredTargetIds(raw)) {
+            if (!value.chars().allMatch(Character::isDigit)) {
+                continue;
+            }
+            try {
+                ids.add(Long.valueOf(value));
+            } catch (NumberFormatException ignored) {
+                // UUID 与其它非档案 ID 不参与 sys_user 邮件/Webhook 解析
+            }
+        }
+        return ids;
     }
 
     private boolean sendWebhook(String provider, String title, String content) {

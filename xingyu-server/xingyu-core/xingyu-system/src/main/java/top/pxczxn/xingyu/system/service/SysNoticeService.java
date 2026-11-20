@@ -1,6 +1,8 @@
 package top.pxczxn.xingyu.system.service;
 
 import top.pxczxn.xingyu.common.result.PageResult;
+import top.pxczxn.xingyu.system.dto.SysNoticeConsoleRecipient;
+import top.pxczxn.xingyu.system.dto.SysNoticePublishResult;
 import top.pxczxn.xingyu.system.dto.SysNoticeVo;
 import top.pxczxn.xingyu.system.entity.SysNoticeSendLog;
 
@@ -21,7 +23,9 @@ public interface SysNoticeService {
 
     void delete(Long id);
 
-    void publish(Long id);
+    SysNoticePublishResult publish(Long id);
+
+    List<SysNoticeConsoleRecipient> listConsoleRecipients();
 
     void markRead(String communityUserId, Long noticeId);
 
