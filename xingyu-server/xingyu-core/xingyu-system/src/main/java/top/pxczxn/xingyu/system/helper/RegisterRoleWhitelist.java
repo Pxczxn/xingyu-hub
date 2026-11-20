@@ -22,6 +22,18 @@ public final class RegisterRoleWhitelist {
     }
 
     /**
+     * 是否为注册白名单中的普通社区角色（{@code user}/{@code member}/{@code creator}）。
+     *
+     * <p>后台资格判断用：持有且仅持有这类角色不能进入管理端。空白不是普通社区角色。
+     */
+    public static boolean isOrdinaryCommunityRole(String code) {
+        if (code == null || code.isBlank()) {
+            return false;
+        }
+        return ALLOWED.contains(code.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /**
      * 将配置值规范为可授予的注册角色。缺失、空白、大小写异常或未授权值一律回落 {@link #FALLBACK_ROLE}。
      */
     public static String normalizeOrFallback(String raw) {

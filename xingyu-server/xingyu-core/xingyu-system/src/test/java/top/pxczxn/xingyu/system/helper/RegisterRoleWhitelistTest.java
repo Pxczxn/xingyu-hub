@@ -7,7 +7,9 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RegisterRoleWhitelistTest {
 
@@ -44,6 +46,17 @@ class RegisterRoleWhitelistTest {
         assertThrows(BusinessException.class, () -> RegisterRoleWhitelist.requireAllowedForSave("operator"));
         assertThrows(BusinessException.class, () -> RegisterRoleWhitelist.requireAllowedForSave("super_admin"));
         assertThrows(BusinessException.class, () -> RegisterRoleWhitelist.requireAllowedForSave("unknown"));
+    }
+
+    @Test
+    void ordinaryCommunityRolesAreWhitelistOnly() {
+        assertTrue(RegisterRoleWhitelist.isOrdinaryCommunityRole("user"));
+        assertTrue(RegisterRoleWhitelist.isOrdinaryCommunityRole(" MEMBER "));
+        assertTrue(RegisterRoleWhitelist.isOrdinaryCommunityRole("Creator"));
+        assertFalse(RegisterRoleWhitelist.isOrdinaryCommunityRole("admin"));
+        assertFalse(RegisterRoleWhitelist.isOrdinaryCommunityRole("FOUNDER"));
+        assertFalse(RegisterRoleWhitelist.isOrdinaryCommunityRole(null));
+        assertFalse(RegisterRoleWhitelist.isOrdinaryCommunityRole("  "));
     }
 
     @Test

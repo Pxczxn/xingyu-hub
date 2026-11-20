@@ -13,6 +13,7 @@ import top.pxczxn.xingyu.community.dto.MeView;
 import top.pxczxn.xingyu.community.dto.RegisterResponse;
 import top.pxczxn.xingyu.community.dto.SessionView;
 import top.pxczxn.xingyu.community.entity.*;
+import top.pxczxn.xingyu.community.identity.CommunityAccountStatusRules;
 import top.pxczxn.xingyu.community.mapper.AuthSecurityEventMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityCreationSpaceMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
@@ -312,18 +313,7 @@ public class CommunityAccountService {
                     ErrorCode.AUTH_INVALID_CREDENTIALS,
                     "账号已锁定，请" + (ttl != null && ttl > 0 ? ttl : configHelper.getLockTime()) + "分钟后重试");
         }
-        if (!USER_STATUS_ACTIVE.equals(user.getStatus())) {
-            if (USER_STATUS_PENDING_REVIEW.equals(user.getStatus())) {
-                throw new ContractException(ErrorCode.AUTH_FORBIDDEN, "账号正在审核中，请等待管理员审核通过后再登录");
-            }
-            if (USER_STATUS_REJECTED.equals(user.getStatus())) {
-                throw new ContractException(ErrorCode.AUTH_FORBIDDEN, "注册申请未通过审核，如有疑问请联系管理员");
-            }
-            throw new ContractException(ErrorCode.ACCOUNT_SUSPENDED);
-        }
-        if (configHelper.isRegisterVerifyEmail() && user.getEmailVerifiedAt() == null) {
-            throw new ContractException(ErrorCode.AUTH_FORBIDDEN, "请先完成邮箱验证后再登录");
-        }
+        CommunityAccountStatusRules.throwIfCannotLogin(user, configHelper.isRegisterVerifyEmail());
 
         boolean mustChangePassword = requiresPasswordChange(user.getId());
         if (mustChangePassword && !Boolean.TRUE.equals(redisTemplate.hasKey(adminTempPasswordKey(user.getId())))) {
