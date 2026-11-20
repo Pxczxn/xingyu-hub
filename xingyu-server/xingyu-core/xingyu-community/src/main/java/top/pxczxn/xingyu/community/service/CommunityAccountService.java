@@ -26,6 +26,7 @@ import top.pxczxn.xingyu.community.support.PasswordSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import top.pxczxn.xingyu.mail.EmailService;
 import top.pxczxn.xingyu.sms.SmsServiceFactory;
+import top.pxczxn.xingyu.system.helper.RegisterRoleWhitelist;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
 import top.pxczxn.xingyu.system.service.CaptchaService;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +60,6 @@ public class CommunityAccountService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-z0-9_]{3,32}$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
-    private static final Pattern ROLE_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,31}$");
     private static final String USER_STATUS_ACTIVE = "ACTIVE";
     private static final String USER_STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String USER_STATUS_REJECTED = "REJECTED";
@@ -960,15 +960,7 @@ public class CommunityAccountService {
     }
 
     private String resolveRegisterRole() {
-        String role = configHelper.getRegisterDefaultRole();
-        if (role == null || role.isBlank()) {
-            return "user";
-        }
-        String normalized = role.trim().toLowerCase(Locale.ROOT);
-        if (!ROLE_PATTERN.matcher(normalized).matches()) {
-            return "user";
-        }
-        return normalized;
+        return RegisterRoleWhitelist.normalizeOrFallback(configHelper.getRegisterDefaultRole());
     }
 
     private void sendWelcomeEmailIfConfigured(String email, String username) {

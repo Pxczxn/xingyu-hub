@@ -143,10 +143,10 @@ public class SystemConfigHelper implements top.pxczxn.xingyu.crypto.CryptoConfig
     }
 
     /**
-     * 获取默认角色编码
+     * 获取注册默认角色编码。未授权值安全回落到 {@code user}。
      */
     public String getRegisterDefaultRole() {
-        return getString(GROUP_REGISTER, "defaultRole", "user");
+        return RegisterRoleWhitelist.normalizeOrFallback(getString(GROUP_REGISTER, "defaultRole", "user"));
     }
 
     /**

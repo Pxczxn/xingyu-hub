@@ -23,4 +23,28 @@ class SystemConfigHelperTest {
         assertEquals("请点击链接完成邮箱验证：{link}", helper.getEmailTemplateVerifyEmailLink());
         assertEquals("请点击链接设置新密码：{link}", helper.getEmailTemplatePasswordResetLink());
     }
+
+    @Test
+    void registerDefaultRoleFallsBackWhenConfigGrantsAdmin() {
+        SysConfigGroupService service = mock(SysConfigGroupService.class);
+        SysConfigGroup group = new SysConfigGroup();
+        group.setConfigValue("{\"enabled\":true,\"defaultRole\":\"admin\"}");
+        when(service.getByGroupCode("register")).thenReturn(group);
+
+        SystemConfigHelper helper = new SystemConfigHelper(service, new ObjectMapper());
+
+        assertEquals("user", helper.getRegisterDefaultRole());
+    }
+
+    @Test
+    void registerDefaultRoleAllowsCreator() {
+        SysConfigGroupService service = mock(SysConfigGroupService.class);
+        SysConfigGroup group = new SysConfigGroup();
+        group.setConfigValue("{\"enabled\":true,\"defaultRole\":\"Creator\"}");
+        when(service.getByGroupCode("register")).thenReturn(group);
+
+        SystemConfigHelper helper = new SystemConfigHelper(service, new ObjectMapper());
+
+        assertEquals("creator", helper.getRegisterDefaultRole());
+    }
 }

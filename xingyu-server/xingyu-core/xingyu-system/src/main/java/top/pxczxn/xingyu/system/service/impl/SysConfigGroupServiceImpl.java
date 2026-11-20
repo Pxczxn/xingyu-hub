@@ -3,7 +3,9 @@ package top.pxczxn.xingyu.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.system.entity.SysConfigGroup;
+import top.pxczxn.xingyu.system.helper.RegisterRoleWhitelist;
 import top.pxczxn.xingyu.system.mapper.SysConfigGroupMapper;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +70,10 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         if (config == null) {
             throw new RuntimeException("配置分组不存在: " + groupCode);
         }
+
+        if ("register".equals(groupCode)) {
+            rejectUnauthorizedRegisterDefaultRole(configValue);
+        }
         
         config.setConfigValue(configValue);
         configGroupMapper.updateById(config);
@@ -110,5 +116,24 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             }
         }
         log.info("系统配置缓存刷新完成，共 {} 个分组", list.size());
+    }
+
+    private void rejectUnauthorizedRegisterDefaultRole(String configValue) {
+        if (configValue == null || configValue.isBlank()) {
+            return;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(configValue);
+            JsonNode defaultRole = root.get("defaultRole");
+            if (defaultRole == null || defaultRole.isNull()) {
+                return;
+            }
+            String raw = defaultRole.isTextual() ? defaultRole.asText() : defaultRole.toString();
+            RegisterRoleWhitelist.requireAllowedForSave(raw);
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BusinessException(400, "注册配置格式无效");
+        }
     }
 }
