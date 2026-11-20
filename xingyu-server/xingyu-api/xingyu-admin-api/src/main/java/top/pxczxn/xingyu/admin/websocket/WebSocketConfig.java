@@ -18,6 +18,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private final SshWebSocketHandler sshWebSocketHandler;
     private final CommunityChatWebSocketHandler communityChatWebSocketHandler;
     private final WebSocketHandshakeInterceptor handshakeInterceptor;
+    private final SshWebSocketHandshakeInterceptor sshWebSocketHandshakeInterceptor;
     private final CommunityWebSocketHandshakeInterceptor communityHandshakeInterceptor;
 
     public WebSocketConfig(
@@ -25,11 +26,13 @@ public class WebSocketConfig implements WebSocketConfigurer {
             SshWebSocketHandler sshWebSocketHandler,
             CommunityChatWebSocketHandler communityChatWebSocketHandler,
             WebSocketHandshakeInterceptor handshakeInterceptor,
+            SshWebSocketHandshakeInterceptor sshWebSocketHandshakeInterceptor,
             CommunityWebSocketHandshakeInterceptor communityHandshakeInterceptor) {
         this.messageWebSocketHandler = messageWebSocketHandler;
         this.sshWebSocketHandler = sshWebSocketHandler;
         this.communityChatWebSocketHandler = communityChatWebSocketHandler;
         this.handshakeInterceptor = handshakeInterceptor;
+        this.sshWebSocketHandshakeInterceptor = sshWebSocketHandshakeInterceptor;
         this.communityHandshakeInterceptor = communityHandshakeInterceptor;
     }
 
@@ -42,7 +45,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
         // SSH 终端 WebSocket
         registry.addHandler(sshWebSocketHandler, "/ws/ssh")
-                .addInterceptors(handshakeInterceptor)
+                .addInterceptors(handshakeInterceptor, sshWebSocketHandshakeInterceptor)
                 .setAllowedOrigins("*");
 
         // 社区私信/群聊实时推送

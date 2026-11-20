@@ -7,6 +7,8 @@ import cn.dev33.satoken.strategy.SaStrategy;
 import top.pxczxn.xingyu.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -19,6 +21,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class SaTokenConfig implements WebMvcConfigurer {
 
     private final AdminAccountStatusGate adminAccountStatusGate;
+    private final Environment environment;
 
     /*
      * 注解读取修复（Admin Permission Annotation Enforcement Recovery，2026-10-10）。
@@ -59,9 +62,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                             "/api/v1/admin/auth/sms-code",
                             "/api/v1/admin/crypto/**",
                             "/api/v1/admin/sys/config-group/public",
-                            "/api/v1/admin/sys/user/template",
-                            "/api/v1/admin/file/**",
-                            "/api/v1/admin/files/**"
+                            "/api/v1/admin/sys/user/template"
                     )
                     .check(r -> {
                         StpUtil.checkLogin();
@@ -88,6 +89,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
                     "/api/v1/admin/topics/**",
                     "/api/v1/admin/operations/**"
             ).check(r -> StpUtil.checkRole("admin"));
+            // 管理端静态文件以前整段免登录。公开头像和封面走 /api/v1/media/public/**，
+            // 这里只放行持有 admin 角色的后台账号。
+            SaRouter.match("/api/v1/admin/files/**", "/api/v1/admin/file/**")
+                    .check(r -> StpUtil.checkRole("admin"));
             SaRouter.match("/api/v1/app/auth/**")
                     .notMatch(
                             "/api/v1/app/auth/login",
@@ -129,12 +134,24 @@ public class SaTokenConfig implements WebMvcConfigurer {
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOriginPatterns("*")
+        boolean production = environment.acceptsProfiles(Profiles.of("prod"));
+        CorsPolicy.Decision decision = CorsPolicy.decide(
+                production,
+                environment.getProperty("xingyu.security.cors.allowed-origins", ""));
+        var registration = registry.addMapping("/**")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .exposedHeaders("satoken")
                 .allowedHeaders("*")
-                .allowCredentials(true)
                 .maxAge(3600);
+        if (decision.allowAnyOrigin()) {
+            registration.allowedOriginPatterns("*").allowCredentials(true);
+            return;
+        }
+        if (decision.allowedOrigins().isEmpty()) {
+            registration.allowedOrigins(new String[0]).allowCredentials(false);
+            return;
+        }
+        registration.allowedOrigins(decision.allowedOrigins().toArray(String[]::new))
+                .allowCredentials(decision.allowCredentials());
     }
 }

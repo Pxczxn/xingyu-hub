@@ -194,7 +194,8 @@ class CommunityFileStorageIntegrationTest {
     @Test
     void legacyMessagePathRemainsBlockedFromStaticAccess() throws Exception {
         mockMvc.perform(get("/api/v1/admin/files/private/messages/test-user/fake.png"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(401));
     }
 
     private String adminToken() throws Exception {

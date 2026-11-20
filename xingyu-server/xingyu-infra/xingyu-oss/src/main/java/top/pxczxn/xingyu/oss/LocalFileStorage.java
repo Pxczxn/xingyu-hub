@@ -45,60 +45,55 @@ public class LocalFileStorage implements FileStorage {
     @Override
     public String upload(InputStream inputStream, String path, String fileName) {
         try {
-            // 构建完整路径
-            Path fullPath = Paths.get(basePath, path, fileName);
-            
-            // 确保父目录存在
+            Path fullPath = StoragePaths.resolveInsideRoot(basePath, path, fileName);
             Files.createDirectories(fullPath.getParent());
-            
-            // 复制文件
+            fullPath = StoragePaths.resolveInsideRoot(basePath, path, fileName);
             Files.copy(inputStream, fullPath, StandardCopyOption.REPLACE_EXISTING);
-            
-            // 返回访问URL
-            String relativePath = path + "/" + fileName;
-            return getUrl(relativePath);
+            return getUrl(path + "/" + fileName);
+        } catch (StoragePathException e) {
+            throw e;
         } catch (IOException e) {
             log.error("本地文件上传失败", e);
-            throw new RuntimeException("文件上传失败", e);
+            throw new RuntimeException("文件上传失败");
         }
     }
 
     @Override
     public void delete(String path) {
         try {
-            Path fullPath = Paths.get(basePath, path);
+            Path fullPath = StoragePaths.resolveInsideRoot(basePath, path);
             Files.deleteIfExists(fullPath);
+        } catch (StoragePathException e) {
+            throw e;
         } catch (IOException e) {
-            log.error("本地文件删除失败: {}", path, e);
+            log.error("本地文件删除失败", e);
         }
     }
 
     @Override
     public byte[] getFile(String path) {
         try {
-            Path fullPath = Paths.get(basePath, path);
+            Path fullPath = StoragePaths.resolveInsideRoot(basePath, path);
             return Files.readAllBytes(fullPath);
+        } catch (StoragePathException e) {
+            throw e;
         } catch (IOException e) {
-            log.error("本地文件读取失败: {}", path, e);
-            throw new RuntimeException("文件读取失败", e);
+            log.error("本地文件读取失败", e);
+            throw new RuntimeException("文件读取失败");
         }
     }
 
     @Override
     public String getUrl(String path) {
-        // 规范化路径分隔符
-        String normalizedPath = path.replace("\\", "/");
-        if (!normalizedPath.startsWith("/")) {
-            normalizedPath = "/" + normalizedPath;
-        }
-        // 本地存储使用相对路径，由 FileAccessController 提供访问
-        // ApiPrefixConfig 给 admin 包下的 @RestController 加 /api/v1/admin 前缀
+        String normalizedPath = "/" + StoragePaths.normalizeRelative(path);
+        // 本地存储使用相对路径，由 FileAccessController 提供访问。
+        // ApiPrefixConfig 给 admin 包下的 @RestController 加 /api/v1/admin 前缀。
         return "/api/v1/admin/files" + normalizedPath;
     }
 
     @Override
     public boolean exists(String path) {
-        Path fullPath = Paths.get(basePath, path);
+        Path fullPath = StoragePaths.resolveInsideRoot(basePath, path);
         return Files.exists(fullPath);
     }
 
@@ -106,7 +101,7 @@ public class LocalFileStorage implements FileStorage {
      * 获取文件的完整本地路径
      */
     public Path getFullPath(String path) {
-        return Paths.get(basePath, path);
+        return StoragePaths.resolveInsideRoot(basePath, path);
     }
 
     /**

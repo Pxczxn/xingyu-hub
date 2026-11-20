@@ -454,7 +454,7 @@ class MessagingCorrectnessIntegrationTest {
                 .andExpect(jsonPath("$[0].messageId").value(messageId))
                 .andExpect(jsonPath("$[0].conversationId").value(conversationId));
 
-        // 边界不变：成员可下载，非成员 404，旧静态路径 403。
+        // 边界不变：成员可下载，非成员 404，旧静态路径未登录即拒绝。
         mockMvc.perform(get("/api/v1/messages/" + conversationId + "/messages/" + messageId + "/attachment")
                         .header("satoken", a.token))
                 .andExpect(status().isOk());
@@ -462,7 +462,8 @@ class MessagingCorrectnessIntegrationTest {
                         .header("satoken", outsider.token))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/admin/files/community/messages/x.png"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(401));
     }
 
     // ------------------------------------------------------------------ helpers

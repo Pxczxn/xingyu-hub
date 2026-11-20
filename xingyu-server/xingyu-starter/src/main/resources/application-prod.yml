@@ -68,6 +68,9 @@ xingyu:
       enabled: false
       dir: ../sql
   security:
+    # 逗号分隔的精确来源。留空或写成 * 时生产环境不返回跨域允许头。
+    cors:
+      allowed-origins: ${XINGYU_CORS_ALLOWED_ORIGINS:}
     # 迁移基线为保留可复现的迁移链，种子数据里保留了 admin 的已知默认口令。
     # 生产启动时 DefaultAdminPasswordGuard 会扫描 sys_user，命中即终止启动。
     default-admin-passwords: admin123,123456,admin

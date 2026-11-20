@@ -1,5 +1,7 @@
 package top.pxczxn.xingyu.admin.controller.file;
 
+import top.pxczxn.xingyu.oss.StoragePathException;
+import top.pxczxn.xingyu.oss.StoragePaths;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -15,21 +17,15 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * 本地文件访问控制器
  *
- * <p>⚠️ 2026-10-06：这里<b>不做会话校验</b>，任何知道路径的人都能取到文件。社区私信附件
- * 曾直接落在可服务范围内（{@code /api/v1/admin/files/community/messages/<hash>}），
- * 实测不带 token 返回 200 —— 也就是说「路径难猜」是私信附件的唯一屏障。
+ * <p>登录和 admin 角色由 {@code SaTokenConfig} 统一校验。公开头像、封面走
+ * {@code /api/v1/media/public/**}，不经过这里。
  *
- * <p>现在该前缀被显式拒绝：私信附件只能经
- * {@code GET /api/v1/messages/{conversationId}/messages/{messageId}/attachment} 取得，
- * 那条路径先校验 conversation membership。所以「猜 URL / 拿到 URL 的非成员都下载不到」。
- *
- * <p>注意：<b>其它</b>上传类别（头像、文章封面等）仍走这条无鉴权静态路径 —— 那是全项目
- * 范围内的既有状况，不在本次私信修复范围内，不要因为这一处被拒绝就以为整体已经收口。
+ * <p>{@code private/} 与 {@code community/messages/} 即使管理员也不能从这条静态路径读取，
+ * 私信附件仍走带会话成员校验的下载接口。
  */
 @Slf4j
 @RestController
@@ -59,29 +55,22 @@ public class FileAccessController {
         String requestUri = request.getRequestURI();
         int filesIndex = requestUri.indexOf("/files/");
         String filePath = (filesIndex >= 0) ? requestUri.substring(filesIndex + "/files".length()) : requestUri;
+        String relative = filePath.replace('\\', '/');
+        while (relative.startsWith("/")) {
+            relative = relative.substring(1);
+        }
 
         for (String prefix : MEMBER_ONLY_PREFIXES) {
-            // `filePath` keeps the leading slash (`/community/messages/…`) because it is
-            // sliced off right after "/files", so normalise before comparing — otherwise
-            // `startsWith("community/messages/")` never matches and the guard is a no-op.
-            String relative = filePath.startsWith("/") ? filePath.substring(1) : filePath;
-            if (relative.replace('\\', '/').startsWith(prefix)) {
-                log.warn("拒绝静态访问受限目录: {}", relative);
+            if (relative.startsWith(prefix)) {
+                log.warn("拒绝静态访问受限目录");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
         }
 
-        // 获取本地存储路径
         String basePath = configHelper.getStorageLocalPath();
 
         try {
-            // 构建完整路径
-            Path fullPath = Paths.get(basePath, filePath);
-
-            // 安全检查：确保路径在基础目录内
-            if (!fullPath.normalize().startsWith(Paths.get(basePath).normalize())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
+            Path fullPath = StoragePaths.resolveInsideRoot(basePath, relative);
 
             if (!Files.exists(fullPath)) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -97,8 +86,11 @@ public class FileAccessController {
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE, contentType)
                     .body(bytes);
+        } catch (StoragePathException e) {
+            log.warn("拒绝非法文件路径");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (IOException e) {
-            log.error("读取文件失败: {}", filePath, e);
+            log.error("读取文件失败", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
