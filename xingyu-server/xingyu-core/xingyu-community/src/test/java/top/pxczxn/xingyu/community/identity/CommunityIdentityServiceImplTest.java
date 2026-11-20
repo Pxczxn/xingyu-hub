@@ -8,6 +8,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
+import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
 import top.pxczxn.xingyu.community.mapper.CommunityUserMapper;
 import top.pxczxn.xingyu.community.support.PasswordSupport;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
@@ -35,9 +36,10 @@ class CommunityIdentityServiceImplTest {
     @BeforeEach
     void setUp() {
         userMapper = mock(CommunityUserMapper.class);
+        CommunityProfileMapper profileMapper = mock(CommunityProfileMapper.class);
         configHelper = mock(SystemConfigHelper.class);
         rbacService = mock(CommunityRbacService.class);
-        service = new CommunityIdentityServiceImpl(userMapper, configHelper, rbacService);
+        service = new CommunityIdentityServiceImpl(userMapper, profileMapper, configHelper, rbacService);
         when(configHelper.isRegisterVerifyEmail()).thenReturn(false);
     }
 

@@ -29,6 +29,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -59,6 +61,7 @@ class LaunchSecurityGateIntegrationTest {
     private SystemConfigHelper configHelper;
     @LocalServerPort
     private int port;
+    private final List<String> ordinaryCommunityUserIds = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -111,8 +114,7 @@ class LaunchSecurityGateIntegrationTest {
             mockMvc.perform(get(coverUrl)).andExpect(status().isOk());
         } finally {
             Files.deleteIfExists(file);
-            jdbcTemplate.update("DELETE FROM sys_user_role WHERE user_id = ?", ordinaryUserId);
-            jdbcTemplate.update("DELETE FROM sys_user WHERE id = ?", ordinaryUserId);
+            deleteOrdinaryCommunityUsers();
         }
     }
 
@@ -144,9 +146,17 @@ class LaunchSecurityGateIntegrationTest {
                 assertTrue(chat.isOpen());
             }
         } finally {
-            jdbcTemplate.update("DELETE FROM sys_user_role WHERE user_id = ?", ordinaryUserId);
-            jdbcTemplate.update("DELETE FROM sys_user WHERE id = ?", ordinaryUserId);
+            deleteOrdinaryCommunityUsers();
         }
+    }
+
+    private void deleteOrdinaryCommunityUsers() {
+        for (String userId : ordinaryCommunityUserIds) {
+            jdbcTemplate.update("DELETE FROM community_user_role WHERE community_user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_profile WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_user WHERE id = ?", userId);
+        }
+        ordinaryCommunityUserIds.clear();
     }
 
     private WebSocketSession openSocket(String path, String token) throws Exception {
@@ -168,23 +178,11 @@ class LaunchSecurityGateIntegrationTest {
     }
 
     private String seedOrdinaryUser(long id) throws Exception {
-        jdbcTemplate.update("DELETE FROM sys_user_role WHERE user_id = ?", id);
-        jdbcTemplate.update("DELETE FROM sys_user WHERE id = ?", id);
-        String passwordHash = jdbcTemplate.queryForObject(
-                "SELECT password FROM sys_user WHERE id = 1", String.class);
         String username = "ordinary" + id;
-        jdbcTemplate.update("""
-                INSERT INTO sys_user (id, username, password, nickname, user_type, status)
-                VALUES (?, ?, ?, ?, 'admin', 1)
-                """, id, username, passwordHash, username);
-        jdbcTemplate.update("INSERT INTO sys_user_role (user_id, role_id) VALUES (?, 2)", id);
-        MvcResult login = mockMvc.perform(post("/api/v1/admin/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"password\":\"admin123\"}"))
-                .andExpect(status().isOk())
-                .andReturn();
-        JsonNode body = objectMapper.readTree(login.getResponse().getContentAsString());
-        return body.path("data").path("token").asText();
+        String userId = CommunityTestSupport.insertActiveCommunityUser(jdbcTemplate, username, "admin123");
+        ordinaryCommunityUserIds.add(userId);
+        return CommunityTestSupport.loginThenRevokeAdmin(
+                mockMvc, objectMapper, jdbcTemplate, userId, username, "admin123");
     }
 
     private String communityToken() throws Exception {

@@ -20,6 +20,8 @@ public interface SysMenuService extends IService<SysMenu> {
      */
     List<SysMenu> getUserMenuTree(Long userId);
 
+    List<SysMenu> getUserMenuTreeByCommunityUserId(String communityUserId);
+
     /**
      * 创建菜单
      */

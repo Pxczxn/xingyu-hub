@@ -39,4 +39,14 @@ public interface CommunityRbacMapper {
               AND m.permission != ''
             """)
     List<String> selectPermissionsByCommunityUserId(@Param("communityUserId") String communityUserId);
+
+    @Select("""
+            SELECT cur.community_user_id
+            FROM community_user_role cur
+            INNER JOIN sys_role r ON r.id = cur.role_id
+            WHERE r.code = #{roleCode}
+              AND r.status = 1
+              AND r.deleted = 0
+            """)
+    List<String> selectCommunityUserIdsByRoleCode(@Param("roleCode") String roleCode);
 }

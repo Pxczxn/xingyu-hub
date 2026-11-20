@@ -18,6 +18,7 @@ import top.pxczxn.xingyu.system.mapper.SysNoticeMapper;
 import top.pxczxn.xingyu.system.mapper.SysNoticeSendLogMapper;
 import top.pxczxn.xingyu.system.mapper.SysUserMapper;
 import top.pxczxn.xingyu.system.mapper.SysUserNoticeMapper;
+import top.pxczxn.xingyu.system.service.CommunityRbacService;
 import top.pxczxn.xingyu.system.service.SysNoticeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class SysNoticeServiceImpl implements SysNoticeService {
     private final SysUserMapper userMapper;
     private final EmailService emailService;
     private final SystemConfigHelper configHelper;
+    private final CommunityRbacService communityRbacService;
 
     @Override
     public PageResult<SysNoticeVo> page(Integer page, Integer pageSize, String title, Integer noticeType, Integer status) {
@@ -58,9 +60,9 @@ public class SysNoticeServiceImpl implements SysNoticeService {
     }
 
     @Override
-    public PageResult<SysNoticeVo> myNotices(Long userId, Integer page, Integer pageSize, Integer isRead) {
+    public PageResult<SysNoticeVo> myNotices(String communityUserId, Integer page, Integer pageSize, Integer isRead) {
         LambdaQueryWrapper<SysUserNotice> userNoticeWrapper = new LambdaQueryWrapper<SysUserNotice>()
-                .eq(SysUserNotice::getUserId, userId)
+                .eq(SysUserNotice::getCommunityUserId, communityUserId)
                 .eq(isRead != null, SysUserNotice::getIsRead, isRead)
                 .orderByDesc(SysUserNotice::getId);
         Page<SysUserNotice> userNoticePage = userNoticeMapper.selectPage(new Page<>(page, pageSize), userNoticeWrapper);
@@ -87,10 +89,9 @@ public class SysNoticeServiceImpl implements SysNoticeService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void create(SysNoticeVo notice, Long operatorId, String operatorName) {
+    public void create(SysNoticeVo notice, String operatorName) {
         SysNotice entity = fromVo(notice);
         entity.setStatus(0);
-        entity.setCreateBy(operatorId);
         entity.setCreateName(operatorName);
         entity.setCreateTime(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
@@ -120,7 +121,7 @@ public class SysNoticeServiceImpl implements SysNoticeService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void publish(Long id, Long operatorId) {
+    public void publish(Long id) {
         SysNotice notice = requireNotice(id);
         notice.setStatus(1);
         notice.setUpdateTime(LocalDateTime.now());
@@ -128,8 +129,9 @@ public class SysNoticeServiceImpl implements SysNoticeService {
 
         List<String> channels = parseChannels(notice.getChannels());
         List<Long> targetUserIds = resolveTargetUserIds(notice);
+        List<String> communityUserIds = resolveTargetCommunityUserIds(notice);
         if (channels.contains("station")) {
-            deliverStation(notice.getId(), targetUserIds);
+            deliverStation(notice.getId(), communityUserIds);
         }
         for (String channel : channels) {
             if ("station".equals(channel)) {
@@ -141,13 +143,13 @@ public class SysNoticeServiceImpl implements SysNoticeService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void markRead(Long userId, Long noticeId) {
+    public void markRead(String communityUserId, Long noticeId) {
         SysUserNotice userNotice = userNoticeMapper.selectOne(new LambdaQueryWrapper<SysUserNotice>()
-                .eq(SysUserNotice::getUserId, userId)
+                .eq(SysUserNotice::getCommunityUserId, communityUserId)
                 .eq(SysUserNotice::getNoticeId, noticeId));
         if (userNotice == null) {
             userNotice = new SysUserNotice();
-            userNotice.setUserId(userId);
+            userNotice.setCommunityUserId(communityUserId);
             userNotice.setNoticeId(noticeId);
             userNotice.setIsRead(1);
             userNotice.setReadTime(LocalDateTime.now());
@@ -161,9 +163,9 @@ public class SysNoticeServiceImpl implements SysNoticeService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void markAllRead(Long userId) {
+    public void markAllRead(String communityUserId) {
         List<SysUserNotice> unread = userNoticeMapper.selectList(new LambdaQueryWrapper<SysUserNotice>()
-                .eq(SysUserNotice::getUserId, userId)
+                .eq(SysUserNotice::getCommunityUserId, communityUserId)
                 .eq(SysUserNotice::getIsRead, 0));
         LocalDateTime now = LocalDateTime.now();
         for (SysUserNotice item : unread) {
@@ -174,9 +176,9 @@ public class SysNoticeServiceImpl implements SysNoticeService {
     }
 
     @Override
-    public int unreadCount(Long userId) {
+    public int unreadCount(String communityUserId) {
         Long count = userNoticeMapper.selectCount(new LambdaQueryWrapper<SysUserNotice>()
-                .eq(SysUserNotice::getUserId, userId)
+                .eq(SysUserNotice::getCommunityUserId, communityUserId)
                 .eq(SysUserNotice::getIsRead, 0));
         return count == null ? 0 : count.intValue();
     }
@@ -208,27 +210,62 @@ public class SysNoticeServiceImpl implements SysNoticeService {
         }
         List<Long> targetUserIds = resolveTargetUserIds(notice);
         if ("station".equals(channel)) {
-            deliverStation(noticeId, targetUserIds);
-            recordSendLog(noticeId, channel, 1, targetUserIds.size(), targetUserIds.size(), null);
+            List<String> communityUserIds = resolveTargetCommunityUserIds(notice);
+            deliverStation(noticeId, communityUserIds);
+            recordSendLog(noticeId, channel, 1, communityUserIds.size(), communityUserIds.size(), null);
             return;
         }
         dispatchChannel(notice, channel, targetUserIds);
     }
 
-    private void deliverStation(Long noticeId, List<Long> targetUserIds) {
-        for (Long userId : targetUserIds) {
+    private void deliverStation(Long noticeId, List<String> communityUserIds) {
+        for (String communityUserId : communityUserIds) {
+            if (!StringUtils.hasText(communityUserId)) {
+                continue;
+            }
             SysUserNotice existing = userNoticeMapper.selectOne(new LambdaQueryWrapper<SysUserNotice>()
-                    .eq(SysUserNotice::getUserId, userId)
+                    .eq(SysUserNotice::getCommunityUserId, communityUserId)
                     .eq(SysUserNotice::getNoticeId, noticeId));
             if (existing != null) {
                 continue;
             }
             SysUserNotice userNotice = new SysUserNotice();
-            userNotice.setUserId(userId);
+            userNotice.setCommunityUserId(communityUserId);
             userNotice.setNoticeId(noticeId);
             userNotice.setIsRead(0);
             userNoticeMapper.insert(userNotice);
         }
+    }
+
+    private List<String> resolveTargetCommunityUserIds(SysNotice notice) {
+        Integer targetType = notice.getTargetType() == null ? 3 : notice.getTargetType();
+        if (targetType == 1) {
+            return parseCommunityTargetIds(notice.getTargetIds());
+        }
+        if (targetType == 2) {
+            return List.of();
+        }
+        return communityRbacService.listCommunityUserIdsByRoleCode("admin");
+    }
+
+    private List<String> parseCommunityTargetIds(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return List.of();
+        }
+        List<String> values;
+        if (raw.trim().startsWith("[")) {
+            values = JSONUtil.parseArray(raw).toList(String.class);
+        } else {
+            values = List.of(raw.split(","));
+        }
+        return values.stream()
+                .map(String::trim)
+                .filter(this::looksLikeUuid)
+                .toList();
+    }
+
+    private boolean looksLikeUuid(String value) {
+        return value != null && value.length() == 36 && value.charAt(8) == '-';
     }
 
     private void dispatchChannel(SysNotice notice, String channel, List<Long> targetUserIds) {

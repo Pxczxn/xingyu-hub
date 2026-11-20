@@ -28,7 +28,7 @@ export interface CaptchaResult {
 }
 
 export interface UserInfo {
-  id: number
+  id: string
   username: string
   nickname: string
   avatar: string
@@ -68,7 +68,7 @@ export interface UserInfoResult {
 
 // 个人信息
 export interface ProfileInfo {
-  id: number
+  id: string
   username: string
   nickname: string
   avatar?: string

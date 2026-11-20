@@ -4,9 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import top.pxczxn.xingyu.system.annotation.Log;
 import top.pxczxn.xingyu.system.entity.SysOperLog;
-import top.pxczxn.xingyu.system.entity.SysUser;
 import top.pxczxn.xingyu.system.service.SysOperLogService;
-import top.pxczxn.xingyu.system.service.SysUserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +33,6 @@ import java.util.Map;
 public class LogAspect {
 
     private final SysOperLogService operLogService;
-    private final SysUserService userService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -85,13 +82,11 @@ public class LogAspect {
                 operLog.setRequestMethod(request.getMethod());
             }
             
-            // 获取当前操作用户
             try {
                 if (StpUtil.isLogin()) {
-                    Long userId = StpUtil.getLoginIdAsLong();
-                    SysUser user = userService.getById(userId);
-                    if (user != null) {
-                        operLog.setOperName(user.getUsername());
+                    Object loginName = StpUtil.getSession().get("loginName");
+                    if (loginName != null && !loginName.toString().isBlank()) {
+                        operLog.setOperName(loginName.toString());
                     }
                 }
             } catch (Exception ex) {

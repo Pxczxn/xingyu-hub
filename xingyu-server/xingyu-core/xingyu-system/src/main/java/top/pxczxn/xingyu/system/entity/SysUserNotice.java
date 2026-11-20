@@ -16,6 +16,7 @@ public class SysUserNotice implements Serializable {
     private Long id;
 
     private Long userId;
+    private String communityUserId;
     private Long noticeId;
     private Integer isRead;
     private LocalDateTime readTime;

@@ -6,9 +6,8 @@ import top.pxczxn.xingyu.common.result.PageResult;
 import top.pxczxn.xingyu.common.result.Result;
 import top.pxczxn.xingyu.system.dto.SysNoticeVo;
 import top.pxczxn.xingyu.system.entity.SysNoticeSendLog;
-import top.pxczxn.xingyu.system.entity.SysUser;
+import top.pxczxn.xingyu.community.identity.CommunityIdentityService;
 import top.pxczxn.xingyu.system.service.SysNoticeService;
-import top.pxczxn.xingyu.system.service.SysUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +20,7 @@ import java.util.Map;
 public class SysNoticeController {
 
     private final SysNoticeService noticeService;
-    private final SysUserService userService;
+    private final CommunityIdentityService communityIdentityService;
 
     @GetMapping("/page")
     @SaCheckPermission("sys:notice:list")
@@ -39,8 +38,8 @@ public class SysNoticeController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) Integer isRead) {
-        Long userId = StpUtil.getLoginIdAsLong();
-        return Result.ok(noticeService.myNotices(userId, page, pageSize, isRead));
+        String communityUserId = StpUtil.getLoginIdAsString();
+        return Result.ok(noticeService.myNotices(communityUserId, page, pageSize, isRead));
     }
 
     @GetMapping("/{id}")
@@ -52,9 +51,8 @@ public class SysNoticeController {
     @PostMapping
     @SaCheckPermission("sys:notice:add")
     public Result<Void> create(@RequestBody SysNoticeVo notice) {
-        Long userId = StpUtil.getLoginIdAsLong();
-        SysUser user = userService.getDetail(userId);
-        noticeService.create(notice, userId, user.getNickname());
+        String communityUserId = StpUtil.getLoginIdAsString();
+        noticeService.create(notice, communityIdentityService.resolveDisplayName(communityUserId));
         return Result.ok();
     }
 
@@ -75,25 +73,25 @@ public class SysNoticeController {
     @PostMapping("/{id}/publish")
     @SaCheckPermission("sys:notice:edit")
     public Result<Void> publish(@PathVariable Long id) {
-        noticeService.publish(id, StpUtil.getLoginIdAsLong());
+        noticeService.publish(id);
         return Result.ok();
     }
 
     @PostMapping("/{id}/read")
     public Result<Void> markRead(@PathVariable Long id) {
-        noticeService.markRead(StpUtil.getLoginIdAsLong(), id);
+        noticeService.markRead(StpUtil.getLoginIdAsString(), id);
         return Result.ok();
     }
 
     @PostMapping("/read-all")
     public Result<Void> markAllRead() {
-        noticeService.markAllRead(StpUtil.getLoginIdAsLong());
+        noticeService.markAllRead(StpUtil.getLoginIdAsString());
         return Result.ok();
     }
 
     @GetMapping("/unread-count")
     public Result<Integer> unreadCount() {
-        return Result.ok(noticeService.unreadCount(StpUtil.getLoginIdAsLong()));
+        return Result.ok(noticeService.unreadCount(StpUtil.getLoginIdAsString()));
     }
 
     @GetMapping("/channels")

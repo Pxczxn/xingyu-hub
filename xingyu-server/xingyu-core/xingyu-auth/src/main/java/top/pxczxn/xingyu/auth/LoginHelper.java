@@ -28,22 +28,19 @@ public class LoginHelper {
     private final SystemConfigHelper configHelper;
 
     /**
-     * 执行登录并构建结果（通用流程）
+     * 社区 UUID 登录（管理端日常身份）。
      */
-    public LoginResult doLogin(SysUser user) {
+    public LoginResult doLogin(String loginId, String loginName, String nickname, String avatar) {
         RequestInfo info = getRequestInfo();
 
-        // 单点登录：踢掉其他设备
         if (configHelper.isSingleLogin()) {
-            StpUtil.logout(user.getId());
+            StpUtil.logout(loginId);
         }
 
-        // Sa-Token 登录
-        StpUtil.login(user.getId());
+        StpUtil.login(loginId);
 
-        // 写入Session
         SaSession session = StpUtil.getSession();
-        session.set("loginName", user.getUsername());
+        session.set("loginName", loginName);
         session.set("ipaddr", info.ip);
         session.set("loginLocation", IpUtils.getAddressByIp(info.ip));
         session.set("browser", info.browser);
@@ -51,17 +48,26 @@ public class LoginHelper {
         session.set("status", 1);
         session.set("loginTime", System.currentTimeMillis());
 
-        // 记录登录日志
-        loginLogService.recordLog(user.getUsername(), 0, "登录成功", info.ip, info.browser, info.os);
+        loginLogService.recordLog(loginName, 0, "登录成功", info.ip, info.browser, info.os);
 
-        // 构建结果
         return LoginResult.of(
                 StpUtil.getTokenValue(),
-                user.getId(),
+                loginId,
+                loginName,
+                nickname,
+                avatar
+        );
+    }
+
+    /**
+     * 历史 sys_user 登录入口。管理端日常认证不再调用。
+     */
+    public LoginResult doLogin(SysUser user) {
+        return doLogin(
+                String.valueOf(user.getId()),
                 user.getUsername(),
                 user.getNickname(),
-                user.getAvatar()
-        );
+                user.getAvatar());
     }
 
     /**

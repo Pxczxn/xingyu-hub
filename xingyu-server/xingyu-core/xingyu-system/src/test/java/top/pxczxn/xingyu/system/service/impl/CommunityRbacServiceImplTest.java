@@ -38,6 +38,7 @@ class CommunityRbacServiceImplTest {
         assertEquals(List.of(), service.listPermissions(userId));
         assertFalse(service.hasRole(userId, "admin"));
         assertFalse(service.hasPermission(userId, "sys:user:list"));
+        assertEquals(List.of(), service.listCommunityUserIdsByRoleCode(userId));
         verify(mapper, never()).selectRolesByCommunityUserId(org.mockito.ArgumentMatchers.any());
         verify(mapper, never()).selectPermissionsByCommunityUserId(org.mockito.ArgumentMatchers.any());
     }

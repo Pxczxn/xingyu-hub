@@ -1,6 +1,16 @@
 package top.pxczxn.xingyu;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import top.pxczxn.xingyu.community.support.PasswordSupport;
+import top.pxczxn.xingyu.system.config.StpInterfaceImpl;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
+
+import java.util.List;
+import java.util.UUID;
 
 /**
  * 集成测试辅助：只负责"测试数据/配置 fixture"，<b>不负责 schema</b>。
@@ -33,5 +43,120 @@ final class CommunityTestSupport {
                 "login",
                 "{\"captchaEnabled\":false,\"captchaType\":\"image\",\"maxRetryCount\":5,\"lockTime\":30,\"rememberMe\":true,\"singleLogin\":false}");
         configGroupService.refreshCache();
+    }
+
+    static final String CONSOLE_ADMIN_USERNAME = "admin";
+    static final String CONSOLE_ADMIN_PASSWORD = "admin123";
+    static final String CONSOLE_ADMIN_EMAIL = "admin-console@xingyu.test";
+    static final String CONSOLE_ADMIN_USER_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0001";
+
+    /**
+     * 保证测试库存在用户名为 admin、密码 admin123、持有 admin 角色的社区账号。
+     * 只写数据，不改 schema。
+     */
+    static String ensureConsoleAdmin(JdbcTemplate jdbcTemplate) {
+        Long adminRoleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM sys_role WHERE code = 'admin' LIMIT 1", Long.class);
+        List<String> existing = jdbcTemplate.query(
+                "SELECT user_id FROM community_profile WHERE username = ?",
+                (rs, rowNum) -> rs.getString(1),
+                CONSOLE_ADMIN_USERNAME);
+        String userId = existing.isEmpty() ? null : existing.getFirst();
+        if (userId == null) {
+            userId = CONSOLE_ADMIN_USER_ID;
+            Integer idTaken = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM community_user WHERE id = ?", Integer.class, userId);
+            if (idTaken != null && idTaken == 0) {
+                jdbcTemplate.update("""
+                        INSERT INTO community_user
+                            (id, email, password_hash, email_verified_at, status, role, terms_version, created_at)
+                        VALUES (?, ?, ?, NOW(), 'ACTIVE', 'user', '1.0', NOW())
+                        """, userId, CONSOLE_ADMIN_EMAIL, PasswordSupport.hash(CONSOLE_ADMIN_PASSWORD));
+                jdbcTemplate.update("""
+                        INSERT INTO community_profile
+                            (id, user_id, username, display_name, visibility, lock_version, created_at)
+                        VALUES (?, ?, ?, '管理员', 'PRIVATE', 0, NOW())
+                        """, UUID.randomUUID().toString(), userId, CONSOLE_ADMIN_USERNAME);
+            }
+        }
+        jdbcTemplate.update("""
+                UPDATE community_user
+                SET password_hash = ?, status = 'ACTIVE', email_verified_at = COALESCE(email_verified_at, NOW())
+                WHERE id = ?
+                """, PasswordSupport.hash(CONSOLE_ADMIN_PASSWORD), userId);
+        Integer granted = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM community_user_role
+                WHERE community_user_id = ? AND role_id = ?
+                """, Integer.class, userId, adminRoleId);
+        if (granted != null && granted == 0) {
+            jdbcTemplate.update("""
+                    INSERT INTO community_user_role (id, community_user_id, role_id, created_at)
+                    VALUES (?, ?, ?, NOW())
+                    """, UUID.randomUUID().toString(), userId, adminRoleId);
+        }
+        return userId;
+    }
+
+    static String insertActiveCommunityUser(JdbcTemplate jdbcTemplate, String username, String password) {
+        String userId = UUID.randomUUID().toString();
+        jdbcTemplate.update("""
+                INSERT INTO community_user
+                    (id, email, password_hash, email_verified_at, status, role, terms_version, created_at)
+                VALUES (?, ?, ?, NOW(), 'ACTIVE', 'user', '1.0', NOW())
+                """, userId, username + "@xingyu.test", PasswordSupport.hash(password));
+        jdbcTemplate.update("""
+                INSERT INTO community_profile
+                    (id, user_id, username, display_name, visibility, lock_version, created_at)
+                VALUES (?, ?, ?, ?, 'PRIVATE', 0, NOW())
+                """, UUID.randomUUID().toString(), userId, username, username);
+        return userId;
+    }
+
+    static void grantRole(JdbcTemplate jdbcTemplate, String communityUserId, String roleCode) {
+        Long roleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM sys_role WHERE code = ? LIMIT 1", Long.class, roleCode);
+        Integer granted = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM community_user_role WHERE community_user_id = ? AND role_id = ?",
+                Integer.class, communityUserId, roleId);
+        if (granted != null && granted > 0) {
+            return;
+        }
+        jdbcTemplate.update("""
+                INSERT INTO community_user_role (id, community_user_id, role_id, created_at)
+                VALUES (?, ?, ?, NOW())
+                """, UUID.randomUUID().toString(), communityUserId, roleId);
+    }
+
+    static String passwordLogin(MockMvc mockMvc, ObjectMapper objectMapper, String username, String password)
+            throws Exception {
+        MvcResult result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/admin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password
+                                + "\",\"clientType\":\"ADMIN\"}"))
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("token").asText();
+    }
+
+    /**
+     * 先授予 admin 以便走密码登录，签发 Token 后再撤掉 admin。用于细粒度权限矩阵。
+     */
+    static String loginThenRevokeAdmin(
+            MockMvc mockMvc,
+            ObjectMapper objectMapper,
+            JdbcTemplate jdbcTemplate,
+            String communityUserId,
+            String username,
+            String password) throws Exception {
+        grantRole(jdbcTemplate, communityUserId, "admin");
+        String token = passwordLogin(mockMvc, objectMapper, username, password);
+        jdbcTemplate.update("""
+                DELETE cur FROM community_user_role cur
+                INNER JOIN sys_role r ON r.id = cur.role_id
+                WHERE cur.community_user_id = ? AND r.code = 'admin'
+                """, communityUserId);
+        StpInterfaceImpl.clearPermissionCache(communityUserId);
+        return token;
     }
 }

@@ -445,7 +445,6 @@ const headerStyle = computed(() => {
 
 // 初始化WebSocket和加载未读数
 onMounted(() => {
-  messageStore.initWebSocket()
   loadUnreadCount()
   // 监听全屏变化
   document.addEventListener('fullscreenchange', handleFullscreenChange)

@@ -6,7 +6,7 @@ import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.captcha.ShearCaptcha;
 import cn.hutool.captcha.CircleCaptcha;
 import cn.hutool.core.util.IdUtil;
-import cn.hutool.crypto.digest.BCrypt;
+import top.pxczxn.xingyu.admin.dto.AdminSessionUser;
 import top.pxczxn.xingyu.auth.LoginRequest;
 import top.pxczxn.xingyu.auth.LoginResult;
 import top.pxczxn.xingyu.auth.LoginStrategyFactory;
@@ -14,21 +14,21 @@ import top.pxczxn.xingyu.auth.enums.ClientType;
 import top.pxczxn.xingyu.auth.enums.LoginType;
 import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.common.result.Result;
-import top.pxczxn.xingyu.system.entity.SysMenu;
-import top.pxczxn.xingyu.system.entity.SysRole;
-import top.pxczxn.xingyu.system.entity.SysUser;
-import top.pxczxn.xingyu.system.entity.SysUserRole;
+import top.pxczxn.xingyu.community.entity.CommunityProfile;
+import top.pxczxn.xingyu.community.identity.CommunityIdentityView;
+import top.pxczxn.xingyu.community.identity.CommunityIdentityService;
+import top.pxczxn.xingyu.community.mapper.CommunityProfileMapper;
+import top.pxczxn.xingyu.community.support.ProfileSettingsSupport;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
-import top.pxczxn.xingyu.system.service.*;
+import top.pxczxn.xingyu.system.service.CommunityRbacService;
+import top.pxczxn.xingyu.system.service.SysMenuService;
 import top.pxczxn.xingyu.sms.SmsServiceFactory;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -41,10 +41,10 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AdminAuthController {
 
-    private final SysUserService userService;
+    private final CommunityIdentityService communityIdentityService;
+    private final CommunityProfileMapper communityProfileMapper;
+    private final CommunityRbacService communityRbacService;
     private final SysMenuService menuService;
-    private final SysRoleService roleService;
-    private final SysUserRoleService userRoleService;
     private final SystemConfigHelper configHelper;
     private final StringRedisTemplate redisTemplate;
     private final SmsServiceFactory smsServiceFactory;
@@ -149,17 +149,12 @@ public class AdminAuthController {
      */
     @GetMapping("/info")
     public Result<Map<String, Object>> info() {
-        Long userId = StpUtil.getLoginIdAsLong();
-        SysUser user = userService.getDetail(userId);
-        List<String> roles = userService.getRoleCodes(userId);
-        List<String> permissions = userService.getPermissions(userId);
-        List<SysMenu> menus = menuService.getUserMenuTree(userId);
-
+        String communityUserId = StpUtil.getLoginIdAsString();
         Map<String, Object> result = new HashMap<>();
-        result.put("user", user);
-        result.put("roles", roles);
-        result.put("permissions", permissions);
-        result.put("menus", menus);
+        result.put("user", buildSessionUser(communityUserId));
+        result.put("roles", communityRbacService.listRoleCodes(communityUserId));
+        result.put("permissions", communityRbacService.listPermissions(communityUserId));
+        result.put("menus", menuService.getUserMenuTreeByCommunityUserId(communityUserId));
         return Result.ok(result);
     }
 
@@ -167,18 +162,22 @@ public class AdminAuthController {
      * 获取个人信息
      */
     @GetMapping("/profile")
-    public Result<SysUser> profile() {
-        Long userId = StpUtil.getLoginIdAsLong();
-        return Result.ok(userService.getDetail(userId));
+    public Result<AdminSessionUser> profile() {
+        return Result.ok(buildSessionUser(StpUtil.getLoginIdAsString()));
     }
 
     /**
      * 更新个人信息
      */
     @PutMapping("/profile")
-    public Result<Void> updateProfile(@RequestBody SysUser user) {
-        Long userId = StpUtil.getLoginIdAsLong();
-        userService.updateProfile(userId, user);
+    public Result<Void> updateProfile(@RequestBody ProfileUpdateRequest request) {
+        String communityUserId = StpUtil.getLoginIdAsString();
+        communityIdentityService.updateAdminProfile(
+                communityUserId,
+                request.getNickname(),
+                request.getAvatar(),
+                request.getEmail(),
+                request.getPhone());
         return Result.ok();
     }
 
@@ -188,9 +187,36 @@ public class AdminAuthController {
     @PostMapping("/password")
     public Result<Void> updatePassword(@RequestBody PasswordRequest request) {
         configHelper.validatePassword(request.getNewPassword());
-        Long userId = StpUtil.getLoginIdAsLong();
-        userService.updatePassword(userId, request.getOldPassword(), request.getNewPassword());
+        String communityUserId = StpUtil.getLoginIdAsString();
+        if (!communityIdentityService.passwordMatches(communityUserId, request.getOldPassword())) {
+            throw new BusinessException("原密码错误");
+        }
+        communityIdentityService.replacePassword(communityUserId, request.getNewPassword());
         return Result.ok();
+    }
+
+    private AdminSessionUser buildSessionUser(String communityUserId) {
+        CommunityIdentityView identity = communityIdentityService.findById(communityUserId)
+                .orElseThrow(() -> new BusinessException("用户不存在"));
+        CommunityProfile profile = communityProfileMapper.findByUserId(communityUserId);
+        String username = profile == null ? identity.email() : profile.getUsername();
+        String nickname = profile == null || profile.getDisplayName() == null || profile.getDisplayName().isBlank()
+                ? username
+                : profile.getDisplayName();
+        boolean admin = communityRbacService.hasRole(communityUserId, "admin");
+        return AdminSessionUser.builder()
+                .id(identity.id())
+                .username(username)
+                .nickname(nickname)
+                .avatar(ProfileSettingsSupport.resolveAvatar(profile))
+                .email(identity.email())
+                .phone(identity.phone())
+                .gender(0)
+                .status("ACTIVE".equals(identity.status()) ? 1 : 0)
+                .userType(admin ? "admin" : "user")
+                .createTime(identity.createdAt() == null ? null : identity.createdAt().toString())
+                .lockVersion(profile == null ? null : profile.getLockVersion())
+                .build();
     }
 
     /**
@@ -216,6 +242,14 @@ public class AdminAuthController {
     public static class PasswordRequest {
         private String oldPassword;
         private String newPassword;
+    }
+
+    @Data
+    public static class ProfileUpdateRequest {
+        private String nickname;
+        private String avatar;
+        private String email;
+        private String phone;
     }
 
     @Data

@@ -17,9 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import top.pxczxn.xingyu.system.config.AdminAccountStatusGate;
-import top.pxczxn.xingyu.system.entity.SysUser;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
-import top.pxczxn.xingyu.system.service.SysUserService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -29,7 +27,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,9 +37,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 禁用管理员后，旧 Sa-Token 的下一次管理请求必须被拒绝。
- *
- * <p>禁用走 {@link SysUserService#update}，并保留 admin 角色，用来证明拒绝来自账号状态，
- * 而不是角色缓存被清掉之后碰巧没有角色。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -62,12 +57,10 @@ class AdminDisabledAccountTokenIntegrationTest {
     private RedisConnectionFactory redisConnectionFactory;
     @Autowired
     private SysConfigGroupService configGroupService;
-    @Autowired
-    private SysUserService userService;
     @SpyBean
     private AdminAccountStatusGate accountStatusGate;
 
-    private final List<Long> createdUserIds = new ArrayList<>();
+    private final List<String> createdUserIds = new ArrayList<>();
 
     @BeforeEach
     void requireIsolatedTargets() throws Exception {
@@ -86,8 +79,10 @@ class AdminDisabledAccountTokenIntegrationTest {
     @AfterEach
     void cleanup() {
         reset(accountStatusGate);
-        for (Long userId : createdUserIds) {
-            userService.delete(userId);
+        for (String userId : createdUserIds) {
+            jdbcTemplate.update("DELETE FROM community_user_role WHERE community_user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_profile WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_user WHERE id = ?", userId);
         }
         createdUserIds.clear();
     }
@@ -95,18 +90,18 @@ class AdminDisabledAccountTokenIntegrationTest {
     @Test
     @DisplayName("禁用后旧 Token 被拒绝，重新启用后同一 Token 仍可访问")
     void disabledAdminTokenIsRejectedUntilAccountIsEnabledAgain() throws Exception {
-        Long adminRoleId = adminRoleId();
-        SysUser admin = createUser("p22adm", 1, adminRoleId);
-        String token = login(admin.getUsername());
+        String username = "p22adm" + (System.nanoTime() % 100_000_000L);
+        String userId = createAdminUser(username);
+        String token = login(username);
 
         mockMvc.perform(get("/api/v1/admin/moderation/reports").header("satoken", token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
         int decisionsBefore = decisionCount();
-        setStatus(admin, 0, adminRoleId);
-        assertEquals(0, statusOf(admin.getId()));
-        assertEquals(1, adminRoleCount(admin.getId()), "禁用不得被做成撤销 admin 角色");
+        setStatus(userId, "SUSPENDED");
+        assertEquals("SUSPENDED", statusOf(userId));
+        assertEquals(1, adminRoleCount(userId), "禁用不得被做成撤销 admin 角色");
 
         mockMvc.perform(get("/api/v1/admin/moderation/reports").header("satoken", token))
                 .andExpect(status().isOk())
@@ -119,7 +114,7 @@ class AdminDisabledAccountTokenIntegrationTest {
                 .andExpect(jsonPath("$.code").value(403));
         assertEquals(decisionsBefore, decisionCount(), "被拒绝的决定请求不得写入治理决定");
 
-        setStatus(admin, 1, adminRoleId);
+        setStatus(userId, "ACTIVE");
         mockMvc.perform(get("/api/v1/admin/moderation/reports").header("satoken", token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
@@ -131,8 +126,11 @@ class AdminDisabledAccountTokenIntegrationTest {
         mockMvc.perform(get("/api/v1/admin/moderation/reports"))
                 .andExpect(jsonPath("$.code").value(401));
 
-        SysUser plain = createUser("p22usr", 1, null);
-        String token = login(plain.getUsername());
+        String username = "p22usr" + (System.nanoTime() % 100_000_000L);
+        String userId = CommunityTestSupport.insertActiveCommunityUser(jdbcTemplate, username, PASSWORD);
+        createdUserIds.add(userId);
+        String token = CommunityTestSupport.loginThenRevokeAdmin(
+                mockMvc, objectMapper, jdbcTemplate, userId, username, PASSWORD);
         mockMvc.perform(get("/api/v1/admin/moderation/reports").header("satoken", token))
                 .andExpect(jsonPath("$.code").value(403))
                 .andExpect(jsonPath("$.message").value("没有角色权限"));
@@ -141,12 +139,12 @@ class AdminDisabledAccountTokenIntegrationTest {
     @Test
     @DisplayName("账号状态查询失败时拒绝请求")
     void statusLookupFailureDeniesTheRequest() throws Exception {
-        Long adminRoleId = adminRoleId();
-        SysUser admin = createUser("p22err", 1, adminRoleId);
-        String token = login(admin.getUsername());
+        String username = "p22err" + (System.nanoTime() % 100_000_000L);
+        createAdminUser(username);
+        String token = login(username);
         int decisionsBefore = decisionCount();
         doThrow(new IllegalStateException("status lookup failed"))
-                .when(accountStatusGate).requireActive(anyLong());
+                .when(accountStatusGate).requireActive(anyString());
 
         mockMvc.perform(get("/api/v1/admin/moderation/reports").header("satoken", token))
                 .andExpect(jsonPath("$.code").value(403))
@@ -154,23 +152,15 @@ class AdminDisabledAccountTokenIntegrationTest {
         assertEquals(decisionsBefore, decisionCount());
     }
 
-    private SysUser createUser(String prefix, int status, Long roleId) {
-        SysUser user = new SysUser();
-        user.setUsername(prefix + (System.nanoTime() % 100_000_000L));
-        user.setPassword(PASSWORD);
-        user.setNickname(user.getUsername());
-        user.setUserType("admin");
-        user.setStatus(status);
-        user.setIsQuit(0);
-        userService.create(user, roleId == null ? List.of() : List.of(roleId), List.of());
-        createdUserIds.add(user.getId());
-        return user;
+    private String createAdminUser(String username) {
+        String userId = CommunityTestSupport.insertActiveCommunityUser(jdbcTemplate, username, PASSWORD);
+        CommunityTestSupport.grantRole(jdbcTemplate, userId, "admin");
+        createdUserIds.add(userId);
+        return userId;
     }
 
-    private void setStatus(SysUser user, int status, Long roleId) {
-        user.setStatus(status);
-        user.setPassword(null);
-        userService.update(user, List.of(roleId), List.of());
+    private void setStatus(String userId, String status) {
+        jdbcTemplate.update("UPDATE community_user SET status = ? WHERE id = ?", status, userId);
     }
 
     private String login(String username) throws Exception {
@@ -184,23 +174,17 @@ class AdminDisabledAccountTokenIntegrationTest {
                 .path("data").path("token").asText();
     }
 
-    private Long adminRoleId() {
+    private String statusOf(String userId) {
         return jdbcTemplate.queryForObject(
-                "SELECT id FROM sys_role WHERE code = 'admin' AND status = 1 AND deleted = 0 LIMIT 1",
-                Long.class);
+                "SELECT status FROM community_user WHERE id = ?", String.class, userId);
     }
 
-    private int statusOf(Long userId) {
-        return jdbcTemplate.queryForObject(
-                "SELECT status FROM sys_user WHERE id = ?", Integer.class, userId);
-    }
-
-    private int adminRoleCount(Long userId) {
+    private int adminRoleCount(String userId) {
         Integer count = jdbcTemplate.queryForObject(
                 """
-                SELECT COUNT(*) FROM sys_user_role ur
-                INNER JOIN sys_role r ON r.id = ur.role_id
-                WHERE ur.user_id = ? AND r.code = 'admin'
+                SELECT COUNT(*) FROM community_user_role cur
+                INNER JOIN sys_role r ON r.id = cur.role_id
+                WHERE cur.community_user_id = ? AND r.code = 'admin'
                 """,
                 Integer.class, userId);
         return count == null ? 0 : count;

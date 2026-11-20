@@ -51,7 +51,7 @@ class AdminPermissionAnnotationIntegrationTest {
     @Autowired
     private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
 
-    private final List<Long> sysUserIds = new ArrayList<>();
+    private final List<String> communityUserIds = new ArrayList<>();
     private final List<Long> sysRoleIds = new ArrayList<>();
 
     private String adminToken;
@@ -69,16 +69,17 @@ class AdminPermissionAnnotationIntegrationTest {
 
     @AfterAll
     void tearDown() {
-        for (Long userId : sysUserIds) {
-            jdbcTemplate.update("DELETE FROM sys_user_role WHERE user_id = ?", userId);
-            jdbcTemplate.update("DELETE FROM sys_user WHERE id = ?", userId);
+        for (String userId : communityUserIds) {
+            jdbcTemplate.update("DELETE FROM community_user_role WHERE community_user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_profile WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_user WHERE id = ?", userId);
         }
         for (Long roleId : sysRoleIds) {
             jdbcTemplate.update("DELETE FROM sys_role_menu WHERE role_id = ?", roleId);
             jdbcTemplate.update("DELETE FROM sys_role WHERE id = ?", roleId);
         }
         jdbcTemplate.update("DELETE FROM sys_user WHERE username = 'shouldnotexist'");
-        sysUserIds.clear();
+        communityUserIds.clear();
         sysRoleIds.clear();
     }
 
@@ -167,15 +168,10 @@ class AdminPermissionAnnotationIntegrationTest {
                 .path("data").path("token").asText();
     }
 
-    /** 建 sys_user（userType 可空）+ 专用角色（绑定给定权限编码对应的全部菜单）。 */
+    /** 建社区账号 + 专用角色（绑定给定权限编码对应的全部菜单），签发 UUID 会话。 */
     private String seedUser(String prefix, String userType, List<String> permissions) throws Exception {
-        long id = 99100L + sysUserIds.size() + 1;
-        String passwordHash = jdbcTemplate.queryForObject(
-                "SELECT password FROM sys_user WHERE id = 1", String.class);
-        jdbcTemplate.update("""
-                INSERT INTO sys_user (id, username, password, nickname, user_type, status)
-                VALUES (?, ?, ?, ?, ?, 1)
-                """, id, prefix + id, passwordHash, prefix + "-nick", userType);
+        String username = prefix + System.nanoTime();
+        String userId = CommunityTestSupport.insertActiveCommunityUser(jdbcTemplate, username, "admin123");
         long roleId = 99100L + sysRoleIds.size() + 1;
         jdbcTemplate.update("INSERT INTO sys_role (id, name, code, status, deleted) VALUES (?, ?, ?, 1, 0)",
                 roleId, prefix + "-role", prefix + "-role");
@@ -187,20 +183,16 @@ class AdminPermissionAnnotationIntegrationTest {
                 jdbcTemplate.update("INSERT INTO sys_role_menu (role_id, menu_id) VALUES (?, ?)", roleId, menuId);
             }
         }
-        jdbcTemplate.update("INSERT INTO sys_user_role (user_id, role_id) VALUES (?, ?)", id, roleId);
-        sysUserIds.add(id);
-        // 手动 SQL 改角色绕过了生产侧 clearPermissionCache —— 登录前清 sa-token
-        // session 权限缓存，避免读到本测试早前轮次留下的旧权限集合。
-        java.util.Set<String> sessionKeys = stringRedisTemplate.keys("satoken:login:session:" + id);
+        jdbcTemplate.update("""
+                INSERT INTO community_user_role (id, community_user_id, role_id, created_at)
+                VALUES (?, ?, ?, NOW())
+                """, java.util.UUID.randomUUID().toString(), userId, roleId);
+        communityUserIds.add(userId);
+        java.util.Set<String> sessionKeys = stringRedisTemplate.keys("satoken:login:session:" + userId);
         if (sessionKeys != null && !sessionKeys.isEmpty()) {
             stringRedisTemplate.delete(sessionKeys);
         }
-        MvcResult login = mockMvc.perform(post("/api/v1/admin/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + prefix + id + "\",\"password\":\"admin123\",\"clientType\":\"ADMIN\"}"))
-                .andExpect(jsonPath("$.code").value(200))
-                .andReturn();
-        return objectMapper.readTree(login.getResponse().getContentAsString())
-                .path("data").path("token").asText();
+        return CommunityTestSupport.loginThenRevokeAdmin(
+                mockMvc, objectMapper, jdbcTemplate, userId, username, "admin123");
     }
 }

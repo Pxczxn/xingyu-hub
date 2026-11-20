@@ -38,10 +38,11 @@
 | `V058` | 治理措施记录隐藏前的内容状态（`moderation_measure.prior_status`） |
 | `V059` | 建立管理端 `customer` 表，并补上 `sys_file_config` 的 `idx_sys_file_config_master` |
 | `V060` | 社区身份授权表：`community_user_role`（日常角色授权）与 `identity_verify_link`（风险交叉核验，非登录关联） |
+| `V061` | `sys_user_notice.community_user_id`：管理端站内信按社区 UUID 隔离；历史 `user_id` 只读兼容 |
 | `rebuild.ps1` | 一键删库重建（开发环境，会删除目标库） |
 
 > 备注：部分迁移（如 `V029`、`V030`、`V031`、`V037`、`V040`、`V052`、`V053`、`V054`）头部标注为「可重复执行」——列/索引/表已存在时会自动跳过，可安全重跑。
-> 当前迁移为 **V000–V060，共 61 个文件**。最新文件是 **`V060__community_identity_role_tables.sql`**。新增迁移请从 `V061__*.sql` 起。
+> 当前迁移为 **V000–V061，共 62 个文件**。最新文件是 **`V061__sys_user_notice_community_user_id.sql`**。新增迁移请从 `V062__*.sql` 起。
 
 ## 空库执行
 

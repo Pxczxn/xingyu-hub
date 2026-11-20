@@ -26,7 +26,7 @@ class CommunityRbacMapperContractTest {
         assertTrue(source.contains("r.deleted = 0"));
         assertTrue(source.contains("m.status = 1"));
         assertTrue(source.contains("m.deleted = 0"));
-        assertEquals(2, Pattern.compile("@Select").matcher(source).results().count());
+        assertEquals(3, Pattern.compile("@Select").matcher(source).results().count());
         String sql = source.substring(source.indexOf("@Select"));
         assertFalse(Pattern.compile("\\bsys_user_role\\b").matcher(sql).find());
         assertFalse(Pattern.compile("\\bsys_user\\b").matcher(sql).find());

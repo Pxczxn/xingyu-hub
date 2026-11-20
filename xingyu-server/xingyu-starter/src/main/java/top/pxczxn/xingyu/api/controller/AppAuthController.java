@@ -42,11 +42,7 @@ public class AppAuthController {
 
     @PostMapping("/login")
     public Result<LoginResult> login(@RequestBody LoginRequest request) {
-        request.setClientType(ClientType.APP);
-        if (request.getLoginType() == null) {
-            request.setLoginType(request.getWxCode() != null ? LoginType.MINIPROGRAM : LoginType.SMS);
-        }
-        return Result.ok(loginStrategyFactory.login(request));
+        return Result.fail(500, "App 登录已停用，请使用社区账号登录");
     }
 
     @PostMapping("/sms-code")
@@ -65,23 +61,17 @@ public class AppAuthController {
 
     @GetMapping("/profile")
     public Result<SysUser> profile() {
-        return Result.ok(userService.getDetail(StpUtil.getLoginIdAsLong()));
+        return Result.fail(500, "App 登录已停用，请使用社区账号登录");
     }
 
     @PutMapping("/profile")
     public Result<Void> updateProfile(@RequestBody SysUser user) {
-        userService.updateProfile(StpUtil.getLoginIdAsLong(), user);
-        return Result.ok();
+        return Result.fail(500, "App 登录已停用，请使用社区账号登录");
     }
 
     @PostMapping("/password")
     public Result<Void> changePassword(@RequestBody Map<String, String> body) {
-        configHelper.validatePassword(body.get("newPassword"));
-        userService.updatePassword(
-                StpUtil.getLoginIdAsLong(),
-                body.get("oldPassword"),
-                body.get("newPassword"));
-        return Result.ok();
+        return Result.fail(500, "App 登录已停用，请使用社区账号登录");
     }
 
     @PostMapping("/logout")
@@ -92,11 +82,7 @@ public class AppAuthController {
 
     @PostMapping("/upload-avatar")
     public Result<Map<String, String>> uploadAvatar(@RequestParam("file") MultipartFile file) {
-        SysFile uploaded = fileService.uploadImage(file);
-        SysUser profile = new SysUser();
-        profile.setAvatar(uploaded.getUrl());
-        userService.updateProfile(StpUtil.getLoginIdAsLong(), profile);
-        return Result.ok(Map.of("url", uploaded.getUrl()));
+        return Result.fail(500, "App 登录已停用，请使用社区账号登录");
     }
 
     @Data

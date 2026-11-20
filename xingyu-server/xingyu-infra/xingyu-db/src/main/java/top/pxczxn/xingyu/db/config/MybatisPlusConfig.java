@@ -40,9 +40,10 @@ public class MybatisPlusConfig implements MetaObjectHandler {
         this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
         this.strictInsertFill(metaObject, "deleted", Integer.class, 0);
         try {
-            if (StpUtil.isLogin()) {
-                this.strictInsertFill(metaObject, "createBy", Long.class, StpUtil.getLoginIdAsLong());
-                this.strictInsertFill(metaObject, "updateBy", Long.class, StpUtil.getLoginIdAsLong());
+            Long operatorId = numericLoginIdOrNull();
+            if (operatorId != null) {
+                this.strictInsertFill(metaObject, "createBy", Long.class, operatorId);
+                this.strictInsertFill(metaObject, "updateBy", Long.class, operatorId);
             }
         } catch (Exception ignored) {
         }
@@ -55,10 +56,39 @@ public class MybatisPlusConfig implements MetaObjectHandler {
     public void updateFill(MetaObject metaObject) {
         this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
         try {
-            if (StpUtil.isLogin()) {
-                this.strictUpdateFill(metaObject, "updateBy", Long.class, StpUtil.getLoginIdAsLong());
+            Long operatorId = numericLoginIdOrNull();
+            if (operatorId != null) {
+                this.strictUpdateFill(metaObject, "updateBy", Long.class, operatorId);
             }
         } catch (Exception ignored) {
+        }
+    }
+
+    private static Long numericLoginIdOrNull() {
+        if (!StpUtil.isLogin()) {
+            return null;
+        }
+        Object loginId = StpUtil.getLoginId();
+        if (loginId == null) {
+            return null;
+        }
+        String value = loginId.toString();
+        if (value.isEmpty()) {
+            return null;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (i == 0 && ch == '-' && value.length() > 1) {
+                continue;
+            }
+            if (ch < '0' || ch > '9') {
+                return null;
+            }
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return null;
         }
     }
 }

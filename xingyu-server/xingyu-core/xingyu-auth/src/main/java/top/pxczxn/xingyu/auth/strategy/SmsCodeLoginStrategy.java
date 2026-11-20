@@ -42,6 +42,11 @@ public class SmsCodeLoginStrategy implements LoginStrategy {
 
     @Override
     public LoginResult login(LoginRequest request) {
+        throw new BusinessException("App 登录已停用，请使用社区账号登录");
+    }
+
+    @SuppressWarnings("unused")
+    private LoginResult legacyLogin(LoginRequest request) {
         String phone = request.getPhone();
         String smsCode = request.getSmsCode();
 

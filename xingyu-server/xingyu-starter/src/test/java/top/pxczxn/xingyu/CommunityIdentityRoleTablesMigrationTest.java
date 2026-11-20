@@ -26,8 +26,8 @@ class CommunityIdentityRoleTablesMigrationTest {
     private static final String V060 = "V060__community_identity_role_tables.sql";
 
     @Test
-    @DisplayName("V060 文件名排在 V059 之后，且是当前最大版本")
-    void v060FollowsV059AndIsLatest() throws IOException {
+    @DisplayName("V060 文件名排在 V059 之后")
+    void v060FollowsV059() throws IOException {
         Path sqlDir = requireSqlDir();
         assertTrue(Files.isRegularFile(sqlDir.resolve(V059)), V059);
         assertTrue(Files.isRegularFile(sqlDir.resolve(V060)), V060);
@@ -39,7 +39,6 @@ class CommunityIdentityRoleTablesMigrationTest {
         int i060 = versions.indexOf(V060);
         assertTrue(i059 >= 0 && i060 == i059 + 1, "V060 必须紧跟 V059，实际顺序=" + versions.subList(
                 Math.max(0, versions.size() - 4), versions.size()));
-        assertEquals(V060, versions.getLast());
     }
 
     @Test

@@ -121,7 +121,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
      */
     private void requireActiveAdminAccount() {
         try {
-            adminAccountStatusGate.requireActive(StpUtil.getLoginIdAsLong());
+            adminAccountStatusGate.requireActive(StpUtil.getLoginIdAsString());
         } catch (BusinessException ex) {
             throw ex;
         } catch (RuntimeException ex) {

@@ -165,7 +165,7 @@ const loading = ref(false)
 const saving = ref(false)
 
 const formData = ref<Partial<ProfileInfo>>({
-  id: 0,
+  id: '',
   username: '',
   nickname: '',
   avatar: '',

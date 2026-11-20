@@ -589,13 +589,11 @@ import { useMessage, NIcon, type UploadCustomRequestOptions } from 'naive-ui'
 import { SearchOutline, ImageOutline, HappyOutline, ExpandOutline, ContractOutline, FlashOutline, AddOutline, SettingsOutline, EllipsisVerticalOutline, AlertCircleOutline, PersonOutline, TrashOutline, BanOutline } from '@vicons/ionicons5'
 import { chatApi, groupChatApi, type ChatMessage, type ChatUser, type ChatGroup, type ChatGroupMember, type ChatGroupMessage } from '@/api/message'
 import { fileApi } from '@/api/system'
-import { useUserStore } from '@/stores/user'
 import { wsManager } from '@/utils/websocket'
 
 const route = useRoute()
 const message = useMessage()
-const userStore = useUserStore()
-const currentUserId = computed(() => userStore.user?.id)
+const currentUserId = computed<number | undefined>(() => undefined)
 
 // 聊天模式
 const chatMode = ref<'private' | 'group'>('private')

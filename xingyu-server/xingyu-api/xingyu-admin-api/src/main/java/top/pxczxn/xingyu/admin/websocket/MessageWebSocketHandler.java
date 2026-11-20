@@ -194,7 +194,11 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
      * 获取用户ID
      */
     private Long getUserId(WebSocketSession session) {
-        return (Long) session.getAttributes().get("userId");
+        Object raw = session.getAttributes().get("userId");
+        if (raw instanceof Long longId) {
+            return longId;
+        }
+        return null;
     }
 
     /**

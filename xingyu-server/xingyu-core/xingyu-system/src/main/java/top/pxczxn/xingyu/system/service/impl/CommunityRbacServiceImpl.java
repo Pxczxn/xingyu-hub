@@ -66,6 +66,18 @@ public class CommunityRbacServiceImpl implements CommunityRbacService {
         return listPermissions(communityUserId).contains(permission);
     }
 
+    @Override
+    public List<String> listCommunityUserIdsByRoleCode(String roleCode) {
+        if (isBlank(roleCode)) {
+            return List.of();
+        }
+        List<String> ids = communityRbacMapper.selectCommunityUserIdsByRoleCode(roleCode);
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return ids.stream().filter(id -> !isBlank(id)).distinct().toList();
+    }
+
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }

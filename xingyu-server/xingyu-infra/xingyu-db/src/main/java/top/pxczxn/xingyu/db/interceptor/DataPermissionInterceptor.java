@@ -48,9 +48,16 @@ public class DataPermissionInterceptor implements InnerInterceptor, ApplicationC
             return;
         }
 
-        Long userId = StpUtil.getLoginIdAsLong();
-        
-        // 动态获取 Mapper 解决循环依赖
+        if (StpUtil.hasRole("admin")) {
+            return;
+        }
+
+        Object loginId = StpUtil.getLoginId();
+        Long userId = numericLoginIdOrNull(loginId);
+        if (userId == null) {
+            return;
+        }
+
         Object roleMapper = applicationContext.getBean("sysRoleMapper");
         Object userMapper = applicationContext.getBean("sysUserMapper");
 
@@ -140,6 +147,30 @@ public class DataPermissionInterceptor implements InnerInterceptor, ApplicationC
             return conditions.isEmpty() ? "" : "(" + String.join(" OR ", conditions) + ")";
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    private static Long numericLoginIdOrNull(Object loginId) {
+        if (loginId == null) {
+            return null;
+        }
+        String value = loginId.toString();
+        if (value.isEmpty()) {
+            return null;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (i == 0 && ch == '-' && value.length() > 1) {
+                continue;
+            }
+            if (ch < '0' || ch > '9') {
+                return null;
+            }
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return null;
         }
     }
 }

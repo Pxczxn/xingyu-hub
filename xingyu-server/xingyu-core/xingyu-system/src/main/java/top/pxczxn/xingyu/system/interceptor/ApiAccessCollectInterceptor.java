@@ -3,6 +3,7 @@ package top.pxczxn.xingyu.system.interceptor;
 import cn.dev33.satoken.stp.StpUtil;
 import top.pxczxn.xingyu.system.entity.ApiAccessLog;
 import top.pxczxn.xingyu.system.service.ApiAccessLogService;
+import top.pxczxn.xingyu.system.util.SaLoginIds;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -61,10 +62,10 @@ public class ApiAccessCollectInterceptor implements HandlerInterceptor {
 
             try {
                 if (StpUtil.isLogin()) {
-                    log.setUserId(StpUtil.getLoginIdAsLong());
+                    SaLoginIds.asLongIfNumeric(StpUtil.getLoginId()).ifPresent(log::setUserId);
                 }
             } catch (Exception e) {
-                // 未登录
+                // UUID 会话不写入历史 bigint user_id
             }
 
             apiAccessLogService.pushToRedis(log);

@@ -16,9 +16,9 @@ public class LoginResult {
     private String token;
 
     /**
-     * 用户ID
+     * 用户ID（管理端日常为 community UUID）
      */
-    private Long userId;
+    private String userId;
 
     /**
      * 用户名
@@ -40,7 +40,7 @@ public class LoginResult {
      */
     private Map<String, Object> extra;
 
-    public static LoginResult of(String token, Long userId, String username, String nickname, String avatar) {
+    public static LoginResult of(String token, String userId, String username, String nickname, String avatar) {
         LoginResult result = new LoginResult();
         result.setToken(token);
         result.setUserId(userId);

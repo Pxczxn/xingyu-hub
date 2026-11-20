@@ -21,4 +21,6 @@ public interface CommunityRbacService {
     boolean hasRole(String communityUserId, String roleCode);
 
     boolean hasPermission(String communityUserId, String permission);
+
+    List<String> listCommunityUserIdsByRoleCode(String roleCode);
 }

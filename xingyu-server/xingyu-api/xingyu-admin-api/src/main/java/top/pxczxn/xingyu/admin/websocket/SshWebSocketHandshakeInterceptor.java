@@ -34,10 +34,16 @@ public class SshWebSocketHandshakeInterceptor implements HandshakeInterceptor {
         }
         try {
             Object loginId = StpUtil.getLoginIdByToken(token.trim());
-            if (loginId == null || !StpUtil.hasRole(loginId, "admin")) {
-                log.warn("SSH WebSocket 拒绝非管理员连接");
+            if (loginId == null) {
+                log.warn("SSH WebSocket 拒绝无效 Token");
                 return false;
             }
+            if (!StpUtil.hasRole(loginId, "admin")) {
+                log.warn("SSH WebSocket 拒绝非管理员连接 loginId={}", loginId);
+                return false;
+            }
+            attributes.put("loginId", loginId.toString());
+            attributes.put("token", token.trim());
             return true;
         } catch (RuntimeException ex) {
             log.warn("SSH WebSocket 管理员校验失败");

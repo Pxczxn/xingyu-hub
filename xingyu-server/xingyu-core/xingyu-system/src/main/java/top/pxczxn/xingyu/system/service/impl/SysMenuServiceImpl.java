@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.system.entity.SysMenu;
 import top.pxczxn.xingyu.system.mapper.SysMenuMapper;
+import top.pxczxn.xingyu.system.service.CommunityRbacService;
 import top.pxczxn.xingyu.system.service.SysMenuService;
 import top.pxczxn.xingyu.system.service.SysUserService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 
     @Lazy
     private final SysUserService userService;
+    private final CommunityRbacService communityRbacService;
 
     @Override
     public List<SysMenu> tree(String name, Integer status) {
@@ -59,6 +61,24 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         // 自动补充缺失的父级菜单，确保树结构完整
         menus = fillParentMenus(menus);
 
+        return buildTree(menus);
+    }
+
+    @Override
+    public List<SysMenu> getUserMenuTreeByCommunityUserId(String communityUserId) {
+        if (communityRbacService.hasRole(communityUserId, "admin")) {
+            LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysMenu::getStatus, 1)
+                    .eq(SysMenu::getDeleted, 0)
+                    .ne(SysMenu::getType, 3)
+                    .orderByAsc(SysMenu::getSort);
+            return buildTree(this.list(wrapper));
+        }
+        List<SysMenu> menus = baseMapper.selectMenusByCommunityUserId(communityUserId);
+        menus = menus.stream()
+                .filter(menu -> menu.getType() != 3)
+                .collect(Collectors.toList());
+        menus = fillParentMenus(menus);
         return buildTree(menus);
     }
     

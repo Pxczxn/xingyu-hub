@@ -100,7 +100,9 @@ class AdminAuthorizationGateIntegrationTest {
             jdbcTemplate.update("DELETE FROM article WHERE owner_id = ?", userId);
             jdbcTemplate.update("DELETE FROM community_session WHERE user_id = ?", userId);
             jdbcTemplate.update("DELETE FROM community_creation_space WHERE user_id = ?", userId);
-            jdbcTemplate.update("DELETE FROM community_profile WHERE user_id = ?", userId);            jdbcTemplate.update("DELETE FROM community_user WHERE id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_user_role WHERE community_user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_profile WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_user WHERE id = ?", userId);
         }
         for (Long userId : sysUserIds) {
             jdbcTemplate.update("DELETE FROM sys_user_role WHERE user_id = ?", userId);
@@ -184,7 +186,9 @@ class AdminAuthorizationGateIntegrationTest {
         assertEquals("PUBLISHED", status, "合法管理员的正常审批链路不得被封死");
         String decidedBy = jdbcTemplate.queryForObject(
                 "SELECT decided_by FROM review_decision WHERE submission_id = ?", String.class, submissionId);
-        assertEquals("1", decidedBy, "decision 的处理人必须是真实管理员");
+        String expectedAdminId = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM community_profile WHERE username = 'admin' LIMIT 1", String.class);
+        assertEquals(expectedAdminId, decidedBy, "decision 的处理人必须是社区管理员 UUID");
     }
 
     // ---- helpers ----
@@ -199,28 +203,19 @@ class AdminAuthorizationGateIntegrationTest {
                 .path("data").path("token").asText();
     }
 
-    /** 建 sys_user（userType 可空、可绑角色）并返回其 sa-token。 */
+    /** 建社区账号（可绑角色）并签发 UUID 会话。无 admin 角色时不能走密码登录。 */
     private String seedSysUser(String prefix, String userType, Long roleId) throws Exception {
-        long id = 99000L + sysUserIds.size() + 1;
-        jdbcTemplate.update("DELETE FROM sys_user_role WHERE user_id = ?", id);
-        jdbcTemplate.update("DELETE FROM sys_user WHERE id = ?", id);
-        String adminPasswordHash = jdbcTemplate.queryForObject(
-                "SELECT password FROM sys_user WHERE id = 1", String.class);
-        jdbcTemplate.update("""
-                INSERT INTO sys_user (id, username, password, nickname, user_type, status)
-                VALUES (?, ?, ?, ?, ?, 1)
-                """, id, prefix + id, adminPasswordHash, prefix + "-nick", userType);
+        String username = prefix + System.nanoTime();
+        String userId = CommunityTestSupport.insertActiveCommunityUser(jdbcTemplate, username, "admin123");
+        communityUserIds.add(userId);
         if (roleId != null) {
-            jdbcTemplate.update("INSERT INTO sys_user_role (user_id, role_id) VALUES (?, ?)", id, roleId);
+            jdbcTemplate.update("""
+                    INSERT INTO community_user_role (id, community_user_id, role_id, created_at)
+                    VALUES (?, ?, ?, NOW())
+                    """, java.util.UUID.randomUUID().toString(), userId, roleId);
         }
-        sysUserIds.add(id);
-        MvcResult login = mockMvc.perform(post("/api/v1/admin/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + prefix + id + "\",\"password\":\"admin123\",\"clientType\":\"ADMIN\"}"))
-                .andExpect(status().isOk())
-                .andReturn();
-        return objectMapper.readTree(login.getResponse().getContentAsString())
-                .path("data").path("token").asText();
+        return CommunityTestSupport.loginThenRevokeAdmin(
+                mockMvc, objectMapper, jdbcTemplate, userId, username, "admin123");
     }
 
     private String seedCommunityUser() throws Exception {

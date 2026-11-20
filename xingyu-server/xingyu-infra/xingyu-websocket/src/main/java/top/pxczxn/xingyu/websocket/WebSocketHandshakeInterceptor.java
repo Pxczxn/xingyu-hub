@@ -30,9 +30,9 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                     // 验证token并获取用户ID
                     Object loginId = StpUtil.getLoginIdByToken(token);
                     if (loginId != null) {
-                        attributes.put("userId", Long.parseLong(loginId.toString()));
+                        attributes.put("loginId", loginId.toString());
                         attributes.put("token", token);
-                        log.info("WebSocket握手成功，用户ID: {}", loginId);
+                        log.info("WebSocket握手成功，loginId: {}", loginId);
                         return true;
                     }
                 }

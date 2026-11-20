@@ -11,23 +11,23 @@ public interface SysNoticeService {
 
     PageResult<SysNoticeVo> page(Integer page, Integer pageSize, String title, Integer noticeType, Integer status);
 
-    PageResult<SysNoticeVo> myNotices(Long userId, Integer page, Integer pageSize, Integer isRead);
+    PageResult<SysNoticeVo> myNotices(String communityUserId, Integer page, Integer pageSize, Integer isRead);
 
     SysNoticeVo detail(Long id);
 
-    void create(SysNoticeVo notice, Long operatorId, String operatorName);
+    void create(SysNoticeVo notice, String operatorName);
 
     void update(SysNoticeVo notice);
 
     void delete(Long id);
 
-    void publish(Long id, Long operatorId);
+    void publish(Long id);
 
-    void markRead(Long userId, Long noticeId);
+    void markRead(String communityUserId, Long noticeId);
 
-    void markAllRead(Long userId);
+    void markAllRead(String communityUserId);
 
-    int unreadCount(Long userId);
+    int unreadCount(String communityUserId);
 
     List<Map<String, Object>> availableChannels();
 
