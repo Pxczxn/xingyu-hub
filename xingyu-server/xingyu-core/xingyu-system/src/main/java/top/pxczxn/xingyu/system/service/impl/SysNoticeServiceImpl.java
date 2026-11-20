@@ -159,8 +159,7 @@ public class SysNoticeServiceImpl implements SysNoticeService {
 
     @Override
     public List<SysNoticeConsoleRecipient> listConsoleRecipients() {
-        return communityRbacService.listCommunityUserIdsByRoleCode("admin").stream()
-                .filter(adminConsoleIdentityPort::canAccessAdminConsole)
+        return listEligibleAdminCommunityUserIds().stream()
                 .map(id -> {
                     String label = adminConsoleIdentityPort.lookupById(id)
                             .map(this::formatRecipientLabel)
@@ -276,7 +275,17 @@ public class SysNoticeServiceImpl implements SysNoticeService {
         if (targetType == 2) {
             throw new BusinessException("按部门站内信暂不支持。请改用指定后台账号或全部推送，部门目标仅可用于邮件/Webhook");
         }
-        return communityRbacService.listCommunityUserIdsByRoleCode("admin");
+        List<String> eligible = listEligibleAdminCommunityUserIds();
+        if (eligible.isEmpty()) {
+            throw new BusinessException("全员站内信没有有效后台收件人");
+        }
+        return eligible;
+    }
+
+    private List<String> listEligibleAdminCommunityUserIds() {
+        return communityRbacService.listCommunityUserIdsByRoleCode("admin").stream()
+                .filter(adminConsoleIdentityPort::canAccessAdminConsole)
+                .toList();
     }
 
     private List<String> requireEligibleConsoleRecipients(String raw) {
