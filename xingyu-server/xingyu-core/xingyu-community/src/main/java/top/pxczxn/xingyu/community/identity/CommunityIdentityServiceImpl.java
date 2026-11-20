@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import top.pxczxn.xingyu.community.entity.CommunityUser;
 import top.pxczxn.xingyu.community.mapper.CommunityUserMapper;
 import top.pxczxn.xingyu.community.support.PasswordSupport;
-import top.pxczxn.xingyu.system.helper.RegisterRoleWhitelist;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
 import top.pxczxn.xingyu.system.service.CommunityRbacService;
 
@@ -38,7 +37,7 @@ public class CommunityIdentityServiceImpl implements CommunityIdentityService {
     public AdminConsoleEligibility evaluateAdminConsoleEligibility(String communityUserId) {
         CommunityLoginReadiness loginReadiness = evaluateLoginReadiness(communityUserId);
         List<String> staffRoleCodes = communityRbacService.listRoleCodes(communityUserId).stream()
-                .filter(code -> !RegisterRoleWhitelist.isOrdinaryCommunityRole(code))
+                .filter(AdminConsoleRoleCodes::isAllowed)
                 .toList();
         boolean eligible = loginReadiness.allowed() && !staffRoleCodes.isEmpty();
         return new AdminConsoleEligibility(eligible, loginReadiness, staffRoleCodes);

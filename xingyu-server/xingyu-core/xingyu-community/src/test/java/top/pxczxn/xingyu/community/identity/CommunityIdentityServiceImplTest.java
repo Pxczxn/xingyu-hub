@@ -117,8 +117,27 @@ class CommunityIdentityServiceImplTest {
         assertFalse(service.evaluateAdminConsoleEligibility("founder").eligible());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"user", "member", "creator", "operator", "cid3_staff"})
+    void nonAdminRolesAreDeniedEvenWhenActive(String roleCode) {
+        when(userMapper.selectById("u1")).thenReturn(activeUser());
+        when(rbacService.listRoleCodes("u1")).thenReturn(List.of(roleCode));
+        AdminConsoleEligibility eligibility = service.evaluateAdminConsoleEligibility("u1");
+        assertFalse(eligibility.eligible());
+        assertTrue(eligibility.staffRoleCodes().isEmpty());
+    }
+
     @Test
-    void staffRoleOnActiveVerifiedUserIsEligible() {
+    void unknownRoleCombinedWithOrdinaryRolesIsDenied() {
+        when(userMapper.selectById("u1")).thenReturn(activeUser());
+        when(rbacService.listRoleCodes("u1")).thenReturn(List.of("user", "cid3_staff", "member"));
+        AdminConsoleEligibility eligibility = service.evaluateAdminConsoleEligibility("u1");
+        assertFalse(eligibility.eligible());
+        assertTrue(eligibility.staffRoleCodes().isEmpty());
+    }
+
+    @Test
+    void adminOnActiveVerifiedUserIsEligible() {
         CommunityUser user = activeUser();
         user.setEmailVerifiedAt(Instant.parse("2026-01-01T00:00:00Z"));
         when(configHelper.isRegisterVerifyEmail()).thenReturn(true);
@@ -130,14 +149,30 @@ class CommunityIdentityServiceImplTest {
     }
 
     @Test
-    void staffRoleDoesNotOverrideBlockedStatus() {
+    void disabledOrDeletedAdminIsDeniedWhenRbacOmitsIt() {
+        when(userMapper.selectById("u1")).thenReturn(activeUser());
+        when(rbacService.listRoleCodes("u1")).thenReturn(List.of());
+        assertFalse(service.evaluateAdminConsoleEligibility("u1").eligible());
+    }
+
+    @Test
+    void adminDoesNotOverrideBlockedStatusOrUnverifiedEmail() {
         CommunityUser pending = activeUser();
         pending.setStatus("PENDING_REVIEW");
-        when(userMapper.selectById("u1")).thenReturn(pending);
-        when(rbacService.listRoleCodes("u1")).thenReturn(List.of("admin"));
-        AdminConsoleEligibility eligibility = service.evaluateAdminConsoleEligibility("u1");
-        assertFalse(eligibility.eligible());
-        assertEquals(List.of("admin"), eligibility.staffRoleCodes());
+        when(userMapper.selectById("pending")).thenReturn(pending);
+        when(rbacService.listRoleCodes("pending")).thenReturn(List.of("admin"));
+        AdminConsoleEligibility pendingEligibility = service.evaluateAdminConsoleEligibility("pending");
+        assertFalse(pendingEligibility.eligible());
+        assertEquals(List.of("admin"), pendingEligibility.staffRoleCodes());
+
+        when(configHelper.isRegisterVerifyEmail()).thenReturn(true);
+        CommunityUser unverified = activeUser();
+        unverified.setEmailVerifiedAt(null);
+        when(userMapper.selectById("unverified")).thenReturn(unverified);
+        when(rbacService.listRoleCodes("unverified")).thenReturn(List.of("admin"));
+        AdminConsoleEligibility unverifiedEligibility = service.evaluateAdminConsoleEligibility("unverified");
+        assertFalse(unverifiedEligibility.eligible());
+        assertEquals(CommunityLoginBlockReason.EMAIL_UNVERIFIED, unverifiedEligibility.loginReadiness().reason());
     }
 
     @Test

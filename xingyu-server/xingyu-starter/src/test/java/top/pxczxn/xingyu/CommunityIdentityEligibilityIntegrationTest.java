@@ -39,18 +39,24 @@ class CommunityIdentityEligibilityIntegrationTest {
     private final List<String> communityUserIds = new ArrayList<>();
     private final List<Long> roleIds = new ArrayList<>();
 
-    private Long staffRole;
+    private Long adminRole;
     private Long ordinaryUserRole;
+    private Long memberRole;
+    private Long creatorRole;
+    private Long unknownRole;
     private Long disabledRole;
     private Long deletedRole;
 
     @BeforeEach
     void setUp() {
         CommunityTestSupport.ensureRegistrationOpen(configGroupService);
-        staffRole = insertRole("cid3_staff", 1, 0);
+        adminRole = jdbcTemplate.queryForObject("SELECT id FROM sys_role WHERE code = 'admin' LIMIT 1", Long.class);
         ordinaryUserRole = jdbcTemplate.queryForObject("SELECT id FROM sys_role WHERE code = 'user' LIMIT 1", Long.class);
-        disabledRole = insertRole("cid3_disabled", 0, 0);
-        deletedRole = insertRole("cid3_deleted", 1, 1);
+        memberRole = insertRole("member", 1, 0);
+        creatorRole = insertRole("creator", 1, 0);
+        unknownRole = insertRole("cid31_unknown", 1, 0);
+        disabledRole = insertRole("cid31_disabled", 0, 0);
+        deletedRole = insertRole("cid31_deleted", 1, 1);
     }
 
     @AfterEach
@@ -123,25 +129,84 @@ class CommunityIdentityEligibilityIntegrationTest {
     }
 
     @Test
-    void founderLikeCommunityRoleWithoutStaffGrantIsNotEligible() {
+    void adminOnActiveVerifiedUserIsEligible() {
+        String staffUser = insertUser("ACTIVE", "user", true);
+        grant(staffUser, adminRole);
+        grant(staffUser, ordinaryUserRole);
+        AdminConsoleEligibility eligibility = communityIdentityService.evaluateAdminConsoleEligibility(staffUser);
+        assertTrue(eligibility.eligible());
+        assertEquals(List.of("admin"), eligibility.staffRoleCodes());
+    }
+
+    @Test
+    void memberCreatorUnknownAndMixedRolesAreDenied() {
+        String member = insertUser("ACTIVE", "member", true);
+        grant(member, memberRole);
+        assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(member).eligible());
+
+        String creator = insertUser("ACTIVE", "creator", true);
+        grant(creator, creatorRole);
+        assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(creator).eligible());
+
+        String unknown = insertUser("ACTIVE", "user", true);
+        grant(unknown, unknownRole);
+        assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(unknown).eligible());
+
+        String mixed = insertUser("ACTIVE", "user", true);
+        grant(mixed, ordinaryUserRole);
+        grant(mixed, unknownRole);
+        grant(mixed, memberRole);
+        AdminConsoleEligibility mixedEligibility = communityIdentityService.evaluateAdminConsoleEligibility(mixed);
+        assertFalse(mixedEligibility.eligible());
+        assertTrue(mixedEligibility.staffRoleCodes().isEmpty());
+    }
+
+    @Test
+    void founderLikeCommunityRoleWithoutAdminGrantIsNotEligible() {
         String founderLike = insertUser("ACTIVE", "FOUNDER", true);
         grant(founderLike, ordinaryUserRole);
         assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(founderLike).eligible());
     }
 
     @Test
-    void staffGrantOnActiveUserIsEligibleAndDisabledRolesDoNotCount() {
-        String staffUser = insertUser("ACTIVE", "user", true);
-        grant(staffUser, staffRole);
-        grant(staffUser, ordinaryUserRole);
-        AdminConsoleEligibility eligibility = communityIdentityService.evaluateAdminConsoleEligibility(staffUser);
-        assertTrue(eligibility.eligible());
-        assertEquals(List.of("cid3_staff"), eligibility.staffRoleCodes());
+    void disabledOrDeletedAdminGrantIsDenied() {
+        String disabledHolder = insertUser("ACTIVE", "user", true);
+        grant(disabledHolder, disabledRole);
+        grant(disabledHolder, deletedRole);
+        assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(disabledHolder).eligible());
 
-        String onlyDisabled = insertUser("ACTIVE", "user", true);
-        grant(onlyDisabled, disabledRole);
-        grant(onlyDisabled, deletedRole);
-        assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(onlyDisabled).eligible());
+        String adminHolder = insertUser("ACTIVE", "user", true);
+        grant(adminHolder, adminRole);
+        jdbcTemplate.update("UPDATE sys_role SET status = 0 WHERE id = ?", adminRole);
+        try {
+            assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(adminHolder).eligible());
+        } finally {
+            jdbcTemplate.update("UPDATE sys_role SET status = 1, deleted = 0 WHERE id = ?", adminRole);
+        }
+
+        jdbcTemplate.update("UPDATE sys_role SET deleted = 1 WHERE id = ?", adminRole);
+        try {
+            assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(adminHolder).eligible());
+        } finally {
+            jdbcTemplate.update("UPDATE sys_role SET status = 1, deleted = 0 WHERE id = ?", adminRole);
+        }
+    }
+
+    @Test
+    void pendingOrUnverifiedAdminIsDenied() {
+        String pending = insertUser("PENDING_REVIEW", "user", true);
+        grant(pending, adminRole);
+        assertFalse(communityIdentityService.evaluateAdminConsoleEligibility(pending).eligible());
+
+        String unverified = insertUser("ACTIVE", "user", false);
+        grant(unverified, adminRole);
+        configGroupService.saveConfig(
+                "register",
+                "{\"enabled\":true,\"verifyEmail\":true,\"verifyPhone\":false,\"defaultRole\":\"user\",\"needAudit\":false}");
+        configGroupService.refreshCache();
+        AdminConsoleEligibility eligibility = communityIdentityService.evaluateAdminConsoleEligibility(unverified);
+        assertFalse(eligibility.eligible());
+        assertEquals(CommunityLoginBlockReason.EMAIL_UNVERIFIED, eligibility.loginReadiness().reason());
     }
 
     private String insertUser(String status, String communityRole, boolean emailVerified) {
