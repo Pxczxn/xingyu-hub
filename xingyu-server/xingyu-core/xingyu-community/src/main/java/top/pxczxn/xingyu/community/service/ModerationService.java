@@ -44,6 +44,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -840,7 +841,7 @@ public class ModerationService {
         return report;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public Appeal decideAppealQueue(String appealId, String decidedBy, Map<String, String> body) {
         // 先取行锁：两个管理员同时处理同一条申诉时，后到者会阻塞到前者提交，然后再读到终局状态。
         // 这一步是原子性的关键 —— 只靠"读一下再写"会在两个请求间产生窗口。

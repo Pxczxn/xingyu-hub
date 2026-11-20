@@ -15,6 +15,8 @@ public class ModerationMeasure {
     private String measureType;
     private String targetType;
     private String targetId;
+    /** 隐藏前的内容状态。NULL 表示这条措施产生时还没有记录，申诉不得据此猜测。 */
+    private String priorStatus;
     private Instant expiresAt;
     private Instant createdAt;
 }
