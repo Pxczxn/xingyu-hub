@@ -793,6 +793,10 @@ public class ModerationService {
 
         Report report = reportMapper.selectById(moderationCase.getReportId());
         if (uphold && report != null) {
+            if (report.getObjectType() != null
+                    && "MOMENT".equalsIgnoreCase(report.getObjectType().trim())) {
+                measureExecutor.lockMomentTarget(report.getObjectId());
+            }
             ModerationMeasure measure = new ModerationMeasure();
             measure.setId(TokenSupport.newId());
             measure.setDecisionId(moderationDecision.getId());
@@ -856,21 +860,26 @@ public class ModerationService {
         boolean approved = isAppealApproved(body.get("decision"));
         Instant now = Instant.now();
 
-        // 批准 → overturn 对应 measure；驳回 → measure 保持不变。二者与结果持久化在同一事务内。
-        if (approved) {
-            ModerationMeasure measure = measureMapper.findLatestByCaseId(appeal.getCaseId());
-            if (measure != null) {
-                measureExecutor.revoke(measure);
-            }
-        }
+        // 批准只撤销本申诉对应案件的最新隐藏措施。锁顺序与认定违规一致：申诉，案件，然后动态，再是措施行。
+        // 本方法使用 READ COMMITTED。可重复读会把进锁之前的快照留到动态锁之后，
+        // 后拿到动态锁的批准看不见先提交的 APPROVED，最后一项措施被解除时也不会恢复。
+        // 动态行锁覆盖有效隐藏判断和状态写入，并持有到本事务提交。
+        ModerationCase moderationCase = approved
+                ? caseMapper.lockById(appeal.getCaseId())
+                : caseMapper.selectById(appeal.getCaseId());
         appeal.setStatus(approved ? "APPROVED" : "REJECTED");
         appeal.setOutcome(approved ? "APPROVED" : "REJECTED");
         appeal.setDecidedBy(decidedBy);
         appeal.setDecidedAt(now);
         appeal.setDecisionNote(trimToNull(body.get("comment")));
         appealMapper.updateById(appeal);
+        if (approved) {
+            ModerationMeasure measure = measureMapper.findLatestByCaseId(appeal.getCaseId());
+            if (measure != null) {
+                measureExecutor.revoke(measure);
+            }
+        }
 
-        ModerationCase moderationCase = caseMapper.selectById(appeal.getCaseId());
         if (moderationCase != null) {
             moderationCase.setUpdatedAt(now);
             moderationCase.setAssignedTo(decidedBy);

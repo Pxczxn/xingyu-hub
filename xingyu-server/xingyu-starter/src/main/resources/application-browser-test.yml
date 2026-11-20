@@ -69,6 +69,11 @@ mybatis-plus:
 
 xingyu:
   demo-mode: false
+  # 这个 profile 和 Maven 集成测试共用 xingyu_hub_test。
+  # 默认 5 秒轮询会把测试刚提交的 MomentChanged 拿走，并用进程启动时加载的旧代码回写索引。
+  event:
+    consumer:
+      delay-ms: 3600000
   schema:
     migration:
       enabled: false

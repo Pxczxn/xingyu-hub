@@ -200,12 +200,19 @@ public class MomentService {
         return toView(moment);
     }
 
+    /**
+     * 作者编辑。先锁动态行，锁内仍须是 PUBLISHED。
+     * 正文写入新修订，动态行只更新 {@code updated_at}，不把内存里的 status 写回去。
+     */
     @Transactional
     public MomentView update(CommunityUser user, String momentId, Map<String, String> body) {
-        Moment moment = momentMapper.selectById(momentId);
-        if (moment == null || !user.getId().equals(moment.getAuthorId())) {
+        List<Moment> locked = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
+                .eq(Moment::getId, momentId)
+                .last("FOR UPDATE"));
+        if (locked.isEmpty() || !user.getId().equals(locked.get(0).getAuthorId())) {
             throw new ContractException(ErrorCode.NOT_FOUND);
         }
+        Moment moment = locked.get(0);
         if (!"PUBLISHED".equals(moment.getStatus())) {
             throw new ContractException(ErrorCode.CONFLICT, "只能编辑已发布的动态");
         }
@@ -227,8 +234,14 @@ public class MomentService {
         revision.setRevisionNumber(nextRevision);
         revision.setCreatedAt(now);
         momentRevisionMapper.insert(revision);
+        int written = momentMapper.update(null, new LambdaUpdateWrapper<Moment>()
+                .eq(Moment::getId, momentId)
+                .eq(Moment::getStatus, "PUBLISHED")
+                .set(Moment::getUpdatedAt, now));
+        if (written == 0) {
+            throw new ContractException(ErrorCode.CONFLICT, "只能编辑已发布的动态");
+        }
         moment.setUpdatedAt(now);
-        momentMapper.updateById(moment);
         publishMomentChanged(moment);
         return toView(moment);
     }
