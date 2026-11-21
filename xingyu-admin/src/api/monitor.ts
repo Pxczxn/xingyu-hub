@@ -148,6 +148,18 @@ export interface CacheStats {
   connectedClients: number
 }
 
+export interface CacheKeyPage {
+  keys: string[]
+  pattern?: string
+  complete?: boolean
+  truncated?: boolean
+  scanned?: number
+  returned?: number
+  maxScan?: number
+  maxReturn?: number
+  notice?: string
+}
+
 export const cacheApi = {
   info(): Promise<Record<string, unknown>> {
     return apiRecord({ url: '/monitor/cache/info', method: 'get' })
@@ -155,8 +167,8 @@ export const cacheApi = {
   stats(): Promise<CacheStats> {
     return apiRecord<CacheStats>({ url: '/monitor/cache/stats', method: 'get' })
   },
-  keys(pattern?: string): Promise<string[]> {
-    return apiList<string>({ url: '/monitor/cache/keys', method: 'get', params: { pattern } })
+  keys(pattern: string): Promise<CacheKeyPage> {
+    return apiRecord<CacheKeyPage>({ url: '/monitor/cache/keys', method: 'get', params: { pattern } })
   },
   delete(key: string): Promise<void> {
     return request({ url: '/monitor/cache', method: 'delete', params: { key } })

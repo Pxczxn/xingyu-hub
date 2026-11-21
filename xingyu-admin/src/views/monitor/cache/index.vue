@@ -30,19 +30,25 @@
     </div>
 
     <n-card title="缓存键列表" style="margin-top: 16px">
+      <n-alert type="info" :bordered="false" style="margin-bottom: 12px">
+        仅允许扫描配置缓存与访问日志队列前缀，使用 SCAN 且单次最多查看 200 个键。禁止 * 全库扫描，结果可能不完整。
+      </n-alert>
       <div class="search-form">
         <n-form inline label-placement="left">
-          <n-form-item label="键名模式">
-            <n-input v-model:value="searchPattern" placeholder="请输入键名模式" clearable style="width: 300px" />
+          <n-form-item label="受控前缀">
+            <n-select v-model:value="searchPattern" :options="prefixOptions" style="width: 280px" />
           </n-form-item>
           <n-form-item>
             <n-button type="primary" @click="loadKeys">
               <template #icon><n-icon><SearchOutline /></n-icon></template>
-              搜索
+              扫描
             </n-button>
           </n-form-item>
         </n-form>
       </div>
+      <n-alert v-if="scanNotice" :type="truncated ? 'warning' : 'default'" :bordered="false" style="margin-bottom: 12px">
+        {{ scanNotice }}
+      </n-alert>
 
       <n-data-table v-bind="tableListProps(cacheScroll)" :columns="columns" :data="keys as any" :loading="keysLoading" :row-key="(row: string) => row" />
     </n-card>
@@ -70,7 +76,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, h, onMounted, onUnmounted } from 'vue'
-import { NButton, NTag, NInput, NForm, NFormItem, NIcon, NCard, NGrid, NGi, NDescriptions, NDescriptionsItem, NDataTable, NModal, NScrollbar, NCode, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
+import { NButton, NTag, NSelect, NForm, NFormItem, NIcon, NCard, NGrid, NGi, NAlert, NDescriptions, NDescriptionsItem, NDataTable, NModal, NScrollbar, NCode, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
 import { SearchOutline, EyeOutline, TrashOutline } from '@vicons/ionicons5'
 import { cacheApi } from '@/api/monitor'
 import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
@@ -81,7 +87,13 @@ const dialog = useDialog()
 
 const keys = ref<string[]>([])
 const keysLoading = ref(false)
-const searchPattern = ref('*')
+const searchPattern = ref('sys:config:group:')
+const scanNotice = ref('')
+const truncated = ref(false)
+const prefixOptions = [
+  { label: 'sys:config:group:', value: 'sys:config:group:' },
+  { label: 'api:access:log:', value: 'api:access:log:' }
+]
 
 const pagination = reactive({ page: 1, pageSize: 10, itemCount: 0 })
 
@@ -200,11 +212,20 @@ function updateCharts(stats: { usedMemory: number; maxMemory: number; ops: numbe
 
 async function loadKeys() {
   keysLoading.value = true
+  scanNotice.value = ''
+  truncated.value = false
   try {
-    const res = await cacheApi.keys(searchPattern.value) || []
-    keys.value = res
-    pagination.itemCount = res.length
+    const res = await cacheApi.keys(searchPattern.value)
+    const list = Array.isArray(res?.keys) ? res.keys : []
+    keys.value = list
+    pagination.itemCount = list.length
     pagination.page = 1
+    truncated.value = Boolean(res?.truncated)
+    scanNotice.value = res?.notice || ''
+  } catch (e: any) {
+    keys.value = []
+    pagination.itemCount = 0
+    scanNotice.value = e?.message || '缓存键查询失败'
   } finally { keysLoading.value = false }
 }
 
@@ -246,7 +267,6 @@ function formatValue(value: any) {
 }
 
 onMounted(() => {
-  loadKeys()
   loadStats()
   timer = setInterval(loadStats, 3000)
 })

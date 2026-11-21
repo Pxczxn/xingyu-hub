@@ -4,6 +4,7 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
 import top.pxczxn.xingyu.common.result.Result;
+import top.pxczxn.xingyu.system.service.CacheKeyQueryService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisCallback;
@@ -31,6 +32,7 @@ import java.util.*;
 public class MonitorController {
 
     private final StringRedisTemplate redisTemplate;
+    private final CacheKeyQueryService cacheKeyQueryService;
 
     /**
      * 获取在线用户列表
@@ -172,13 +174,18 @@ public class MonitorController {
     }
 
     /**
-     * 获取缓存键列表
+     * 按受控前缀 SCAN 缓存键。禁止 * 全库扫描，单次有扫描/返回上限，结果可能不完整。
      */
     @GetMapping("/cache/keys")
     @SaCheckPermission("monitor:cache:list")
-    public Result<Set<String>> cacheKeys(@RequestParam(defaultValue = "*") String pattern) {
-        Set<String> keys = redisTemplate.keys(pattern);
-        return Result.ok(keys);
+    public Result<Map<String, Object>> cacheKeys(@RequestParam String pattern) {
+        try {
+            return Result.ok(cacheKeyQueryService.listKeys(pattern));
+        } catch (IllegalArgumentException ex) {
+            return Result.fail(422, ex.getMessage());
+        } catch (IllegalStateException ex) {
+            return Result.fail(ex.getMessage());
+        }
     }
 
     /**
