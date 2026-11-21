@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 因此 fresh 测试库**确实**存在默认口令账号 —— 这里既把它作为事实固化下来（审计结论），
  * 也验证守卫能准确识别与放行。
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("test")
 class DefaultAdminPasswordGuardTest {
 

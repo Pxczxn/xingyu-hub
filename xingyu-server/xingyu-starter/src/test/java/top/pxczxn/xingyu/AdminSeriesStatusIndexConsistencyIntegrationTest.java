@@ -9,7 +9,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -20,7 +19,6 @@ import top.pxczxn.xingyu.core.event.ReliableEventConsumer;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -73,16 +71,8 @@ class AdminSeriesStatusIndexConsistencyIntegrationTest {
 
     @BeforeEach
     void requireIsolatedTargets() throws Exception {
-        CommunityTestSupport.ensureRegistrationOpen(configGroupService);
-        assertEquals("xingyu_hub_test", jdbcTemplate.queryForObject("SELECT DATABASE()", String.class));
-        try (Connection connection = dataSource.getConnection()) {
-            assertEquals("xingyu_hub_test", connection.getCatalog());
-            String url = connection.getMetaData().getURL();
-            assertTrue(url.contains("/xingyu_hub_test"), url);
-            assertFalse(url.contains("/xingyu_hub?"), url);
-        }
-        assertTrue(redisConnectionFactory instanceof LettuceConnectionFactory);
-        assertEquals(7, ((LettuceConnectionFactory) redisConnectionFactory).getDatabase());
+        CommunityTestSupport.requireIsolatedTargets(
+                configGroupService, jdbcTemplate, dataSource, redisConnectionFactory);
     }
 
     @Test

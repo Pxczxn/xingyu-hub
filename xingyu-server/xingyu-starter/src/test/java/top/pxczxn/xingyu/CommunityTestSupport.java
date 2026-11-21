@@ -1,6 +1,8 @@
 package top.pxczxn.xingyu;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
@@ -9,8 +11,14 @@ import top.pxczxn.xingyu.community.support.PasswordSupport;
 import top.pxczxn.xingyu.system.config.StpInterfaceImpl;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
 import java.util.List;
 import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 集成测试辅助：只负责"测试数据/配置 fixture"，<b>不负责 schema</b>。
@@ -43,6 +51,29 @@ final class CommunityTestSupport {
                 "login",
                 "{\"captchaEnabled\":false,\"captchaType\":\"image\",\"maxRetryCount\":5,\"lockTime\":30,\"rememberMe\":true,\"singleLogin\":false}");
         configGroupService.refreshCache();
+    }
+
+    /**
+     * 打开注册配置，并确认当前上下文连的是测试库 {@code xingyu_hub_test} 与 Redis DB 7。
+     *
+     * <p>与 {@link TestDatabaseGuard} 互补：守卫在上下文启动时拦截开发库；这里在每个用例前
+     * 再核对 JDBC URL 不含 {@code /xingyu_hub?}，以及 Lettuce 使用隔离库号 7。
+     */
+    static void requireIsolatedTargets(
+            SysConfigGroupService configGroupService,
+            JdbcTemplate jdbcTemplate,
+            DataSource dataSource,
+            RedisConnectionFactory redisConnectionFactory) throws Exception {
+        ensureRegistrationOpen(configGroupService);
+        assertEquals("xingyu_hub_test", jdbcTemplate.queryForObject("SELECT DATABASE()", String.class));
+        try (Connection connection = dataSource.getConnection()) {
+            assertEquals("xingyu_hub_test", connection.getCatalog());
+            String url = connection.getMetaData().getURL();
+            assertTrue(url.contains("/xingyu_hub_test"), url);
+            assertFalse(url.contains("/xingyu_hub?"), url);
+        }
+        assertTrue(redisConnectionFactory instanceof LettuceConnectionFactory);
+        assertEquals(7, ((LettuceConnectionFactory) redisConnectionFactory).getDatabase());
     }
 
     static final String CONSOLE_ADMIN_USERNAME = "admin";
