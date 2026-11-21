@@ -11,7 +11,7 @@ export const useSiteStore = defineStore('site', () => {
   // 站点描述
   const siteDescription = ref('星语社区运营管理后台')
   // 站点 Logo（默认展示星图品牌 emblem，后端可覆盖）
-  const siteLogo = ref('/images/brand-constellation-logo.png')
+  const siteLogo = ref(`${import.meta.env.BASE_URL}images/brand-constellation-logo.png`)
   // 版权信息
   const copyright = ref('')
   // ICP 备案号

@@ -3,7 +3,7 @@
     <!-- 样式一：左右分栏式 -->
     <template v-if="currentStyle === 2">
       <main class="login-container style1-container style2-container admin-auth-panel">
-        <div class="login-banner" :style="{ background: `linear-gradient(135deg, rgba(8, 22, 53, 0.8) 0%, rgba(17, 39, 88, 0.42) 100%), url('/images/auth-constellation.png') center/cover no-repeat` }">
+        <div class="login-banner" :style="{ background: `linear-gradient(135deg, rgba(8, 22, 53, 0.8) 0%, rgba(17, 39, 88, 0.42) 100%), url('${assetBase}images/auth-constellation.png') center/cover no-repeat` }">
           <div class="banner-content">
             <div class="banner-logo">
               <div class="logo-icon">星</div>
@@ -331,6 +331,7 @@ import { useThemeStore } from '@/stores/theme'
 import { authApi } from '@/api/auth'
 import { configGroupApi } from '@/api/org'
 
+const assetBase = import.meta.env.BASE_URL
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()

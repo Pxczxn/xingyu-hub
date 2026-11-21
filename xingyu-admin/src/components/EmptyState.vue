@@ -28,24 +28,26 @@ const props = defineProps<{
   }>()
 
 const route = useRoute()
+const assetBase = import.meta.env.BASE_URL
+const publicImage = (file: string) => `${assetBase}images/${file}`
 const routeIllustrations: Array<[string, string]> = [
-  ['/community/users', '/images/admin-community-members.png'],
-  ['/community/review', '/images/admin-review-governance.png'],
-  ['/community/moderation', '/images/admin-review-governance.png'],
-  ['/community/operations/groups', '/images/admin-community-stewardship.png'],
-  ['/community/operations/galaxies', '/images/admin-community-stewardship.png'],
-  ['/community/', '/images/notification-bell.png'],
-  ['/system/', '/images/admin-system-observatory.png'],
-  ['/monitor/', '/images/admin-monitor-observatory.png'],
-  ['/log/', '/images/report-analytics-charts.png'],
-  ['/message/', '/images/notification-bell.png'],
-  ['/tool/', '/images/admin-system-observatory.png']
+  ['/community/users', publicImage('admin-community-members.png')],
+  ['/community/review', publicImage('admin-review-governance.png')],
+  ['/community/moderation', publicImage('admin-review-governance.png')],
+  ['/community/operations/groups', publicImage('admin-community-stewardship.png')],
+  ['/community/operations/galaxies', publicImage('admin-community-stewardship.png')],
+  ['/community/', publicImage('notification-bell.png')],
+  ['/system/', publicImage('admin-system-observatory.png')],
+  ['/monitor/', publicImage('admin-monitor-observatory.png')],
+  ['/log/', publicImage('report-analytics-charts.png')],
+  ['/message/', publicImage('notification-bell.png')],
+  ['/tool/', publicImage('admin-system-observatory.png')]
 ]
 
 const illustrationPath = computed(() =>
   props.illustration
   ?? routeIllustrations.find(([prefix]) => route.path.startsWith(prefix))?.[1]
-  ?? '/images/empty-state-guide.png'
+  ?? publicImage('empty-state-guide.png')
 )
 
 const routeLabel = computed(() => {

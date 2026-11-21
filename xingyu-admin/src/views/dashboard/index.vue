@@ -22,7 +22,7 @@
           <span>项审核或治理待办</span>
           <n-button type="primary" @click="router.push(priorityPath)">{{ pendingTotal > 0 ? '开始处理' : '查看审核工作台' }}</n-button>
         </div>
-        <img src="/images/dashboard-analytics.png" width="960" height="420" fetchpriority="high" alt="由仪表盘与星图节点构成的运营数据看板" />
+        <img :src="`${assetBase}images/dashboard-analytics.png`" width="960" height="420" fetchpriority="high" alt="由仪表盘与星图节点构成的运营数据看板" />
       </div>
       <div class="status-note">
         <span class="note-dot" aria-hidden="true"></span>
@@ -67,6 +67,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { operationsApi, type OperationsOverview } from '@/api/operations'
 
+const assetBase = import.meta.env.BASE_URL
 const router = useRouter()
 const loading = ref(true)
 const error = ref(false)

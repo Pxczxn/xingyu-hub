@@ -5,7 +5,7 @@
         <h1>定时任务</h1>
         <p>查看调度执行统计与趋势，掌握任务成功率与近期运行情况。</p>
       </div>
-      <img class="report-intro-illustration" width="460" height="260" loading="lazy" decoding="async" src="/images/report-analytics-charts.png" alt="图表与 KPI 分析插画" />
+      <img class="report-intro-illustration" width="460" height="260" loading="lazy" decoding="async" :src="`${assetBase}images/report-analytics-charts.png`" alt="图表与 KPI 分析插画" />
     </header>
     <n-card class="page-layout">
       <!-- 调度统计 -->
@@ -199,6 +199,7 @@ import { useUserStore } from '@/stores/user'
 import { colLayout, tableScrollFromColumns, tableListProps } from '@/utils/table-layout'
 import { renderDateTime, renderTableActionCell } from '@/utils/table-cells'
 
+const assetBase = import.meta.env.BASE_URL
 const message = useMessage()
 const dialog = useDialog()
 const userStore = useUserStore()
