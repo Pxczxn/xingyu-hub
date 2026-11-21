@@ -12,10 +12,10 @@ import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.FormalRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.PublishedRevisionMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
+import top.pxczxn.xingyu.community.config.CommunityProperties;
 import top.pxczxn.xingyu.community.mapper.SeoMetadataMapper;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,9 +34,7 @@ public class SeoService {
     private final ArticleMapper articleMapper;
     private final PublishedRevisionMapper publishedRevisionMapper;
     private final FormalRevisionMapper formalRevisionMapper;
-
-    @Value("${xingyu.community.public-base-url:http://localhost:3000}")
-    private String publicBaseUrl;
+    private final CommunityProperties communityProperties;
 
     public SeoMetadataView getForArticle(String articleId) {
         SeoMetadata metadata = seoMetadataMapper.findByObject(OBJECT_TYPE_ARTICLE, articleId);
@@ -60,7 +58,7 @@ public class SeoService {
                 .objectId(articleId)
                 .title(revision.getTitle())
                 .description(revision.getSummary())
-                .canonicalUrl("/articles/" + articleId)
+                .canonicalUrl(siteUrl() + "/articles/" + articleId)
                 .ogImageUrl(null)
                 .build();
     }
@@ -119,7 +117,7 @@ public class SeoService {
 
     public String buildRssXml() {
         List<SearchDocument> entries = searchDocumentMapper.listActiveByObjectType(OBJECT_TYPE_ARTICLE, 50);
-        String siteUrl = trimTrailingSlash(publicBaseUrl);
+        String siteUrl = siteUrl();
         StringBuilder xml = new StringBuilder();
         xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         xml.append("<rss version=\"2.0\"><channel>\n");
@@ -143,7 +141,7 @@ public class SeoService {
     }
 
     private void appendSitemapUrl(StringBuilder xml, String path, Instant lastMod) {
-        String loc = trimTrailingSlash(publicBaseUrl) + path;
+        String loc = siteUrl() + path;
         xml.append("  <url><loc>").append(escapeXml(loc)).append("</loc>");
         if (lastMod != null) {
             xml.append("<lastmod>").append(lastMod).append("</lastmod>");
@@ -181,11 +179,7 @@ public class SeoService {
         return value == null ? "" : value;
     }
 
-    private static String trimTrailingSlash(String value) {
-        if (value == null || value.isBlank()) {
-            return "http://localhost:3000";
-        }
-        String trimmed = value.trim();
-        return trimmed.endsWith("/") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
+    private String siteUrl() {
+        return communityProperties.normalizedPublicBaseUrl();
     }
 }

@@ -67,6 +67,8 @@ mybatis-plus:
 
 xingyu:
   demo-mode: false
+  community:
+    public-base-url: ${XINGYU_COMMUNITY_PUBLIC_BASE_URL:https://pxczxn.top}
   schema:
     migration:
       enabled: false

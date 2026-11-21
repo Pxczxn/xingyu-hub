@@ -2,10 +2,15 @@ package top.pxczxn.xingyu.system.helper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import top.pxczxn.xingyu.common.config.PublicBaseUrls;
 import top.pxczxn.xingyu.system.entity.SysConfigGroup;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,6 +24,12 @@ public class SystemConfigHelper implements top.pxczxn.xingyu.crypto.CryptoConfig
 
     private final SysConfigGroupService configGroupService;
     private final ObjectMapper objectMapper;
+
+    @Value("${xingyu.community.public-base-url:}")
+    private String configuredPublicBaseUrl;
+
+    @Autowired(required = false)
+    private Environment environment;
 
     // 配置分组编码
     public static final String GROUP_SYSTEM = "system";
@@ -735,14 +746,21 @@ public class SystemConfigHelper implements top.pxczxn.xingyu.crypto.CryptoConfig
     }
 
     /**
-     * 社区前台地址（用于邮件验证、密码重置链接）
+     * 社区前台地址（用于邮件验证、密码重置链接）。
+     *
+     * <p>非空的 {@code system.communityWebUrl} 优先；否则使用
+     * {@code xingyu.community.public-base-url}。生产环境不会把空白或 localhost
+     * 配置静默当成公开域名。
      */
     public String getCommunityWebUrl() {
-        String url = getString(GROUP_SYSTEM, "communityWebUrl", "http://127.0.0.1:7777");
-        if (url.endsWith("/")) {
-            return url.substring(0, url.length() - 1);
-        }
-        return url;
+        return PublicBaseUrls.resolve(
+                getString(GROUP_SYSTEM, "communityWebUrl", null),
+                configuredPublicBaseUrl,
+                isProductionProfile());
+    }
+
+    private boolean isProductionProfile() {
+        return environment != null && environment.acceptsProfiles(Profiles.of("prod"));
     }
 
     /**
