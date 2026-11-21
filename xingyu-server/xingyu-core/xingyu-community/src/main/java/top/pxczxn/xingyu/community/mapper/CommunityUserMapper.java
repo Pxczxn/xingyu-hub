@@ -7,11 +7,19 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 @Mapper
 public interface CommunityUserMapper extends BaseMapper<CommunityUser> {
 
     @Select("SELECT * FROM community_user WHERE email = #{email} LIMIT 1")
     CommunityUser findByEmail(String email);
+
+    @Select("SELECT COUNT(*) FROM community_user WHERE LOWER(email) = #{email}")
+    int countByNormalizedEmail(@Param("email") String email);
+
+    @Select("SELECT * FROM community_user WHERE LOWER(email) = #{email}")
+    List<CommunityUser> findAllByNormalizedEmail(@Param("email") String email);
 
     @Select("SELECT * FROM community_user WHERE phone = #{phone} LIMIT 1")
     CommunityUser findByPhone(String phone);

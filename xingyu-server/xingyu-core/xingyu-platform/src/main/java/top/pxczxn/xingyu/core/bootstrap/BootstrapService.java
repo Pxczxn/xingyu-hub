@@ -7,9 +7,13 @@ import top.pxczxn.xingyu.system.entity.SysUserRole;
 import top.pxczxn.xingyu.system.mapper.SysUserMapper;
 import top.pxczxn.xingyu.system.mapper.SysUserRoleMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.pxczxn.xingyu.system.identity.CommunityAdminGrantPort;
+import top.pxczxn.xingyu.system.identity.CommunityAdminGrantResult;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -33,7 +37,13 @@ public class BootstrapService {
     private final JdbcTemplate jdbcTemplate;
     private final SysUserMapper sysUserMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final Environment environment;
+    private final CommunityAdminGrantPort communityAdminGrantPort;
 
+    /**
+     * 历史档案初始化：只写 {@code sys_user} / {@code sys_user_role} / {@code admin_account}。
+     * 不授予社区管理端资格，也不改社区账号密码。管理端日常登录请用 {@link #grantCommunityAdmin()}。
+     */
     @Transactional
     public void init() {
         String deploySecret = requireEnv("XINGYU_DEPLOY_SECRET");
@@ -44,6 +54,7 @@ public class BootstrapService {
         if (platformAdminExists()) {
             closeBootstrap();
             audit("bootstrap", "INIT", "already initialized", null, "SKIPPED");
+            System.out.println("Bootstrap CLI : archive init skipped; community console admin requires grant-admin");
             return;
         }
 
@@ -75,7 +86,38 @@ public class BootstrapService {
                 """, adminId, username, passwordHash, PLATFORM_KIND, ACTIVE, Instant.now());
 
         closeBootstrap();
-        audit("bootstrap", "INIT", "platform admin created", adminId, "SUCCESS");
+        audit("bootstrap", "INIT", "archive admin_account created", adminId, "SUCCESS");
+        System.out.println("Bootstrap CLI : archive sys_user/admin_account initialized; "
+                + "community console admin requires grant-admin");
+    }
+
+    /**
+     * 将已有社区账号授予 {@code admin} 角色。账号由 {@code XINGYU_BOOTSTRAP_COMMUNITY_ACCOUNT} 邮箱定位。
+     */
+    @Transactional
+    public void grantCommunityAdmin() {
+        grantCommunityAdmin(
+                requireEnv("XINGYU_DEPLOY_SECRET"),
+                requireEnv("XINGYU_BOOTSTRAP_COMMUNITY_ACCOUNT"));
+    }
+
+    void grantCommunityAdmin(String deploySecret, String email) {
+        requireExactProdProfile();
+        verifyDeploySecret(deploySecret);
+        CommunityAdminGrantResult result = communityAdminGrantPort.grantExistingByEmail(email);
+        String outcome = result.alreadyGranted() ? "already granted" : "granted";
+        audit("bootstrap", "GRANT_ADMIN", outcome, result.communityUserId(), "SUCCESS");
+        System.out.println("Bootstrap CLI : community admin " + outcome
+                + " id=" + result.communityUserId());
+    }
+
+    private void requireExactProdProfile() {
+        String[] active = environment.getActiveProfiles();
+        boolean prod = environment.acceptsProfiles(Profiles.of("prod"));
+        boolean forbidden = environment.acceptsProfiles(Profiles.of("dev", "test", "browser-test"));
+        if (!prod || forbidden || active.length != 1) {
+            throw new IllegalStateException("grant-admin requires an explicit prod-only Spring profile");
+        }
     }
 
     @Transactional

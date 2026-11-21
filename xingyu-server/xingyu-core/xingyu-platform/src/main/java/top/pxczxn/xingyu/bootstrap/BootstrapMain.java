@@ -16,7 +16,8 @@ import java.util.regex.Pattern;
 /**
  * 生产/目标环境初始化 CLI（不启动 Web 容器）。
  *
- * <p><b>业务命令</b>（{@code init} / {@code recover} / {@code revoke-recovery}）与
+ * <p><b>业务命令</b>（{@code init} / {@code recover} / {@code revoke-recovery} /
+ * {@code grant-admin}）与
  * <b>Spring 参数</b>（{@code --spring.profiles.active=prod} 等）可以任意顺序混排：
  * 本类会先把两者分离，业务命令取唯一的一个，其余以 {@code --} 开头的原样交给 Spring。
  *
@@ -36,7 +37,9 @@ import java.util.regex.Pattern;
 @SpringBootApplication(scanBasePackages = "top.pxczxn.xingyu")
 public class BootstrapMain {
 
-    private static final Set<String> COMMANDS = Set.of("init", "recover", "revoke-recovery");
+    private static final Set<String> COMMANDS = Set.of("init", "recover", "revoke-recovery", "grant-admin");
+    private static final String GRANT_ADMIN = "grant-admin";
+    private static final int EXIT_PROFILE_FORBIDDEN = 3;
 
     /** 只对该参数允许"空格分隔的取值"（--spring.profiles.active prod），避免误吞后续命令。 */
     private static final String PROFILE_FLAG = "--spring.profiles.active";
@@ -68,6 +71,11 @@ public class BootstrapMain {
                         + command);
                 System.exit(EXIT_PROFILE_MISSING);
             }
+            if (GRANT_ADMIN.equals(command) && !"prod".equals(resolved.profile())) {
+                System.err.println("❌ Bootstrap CLI 拒绝启动：grant-admin 只能在显式 prod profile 下执行。");
+                System.err.println("   当前 profile=" + resolved.profile() + "（来源：" + resolved.source() + "）");
+                System.exit(EXIT_PROFILE_FORBIDDEN);
+            }
             System.out.println("Bootstrap CLI : command=" + command
                     + ", profile=" + resolved.profile() + "（来源：" + resolved.source() + "）");
 
@@ -79,6 +87,7 @@ public class BootstrapMain {
                 case "init" -> service.init();
                 case "recover" -> service.recover();
                 case "revoke-recovery" -> service.revokeRecovery();
+                case GRANT_ADMIN -> service.grantCommunityAdmin();
                 default -> throw new IllegalStateException("unknown command: " + command);
             }
             SpringApplication.exit(context);
@@ -179,7 +188,7 @@ public class BootstrapMain {
 
     private static void printUsage() {
         System.err.println("usage: <业务命令> [--spring 参数...]（顺序不限，但 profile 必须显式指定）");
-        System.err.println("  业务命令（一次只能一个）：init | recover | revoke-recovery");
+        System.err.println("  业务命令（一次只能一个）：init | recover | revoke-recovery | grant-admin");
         System.err.println("  示例（以下四种等价，均执行 init）：");
         System.err.println("    java -jar xingyu-starter-1.0.0.jar init --spring.profiles.active=prod");
         System.err.println("    java -jar xingyu-starter-1.0.0.jar --spring.profiles.active=prod init");
@@ -188,9 +197,24 @@ public class BootstrapMain {
         System.err.println();
         System.err.println("required env:");
         System.err.println("  XINGYU_DEPLOY_SECRET        首次运行会写入 system_parameter，之后必须一致");
-        System.err.println("  XINGYU_BOOTSTRAP_PASSWORD   将写入 sys_user / admin_account 的强口令");
-        System.err.println("  XINGYU_BOOTSTRAP_USERNAME   可选，默认 admin");
+        System.err.println("  XINGYU_BOOTSTRAP_PASSWORD   init/recover 写入 sys_user / admin_account 的强口令");
+        System.err.println("  XINGYU_BOOTSTRAP_USERNAME   可选，默认 admin（仅 init）");
         System.err.println("  XINGYU_RECOVERY_REASON      recover 命令必填");
+        System.err.println("  XINGYU_BOOTSTRAP_COMMUNITY_ACCOUNT  grant-admin 必填，已有社区账号邮箱");
+        System.err.println("  grant-admin 仅允许 --spring.profiles.active=prod，不创建账号、不改密码");
+    }
+
+    /** 胖 JAR 主类据此把运维命令交给本 CLI，而不是启动 Web。 */
+    public static boolean isBootstrapInvocation(String[] args) {
+        if (args == null) {
+            return false;
+        }
+        for (String arg : args) {
+            if (COMMANDS.contains(arg)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     record ParsedArgs(String command, List<String> springArgs) {}

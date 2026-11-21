@@ -47,6 +47,15 @@ class BootstrapMainCliParseTest {
     }
 
     @Test
+    void grantAdmin命令可解析() {
+        assertResolves(new String[]{"grant-admin", "--spring.profiles.active=prod"}, "grant-admin", "prod");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                BootstrapMain.isBootstrapInvocation(new String[]{"grant-admin", "--spring.profiles.active=prod"}));
+        org.junit.jupiter.api.Assertions.assertFalse(
+                BootstrapMain.isBootstrapInvocation(new String[]{"--spring.profiles.active=prod"}));
+    }
+
+    @Test
     void 通过系统属性_D_解析profile() {
         String prev = System.setProperty("spring.profiles.active", "prod");
         try {
