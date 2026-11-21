@@ -50,9 +50,36 @@ public class BootstrapMain {
     /** profile 缺失时的退出码：与"参数错误"(1) / "执行中异常"区分开。 */
     private static final int EXIT_PROFILE_MISSING = 2;
 
+    /** 业务命令执行失败（含 community account not found）。 */
+    static final int EXIT_COMMAND_FAILED = 4;
+
+    @FunctionalInterface
+    interface ContextFactory {
+        ConfigurableApplicationContext start(String[] originalArgs);
+    }
+
+    private static final ContextFactory DEFAULT_CONTEXT_FACTORY = originalArgs -> {
+        SpringApplication app = new SpringApplication(BootstrapMain.class);
+        app.setWebApplicationType(WebApplicationType.NONE);
+        return app.run(originalArgs);
+    };
+
     public static void main(String[] args) {
+        System.exit(execute(args));
+    }
+
+    static int execute(String[] args) {
+        return execute(args, DEFAULT_CONTEXT_FACTORY);
+    }
+
+    /**
+     * 运行 CLI 并返回退出码，不调用 {@code System.exit}。
+     * 无论成功或失败都关闭 Spring 上下文，避免 Druid/Lettuce 等非守护线程挂住 JVM。
+     */
+    static int execute(String[] args, ContextFactory contextFactory) {
+        ConfigurableApplicationContext context = null;
         try {
-            ParsedArgs parsed = parseArgs(args);   // 参数错误 → 抛 BootstrapCliException（下方捕获后 exit 1）
+            ParsedArgs parsed = parseArgs(args);   // 参数错误 → 抛 BootstrapCliException（下方捕获后 return 1）
             String command = parsed.command();
 
             // 启动前校验：确保不会在未指定 profile 的情况下连到意外的库
@@ -69,19 +96,17 @@ public class BootstrapMain {
                         + command);
                 System.err.println("     java -Dspring.profiles.active=prod -jar xingyu-starter-1.0.0.jar "
                         + command);
-                System.exit(EXIT_PROFILE_MISSING);
+                return EXIT_PROFILE_MISSING;
             }
             if (GRANT_ADMIN.equals(command) && !"prod".equals(resolved.profile())) {
                 System.err.println("❌ Bootstrap CLI 拒绝启动：grant-admin 只能在显式 prod profile 下执行。");
                 System.err.println("   当前 profile=" + resolved.profile() + "（来源：" + resolved.source() + "）");
-                System.exit(EXIT_PROFILE_FORBIDDEN);
+                return EXIT_PROFILE_FORBIDDEN;
             }
             System.out.println("Bootstrap CLI : command=" + command
                     + ", profile=" + resolved.profile() + "（来源：" + resolved.source() + "）");
 
-            SpringApplication app = new SpringApplication(BootstrapMain.class);
-            app.setWebApplicationType(WebApplicationType.NONE);
-            ConfigurableApplicationContext context = app.run(args);
+            context = contextFactory.start(args);
             BootstrapService service = context.getBean(BootstrapService.class);
             switch (command) {
                 case "init" -> service.init();
@@ -90,10 +115,32 @@ public class BootstrapMain {
                 case GRANT_ADMIN -> service.grantCommunityAdmin();
                 default -> throw new IllegalStateException("unknown command: " + command);
             }
-            SpringApplication.exit(context);
+            return 0;
         } catch (BootstrapCliException e) {
-            // 参数错误：parseArgs 已打印明确错误与 usage，这里仅以专用退出码退出
-            System.exit(1);
+            return 1;
+        } catch (Throwable ex) {
+            ex.printStackTrace(System.err);
+            return EXIT_COMMAND_FAILED;
+        } finally {
+            closeContext(context);
+        }
+    }
+
+    private static void closeContext(ConfigurableApplicationContext context) {
+        if (context == null) {
+            return;
+        }
+        try {
+            if (context.isActive()) {
+                SpringApplication.exit(context);
+            }
+        } catch (Exception ex) {
+            System.err.println("Bootstrap CLI : failed to close application context: " + ex.getMessage());
+            try {
+                context.close();
+            } catch (Exception ignored) {
+                // 关闭失败不能覆盖业务退出码；进程仍应带着原退出码结束。
+            }
         }
     }
 
