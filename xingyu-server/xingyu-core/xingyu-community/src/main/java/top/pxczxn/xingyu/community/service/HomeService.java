@@ -21,6 +21,7 @@ import top.pxczxn.xingyu.community.mapper.NotificationMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.mapper.WorkingDraftMapper;
+import top.pxczxn.xingyu.community.support.FollowedContentSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -170,15 +171,12 @@ public class HomeService {
         if (followeeIds.isEmpty()) {
             return List.of();
         }
+        int limit = FollowedContentSupport.HOME_FOLLOW_LIMIT;
         List<SearchDocument> documents = new ArrayList<>();
-        documents.addAll(searchDocumentMapper.findLiveArticlesByOwnerIds(followeeIds));
-        documents.addAll(searchDocumentMapper.findLiveSeriesByOwnerIds(followeeIds));
+        documents.addAll(searchDocumentMapper.findLiveArticlesByOwnerIds(followeeIds, limit));
+        documents.addAll(searchDocumentMapper.findLiveSeriesByOwnerIds(followeeIds, limit));
         documents.addAll(searchDocumentMapper.findRecentMomentsByAuthorIds(followeeIds, 5));
-        List<SearchDocument> selected = documents.stream()
-                .sorted((left, right) -> right.getIndexedAt().compareTo(left.getIndexedAt()))
-                .limit(10)
-                .toList();
-        return toSearchViews(selected);
+        return toSearchViews(FollowedContentSupport.newestIndexed(documents, limit));
     }
 
     public PageResultView<ContentCardView> discover(int limit, String cursor) {

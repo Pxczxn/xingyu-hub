@@ -9,7 +9,6 @@ import top.pxczxn.xingyu.community.mapper.ArticleMapper;
 import top.pxczxn.xingyu.community.mapper.MomentMapper;
 import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.mapper.UserFollowMapper;
-import top.pxczxn.xingyu.community.support.ArticleStateSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -52,17 +51,7 @@ public class FeedService {
         if (followeeIds.isEmpty()) {
             return List.of();
         }
-        List<Article> articles = new ArrayList<>();
-        for (Article article : articleMapper.listByOwnerIds(followeeIds)) {
-            // Public visibility is decided by the live search document
-            // (removed_at IS NULL). Filtering on article.status == PUBLISHED here
-            // would drop the published revision while its next revision is
-            // IN_REVIEW — the same article search and detail keep serving.
-            // Lifecycle stays as a cheap guard.
-            if (ArticleStateSupport.isActiveLifecycle(article)) {
-                articles.add(article);
-            }
-        }
+        List<Article> articles = articleMapper.listLiveByOwnerIds(followeeIds, size);
         List<Moment> moments = new ArrayList<>();
         for (Moment moment : momentMapper.listRecentByAuthorIds(followeeIds, 10)) {
             if ("VISIBLE".equals(moment.getStatus())) {
@@ -102,7 +91,8 @@ public class FeedService {
                     null));
         }
         return items.stream()
-                .sorted(Comparator.comparing(FeedItemDTO::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(FeedItemDTO::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(FeedItemDTO::getId, Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(size)
                 .toList();
     }

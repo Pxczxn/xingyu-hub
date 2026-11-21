@@ -21,6 +21,7 @@ import top.pxczxn.xingyu.community.mapper.SearchDocumentMapper;
 import top.pxczxn.xingyu.community.support.CursorCodec;
 import top.pxczxn.xingyu.community.mapper.SeriesMapper;
 import top.pxczxn.xingyu.community.support.ArticleStateSupport;
+import top.pxczxn.xingyu.community.support.FollowedContentSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -307,13 +308,10 @@ public class RecommendationService {
             return List.of();
         }
         List<SearchDocument> documents = new ArrayList<>();
-        documents.addAll(searchDocumentMapper.findLiveArticlesByOwnerIds(followeeIds));
-        documents.addAll(searchDocumentMapper.findLiveSeriesByOwnerIds(followeeIds));
+        documents.addAll(searchDocumentMapper.findLiveArticlesByOwnerIds(followeeIds, limit));
+        documents.addAll(searchDocumentMapper.findLiveSeriesByOwnerIds(followeeIds, limit));
         documents.addAll(searchDocumentMapper.findRecentMomentsByAuthorIds(followeeIds, 3));
-        List<SearchDocument> selected = documents.stream()
-                .sorted((left, right) -> right.getIndexedAt().compareTo(left.getIndexedAt()))
-                .limit(limit)
-                .toList();
+        List<SearchDocument> selected = FollowedContentSupport.newestIndexed(documents, limit);
         Map<String, String> covers = coversFor(selected);
         return selected.stream()
                 .map(document -> toContentCard(document, covers))

@@ -279,9 +279,12 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
               AND a.lifecycle_status = 'ACTIVE'
               AND a.owner_id IN
               <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            ORDER BY sd.indexed_at DESC, sd.object_id DESC
+            LIMIT #{limit}
             </script>
             """)
-    List<SearchDocument> findLiveArticlesByOwnerIds(@Param("ownerIds") List<String> ownerIds);
+    List<SearchDocument> findLiveArticlesByOwnerIds(
+            @Param("ownerIds") List<String> ownerIds, @Param("limit") int limit);
 
     /** 关注流批量取数：ACTIVE 系列的活文档（公开规则与逐条路径一致）。 */
     @Select("""
@@ -292,9 +295,12 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
               AND s.status = 'ACTIVE'
               AND s.owner_id IN
               <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            ORDER BY sd.indexed_at DESC, sd.object_id DESC
+            LIMIT #{limit}
             </script>
             """)
-    List<SearchDocument> findLiveSeriesByOwnerIds(@Param("ownerIds") List<String> ownerIds);
+    List<SearchDocument> findLiveSeriesByOwnerIds(
+            @Param("ownerIds") List<String> ownerIds, @Param("limit") int limit);
 
     /**
      * 关注流批量取数：每个作者的最近 N 条 PUBLISHED 动态的活文档。

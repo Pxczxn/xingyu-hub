@@ -68,6 +68,24 @@ public interface ArticleMapper extends BaseMapper<Article> {
     List<Article> listByOwnerIds(@Param("ownerIds") List<String> ownerIds);
 
     /**
+     * 关注 Feed 用的活文章 Top-K：生命周期 ACTIVE 且 search_document 未下架。
+     * 排序键是 article.updated_at（与 Feed 卡片 createdAt 一致），不是 indexed_at。
+     */
+    @Select("""
+            <script>
+            SELECT a.* FROM article a
+            INNER JOIN search_document sd
+              ON sd.object_type = 'ARTICLE' AND sd.object_id = a.id AND sd.removed_at IS NULL
+            WHERE a.lifecycle_status = 'ACTIVE'
+              AND a.owner_id IN
+            <foreach collection='ownerIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach>
+            ORDER BY a.updated_at DESC, a.id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    List<Article> listLiveByOwnerIds(@Param("ownerIds") List<String> ownerIds, @Param("limit") int limit);
+
+    /**
      * Every article that belongs in the public index: published at least once, not trashed,
      * not under a moderation measure.
      *

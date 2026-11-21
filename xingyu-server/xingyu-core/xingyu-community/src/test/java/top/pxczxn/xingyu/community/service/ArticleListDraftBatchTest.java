@@ -43,6 +43,9 @@ class ArticleListDraftBatchTest {
         assertThat(listed).extracting("collaborationRole").containsExactly("EDITOR", "OWNER");
         verify(drafts).listByArticleIds(List.of("shared", "owned"));
         verify(drafts, never()).findByArticleId(org.mockito.ArgumentMatchers.any());
+        verify(articles).listByOwnerId("me");
+        verify(articles).listByOwnerIds(List.of("host"));
+        verify(articles, never()).listLiveByOwnerIds(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt());
     }
 
     private static CommunityUser user(String id) {

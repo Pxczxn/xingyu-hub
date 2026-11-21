@@ -38,14 +38,12 @@ class FollowingFeedBatchTest {
         Instant earlier = Instant.parse("2026-10-01T00:00:00Z");
         Instant later = Instant.parse("2026-10-02T00:00:00Z");
         when(follows.listFolloweeIdsByFollower("me")).thenReturn(List.of("author", "quiet"));
-        when(articles.listByOwnerIds(List.of("author", "quiet"))).thenReturn(List.of(
-                article("trashed", "author", ArticleStateSupport.LIFECYCLE_TRASHED, later),
-                article("essay", "author", ArticleStateSupport.LIFECYCLE_ACTIVE, later),
-                article("hidden", "quiet", ArticleStateSupport.LIFECYCLE_ACTIVE, earlier)));
+        when(articles.listLiveByOwnerIds(List.of("author", "quiet"), 1)).thenReturn(List.of(
+                article("essay", "author", ArticleStateSupport.LIFECYCLE_ACTIVE, later)));
         when(moments.listRecentByAuthorIds(List.of("author", "quiet"), 10)).thenReturn(List.of(
                 moment("published", "author", "PUBLISHED", later),
                 moment("visible", "author", "VISIBLE", earlier)));
-        when(documents.findLiveByTypeAndIds("ARTICLE", List.of("essay", "hidden")))
+        when(documents.findLiveByTypeAndIds("ARTICLE", List.of("essay")))
                 .thenReturn(List.of(document("ARTICLE", "essay", "长文")));
         when(documents.findLiveByTypeAndIds("MOMENT", List.of("visible")))
                 .thenReturn(List.of(document("MOMENT", "visible", "动态")));
@@ -56,9 +54,33 @@ class FollowingFeedBatchTest {
         assertThat(listed).extracting("id").containsExactly("essay");
         assertThat(listed).extracting("cover").containsExactly("https://cover");
         verify(articles, never()).listByOwnerId(any());
+        verify(articles, never()).listByOwnerIds(any());
         verify(moments, never()).listByAuthorId(any(), eq(10));
         verify(documents, never()).findByObject(any(), any());
         verify(covers, never()).resolveCoverUrl(any());
+    }
+
+    @Test
+    void followingFeedPassesPageSizeAsArticleLimit() {
+        Instant later = Instant.parse("2026-10-02T00:00:00Z");
+        Instant earlier = Instant.parse("2026-10-01T00:00:00Z");
+        when(follows.listFolloweeIdsByFollower("me")).thenReturn(List.of("busy", "quiet"));
+        when(articles.listLiveByOwnerIds(List.of("busy", "quiet"), 20)).thenReturn(List.of(
+                article("busy-new", "busy", ArticleStateSupport.LIFECYCLE_ACTIVE, later),
+                article("quiet-new", "quiet", ArticleStateSupport.LIFECYCLE_ACTIVE, earlier)));
+        when(moments.listRecentByAuthorIds(List.of("busy", "quiet"), 10)).thenReturn(List.of());
+        when(documents.findLiveByTypeAndIds("ARTICLE", List.of("busy-new", "quiet-new")))
+                .thenReturn(List.of(
+                        document("ARTICLE", "busy-new", "忙"),
+                        document("ARTICLE", "quiet-new", "静")));
+        when(covers.resolveDocumentCovers(any())).thenReturn(Map.of());
+
+        var listed = service.getFeed(user("me"), "following", 3, 20);
+
+        assertThat(listed).extracting("id").containsExactly("busy-new", "quiet-new");
+        assertThat(listed).extracting("authorId").containsExactly("busy", "quiet");
+        verify(articles).listLiveByOwnerIds(List.of("busy", "quiet"), 20);
+        verify(articles, never()).listByOwnerIds(any());
     }
 
     @Test
@@ -78,6 +100,7 @@ class FollowingFeedBatchTest {
         assertThat(hot).extracting("id").containsExactly("essay", "moment");
         assertThat(hot).extracting("cover").containsExactly("https://cover", null);
         verify(articles, never()).listByOwnerIds(any());
+        verify(articles, never()).listLiveByOwnerIds(any(), eq(20));
         verify(moments, never()).listRecentByAuthorIds(any(), eq(10));
         verify(covers, never()).resolveCoverUrl(any());
         verify(documents, never()).findByObject(any(), any());
