@@ -102,20 +102,31 @@ public interface ArticleTopicMapper extends BaseMapper<ArticleTopic> {
             """)
     List<SearchDocument> listLatestContent(String topicId, int limit);
 
+    /**
+     * 话题热度：先钉死本话题的活 ARTICLE 候选（与 {@link #listLatestContent} 同一可见性），
+     * 再只对这些 object_id 统计 ARTICLE 点赞。LEFT JOIN 保留零赞；COUNT(cl.id) 避免
+     * 无赞行被 COUNT(*) 计成 1。排序与原先 COALESCE(like,0), indexed_at, object_id 一致。
+     * 无 offset，LIMIT 是话题内全序截断，不是先分页再排序。
+     */
     @Select("""
-            SELECT sd.* FROM search_document sd
-            INNER JOIN article_topic at ON at.article_id = sd.object_id
-            INNER JOIN article a ON a.id = at.article_id
-            LEFT JOIN (
-              SELECT object_id, COUNT(*) AS like_count
-              FROM content_like
-              WHERE object_type = 'ARTICLE'
-              GROUP BY object_id
-            ) lc ON lc.object_id = sd.object_id
-            WHERE at.topic_id = #{topicId}
-              AND sd.object_type = 'ARTICLE'
-              AND sd.removed_at IS NULL
-            ORDER BY COALESCE(lc.like_count, 0) DESC, sd.indexed_at DESC, sd.object_id DESC
+            WITH topic_articles AS (
+              SELECT sd.id, sd.object_type, sd.object_id, sd.title, sd.summary,
+                     sd.discovery_version, sd.indexed_at, sd.removed_at
+              FROM search_document sd
+              INNER JOIN article_topic at ON at.article_id = sd.object_id
+              INNER JOIN article a ON a.id = at.article_id
+              WHERE at.topic_id = #{topicId}
+                AND sd.object_type = 'ARTICLE'
+                AND sd.removed_at IS NULL
+            )
+            SELECT ta.id, ta.object_type, ta.object_id, ta.title, ta.summary,
+                   ta.discovery_version, ta.indexed_at, ta.removed_at
+            FROM topic_articles ta
+            LEFT JOIN content_like cl
+              ON cl.object_type = 'ARTICLE' AND cl.object_id = ta.object_id
+            GROUP BY ta.id, ta.object_type, ta.object_id, ta.title, ta.summary,
+                     ta.discovery_version, ta.indexed_at, ta.removed_at
+            ORDER BY COUNT(cl.id) DESC, ta.indexed_at DESC, ta.object_id DESC
             LIMIT #{limit}
             """)
     List<SearchDocument> listHotContent(String topicId, int limit);
