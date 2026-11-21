@@ -13,10 +13,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import top.pxczxn.xingyu.community.support.PasswordSupport;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -433,20 +435,66 @@ class EventsCorrectnessRecoveryIntegrationTest {
 
     @Test
     void baselineIsCleanBeforeAndAfterEveryTest() {
-        // 本测试自身不造数据；它断言的是 cleanup() 的闭合性——
-        // 若上一个测试漏清，这里的计数会先炸。
-        Integer events = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM community_event WHERE slug LIKE ?", Integer.class, "evtcorr-%");
-        assertEquals(0, events, "活动 fixture 必须清零");
-        Integer leftUsers = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM community_user WHERE email LIKE ?", Integer.class, PREFIX + "%@example.com");
-        assertEquals(0, leftUsers, "用户 fixture 必须清零");
-        Integer leftRegs = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM event_registration", Integer.class);
-        assertEquals(0, leftRegs, "报名 fixture 必须清零");
-        Integer leftSubs = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM event_submission", Integer.class);
-        assertEquals(0, leftSubs, "投稿 fixture 必须清零");
+        // 本测试自身不造数据；它断言的是 cleanup() 对本类 fixture 的闭合性——
+        // 若上一个测试漏清，这里的前缀计数会先炸。不得按整张业务表清零。
+        assertOwnedFixturesGone("BeforeEach cleanup 之后本类 fixture 必须清零");
+    }
+
+    @Test
+    void foreignRowsSurviveCleanupAndDoNotFailScopedBaseline() {
+        String foreignEventId = UUID.randomUUID().toString();
+        String foreignUserId = UUID.randomUUID().toString();
+        String foreignRegId = UUID.randomUUID().toString();
+        String foreignSubId = UUID.randomUUID().toString();
+        String ownEventId = UUID.randomUUID().toString();
+        String ownRegId = UUID.randomUUID().toString();
+        jdbcTemplate.update("""
+                INSERT INTO community_event
+                    (id, slug, title, body, status, submission_open, created_at, updated_at)
+                VALUES (?, 'evtisol-foreign-event', '隔离对照活动', 'body', 'ACTIVE', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())
+                """, foreignEventId);
+        jdbcTemplate.update("""
+                INSERT INTO community_user
+                    (id, email, password_hash, email_verified_at, status, role, terms_version, created_at)
+                VALUES (?, 'evtisol-foreign@example.com', ?, NOW(), 'ACTIVE', 'user', '1.0', NOW())
+                """, foreignUserId, PasswordSupport.hash("Test1234!@#ab"));
+        jdbcTemplate.update("""
+                INSERT INTO event_registration (id, event_id, user_id, status, created_at)
+                VALUES (?, ?, ?, 'REGISTERED', UTC_TIMESTAMP())
+                """, foreignRegId, foreignEventId, foreignUserId);
+        jdbcTemplate.update("""
+                INSERT INTO event_submission
+                    (id, event_id, author_id, object_type, object_id, note, status, created_at)
+                VALUES (?, ?, ?, 'MOMENT', ?, 'foreign', 'SUBMITTED', UTC_TIMESTAMP())
+                """, foreignSubId, foreignEventId, foreignUserId, UUID.randomUUID().toString());
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO community_event
+                        (id, slug, title, body, status, submission_open, created_at, updated_at)
+                    VALUES (?, ?, '本类泄漏探针', 'body', 'ACTIVE', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())
+                    """, ownEventId, EVENT_PREFIX + "leak-" + ownEventId.substring(0, 8));
+            jdbcTemplate.update("""
+                    INSERT INTO event_registration (id, event_id, user_id, status, created_at)
+                    VALUES (?, ?, ?, 'REGISTERED', UTC_TIMESTAMP())
+                    """, ownRegId, ownEventId, foreignUserId);
+            assertEquals(1, countOwnedRegistrations(), "本类活动下的报名必须被卫生断言看见");
+            assertEquals(0, countOwnedSubmissions(), "本类投稿尚未写入时计数必须为 0");
+            cleanup();
+            assertOwnedFixturesGone("cleanup 必须清掉本类 slug/email 前缀数据");
+            assertEquals(1, jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM community_event WHERE id = ?", Integer.class, foreignEventId));
+            assertEquals(1, jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM event_registration WHERE id = ?", Integer.class, foreignRegId));
+            assertEquals(1, jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM event_submission WHERE id = ?", Integer.class, foreignSubId));
+            assertEquals(1, jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM community_user WHERE id = ?", Integer.class, foreignUserId));
+        } finally {
+            jdbcTemplate.update("DELETE FROM event_submission WHERE id = ?", foreignSubId);
+            jdbcTemplate.update("DELETE FROM event_registration WHERE id = ?", foreignRegId);
+            jdbcTemplate.update("DELETE FROM community_event WHERE id = ?", foreignEventId);
+            jdbcTemplate.update("DELETE FROM community_user WHERE id = ?", foreignUserId);
+        }
     }
 
     // ---- HTTP helpers ----
@@ -672,6 +720,35 @@ class EventsCorrectnessRecoveryIntegrationTest {
     private int countSubmissions(String eventId) {
         Integer n = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM event_submission WHERE event_id = ?", Integer.class, eventId);
+        return n == null ? 0 : n;
+    }
+
+    private void assertOwnedFixturesGone(String message) {
+        Integer events = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM community_event WHERE slug LIKE ?", Integer.class, EVENT_PREFIX + "%");
+        assertEquals(0, events, message + "：活动");
+        Integer leftUsers = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM community_user WHERE email LIKE ?", Integer.class, PREFIX + "%@example.com");
+        assertEquals(0, leftUsers, message + "：用户");
+        assertEquals(0, countOwnedRegistrations(), message + "：报名");
+        assertEquals(0, countOwnedSubmissions(), message + "：投稿");
+    }
+
+    private int countOwnedRegistrations() {
+        Integer n = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM event_registration
+                WHERE event_id IN (SELECT id FROM community_event WHERE slug LIKE ?)
+                   OR user_id IN (SELECT id FROM community_user WHERE email LIKE ?)
+                """, Integer.class, EVENT_PREFIX + "%", PREFIX + "%@example.com");
+        return n == null ? 0 : n;
+    }
+
+    private int countOwnedSubmissions() {
+        Integer n = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM event_submission
+                WHERE event_id IN (SELECT id FROM community_event WHERE slug LIKE ?)
+                   OR author_id IN (SELECT id FROM community_user WHERE email LIKE ?)
+                """, Integer.class, EVENT_PREFIX + "%", PREFIX + "%@example.com");
         return n == null ? 0 : n;
     }
 

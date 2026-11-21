@@ -17,9 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import top.pxczxn.xingyu.core.event.ReliableEventConsumer;
-import top.pxczxn.xingyu.system.entity.SysUser;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
-import top.pxczxn.xingyu.system.service.SysUserService;
 
 import javax.sql.DataSource;
 import java.nio.file.Files;
@@ -73,10 +71,7 @@ class GovernancePhase2RegressionIntegrationTest {
     private SysConfigGroupService configGroupService;
     @Autowired
     private ReliableEventConsumer eventConsumer;
-    @Autowired
-    private SysUserService userService;
-
-    private final List<Long> createdUserIds = new ArrayList<>();
+    private final List<String> createdCommunityUserIds = new ArrayList<>();
 
     @BeforeEach
     void requireIsolatedTargets() throws Exception {
@@ -94,10 +89,12 @@ class GovernancePhase2RegressionIntegrationTest {
 
     @AfterEach
     void removeCreatedAdmins() {
-        for (Long id : createdUserIds) {
-            userService.delete(id);
+        for (String userId : createdCommunityUserIds) {
+            jdbcTemplate.update("DELETE FROM community_user_role WHERE community_user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_profile WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM community_user WHERE id = ?", userId);
         }
-        createdUserIds.clear();
+        createdCommunityUserIds.clear();
     }
 
     @Test
@@ -267,22 +264,21 @@ class GovernancePhase2RegressionIntegrationTest {
                         .content("{\"decision\":\"UPHELD\"}"))
                 .andExpect(jsonPath("$.code").value(401));
 
-        SysUser plain = createAdmin("p25plain", 1, null);
+        String noRoleToken = seedAuthenticatedCommunityUserWithoutAdmin("p25plain");
         mockMvc.perform(post("/api/v1/admin/moderation/cases/" + caseId + "/decide")
-                        .header("satoken", loginAdmin(plain.getUsername()))
+                        .header("satoken", noRoleToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"UPHELD\"}"))
                 .andExpect(jsonPath("$.code").value(403))
                 .andExpect(jsonPath("$.message").value("没有角色权限"));
 
-        Long roleId = adminRoleId();
-        SysUser admin = createAdmin("p25off", 1, roleId);
-        String token = loginAdmin(admin.getUsername());
-        setStatus(admin, 0, roleId);
+        SeededAdmin disabledAdmin = seedCommunityAdmin("p25off");
+        String token = loginAdmin(disabledAdmin.username());
+        setCommunityStatus(disabledAdmin.userId(), "SUSPENDED");
         mockMvc.perform(get("/api/v1/admin/moderation/reports").header("satoken", token))
                 .andExpect(jsonPath("$.code").value(403))
                 .andExpect(jsonPath("$.message").value("用户已被禁用"));
-        setStatus(admin, 1, roleId);
+        setCommunityStatus(disabledAdmin.userId(), "ACTIVE");
         mockMvc.perform(get("/api/v1/admin/moderation/reports").header("satoken", token))
                 .andExpect(jsonPath("$.code").value(200));
 
@@ -572,34 +568,29 @@ class GovernancePhase2RegressionIntegrationTest {
                 .path("data").path("token").asText();
     }
 
-    private SysUser createAdmin(String prefix, int status, Long roleId) {
-        SysUser user = new SysUser();
-        user.setUsername(prefix + (System.nanoTime() % 100_000_000L));
-        user.setPassword(PASSWORD);
-        user.setNickname(user.getUsername());
-        user.setUserType("admin");
-        user.setStatus(status);
-        user.setIsQuit(0);
-        userService.create(user, roleId == null ? List.of() : List.of(roleId), List.of());
-        createdUserIds.add(user.getId());
-        return user;
+    private String seedAuthenticatedCommunityUserWithoutAdmin(String prefix) throws Exception {
+        String username = prefix + (System.nanoTime() % 100_000_000L);
+        String userId = CommunityTestSupport.insertActiveCommunityUser(jdbcTemplate, username, PASSWORD);
+        createdCommunityUserIds.add(userId);
+        return CommunityTestSupport.loginThenRevokeAdmin(
+                mockMvc, objectMapper, jdbcTemplate, userId, username, PASSWORD);
     }
 
-    private void setStatus(SysUser user, int status, Long roleId) {
-        user.setStatus(status);
-        user.setPassword(null);
-        userService.update(user, List.of(roleId), List.of());
+    private SeededAdmin seedCommunityAdmin(String prefix) {
+        String username = prefix + (System.nanoTime() % 100_000_000L);
+        String userId = CommunityTestSupport.insertActiveCommunityUser(jdbcTemplate, username, PASSWORD);
+        createdCommunityUserIds.add(userId);
+        CommunityTestSupport.grantRole(jdbcTemplate, userId, "admin");
+        return new SeededAdmin(userId, username);
     }
 
-    private Long adminRoleId() {
-        return jdbcTemplate.queryForObject(
-                "SELECT id FROM sys_role WHERE code = 'admin' AND status = 1 AND deleted = 0 LIMIT 1",
-                Long.class);
+    private void setCommunityStatus(String communityUserId, String status) {
+        jdbcTemplate.update("UPDATE community_user SET status = ? WHERE id = ?", status, communityUserId);
     }
 
     private String adminId() {
         return jdbcTemplate.queryForObject(
-                "SELECT CAST(id AS CHAR) FROM sys_user WHERE username = 'admin' LIMIT 1", String.class);
+                "SELECT user_id FROM community_profile WHERE username = 'admin' LIMIT 1", String.class);
     }
 
     private String userId(String username) {
@@ -721,5 +712,8 @@ class GovernancePhase2RegressionIntegrationTest {
     }
 
     private record Person(String username, String token) {
+    }
+
+    private record SeededAdmin(String userId, String username) {
     }
 }
