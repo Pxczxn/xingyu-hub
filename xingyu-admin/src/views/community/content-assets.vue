@@ -148,9 +148,13 @@ const detailFields = computed(() => {
     .filter((field) => field.value !== '-')
 })
 
-function openContentDetail(row: ContentAsset) {
-  selected.value = row
-  showDetail.value = true
+async function openContentDetail(row: ContentAsset) {
+  try {
+    selected.value = await operationsApi.getContentDetail(row.id, props.assetType)
+    showDetail.value = true
+  } catch (e: any) {
+    message.error(e?.message || '内容详情加载失败')
+  }
 }
 
 function openAuthorDetail(row: ContentAsset) {

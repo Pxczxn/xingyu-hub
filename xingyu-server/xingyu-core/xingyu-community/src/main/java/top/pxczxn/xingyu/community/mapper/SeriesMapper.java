@@ -1,6 +1,7 @@
 package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import top.pxczxn.xingyu.community.entity.Series;
 import top.pxczxn.xingyu.community.dto.ArticleSeriesContextView;
 import org.apache.ibatis.annotations.Mapper;
@@ -133,4 +134,24 @@ public interface SeriesMapper extends BaseMapper<Series> {
             ORDER BY s.id ASC, sc.position ASC
             """)
     List<ArticleSeriesContextView> listActiveContextsByArticleId(String articleId);
+
+    /**
+     * 管理端系列列表。关键词匹配标题或简介，大小写敏感，与原先 contains 一致。
+     */
+    @Select("""
+            <script>
+            SELECT s.* FROM series s
+            <where>
+              <if test="status != null and status != ''">AND s.status = #{status}</if>
+              <if test="keyword != null and keyword != ''">
+                AND (
+                  INSTR(s.title COLLATE utf8mb4_bin, #{keyword}) &gt; 0
+                  OR INSTR(COALESCE(s.description, '') COLLATE utf8mb4_bin, #{keyword}) &gt; 0
+                )
+              </if>
+            </where>
+            ORDER BY s.id ASC
+            </script>
+            """)
+    IPage<Series> pageForAdmin(IPage<Series> page, @Param("status") String status, @Param("keyword") String keyword);
 }

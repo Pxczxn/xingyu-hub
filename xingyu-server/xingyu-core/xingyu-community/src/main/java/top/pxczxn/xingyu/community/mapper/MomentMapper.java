@@ -1,6 +1,7 @@
 package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import top.pxczxn.xingyu.community.entity.Moment;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -79,4 +80,31 @@ public interface MomentMapper extends BaseMapper<Moment> {
             WHERE author_id = #{authorId} AND status = 'PUBLISHED'
             """)
     long countPublishedByAuthorId(String authorId);
+
+    /**
+     * 管理端动态列表。有关键词时只对每个动态的最新修订正文做大小写敏感 contains。
+     * 最新修订由 (moment_id, MAX(revision_number)) 钉死，不会因多修订复制动态行。
+     */
+    @Select("""
+            <script>
+            SELECT m.* FROM moment m
+            <if test="keyword != null and keyword != ''">
+            INNER JOIN moment_revision r ON r.moment_id = m.id
+            INNER JOIN (
+              SELECT moment_id, MAX(revision_number) AS revision_number
+              FROM moment_revision
+              GROUP BY moment_id
+            ) latest ON latest.moment_id = r.moment_id
+                     AND latest.revision_number = r.revision_number
+            </if>
+            <where>
+              <if test="status != null and status != ''">AND m.status = #{status}</if>
+              <if test="keyword != null and keyword != ''">
+                AND INSTR(r.body COLLATE utf8mb4_bin, #{keyword}) &gt; 0
+              </if>
+            </where>
+            ORDER BY m.id ASC
+            </script>
+            """)
+    IPage<Moment> pageForAdmin(IPage<Moment> page, @Param("status") String status, @Param("keyword") String keyword);
 }

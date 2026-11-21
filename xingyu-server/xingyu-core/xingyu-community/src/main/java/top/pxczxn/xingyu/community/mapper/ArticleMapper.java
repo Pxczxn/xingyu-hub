@@ -1,6 +1,7 @@
 package top.pxczxn.xingyu.community.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import top.pxczxn.xingyu.community.entity.Article;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -145,4 +146,26 @@ public interface ArticleMapper extends BaseMapper<Article> {
             LIMIT #{limit}
             """)
     List<Article> listBySpaceId(String spaceId, int limit);
+
+    /**
+     * 管理端内容资产文章列表。分页插件追加 COUNT/LIMIT。
+     * 关键词与原先 Java {@code String.contains} 一致：只匹配工作草稿标题，大小写敏感。
+     * working_draft.article_id 唯一，JOIN 不会复制文章行。
+     */
+    @Select("""
+            <script>
+            SELECT a.* FROM article a
+            <if test="keyword != null and keyword != ''">
+            INNER JOIN working_draft wd ON wd.article_id = a.id
+            </if>
+            <where>
+              <if test="status != null and status != ''">AND a.status = #{status}</if>
+              <if test="keyword != null and keyword != ''">
+                AND INSTR(wd.title COLLATE utf8mb4_bin, #{keyword}) &gt; 0
+              </if>
+            </where>
+            ORDER BY a.id ASC
+            </script>
+            """)
+    IPage<Article> pageForAdmin(IPage<Article> page, @Param("status") String status, @Param("keyword") String keyword);
 }
