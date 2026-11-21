@@ -36,14 +36,11 @@ public class SysJobLogServiceImpl extends ServiceImpl<SysJobLogMapper, SysJobLog
     @Override
     public Map<String, Object> statistics() {
         Map<String, Object> result = new HashMap<>();
-        long total = this.count();
-        long successCount = this.count(new LambdaQueryWrapper<SysJobLog>().eq(SysJobLog::getStatus, 0));
-        long failCount = this.count(new LambdaQueryWrapper<SysJobLog>().eq(SysJobLog::getStatus, 1));
-        List<Map<String, Object>> dailyStats = baseMapper.selectDailyStats();
-        result.put("totalCount", total);
-        result.put("successCount", successCount);
-        result.put("failCount", failCount);
-        result.put("dailyStats", dailyStats);
+        var counts = baseMapper.selectStatusCounts();
+        result.put("totalCount", counts == null || counts.getTotalCount() == null ? 0L : counts.getTotalCount());
+        result.put("successCount", counts == null || counts.getSuccessCount() == null ? 0L : counts.getSuccessCount());
+        result.put("failCount", counts == null || counts.getFailCount() == null ? 0L : counts.getFailCount());
+        result.put("dailyStats", baseMapper.selectDailyStats());
         return result;
     }
 

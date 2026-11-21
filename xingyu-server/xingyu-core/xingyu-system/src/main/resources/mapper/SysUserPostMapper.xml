@@ -10,5 +10,15 @@
         SELECT user_id FROM sys_user_post WHERE post_id = #{postId}
     </select>
 
+    <select id="listByUserIds" resultType="top.pxczxn.xingyu.system.entity.SysUserPost">
+        SELECT id, user_id, post_id
+        FROM sys_user_post
+        WHERE user_id IN
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+        ORDER BY id
+    </select>
+
 </mapper>
 

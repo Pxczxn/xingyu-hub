@@ -35,6 +35,7 @@ import {
   invalidateCryptoSessionOnServer
 
 } from '@/utils/crypto/session'
+import { CryptoConfigCache } from '@/utils/crypto-config-cache'
 
 
 
@@ -65,48 +66,25 @@ interface ApiResponse<T = unknown> {
 
 
 
-let cryptoConfigCache: CryptoRuntimeConfig | null = null
-
-
+const cryptoConfigCache = new CryptoConfigCache(async () => {
+  try {
+    const response = await axios.get('/api/v1/admin/crypto/config')
+    if (response.data?.code === 200) {
+      return { ok: true as const, data: response.data.data as CryptoRuntimeConfig }
+    }
+  } catch (error) {
+    console.error('获取加密配置失败', error)
+  }
+  return { ok: false as const }
+})
 
 export async function fetchCryptoConfig(): Promise<CryptoRuntimeConfig> {
-
-  if (cryptoConfigCache) {
-
-    return cryptoConfigCache
-
-  }
-
-  try {
-
-    const response = await axios.get('/api/v1/admin/crypto/config')
-
-    if (response.data?.code === 200) {
-
-      cryptoConfigCache = response.data.data as CryptoRuntimeConfig
-
-      return cryptoConfigCache
-
-    }
-
-  } catch (error) {
-
-    console.error('获取加密配置失败', error)
-
-  }
-
-  return { enabled: false, publicKey: '', protocol: 'XYC1' }
-
+  return cryptoConfigCache.get()
 }
 
-
-
 export function clearCryptoConfigCache() {
-
-  cryptoConfigCache = null
-
+  cryptoConfigCache.clear()
   destroyCryptoSession()
-
 }
 
 

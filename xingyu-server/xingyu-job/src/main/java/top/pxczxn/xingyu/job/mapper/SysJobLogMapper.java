@@ -25,4 +25,14 @@ public interface SysJobLogMapper extends BaseMapper<SysJobLog> {
             "GROUP BY DATE_FORMAT(start_time, '%Y-%m-%d') " +
             "ORDER BY exec_date")
     List<Map<String, Object>> selectDailyStats();
+
+    /**
+     * All-time totals. status=0 success, status=1 fail; other/null statuses count
+     * only toward {@code totalCount}, matching three separate COUNT queries.
+     */
+    @Select("SELECT COUNT(*) AS totalCount, " +
+            "COALESCE(SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END), 0) AS successCount, " +
+            "COALESCE(SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END), 0) AS failCount " +
+            "FROM sys_job_log")
+    SysJobLogStatusCounts selectStatusCounts();
 }

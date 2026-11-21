@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import top.pxczxn.xingyu.common.result.PageResult;
 import top.pxczxn.xingyu.system.entity.ApiAccessLog;
+import top.pxczxn.xingyu.system.mapper.ApiAccessLogAggRow;
 import top.pxczxn.xingyu.system.mapper.ApiAccessLogMapper;
 import top.pxczxn.xingyu.system.service.ApiAccessLogService;
 import lombok.RequiredArgsConstructor;
@@ -87,44 +88,52 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
     public Map<String, Object> getStatistics(LocalDate startDate, LocalDate endDate) {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+        return assembleStatistics(baseMapper.selectStatisticsBuckets(start, end));
+    }
 
-        LambdaQueryWrapper<ApiAccessLog> wrapper = new LambdaQueryWrapper<>();
-        wrapper.between(ApiAccessLog::getStartTime, start, end);
-
-        List<ApiAccessLog> list = list(wrapper);
-        long total = list.size();
-        long successCount = list.stream().filter(l -> l.getSuccess() != null && l.getSuccess() == 1).count();
-        long failCount = total - successCount;
-
-        // 按日期分组统计
+    /**
+     * Assemble the statistics payload from SQL buckets. Package-visible for contract tests.
+     */
+    static Map<String, Object> assembleStatistics(List<ApiAccessLogAggRow> rows) {
+        long total = 0L;
+        long successCount = 0L;
         Map<String, Map<String, Long>> dailyStats = new LinkedHashMap<>();
-        for (ApiAccessLog log : list) {
-            if (log.getStartTime() == null) continue;
-            String dateKey = log.getStartTime().toLocalDate().toString();
-            dailyStats.computeIfAbsent(dateKey, k -> {
-                Map<String, Long> m = new HashMap<>();
-                m.put("total", 0L);
-                m.put("success", 0L);
-                m.put("fail", 0L);
-                return m;
-            });
-            Map<String, Long> dayMap = dailyStats.get(dateKey);
-            dayMap.put("total", dayMap.get("total") + 1);
-            if (log.getSuccess() != null && log.getSuccess() == 1) {
-                dayMap.put("success", dayMap.get("success") + 1);
-            } else {
-                dayMap.put("fail", dayMap.get("fail") + 1);
+        Map<String, Long> pathCount = new HashMap<>();
+        Map<String, Long> methodCount = new HashMap<>();
+
+        if (rows != null) {
+            for (ApiAccessLogAggRow row : rows) {
+                long success = nz(row.getSuccessCount());
+                long fail = nz(row.getFailCount());
+                long bucketTotal = success + fail;
+                total += bucketTotal;
+                successCount += success;
+
+                if (row.getStatDate() != null) {
+                    Map<String, Long> dayMap = dailyStats.computeIfAbsent(row.getStatDate(), k -> emptyDay());
+                    dayMap.put("total", dayMap.get("total") + bucketTotal);
+                    dayMap.put("success", dayMap.get("success") + success);
+                    dayMap.put("fail", dayMap.get("fail") + fail);
+                }
+
+                String path = row.getApiPath() != null ? row.getApiPath() : "unknown";
+                pathCount.merge(path, bucketTotal, Long::sum);
+                String method = row.getMethod() != null ? row.getMethod() : "unknown";
+                methodCount.merge(method, bucketTotal, Long::sum);
             }
         }
 
-        // 按 API 路径 Top10
-        Map<String, Long> pathCount = new HashMap<>();
-        for (ApiAccessLog log : list) {
-            String path = log.getApiPath() != null ? log.getApiPath() : "unknown";
-            pathCount.merge(path, 1L, Long::sum);
+        List<String> orderedDates = dailyStats.keySet().stream().sorted().toList();
+        Map<String, Map<String, Long>> orderedDaily = new LinkedHashMap<>();
+        for (String date : orderedDates) {
+            orderedDaily.put(date, dailyStats.get(date));
         }
+
         List<Map<String, Object>> topPaths = pathCount.entrySet().stream()
-                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .sorted((a, b) -> {
+                    int byCount = Long.compare(b.getValue(), a.getValue());
+                    return byCount != 0 ? byCount : a.getKey().compareTo(b.getKey());
+                })
                 .limit(10)
                 .map(e -> {
                     Map<String, Object> m = new HashMap<>();
@@ -134,20 +143,25 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
                 })
                 .toList();
 
-        // 按 HTTP 方法统计
-        Map<String, Long> methodCount = new HashMap<>();
-        for (ApiAccessLog log : list) {
-            String m = log.getMethod() != null ? log.getMethod() : "unknown";
-            methodCount.merge(m, 1L, Long::sum);
-        }
-
         Map<String, Object> result = new HashMap<>();
         result.put("totalCount", total);
         result.put("successCount", successCount);
-        result.put("failCount", failCount);
-        result.put("dailyStats", dailyStats);
+        result.put("failCount", total - successCount);
+        result.put("dailyStats", orderedDaily);
         result.put("topPaths", topPaths);
         result.put("methodCount", methodCount);
         return result;
+    }
+
+    private static Map<String, Long> emptyDay() {
+        Map<String, Long> m = new HashMap<>();
+        m.put("total", 0L);
+        m.put("success", 0L);
+        m.put("fail", 0L);
+        return m;
+    }
+
+    private static long nz(Long value) {
+        return value == null ? 0L : value;
     }
 }

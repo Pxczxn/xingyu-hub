@@ -134,11 +134,37 @@ public class ReviewService {
     }
 
     public List<ReviewQueueItemView> listPendingQueue() {
-        return submissionMapper.listPending().stream()
+        List<ReviewSubmission> submissions = submissionMapper.listPending();
+        if (submissions.isEmpty()) {
+            return List.of();
+        }
+        List<String> revisionIds = submissions.stream()
+                .map(ReviewSubmission::getFormalRevisionId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        Map<String, FormalRevision> revisions = new HashMap<>();
+        if (!revisionIds.isEmpty()) {
+            for (FormalRevision revision : formalRevisionMapper.listByIds(revisionIds)) {
+                revisions.putIfAbsent(revision.getId(), revision);
+            }
+        }
+        List<String> authorIds = submissions.stream()
+                .map(ReviewSubmission::getSubmittedBy)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        Map<String, CommunityProfile> profiles = new HashMap<>();
+        if (!authorIds.isEmpty()) {
+            for (CommunityProfile profile : profileMapper.findByUserIds(authorIds)) {
+                profiles.putIfAbsent(profile.getUserId(), profile);
+            }
+        }
+        return submissions.stream()
                 .map(submission -> {
-                    FormalRevision revision = formalRevisionMapper.selectById(submission.getFormalRevisionId());
+                    FormalRevision revision = revisions.get(submission.getFormalRevisionId());
                     String authorId = submission.getSubmittedBy();
-                    CommunityProfile profile = authorId == null ? null : profileMapper.findByUserId(authorId);
+                    CommunityProfile profile = authorId == null ? null : profiles.get(authorId);
                     String displayName = profile == null ? null : profile.getDisplayName();
                     String username = profile == null ? null : profile.getUsername();
                     return ReviewQueueItemView.builder()

@@ -22,5 +22,10 @@ public interface SysUserPostMapper extends BaseMapper<SysUserPost> {
      * 根据岗位ID获取关联的用户ID列表
      */
     List<Long> selectUserIdsByPostId(@Param("postId") Long postId);
+
+    /**
+     * Current-page user/post links. Caller must pass a non-empty {@code userIds}.
+     */
+    List<SysUserPost> listByUserIds(@Param("userIds") List<Long> userIds);
 }
 
