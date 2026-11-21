@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.common.result.PageResult;
 import top.pxczxn.xingyu.mail.EmailService;
+import top.pxczxn.xingyu.mail.MailLogSupport;
 import top.pxczxn.xingyu.system.dto.SysNoticeConsoleRecipient;
 import top.pxczxn.xingyu.system.dto.SysNoticePublishResult;
 import top.pxczxn.xingyu.system.dto.SysNoticeVo;
@@ -390,7 +391,8 @@ public class SysNoticeServiceImpl implements SysNoticeService {
                 emailService.sendSimpleMail(user.getEmail(), notice.getTitle(), notice.getContent());
                 success++;
             } catch (Exception ex) {
-                log.warn("通知邮件发送失败 userId={} email={}", userId, user.getEmail(), ex);
+                log.warn("通知邮件发送失败 userId={} email={} error={}",
+                        userId, MailLogSupport.maskEmail(user.getEmail()), MailLogSupport.sanitizeException(ex));
             }
         }
         return success;

@@ -208,7 +208,7 @@ public class SysConfigGroupController {
             emailService.sendTestMail(request.getTo());
             return Result.ok();
         } catch (Exception e) {
-            return Result.fail(e.getMessage());
+            return Result.fail("邮件发送失败");
         }
     }
 

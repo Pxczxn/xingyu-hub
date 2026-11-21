@@ -26,6 +26,7 @@ import top.pxczxn.xingyu.community.mapper.UsernameHistoryMapper;
 import top.pxczxn.xingyu.community.support.PasswordSupport;
 import top.pxczxn.xingyu.community.support.TokenSupport;
 import top.pxczxn.xingyu.mail.EmailService;
+import top.pxczxn.xingyu.mail.MailLogSupport;
 import top.pxczxn.xingyu.sms.SmsServiceFactory;
 import top.pxczxn.xingyu.system.helper.RegisterRoleWhitelist;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
@@ -819,8 +820,8 @@ public class CommunityAccountService {
             emailService.sendPasswordResetLink(email, link);
             return new PasswordResetDelivery(false, null);
         } catch (Exception ex) {
-            log.warn("password reset mail not sent to {}: {}", email, ex.getMessage());
-            log.info("dev password reset link for {}: {}", email, link);
+            log.warn("password reset mail not sent to={} error={}",
+                    MailLogSupport.maskEmail(email), MailLogSupport.sanitizeException(ex));
             return new PasswordResetDelivery(true, link);
         }
     }
@@ -828,22 +829,18 @@ public class CommunityAccountService {
     private AdminPasswordResetDelivery sendAdminTempPasswordMail(String email, String tempPassword) {
         try {
             emailService.sendResetPassword(email, tempPassword, ADMIN_TEMP_PASSWORD_MINUTES);
-            log.info("admin temp password mail accepted by SMTP for {}", email);
+            log.info("admin temp password mail accepted by SMTP for {}", MailLogSupport.maskEmail(email));
             return new AdminPasswordResetDelivery(false, null);
         } catch (Exception ex) {
-            log.warn("admin temp password mail not sent to {}: {}", email, ex.getMessage());
-            log.info("dev admin temp password for {}: {}", email, tempPassword);
+            log.warn("admin temp password mail not sent to={} error={}",
+                    MailLogSupport.maskEmail(email), MailLogSupport.sanitizeException(ex));
             return new AdminPasswordResetDelivery(true, summarizeMailError(ex));
         }
     }
 
     private static String summarizeMailError(Exception ex) {
-        String message = ex.getMessage();
-        if (message == null || message.isBlank()) {
-            return "邮件发送失败";
-        }
-        String normalized = message.replaceAll("\\s+", " ").trim();
-        return normalized.length() > 180 ? normalized.substring(0, 180) + "…" : normalized;
+        String sanitized = MailLogSupport.sanitizeException(ex);
+        return sanitized == null || sanitized.isBlank() ? "邮件发送失败" : sanitized;
     }
 
     private record PasswordResetDelivery(boolean mailPending, String devResetLink) {}
@@ -864,8 +861,8 @@ public class CommunityAccountService {
             emailService.sendEmailVerificationLink(email, link, subject);
             return false;
         } catch (Exception ex) {
-            log.warn("verification mail not sent to {}: {}", email, ex.getMessage());
-            log.info("dev verification link for {}: {}", email, link);
+            log.warn("verification mail not sent to={} error={}",
+                    MailLogSupport.maskEmail(email), MailLogSupport.sanitizeException(ex));
             return true;
         }
     }
@@ -963,7 +960,8 @@ public class CommunityAccountService {
         try {
             emailService.sendWelcomeEmail(email, username);
         } catch (Exception ex) {
-            log.warn("welcome mail not sent to {}: {}", email, ex.getMessage());
+            log.warn("welcome mail not sent to={} error={}",
+                    MailLogSupport.maskEmail(email), MailLogSupport.sanitizeException(ex));
         }
     }
 

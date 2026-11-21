@@ -8,7 +8,6 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.util.Properties;
 
@@ -81,11 +80,14 @@ public class EmailService {
             message.setTo(to);
             message.setSubject(subject);
             message.setText(content);
+            long started = System.nanoTime();
             mailSender.send(message);
-            log.info("简单邮件发送成功: to={}, subject={}", to, subject);
+            long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
+            log.info("simple mail sent to={} subject={} elapsedMs={}", MailLogSupport.maskEmail(to), subject, elapsedMs);
         } catch (Exception e) {
-            log.error("简单邮件发送失败: to={}, subject={}", to, subject, e);
-            throw new RuntimeException("邮件发送失败: " + e.getMessage());
+            log.warn("simple mail failed to={} subject={} error={}",
+                    MailLogSupport.maskEmail(to), subject, MailLogSupport.sanitizeException(e));
+            throw new RuntimeException("邮件发送失败");
         }
     }
 
@@ -109,11 +111,14 @@ public class EmailService {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(content, true);
+            long started = System.nanoTime();
             mailSender.send(message);
-            log.info("HTML邮件发送成功: to={}, subject={}", to, subject);
-        } catch (MessagingException e) {
-            log.error("HTML邮件发送失败: to={}, subject={}", to, subject, e);
-            throw new RuntimeException("邮件发送失败: " + e.getMessage());
+            long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
+            log.info("html mail sent to={} subject={} elapsedMs={}", MailLogSupport.maskEmail(to), subject, elapsedMs);
+        } catch (Exception e) {
+            log.warn("html mail failed to={} subject={} error={}",
+                    MailLogSupport.maskEmail(to), subject, MailLogSupport.sanitizeException(e));
+            throw new RuntimeException("邮件发送失败");
         }
     }
 
@@ -125,12 +130,7 @@ public class EmailService {
     public void sendTestMail(String to) {
         String siteName = configProvider.getSiteName();
         String subject = "【" + siteName + "】测试邮件";
-        String content = "这是一封测试邮件，如果您收到此邮件，说明邮件服务配置正确。\n\n" +
-                "发送时间：" + java.time.LocalDateTime.now().toString() + "\n" +
-                "发件服务器：" + configProvider.getEmailHost() + "\n" +
-                "发件人：" + configProvider.getEmailUsername();
-        
-        sendSimpleMail(to, subject, content);
+        sendSimpleMail(to, subject, MailLogSupport.testMailBody(siteName));
     }
 
     /**
