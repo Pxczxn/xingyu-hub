@@ -66,18 +66,48 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
     List<SearchDocument> searchActiveByLatest(
             @Param("query") String query, @Param("type") String type, @Param("limit") int limit);
 
+    /**
+     * 关键词热度：先把 LIKE 命中的活文档与其点赞 INNER JOIN，GROUP BY 后 LIMIT K，
+     * 再从同样关键词的活文档里按最新序补零点赞，外层再 LIMIT K。
+     * 不先对全站 content_like 做 GROUP BY。
+     */
     @Select("""
-            SELECT sd.* FROM search_document sd
-            LEFT JOIN (
-              SELECT object_type, object_id, COUNT(*) AS like_count
-              FROM content_like
-              GROUP BY object_type, object_id
-            ) lc ON lc.object_type = sd.object_type AND lc.object_id = sd.object_id
-            WHERE sd.removed_at IS NULL
-              AND (#{type} IS NULL OR sd.object_type = #{type})
-              AND (sd.title LIKE CONCAT('%', #{query}, '%') ESCAPE '!'
-                OR sd.summary LIKE CONCAT('%', #{query}, '%') ESCAPE '!')
-            ORDER BY COALESCE(lc.like_count, 0) DESC, sd.indexed_at DESC, sd.object_id DESC
+            WITH liked AS (
+              SELECT sd.id, sd.object_type, sd.object_id, sd.title, sd.summary,
+                     sd.discovery_version, sd.indexed_at, sd.removed_at, COUNT(*) AS like_count
+              FROM search_document sd
+              INNER JOIN content_like cl
+                ON cl.object_type = sd.object_type AND cl.object_id = sd.object_id
+              WHERE sd.removed_at IS NULL
+                AND (#{type} IS NULL OR sd.object_type = #{type})
+                AND (sd.title LIKE CONCAT('%', #{query}, '%') ESCAPE '!'
+                  OR sd.summary LIKE CONCAT('%', #{query}, '%') ESCAPE '!')
+              GROUP BY sd.id, sd.object_type, sd.object_id, sd.title, sd.summary,
+                       sd.discovery_version, sd.indexed_at, sd.removed_at
+              ORDER BY COUNT(*) DESC, sd.indexed_at DESC, sd.object_id DESC
+              LIMIT #{limit}
+            ),
+            zeros AS (
+              SELECT sd.id, sd.object_type, sd.object_id, sd.title, sd.summary,
+                     sd.discovery_version, sd.indexed_at, sd.removed_at, 0 AS like_count
+              FROM search_document sd
+              WHERE sd.removed_at IS NULL
+                AND (#{type} IS NULL OR sd.object_type = #{type})
+                AND (sd.title LIKE CONCAT('%', #{query}, '%') ESCAPE '!'
+                  OR sd.summary LIKE CONCAT('%', #{query}, '%') ESCAPE '!')
+                AND NOT EXISTS (
+                  SELECT 1 FROM liked l
+                  WHERE l.object_type = sd.object_type AND l.object_id = sd.object_id)
+              ORDER BY sd.indexed_at DESC, sd.object_id DESC
+              LIMIT #{limit}
+            )
+            SELECT id, object_type, object_id, title, summary, discovery_version, indexed_at, removed_at
+            FROM (
+              SELECT * FROM liked
+              UNION ALL
+              SELECT * FROM zeros
+            ) ranked
+            ORDER BY like_count DESC, indexed_at DESC, object_id DESC
             LIMIT #{limit}
             """)
     List<SearchDocument> searchActiveByHot(
@@ -92,16 +122,43 @@ public interface SearchDocumentMapper extends BaseMapper<SearchDocument> {
             """)
     List<SearchDocument> listActiveByLatest(@Param("type") String type, @Param("limit") int limit);
 
+    /**
+     * 无关键词热度：只聚合仍活着且通过类型过滤的文档上的点赞，LIMIT K，
+     * 不足时按 indexed_at/object_id 补零点赞活文档。孤儿赞与已下架文档进不了 liked。
+     */
     @Select("""
-            SELECT sd.* FROM search_document sd
-            LEFT JOIN (
-              SELECT object_type, object_id, COUNT(*) AS like_count
-              FROM content_like
-              GROUP BY object_type, object_id
-            ) lc ON lc.object_type = sd.object_type AND lc.object_id = sd.object_id
-            WHERE sd.removed_at IS NULL
-              AND (#{type} IS NULL OR sd.object_type = #{type})
-            ORDER BY COALESCE(lc.like_count, 0) DESC, sd.indexed_at DESC, sd.object_id DESC
+            WITH liked AS (
+              SELECT sd.id, sd.object_type, sd.object_id, sd.title, sd.summary,
+                     sd.discovery_version, sd.indexed_at, sd.removed_at, COUNT(*) AS like_count
+              FROM search_document sd
+              INNER JOIN content_like cl
+                ON cl.object_type = sd.object_type AND cl.object_id = sd.object_id
+              WHERE sd.removed_at IS NULL
+                AND (#{type} IS NULL OR sd.object_type = #{type})
+              GROUP BY sd.id, sd.object_type, sd.object_id, sd.title, sd.summary,
+                       sd.discovery_version, sd.indexed_at, sd.removed_at
+              ORDER BY COUNT(*) DESC, sd.indexed_at DESC, sd.object_id DESC
+              LIMIT #{limit}
+            ),
+            zeros AS (
+              SELECT sd.id, sd.object_type, sd.object_id, sd.title, sd.summary,
+                     sd.discovery_version, sd.indexed_at, sd.removed_at, 0 AS like_count
+              FROM search_document sd
+              WHERE sd.removed_at IS NULL
+                AND (#{type} IS NULL OR sd.object_type = #{type})
+                AND NOT EXISTS (
+                  SELECT 1 FROM liked l
+                  WHERE l.object_type = sd.object_type AND l.object_id = sd.object_id)
+              ORDER BY sd.indexed_at DESC, sd.object_id DESC
+              LIMIT #{limit}
+            )
+            SELECT id, object_type, object_id, title, summary, discovery_version, indexed_at, removed_at
+            FROM (
+              SELECT * FROM liked
+              UNION ALL
+              SELECT * FROM zeros
+            ) ranked
+            ORDER BY like_count DESC, indexed_at DESC, object_id DESC
             LIMIT #{limit}
             """)
     List<SearchDocument> listActiveByHot(@Param("type") String type, @Param("limit") int limit);
