@@ -12,7 +12,6 @@ import { type SectionStatus } from "@/components/shared/SectionState";
 import { PageState } from "@/components/shared/PageState";
 import { ArchetypeFrame } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
 import { staggerDelay } from "@/lib/stagger";
 import { HomeFeedTabs, type HomeFeedTab } from "@/features/home/components/HomeFeedTabs";
 import { HomeFeedItem } from "@/features/home/components/HomeFeedItem";

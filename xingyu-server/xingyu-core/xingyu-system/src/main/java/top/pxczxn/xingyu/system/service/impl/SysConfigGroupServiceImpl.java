@@ -8,6 +8,7 @@ import top.pxczxn.xingyu.system.entity.SysConfigGroup;
 import top.pxczxn.xingyu.system.helper.RegisterRoleWhitelist;
 import top.pxczxn.xingyu.system.mapper.SysConfigGroupMapper;
 import top.pxczxn.xingyu.system.service.SysConfigGroupService;
+import top.pxczxn.xingyu.system.support.RedisGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -80,7 +81,9 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         
         // 更新缓存
         localCache.put(groupCode, config);
-        redisTemplate.opsForValue().set(CACHE_KEY_PREFIX + groupCode, configValue);
+        RedisGuard.optional(
+                () -> redisTemplate.opsForValue().set(CACHE_KEY_PREFIX + groupCode, configValue),
+                "sys-config-group-save");
     }
     
     @Override
@@ -112,7 +115,10 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         for (SysConfigGroup config : list) {
             localCache.put(config.getGroupCode(), config);
             if (config.getConfigValue() != null) {
-                redisTemplate.opsForValue().set(CACHE_KEY_PREFIX + config.getGroupCode(), config.getConfigValue());
+                RedisGuard.optional(
+                        () -> redisTemplate.opsForValue().set(
+                                CACHE_KEY_PREFIX + config.getGroupCode(), config.getConfigValue()),
+                        "sys-config-group-refresh");
             }
         }
         log.info("系统配置缓存刷新完成，共 {} 个分组", list.size());

@@ -6,6 +6,7 @@ import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.captcha.ShearCaptcha;
 import cn.hutool.core.util.IdUtil;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
+import top.pxczxn.xingyu.system.support.RedisGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -58,7 +59,10 @@ public class CaptchaService {
                 imageBase64 = "data:image/png;base64," + lineCaptcha.getImageBase64();
         }
 
-        redisTemplate.opsForValue().set(CAPTCHA_KEY_PREFIX + uuid, code.toLowerCase(), 5, TimeUnit.MINUTES);
+        RedisGuard.required(
+                () -> redisTemplate.opsForValue().set(
+                        CAPTCHA_KEY_PREFIX + uuid, code.toLowerCase(), 5, TimeUnit.MINUTES),
+                "captcha-store");
 
         Map<String, Object> result = new HashMap<>();
         result.put("uuid", uuid);
@@ -70,8 +74,10 @@ public class CaptchaService {
         if (uuid == null || code == null || uuid.isBlank() || code.isBlank()) {
             throw new IllegalArgumentException("请输入验证码");
         }
-        String cacheCode = redisTemplate.opsForValue().get(CAPTCHA_KEY_PREFIX + uuid);
-        redisTemplate.delete(CAPTCHA_KEY_PREFIX + uuid);
+        String cacheCode = RedisGuard.required(
+                () -> redisTemplate.opsForValue().get(CAPTCHA_KEY_PREFIX + uuid),
+                "captcha-read");
+        RedisGuard.required(() -> redisTemplate.delete(CAPTCHA_KEY_PREFIX + uuid), "captcha-delete");
         if (cacheCode == null || !cacheCode.equalsIgnoreCase(code.trim())) {
             throw new IllegalArgumentException("验证码错误或已过期");
         }

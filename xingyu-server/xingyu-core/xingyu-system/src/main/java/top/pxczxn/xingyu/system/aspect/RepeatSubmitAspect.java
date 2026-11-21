@@ -4,6 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.system.annotation.RepeatSubmit;
+import top.pxczxn.xingyu.system.support.RedisGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,10 +45,12 @@ public class RepeatSubmitAspect {
         String cacheKey = buildCacheKey(request, joinPoint);
 
         // 尝试设置 Redis key，如果已存在则说明是重复提交
-        Boolean success = redisTemplate.opsForValue()
-                .setIfAbsent(cacheKey, "1", repeatSubmit.interval(), TimeUnit.MILLISECONDS);
+        Boolean success = RedisGuard.required(
+                () -> redisTemplate.opsForValue()
+                        .setIfAbsent(cacheKey, "1", repeatSubmit.interval(), TimeUnit.MILLISECONDS),
+                "repeat-submit");
 
-        if (Boolean.FALSE.equals(success)) {
+        if (!Boolean.TRUE.equals(success)) {
             log.warn("重复提交拦截: URI={}, Key={}", request.getRequestURI(), cacheKey);
             throw new BusinessException(repeatSubmit.message());
         }

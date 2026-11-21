@@ -10,6 +10,7 @@ import top.pxczxn.xingyu.common.exception.BusinessException;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
 import top.pxczxn.xingyu.system.identity.AdminConsoleIdentityPort;
 import top.pxczxn.xingyu.system.identity.AdminConsolePrincipal;
+import top.pxczxn.xingyu.system.support.RedisGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -81,7 +82,7 @@ public class PasswordLoginStrategy implements LoginStrategy {
             throw new BusinessException("您不是管理端用户，无法登录后台管理系统");
         }
 
-        redisTemplate.delete(retryKey);
+        RedisGuard.required(() -> redisTemplate.delete(retryKey), "admin-login-retry");
         return loginHelper.doLogin(
                 principal.id(),
                 principal.loginName(),
@@ -102,17 +103,21 @@ public class PasswordLoginStrategy implements LoginStrategy {
             if (request.getPhone() == null || request.getCode() == null) {
                 throw new BusinessException("请输入手机号和验证码");
             }
-            String cacheCode = redisTemplate.opsForValue().get("sms:login:" + request.getPhone());
+            String cacheCode = RedisGuard.required(
+                    () -> redisTemplate.opsForValue().get("sms:login:" + request.getPhone()),
+                    "admin-sms-captcha");
             if (cacheCode == null || !cacheCode.equals(request.getCode())) {
                 throw new BusinessException("短信验证码错误或已过期");
             }
-            redisTemplate.delete("sms:login:" + request.getPhone());
+            RedisGuard.required(() -> redisTemplate.delete("sms:login:" + request.getPhone()), "admin-sms-captcha");
         } else {
             if (request.getUuid() == null || request.getCode() == null) {
                 throw new BusinessException("请输入验证码");
             }
-            String cacheCode = redisTemplate.opsForValue().get(CAPTCHA_KEY + request.getUuid());
-            redisTemplate.delete(CAPTCHA_KEY + request.getUuid());
+            String cacheCode = RedisGuard.required(
+                    () -> redisTemplate.opsForValue().get(CAPTCHA_KEY + request.getUuid()),
+                    "admin-captcha");
+            RedisGuard.required(() -> redisTemplate.delete(CAPTCHA_KEY + request.getUuid()), "admin-captcha");
             if (cacheCode == null || !cacheCode.equalsIgnoreCase(request.getCode())) {
                 throw new BusinessException("验证码错误或已过期");
             }
@@ -123,20 +128,24 @@ public class PasswordLoginStrategy implements LoginStrategy {
         int retryCount = getRetryCount(retryKey);
         int maxRetry = configHelper.getMaxRetryCount();
         if (retryCount >= maxRetry) {
-            Long ttl = redisTemplate.getExpire(retryKey, TimeUnit.MINUTES);
+            Long ttl = RedisGuard.required(
+                    () -> redisTemplate.getExpire(retryKey, TimeUnit.MINUTES),
+                    "admin-login-retry");
             loginHelper.recordFailLog(username, "账号已锁定");
             throw new BusinessException("账号已锁定，请" + ttl + "分钟后重试");
         }
     }
 
     private int getRetryCount(String retryKey) {
-        String str = redisTemplate.opsForValue().get(retryKey);
+        String str = RedisGuard.required(() -> redisTemplate.opsForValue().get(retryKey), "admin-login-retry");
         return str != null ? Integer.parseInt(str) : 0;
     }
 
     private void incrementRetry(String retryKey) {
         int count = getRetryCount(retryKey) + 1;
-        redisTemplate.opsForValue().set(retryKey, String.valueOf(count),
-                configHelper.getLockTime(), TimeUnit.MINUTES);
+        RedisGuard.required(
+                () -> redisTemplate.opsForValue().set(
+                        retryKey, String.valueOf(count), configHelper.getLockTime(), TimeUnit.MINUTES),
+                "admin-login-retry");
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.util.PropertyPlaceholderHelper;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -13,6 +14,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -50,8 +52,22 @@ class BrowserTestProfileConfigTest {
         assertEquals(6, dev.getProperty("spring.data.redis.database"));
         assertTrue(String.valueOf(dev.getProperty("spring.datasource.password")).contains("DB_PASSWORD"));
 
-        assertTrue(String.valueOf(prod.getProperty("spring.datasource.url")).contains("xingyu_hub"));
-        assertEquals("${REDIS_DATABASE:6}", prod.getProperty("spring.data.redis.database"));
+        String prodUrl = String.valueOf(prod.getProperty("spring.datasource.url"));
+        assertEquals("${DB_URL}", prodUrl);
+        assertFalse(prodUrl.contains("xingyu_hub"));
+        assertFalse(prodUrl.contains("xingyu_hub_test"));
+        assertEquals("${DB_USERNAME}", prod.getProperty("spring.datasource.username"));
+        assertEquals("${DB_PASSWORD}", prod.getProperty("spring.datasource.password"));
+        assertEquals("${REDIS_DATABASE}", prod.getProperty("spring.data.redis.database"));
+        assertEquals("${SERVER_ADDRESS:127.0.0.1}", prod.getProperty("server.address"));
+        assertEquals(false, prod.getProperty("xingyu.schema.migration.enabled"));
+        assertEquals(false, prod.getProperty("xingyu.security.allow-default-admin-password"));
+        assertEquals("2000ms", String.valueOf(prod.getProperty("spring.data.redis.lettuce.pool.max-wait")));
+        PropertyPlaceholderHelper placeholders = new PropertyPlaceholderHelper("${", "}", ":", false);
+        assertThrows(IllegalArgumentException.class, () -> placeholders.replacePlaceholders(
+                String.valueOf(prod.getProperty("spring.datasource.url")), name -> null));
+        assertThrows(IllegalArgumentException.class, () -> placeholders.replacePlaceholders(
+                String.valueOf(prod.getProperty("spring.data.redis.database")), name -> null));
 
         assertEquals(0, test.getProperty("server.port"));
         assertEquals(7, test.getProperty("spring.data.redis.database"));

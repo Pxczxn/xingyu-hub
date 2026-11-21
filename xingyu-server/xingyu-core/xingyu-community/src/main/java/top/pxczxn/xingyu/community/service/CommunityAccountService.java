@@ -30,6 +30,7 @@ import top.pxczxn.xingyu.sms.SmsServiceFactory;
 import top.pxczxn.xingyu.system.helper.RegisterRoleWhitelist;
 import top.pxczxn.xingyu.system.helper.SystemConfigHelper;
 import top.pxczxn.xingyu.system.service.CaptchaService;
+import top.pxczxn.xingyu.system.support.RedisGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -308,7 +309,9 @@ public class CommunityAccountService {
                         ErrorCode.AUTH_INVALID_CREDENTIALS,
                         "邮箱或密码错误，还剩" + remaining + "次机会");
             }
-            Long ttl = redisTemplate.getExpire(retryKey, TimeUnit.MINUTES);
+            Long ttl = RedisGuard.required(
+                    () -> redisTemplate.getExpire(retryKey, TimeUnit.MINUTES),
+                    "community-login-retry");
             throw new ContractException(
                     ErrorCode.AUTH_INVALID_CREDENTIALS,
                     "账号已锁定，请" + (ttl != null && ttl > 0 ? ttl : configHelper.getLockTime()) + "分钟后重试");
@@ -320,7 +323,7 @@ public class CommunityAccountService {
             throw new ContractException(ErrorCode.AUTH_FORBIDDEN, "临时密码已过期，请联系管理员重新重置");
         }
 
-        redisTemplate.delete(retryKey);
+        RedisGuard.required(() -> redisTemplate.delete(retryKey), "community-login-retry");
         if (configHelper.isSingleLogin()) {
             revokeActiveSessions(user.getId());
         }
@@ -979,7 +982,9 @@ public class CommunityAccountService {
         int retryCount = getCommunityRetryCount(retryKey);
         int maxRetry = configHelper.getMaxRetryCount();
         if (retryCount >= maxRetry) {
-            Long ttl = redisTemplate.getExpire(retryKey, TimeUnit.MINUTES);
+            Long ttl = RedisGuard.required(
+                    () -> redisTemplate.getExpire(retryKey, TimeUnit.MINUTES),
+                    "community-login-retry");
             throw new ContractException(
                     ErrorCode.AUTH_INVALID_CREDENTIALS,
                     "账号已锁定，请" + (ttl != null && ttl > 0 ? ttl : configHelper.getLockTime()) + "分钟后重试");
@@ -1007,17 +1012,21 @@ public class CommunityAccountService {
     }
 
     private int getCommunityRetryCount(String retryKey) {
-        String str = redisTemplate.opsForValue().get(retryKey);
+        String str = RedisGuard.required(
+                () -> redisTemplate.opsForValue().get(retryKey),
+                "community-login-retry");
         return str != null ? Integer.parseInt(str) : 0;
     }
 
     private void incrementCommunityRetry(String retryKey) {
         int count = getCommunityRetryCount(retryKey) + 1;
-        redisTemplate.opsForValue().set(
-                retryKey,
-                String.valueOf(count),
-                configHelper.getLockTime(),
-                TimeUnit.MINUTES);
+        RedisGuard.required(
+                () -> redisTemplate.opsForValue().set(
+                        retryKey,
+                        String.valueOf(count),
+                        configHelper.getLockTime(),
+                        TimeUnit.MINUTES),
+                "community-login-retry");
     }
 
     private void validateRegisterInput(String email, String username, String password, String termsVersion) {
