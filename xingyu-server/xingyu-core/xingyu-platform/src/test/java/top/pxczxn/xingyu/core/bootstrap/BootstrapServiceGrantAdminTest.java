@@ -15,6 +15,10 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.springframework.jdbc.core.RowMapper;
+
+import cn.hutool.crypto.digest.BCrypt;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
@@ -79,17 +83,22 @@ class BootstrapServiceGrantAdminTest {
     }
 
     @Test
-    void matchingSecretGrantsWithoutTouchingSysUser() {
+    void matchingSecretGrantsThenSealsArchiveDefaultHashes() {
         stubProdOnly();
         String expectedHash = sha256Hex(SECRET);
         when(jdbcTemplate.queryForList(contains("bootstrap.deploy_secret_hash")))
                 .thenReturn(List.of(Map.of("param_value", expectedHash)));
         when(grantPort.grantExistingByEmail(EMAIL))
                 .thenReturn(new CommunityAdminGrantResult(USER_ID, false));
+        String seedHash = BCrypt.hashpw("admin123", BCrypt.gensalt());
+        when(jdbcTemplate.query(contains("FROM sys_user"), any(RowMapper.class)))
+                .thenReturn(java.util.Collections.singletonList(new Object[]{1L, seedHash}));
+        when(jdbcTemplate.update(contains("UPDATE sys_user SET password"), any(), any())).thenReturn(1);
 
         service.grantCommunityAdmin(SECRET, EMAIL);
 
         verify(grantPort).grantExistingByEmail(EMAIL);
+        verify(jdbcTemplate).update(contains("UPDATE sys_user SET password"), any(), eq(1L));
         verify(jdbcTemplate).update(
                 contains("INSERT INTO admin_audit"),
                 eq("bootstrap"),
@@ -98,6 +107,25 @@ class BootstrapServiceGrantAdminTest {
                 eq(USER_ID),
                 eq("SUCCESS"),
                 any());
+    }
+
+    @Test
+    void missingCommunityAccountStillSealsArchiveHashesAfterSecretCheck() {
+        stubProdOnly();
+        String expectedHash = sha256Hex(SECRET);
+        when(jdbcTemplate.queryForList(contains("bootstrap.deploy_secret_hash")))
+                .thenReturn(List.of(Map.of("param_value", expectedHash)));
+        String seedHash = BCrypt.hashpw("admin123", BCrypt.gensalt());
+        when(jdbcTemplate.query(contains("FROM sys_user"), any(RowMapper.class)))
+                .thenReturn(java.util.Collections.singletonList(new Object[]{1L, seedHash}));
+        when(jdbcTemplate.update(contains("UPDATE sys_user SET password"), any(), any())).thenReturn(1);
+        when(grantPort.grantExistingByEmail(EMAIL)).thenThrow(new IllegalStateException("community account not found"));
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class, () -> service.grantCommunityAdmin(SECRET, EMAIL));
+        assertEquals("community account not found", ex.getMessage());
+        verify(jdbcTemplate).update(contains("UPDATE sys_user SET password"), any(), eq(1L));
+        verify(jdbcTemplate, never()).update(contains("INSERT INTO admin_audit"), any(), any(), any(), any(), any(), any());
     }
 
     private void stubProdOnly() {

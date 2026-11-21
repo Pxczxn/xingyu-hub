@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.pxczxn.xingyu.system.identity.CommunityAdminGrantPort;
 import top.pxczxn.xingyu.system.identity.CommunityAdminGrantResult;
+import top.pxczxn.xingyu.core.security.DefaultAdminPasswordGuard;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -93,8 +94,11 @@ public class BootstrapService {
 
     /**
      * 将已有社区账号授予 {@code admin} 角色。账号由 {@code XINGYU_BOOTSTRAP_COMMUNITY_ACCOUNT} 邮箱定位。
+     *
+     * <p>本方法不加类级事务：档案默认口令封存与社区授权是两步。封存在校验部署密钥之后立即提交，
+     * 这样空库尚无社区账号时也能解开 Web 守卫，随后公开注册、再跑一次本命令完成授权。
+     * 社区授权本身由 {@link CommunityAdminGrantPort} 的事务边界负责，失败时只回滚角色写入。
      */
-    @Transactional
     public void grantCommunityAdmin() {
         grantCommunityAdmin(
                 requireEnv("XINGYU_DEPLOY_SECRET"),
@@ -104,11 +108,21 @@ public class BootstrapService {
     void grantCommunityAdmin(String deploySecret, String email) {
         requireExactProdProfile();
         verifyDeploySecret(deploySecret);
-        CommunityAdminGrantResult result = communityAdminGrantPort.grantExistingByEmail(email);
+        int sealed = new DefaultAdminPasswordGuard(jdbcTemplate)
+                .replaceKnownDefaultHashesWithUnusable(DefaultAdminPasswordGuard.DEFAULT_PASSWORD_CANDIDATES);
+        CommunityAdminGrantResult result;
+        try {
+            result = communityAdminGrantPort.grantExistingByEmail(email);
+        } catch (RuntimeException ex) {
+            System.out.println("Bootstrap CLI : sealedArchiveDefaultHashes=" + sealed
+                    + "; community admin grant failed: " + ex.getMessage());
+            throw ex;
+        }
         String outcome = result.alreadyGranted() ? "already granted" : "granted";
         audit("bootstrap", "GRANT_ADMIN", outcome, result.communityUserId(), "SUCCESS");
         System.out.println("Bootstrap CLI : community admin " + outcome
-                + " id=" + result.communityUserId());
+                + " id=" + result.communityUserId()
+                + ", sealedArchiveDefaultHashes=" + sealed);
     }
 
     private void requireExactProdProfile() {

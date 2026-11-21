@@ -76,7 +76,8 @@ xingyu:
     cors:
       allowed-origins: ${XINGYU_CORS_ALLOWED_ORIGINS:}
     # 迁移基线为保留可复现的迁移链，种子数据里保留了 admin 的已知默认口令。
-    # 生产启动时 DefaultAdminPasswordGuard 会扫描 sys_user，命中即终止启动。
+    # 对外 Web 启动时 DefaultAdminPasswordGuard 会扫描 sys_user，命中即终止启动。
+    # grant-admin（非 Web）会把匹配的档案哈希封存为不可登录值，然后才能启动 Web。
     default-admin-passwords: admin123,123456,admin
     # 仅在确认风险后临时置 true 才能放行，默认必须为 false。
     allow-default-admin-password: false

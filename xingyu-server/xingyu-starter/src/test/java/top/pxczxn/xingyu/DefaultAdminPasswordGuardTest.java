@@ -7,12 +7,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 import top.pxczxn.xingyu.core.security.DefaultAdminPasswordGuard;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -67,5 +69,36 @@ class DefaultAdminPasswordGuardTest {
         assertTrue(guard.detectDefaultPasswordAccounts(List.of("admin123"))
                         .stream().anyMatch(h -> h.startsWith("admin")),
                 "还原后应重新命中");
+    }
+
+    @Test
+    void webGuardRunAbortsWhileDefaultHashRemains() {
+        DefaultAdminPasswordGuard guard = new DefaultAdminPasswordGuard(jdbcTemplate);
+        ReflectionTestUtils.setField(guard, "defaultPasswords", "admin123");
+        ReflectionTestUtils.setField(guard, "allowDefaultAdminPassword", false);
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> guard.run(null));
+        assertTrue(ex.getMessage().contains("grant-admin"));
+        assertTrue(ex.getMessage().contains("拒绝启动") || ex.getMessage().contains("启动中止"));
+    }
+
+    @Test
+    void sealingDefaultHashClearsGuardHitsWithoutChangingCommunityUsers() {
+        List<Object[]> originals = jdbcTemplate.query(
+                "SELECT id, password FROM sys_user WHERE password IS NOT NULL",
+                (rs, rowNum) -> new Object[]{rs.getObject(1), rs.getString(2)});
+        Integer communityCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM community_user", Integer.class);
+        try {
+            DefaultAdminPasswordGuard guard = new DefaultAdminPasswordGuard(jdbcTemplate);
+            int sealed = guard.replaceKnownDefaultHashesWithUnusable(List.of("admin123"));
+            assertTrue(sealed >= 1);
+            assertTrue(guard.detectDefaultPasswordAccounts(List.of("admin123")).isEmpty());
+            assertEquals(communityCount, jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM community_user", Integer.class));
+        } finally {
+            for (Object[] row : originals) {
+                jdbcTemplate.update("UPDATE sys_user SET password = ? WHERE id = ?", row[1], row[0]);
+            }
+        }
     }
 }
